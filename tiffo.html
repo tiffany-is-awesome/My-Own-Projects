@@ -950,6 +950,13 @@ const Auth = {
     return { user: this.user };
   },
 
+  /** Send the "confirm your email" message again. */
+  async resendConfirmation(email) {
+    const sb = await this.supabase();
+    const { error } = await sb.auth.resend({ type: 'signup', email: email.trim().toLowerCase(), options: { emailRedirectTo: location.href.split('#')[0] } });
+    if (error) throw new Error(error.message);
+  },
+
   async resetPassword(email) {
     if (!this.useSupabase()) throw new Error('Device-only accounts can\'t send reset emails. Switch AUTH_PROVIDER to \'supabase\' for that.');
     const sb = await this.supabase();
@@ -3417,7 +3424,19 @@ const UI = {
     });
   },
 
-  authError(msg) { const el = $('#authError'); el.textContent = msg; el.classList.remove('hidden'); },
+  authError(msg, offerResend = false) {
+    const el = $('#authError'); el.textContent = msg; el.classList.remove('hidden');
+    if (offerResend) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'mt-2 block font-semibold underline'; b.textContent = '📨 Resend confirmation email';
+      b.onclick = async () => {
+        b.disabled = true; b.textContent = 'Sending…';
+        try { await Auth.resendConfirmation($('#authEmail').value); b.textContent = '✅ Sent! Check your inbox (and Spam).'; }
+        catch (err) { b.disabled = false; b.textContent = '📨 Resend confirmation email'; toast(escapeHTML(/rate limit|too many/i.test(err.message) ? 'Too many emails for now. Try again in a few minutes.' : err.message)); }
+      };
+      el.appendChild(b);
+    }
+  },
 
   updatePwMeter(pw) {
     let score = 0;
@@ -3443,7 +3462,7 @@ const UI = {
       const migrate = this.authMode === 'signup' && $('#authMigrate').checked && !$('#migrateField').classList.contains('hidden');
       const res = this.authMode === 'signup' ? await Auth.signUp(creds) : await Auth.signIn(creds);
       if (res.pendingConfirmation) {
-        this.closeAuth(); toast('📧 Check your inbox to confirm your email, then sign in.', { duration: 8000 }); return;
+        this.closeAuth(); toast('📧 Almost done! We emailed you a link. Click it to confirm your account (check Spam too), then sign in.', { duration: 12000 }); return;
       }
       let hadData = Store.load();
       // Same email used for an older "this device only" account here? Bring those books along.
@@ -3456,7 +3475,12 @@ const UI = {
       await this.onUserChanged();
       toast(this.authMode === 'signup' ? `🎉 Welcome, ${escapeHTML(Auth.user.name)}! Your account is ready.` : `👋 Welcome back, ${escapeHTML(Auth.user.name)}.`);
     } catch (e) {
-      this.authError(e.message || 'Something went wrong. Please try again.');
+      const msg = e.message || 'Something went wrong. Please try again.';
+      if (/email not confirmed|not confirmed/i.test(msg)) this.authError('📧 Please confirm your email first: open the email from Supabase and click the link inside. Can\'t find it? Check Spam, or send a new one below.', true);
+      else if (/invalid login credentials/i.test(msg)) this.authError('Email or password is incorrect. (New here? Use the Sign up tab.)');
+      else if (/already registered|already exists/i.test(msg)) this.authError('This email already has an account. Use the Sign in tab instead.');
+      else if (/rate limit|too many/i.test(msg)) this.authError('Too many emails sent for now. Please wait a few minutes and try again.');
+      else this.authError(msg);
     } finally { btn.disabled = false; btn.textContent = label; }
   },
 
