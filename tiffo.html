@@ -146,6 +146,7 @@
             <div id="menuProvider" class="mt-1 inline-block text-[10px] font-semibold rounded-full px-2 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"></div>
           </div>
           <hr class="my-1 border-stone-200 dark:border-stone-800" />
+ <button type="button" id="aiToggleBtn" class="hidden w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800" role="menuitemcheckbox"></button>
           <button id="signOutBtn" class="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800" role="menuitem">Sign out</button>
           <button id="deleteAccountBtn" class="w-full text-left rounded-lg px-3 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40" role="menuitem">Delete account & data</button>
         </div>
@@ -635,7 +636,7 @@ const LS = (() => {
 })();
 
 const CONFIG = {
-  AI_PROVIDER: 'none',                 // set to 'supabase' after deploying the tiffo-ai function (see SETUP-ONLINE.md)
+  AI_PROVIDER: 'none',                 // 'supabase' = free Google Gemini through the tiffo-ai function (see SETUP-ONLINE.md)
   API_KEY: '',                         // e.g. 'sk-ant-...' or 'sk-...'
   MODELS: {
     anthropic: 'claude-sonnet-5-5',    // any vision-capable Claude model
@@ -1548,9 +1549,13 @@ const Chime = {
    6. AI ADAPTER — optional. Every function falls back to local logic.
    ========================================================================= */
 const AI = {
+  /** Supabase AI is set up and this person is signed in (they may still have it switched off). */
+  available() { return CONFIG.AI_PROVIDER === 'supabase' && !!(Auth.useSupabase() && Auth.user && Auth.user.provider === 'cloud'); },
+
   enabled() {
     const p = CONFIG.AI_PROVIDER;
-    if (p === 'supabase') return !!(Auth.useSupabase() && Auth.user && Auth.user.provider === 'cloud');   // signed-in users only
+    // Free Gemini via Supabase: signed-in users who have switched AI on (it shares data with Google).
+    if (p === 'supabase') return !!(this.available() && (Store.state.settings || {}).aiConsent);
     return p !== 'none' && (p === 'proxy' || !!CONFIG.API_KEY);
   },
 
@@ -2704,7 +2709,7 @@ const UI = {
     const summary = (Array.isArray(r.summary) ? r.summary : [r.summary]).slice(0, 3);
     const flags = r.redFlags || [];
     const obligations = r.obligations || [];
-    const src = { ai: 'AI model', ocr: 'On-device OCR + rules', local: 'On-device rules' }[r.source] || '';
+    const src = { ai: '✨ Read by AI (Gemini)', ocr: 'On-device OCR + rules', local: 'On-device rules' }[r.source] || '';
 
     const receiptBlock = r.receipt && r.receipt.total ? `
       <div class="rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex flex-wrap items-center gap-3">
@@ -2769,7 +2774,7 @@ const UI = {
                 <p class="mt-1 text-xs italic text-stone-500 dark:text-stone-400 leading-relaxed">${escapeHTML(p.original)}</p></details>` : ''}
             </li>`).join('')}
           </ol>
-          <p class="mt-3 text-[11px] text-stone-500 dark:text-stone-400">${r.source === 'ai' ? 'Rewritten by AI.' : 'Rewritten with built-in rules: it swaps legal words for everyday ones, so some sentences may still read stiffly.'} Always check the original before signing.</p>
+          <p class="mt-3 text-[11px] text-stone-500 dark:text-stone-400">${r.source === 'ai' ? 'Rewritten by AI (Google Gemini).' : 'Rewritten with built-in rules: it swaps legal words for everyday ones, so some sentences may still read stiffly.'} Always check the original before signing.</p>
         </details>` : ''}
         ${receiptBlock}
       </div>`;
@@ -3359,6 +3364,11 @@ const UI = {
       $('#menuName').textContent = u.name; $('#menuEmail').textContent = u.email;
       $('#menuProvider').textContent = u.provider === 'cloud' ? (Cloud.label() || '☁️ Cloud account') : '🔒 Saved on this device';
     }
+    const t = $('#aiToggleBtn');
+    t.classList.toggle('hidden', !AI.available());
+    const on = AI.enabled();
+    t.setAttribute('aria-checked', on);
+    t.innerHTML = `✨ Free AI (Google Gemini): <b class="${on ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-500'}">${on ? 'On' : 'Off'}</b>`;
     this.renderAiLabel();
   },
 
@@ -3368,8 +3378,9 @@ const UI = {
 
   renderAiLabel() {
     const el = $('#aiModeLabel'); if (!el) return;
-    if (AI.enabled()) el.textContent = '✨ AI is on: Claude reads your notes and documents.';
-    else if (CONFIG.AI_PROVIDER === 'supabase') el.textContent = '✨ Sign in to use AI-powered reading of notes and documents.';
+    if (AI.enabled()) el.textContent = '✨ Free AI (Google Gemini) is on for your notes and documents. Switch it off in your account menu.';
+    else if (AI.available()) el.textContent = '✨ Free AI is available: switch it on in your account menu (top right).';
+    else if (CONFIG.AI_PROVIDER === 'supabase') el.textContent = '✨ Sign in to use free AI for your notes and documents.';
     else el.textContent = 'Running fully on-device. Notes and documents are read with built-in rules.';
   },
 
@@ -3559,6 +3570,19 @@ const UI = {
     $('#authClose').addEventListener('click', () => this.closeAuth());
     $('#authGuest').addEventListener('click', () => { this.closeAuth(); toast('You\'re using Tiffo as a guest. Sign up any time from the top right.'); });
     $('#authModal').addEventListener('click', (e) => { if (e.target.id === 'authModal') this.closeAuth(); });
+    $('#aiToggleBtn').addEventListener('click', async () => {
+      const st = (Store.state.settings ||= {});
+      if (!st.aiConsent) {
+        $('#accountMenu').classList.add('hidden');
+        const ok = await askConfirm('Turn on free AI? Tiffo will send the notes you type and the documents you scan to Google\'s free Gemini AI so it can read them. On the free plan, Google may use this to improve its products, and people at Google may read it. Avoid using AI on very private documents. You can switch it off any time.', 'Turn on AI');
+        if (!ok) return;
+        st.aiConsent = true; Store.save(); this.renderAccount();
+        toast('✨ Free AI is on. Try a messy note or scan a receipt.');
+      } else {
+        st.aiConsent = false; Store.save(); this.renderAccount();
+        toast('AI is off. Tiffo will use its built-in rules.');
+      }
+    });
     $('#signOutBtn').addEventListener('click', async () => {
       $('#accountMenu').classList.add('hidden');
       await Auth.signOut(); this.onUserChanged(); toast('Signed out. You\'re now viewing the guest ledger.');
