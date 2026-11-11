@@ -537,7 +537,16 @@
     </div>
     <div id="remDrawerList" class="flex-1 overflow-y-auto scroll-thin px-5 py-4 space-y-5"></div>
     <div class="px-5 py-3 border-t border-stone-200 dark:border-stone-800 text-[11px] leading-snug text-stone-500 dark:text-stone-400 flex items-center justify-between gap-3">
-      <span>Alarms ring while Tiffo is open. Tap 📅 or G to add one to your calendar.</span>
+      <span class="space-y-1.5">
+        <label class="flex items-center gap-2 text-stone-600 dark:text-stone-300 font-semibold">📅 Auto-add new reminders to:
+          <select id="autoCalSelect" class="rounded-md border border-stone-300 dark:border-stone-700 bg-transparent text-[11px] py-0.5 pl-1.5 pr-6">
+            <option value="off">Off (ask each time)</option>
+            <option value="ics">My phone/computer calendar</option>
+            <option value="google">Google Calendar</option>
+          </select>
+        </label>
+        <span class="block">Alarms ring while Tiffo is open; calendar alarms ring even when it's closed.</span>
+      </span>
       <button type="button" id="remClearDone" class="shrink-0 font-semibold text-rose-600 dark:text-rose-400 hover:underline">Clear done</button>
     </div>
   </aside>
@@ -626,7 +635,7 @@ const LS = (() => {
 })();
 
 const CONFIG = {
-  AI_PROVIDER: 'none',
+  AI_PROVIDER: 'none',                 // set to 'supabase' after deploying the tiffo-ai function (see SETUP-ONLINE.md)
   API_KEY: '',                         // e.g. 'sk-ant-...' or 'sk-...'
   MODELS: {
     anthropic: 'claude-sonnet-5-5',    // any vision-capable Claude model
@@ -652,7 +661,8 @@ const CONFIG = {
                   (email confirmation, password reset, sign-in from any device).
                   1) Create a free project at supabase.com
                   2) Paste the Project URL + anon public key below
-                  Ledger data still stays in each device's localStorage, keyed by user. */
+                  With Supabase on, each cloud account's books also sync between devices
+                  (table "tiffo_data", see supabase/setup.sql and SETUP-ONLINE.md). */
   AUTH_PROVIDER: 'local',
   SUPABASE_URL: '',                    // e.g. 'https://abcd1234.supabase.co'
   SUPABASE_ANON_KEY: '',               // the "anon public" key (safe to expose)
@@ -773,11 +783,11 @@ function toast(msg, opts = {}) {
   const el = document.createElement('div');
   el.className = 'animate-in rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-lg px-4 py-3 text-sm flex items-center gap-3';
   el.innerHTML = `<span class="flex-1">${msg}</span>`;
-  if (opts.action) {
+  for (const action of [...(opts.actions || []), ...(opts.action ? [opts.action] : [])]) {
     const b = document.createElement('button');
-    b.className = 'font-semibold text-emerald-400 dark:text-emerald-700 hover:underline';
-    b.textContent = opts.action.label;
-    b.onclick = () => { opts.action.fn(); el.remove(); };
+    b.className = 'font-semibold text-emerald-400 dark:text-emerald-700 hover:underline whitespace-nowrap';
+    b.textContent = action.label;
+    b.onclick = () => { action.fn(); el.remove(); };
     el.appendChild(b);
   }
   $('#toasts').appendChild(el);
@@ -880,7 +890,7 @@ const Auth = {
     this.sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
     return this.sb;
   },
-  fromSupabaseUser(u) { return u ? { id: 'sb:' + u.id, name: u.user_metadata?.name || u.email.split('@')[0], email: u.email, provider: 'cloud' } : null; },
+  fromSupabaseUser(u) { return u ? { id: 'sb:' + u.id, uid: u.id, name: u.user_metadata?.name || u.email.split('@')[0], email: u.email, provider: 'cloud' } : null; },
 
   // ---------- public API ----------
   async restore() {
@@ -909,7 +919,7 @@ const Auth = {
     email = email.trim().toLowerCase(); name = name.trim();
     if (this.useSupabase()) {
       const sb = await this.supabase();
-      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name } } });
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { name }, emailRedirectTo: location.href.split('#')[0] } });
       if (error) throw new Error(error.message);
       if (!data.session) return { pendingConfirmation: true };
       this.user = this.fromSupabaseUser(data.user); return { user: this.user };
@@ -955,6 +965,9 @@ const Auth = {
   /** Removes the account (local) and its ledger from this device. */
   async deleteAccount() {
     if (!this.user) return;
+    if (this.user.provider === 'cloud') {
+      try { await (await this.supabase()).from('tiffo_data').delete().eq('user_id', this.user.uid); } catch (e) { console.warn('Cloud delete failed', e); }
+    }
     LS.removeItem(Store.keyFor(this.user));
     if (this.user.id.startsWith('local:')) { const u = this.users(); delete u[this.user.email]; this.saveUsers(u); }
     await this.signOut();
@@ -970,7 +983,7 @@ const Store = {
   /** Each account gets its own storage slot; guests use the base key. */
   keyFor(user) { return CONFIG.STORAGE_KEY + (user ? ':' + user.id : ''); },
   key() { return this.keyFor(Auth.user); },
-  blank() { return { initialBalance: 0, currency: detectCurrency(), transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], createdAt: Date.now() }; },
+  blank() { return { initialBalance: 0, currency: detectCurrency(), transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], createdAt: Date.now(), savedAt: 0 }; },
 
   load() {
     this.state = this.blank();
@@ -980,7 +993,14 @@ const Store = {
     } catch (e) { console.warn('Could not read saved data', e); }
     return false;
   },
+  /** Save locally, and (for cloud accounts) sync to Supabase a moment later. */
   save() {
+    this.state.savedAt = Date.now();
+    this.saveLocal();
+    if (typeof Cloud !== 'undefined' && Cloud.on()) Cloud.schedule();
+  },
+
+  saveLocal() {
     try { LS.setItem(this.key(), JSON.stringify(this.state)); }
     catch (e) {
       // Quota exceeded — drop document thumbnails first, then retry.
@@ -1162,6 +1182,68 @@ const Parser = {
     const confidence = !amt ? 0 : Math.min(1, 0.45 + Math.abs(inc - exp) * 0.1 + ((type === 'income' ? incCat : expCat) ? 0.2 : 0));
     const description = raw.replace(/\s+/g, ' ').replace(/^./, (c) => c.toUpperCase());
     return { type, amount: amt ? round2(amt.value) : null, category, date: this.extractDate(raw), description, confidence };
+  },
+};
+
+/* =========================================================================
+   5a. CLOUD SYNC — one row per user in Supabase table "tiffo_data".
+   Last change wins (compares savedAt). Pulls on sign-in, when the tab comes
+   back into view, and every 60 s; pushes ~1 s after any change.
+   ========================================================================= */
+const Cloud = {
+  status: 'off', lastSync: 0, timer: null, busy: false,
+
+  on() { return !!(Auth.useSupabase() && Auth.user && Auth.user.provider === 'cloud'); },
+
+  setStatus(st) { this.status = st; if (st === 'synced') this.lastSync = Date.now(); UI.renderSyncStatus?.(); },
+
+  label() {
+    if (!this.on()) return '';
+    if (this.status === 'saving' || this.status === 'syncing') return '☁️ Syncing…';
+    if (this.status === 'error') return '⚠️ Offline: saved on this device, will sync later';
+    if (this.lastSync) {
+      const m = Math.round((Date.now() - this.lastSync) / 60000);
+      return `☁️ Synced ${m < 1 ? 'just now' : m + ' min ago'} · works on all your devices`;
+    }
+    return '☁️ Cloud account';
+  },
+
+  /** Bring this device up to date. Returns true if local data was replaced. */
+  async pull() {
+    if (!this.on() || this.busy) return false;
+    this.busy = true; this.setStatus('syncing');
+    try {
+      const sb = await Auth.supabase();
+      const { data, error } = await sb.from('tiffo_data').select('data, updated_at').eq('user_id', Auth.user.uid).maybeSingle();
+      if (error) throw error;
+      const localAt = Store.state.savedAt || 0;
+      const remoteAt = data ? (data.data?.savedAt || Date.parse(data.updated_at) || 0) : 0;
+      if (data && data.data && remoteAt > localAt) {
+        Store.state = { ...Store.blank(), ...data.data };
+        Store.saveLocal();
+        this.setStatus('synced');
+        return true;
+      }
+      if (!data || localAt > remoteAt) await this.push(true);
+      else this.setStatus('synced');
+      return false;
+    } catch (e) {
+      console.warn('Cloud pull failed', e); this.setStatus('error'); return false;
+    } finally { this.busy = false; }
+  },
+
+  schedule() { clearTimeout(this.timer); this.setStatus('saving'); this.timer = setTimeout(() => this.push(), 1000); },
+
+  async push(inPull = false) {
+    if (!this.on()) return;
+    try {
+      const sb = await Auth.supabase();
+      const { error } = await sb.from('tiffo_data').upsert({
+        user_id: Auth.user.uid, data: Store.state, updated_at: new Date(Store.state.savedAt || Date.now()).toISOString(),
+      });
+      if (error) throw error;
+      this.setStatus('synced');
+    } catch (e) { console.warn('Cloud push failed', e); this.setStatus('error'); if (!inPull) setTimeout(() => this.on() && this.schedule(), 30000); }
   },
 };
 
@@ -1466,11 +1548,23 @@ const Chime = {
    6. AI ADAPTER — optional. Every function falls back to local logic.
    ========================================================================= */
 const AI = {
-  enabled() { return CONFIG.AI_PROVIDER !== 'none' && (CONFIG.AI_PROVIDER === 'proxy' || !!CONFIG.API_KEY); },
+  enabled() {
+    const p = CONFIG.AI_PROVIDER;
+    if (p === 'supabase') return !!(Auth.useSupabase() && Auth.user && Auth.user.provider === 'cloud');   // signed-in users only
+    return p !== 'none' && (p === 'proxy' || !!CONFIG.API_KEY);
+  },
 
   /** Low-level call. `image` is a data URL or null. Returns the model's text. */
   async call({ system, prompt, image = null, task }) {
     const p = CONFIG.AI_PROVIDER;
+    if (p === 'supabase') {
+      // Calls supabase/functions/tiffo-ai — the Claude API key stays on the server.
+      const sb = await Auth.supabase();
+      const { data, error } = await sb.functions.invoke('tiffo-ai', { body: { task, system, prompt, image } });
+      if (error) throw new Error('AI function error: ' + (error.message || error));
+      if (data?.error) throw new Error(data.error);
+      return data.text;
+    }
     if (p === 'proxy') {
       const r = await fetch(CONFIG.PROXY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task, system, prompt, image }) });
       if (!r.ok) throw new Error('Proxy error ' + r.status);
@@ -2746,12 +2840,7 @@ const UI = {
       const r = Store.addReminder(Reminders.parse(text));
       $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
       this.renderReminders();
-      const past = r.remindAt < Date.now();
-      toast(`⏰ Reminder set for ${Reminders.whenLabel(r.remindAt)}${past ? ' (that time has passed, so it rings now)' : ''}`, {
-        action: { label: 'Undo', fn: () => { Store.state.reminders = Store.state.reminders.filter((x) => x.id !== r.id); Store.save(); UI.renderReminders(); } },
-      });
-      this.maybeAskNotifications();
-      this.checkAlarms();
+      this.afterReminderCreated(r, r.remindAt < Date.now() ? ' (that time has passed, so it rings now)' : '');
       return;
     }
     if (Budgets.isBudget(text)) {
@@ -2896,6 +2985,33 @@ const UI = {
     return `Will ${Budgets.find(p.name) ? 'update' : 'set'} budget: <span class="font-semibold text-emerald-700 dark:text-emerald-400">🎯 ${escapeHTML(p.name)}</span> · ${what}`;
   },
 
+  /* ---------- calendar ---------- */
+  downloadIcs(r) {
+    const blob = new Blob([Reminders.ics(r)], { type: 'text/calendar' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = r.title.replace(/[^\w\- ]+/g, '').slice(0, 40).trim().replace(/\s+/g, '-') + '.ics';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  },
+  /** how: 'ics' (phone/computer calendar app) or 'google' */
+  addToCalendar(r, how) {
+    if (how === 'google') { window.open(Reminders.googleUrl(r), '_blank', 'noopener'); toast('📅 Google Calendar opened. Press <b>Save</b> there.'); }
+    else { this.downloadIcs(r); toast('📅 Calendar file downloaded. Open it to add the alarm to your calendar.'); }
+  },
+  calendarPref() { return (Store.state.settings || {}).autoCalendar || 'off'; },
+
+  /** Shared follow-up after any reminder is created. */
+  afterReminderCreated(r, extra = '') {
+    const pref = this.calendarPref();
+    if (pref !== 'off') this.addToCalendar(r, pref);
+    const undo = { label: 'Undo', fn: () => { Store.state.reminders = Store.state.reminders.filter((x) => x.id !== r.id); Store.save(); UI.renderReminders(); } };
+    toast(`⏰ Reminder set for ${escapeHTML(Reminders.whenLabel(r.remindAt))}${extra}`, {
+      duration: 7000,
+      actions: pref === 'off' ? [{ label: '📅 Add to calendar', fn: () => this.addToCalendar(r, /android|iphone|ipad|mac/i.test(navigator.userAgent) ? 'ics' : 'google') }] : [],
+      action: undo,
+    });
+    this.maybeAskNotifications(); this.checkAlarms();
+  },
+
   /* ---------- reminders ---------- */
   /** One reminder row (used by the card and the 🔔 drawer). */
   reminderItemHTML(r) {
@@ -2976,6 +3092,7 @@ const UI = {
 
   openRemDrawer() {
     this.remTab = 'open';
+    $('#autoCalSelect').value = this.calendarPref();
     $('#remDrawer').classList.remove('hidden');
     this.renderRemDrawer();
     setTimeout(() => $('#remQuickInput').focus(), 60);
@@ -2988,10 +3105,8 @@ const UI = {
     if (!text) return $('#remQuickInput').focus();
     const r = Store.addReminder(Reminders.parse(text));
     $('#remQuickInput').value = ''; $('#remQuickPreview').textContent = '';
-    this.renderReminders(); this.renderRemDrawer(); this.maybeAskNotifications(); this.checkAlarms();
-    toast(`⏰ Reminder set for ${escapeHTML(Reminders.whenLabel(r.remindAt))}`, {
-      action: { label: 'Undo', fn: () => { Store.state.reminders = Store.state.reminders.filter((x) => x.id !== r.id); Store.save(); UI.renderReminders(); } },
-    });
+    this.renderReminders(); this.renderRemDrawer();
+    this.afterReminderCreated(r);
   },
 
   maybeAskNotifications() {
@@ -3064,7 +3179,7 @@ const UI = {
         ${ex('Deadline is on Sunday, make an alarm for the day before')}
         ${ex('Remind me to send the invoice tomorrow at 10am')}
         ${ex('Meeting with Ana on Friday 3pm, alert me 1 hour before')}
-        <p>Tap the <b>🔔 bell</b> at the top any time to see all your reminders, add new ones and tick them off.</p>
+        <p>Tap the <b>🔔 bell</b> at the top any time to see all your reminders, add new ones and tick them off. In the bell panel you can also choose to <b>add every new reminder to your calendar automatically</b>.</p>
         <p class="text-stone-500 dark:text-stone-400">Alarms ring while Tiffo is open. Tap 📅 on a reminder to add it to your phone's calendar so it rings even when Tiffo is closed.</p>` },
       { emoji: '🎯', title: 'Budgets by typing', hero: 'from-emerald-500 to-lime-600', body: `
         <p>Tell Tiffo how much should go where. It tracks this month's spending in that category and shows <b>how much is left</b> in the 🎯 Budgets pie chart.</p>
@@ -3224,9 +3339,9 @@ const UI = {
         this.closeAuth(); toast('📧 Check your inbox to confirm your email, then sign in.', { duration: 8000 }); return;
       }
       const hadData = Store.load();
-      if (migrate && !hadData) { Store.state = guestState; Store.state.transactions.forEach((t) => delete t.demo); Store.save(); }
+      if (migrate && !hadData) { Store.state = guestState; Store.state.transactions.forEach((t) => delete t.demo); Store.state.savedAt = Date.now(); Store.saveLocal(); }
       this.closeAuth();
-      this.onUserChanged();
+      await this.onUserChanged();
       toast(this.authMode === 'signup' ? `🎉 Welcome, ${escapeHTML(Auth.user.name)}! Your account is ready.` : `👋 Welcome back, ${escapeHTML(Auth.user.name)}.`);
     } catch (e) {
       this.authError(e.message || 'Something went wrong. Please try again.');
@@ -3241,13 +3356,36 @@ const UI = {
     if (u) {
       $('#accountAvatar').textContent = u.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
       $('#menuName').textContent = u.name; $('#menuEmail').textContent = u.email;
-      $('#menuProvider').textContent = u.provider === 'cloud' ? '☁️ Cloud account' : '🔒 Saved on this device';
+      $('#menuProvider').textContent = u.provider === 'cloud' ? (Cloud.label() || '☁️ Cloud account') : '🔒 Saved on this device';
     }
+    this.renderAiLabel();
   },
 
-  onUserChanged() {
+  renderSyncStatus() {
+    if (Auth.user && Auth.user.provider === 'cloud') $('#menuProvider').textContent = Cloud.label() || '☁️ Cloud account';
+  },
+
+  renderAiLabel() {
+    const el = $('#aiModeLabel'); if (!el) return;
+    if (AI.enabled()) el.textContent = '✨ AI is on: Claude reads your notes and documents.';
+    else if (CONFIG.AI_PROVIDER === 'supabase') el.textContent = '✨ Sign in to use AI-powered reading of notes and documents.';
+    else el.textContent = 'Running fully on-device. Notes and documents are read with built-in rules.';
+  },
+
+  /** After another device changed the data. */
+  afterRemoteUpdate() {
+    Budgets.registerCategories(); this.applyCurrency(); this.lastBalance = null;
+    this.renderAll(); Layout.apply(); toast('☁️ Updated with changes from your other device.');
+  },
+
+  async onUserChanged() {
     if (Layout.focused) Layout.unfocus();
     Store.load();
+    Cloud.lastSync = 0; Cloud.setStatus(Cloud.on() ? 'syncing' : 'off');
+    if (Cloud.on()) {
+      const replaced = await Promise.race([Cloud.pull(), new Promise((r) => setTimeout(() => r(false), 6000))]);
+      if (replaced) toast('☁️ Loaded your books from the cloud.');
+    }
     Store.cleanupAutoDemo();
     Budgets.registerCategories();
     this.applyCurrency();
@@ -3320,13 +3458,7 @@ const UI = {
       else if (e.target.closest('.rem-del')) {
         Store.state.reminders = Store.state.reminders.filter((x) => x.id !== r.id); Store.save(); this.renderReminders();
         toast('Reminder deleted.', { action: { label: 'Undo', fn: () => { Store.state.reminders.push(r); Store.save(); UI.renderReminders(); } } });
-      } else if (e.target.closest('.rem-cal')) {
-        const blob = new Blob([Reminders.ics(r)], { type: 'text/calendar' });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = r.title.replace(/[^\w\- ]+/g, '').slice(0, 40).trim().replace(/\s+/g, '-') + '.ics';
-        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-        toast('📅 Open the downloaded file to add it to your calendar.');
-      }
+      } else if (e.target.closest('.rem-cal')) this.addToCalendar(r, 'ics');
     };
     $('#reminderList').addEventListener('click', onReminderClick);
     $('#remDrawerList').addEventListener('click', onReminderClick);
@@ -3343,6 +3475,10 @@ const UI = {
       if (!v) { $('#remQuickPreview').textContent = ''; return; }
       const r = Reminders.parse(v);
       $('#remQuickPreview').textContent = `Will ring ${Reminders.whenLabel(r.remindAt)} (${Reminders.countdown(r.remindAt)}) · ${r.title}`;
+    });
+    $('#autoCalSelect').addEventListener('change', (e) => {
+      (Store.state.settings ||= {}).autoCalendar = e.target.value; Store.save();
+      toast(e.target.value === 'off' ? 'New reminders won\'t be added to your calendar automatically.' : '📅 New reminders will be added to your calendar automatically.');
     });
     $('#remClearDone').addEventListener('click', async () => {
       const n = (Store.state.reminders || []).filter((r) => r.done).length; if (!n) return;
@@ -3478,6 +3614,7 @@ const UI = {
     $('#previewBanner').classList.toggle('hidden', LS.persistent);
     await Auth.restore();
     Store.load();
+    if (Cloud.on()) await Promise.race([Cloud.pull(), new Promise((r) => setTimeout(r, 6000))]);
     Store.cleanupAutoDemo();
     Budgets.registerCategories();
     this.applyCurrency();
@@ -3491,9 +3628,11 @@ const UI = {
     this.renderEmptyDoc();
     this.renderAll();
     Layout.apply();
-    $('#aiModeLabel').textContent = AI.enabled()
-      ? `AI mode: ${CONFIG.AI_PROVIDER}`
-      : 'Running fully on-device (no AI key set). Add one in CONFIG to upgrade parsing & document reading.';
+    this.renderAiLabel();
+    // Keep cloud accounts in step with other devices.
+    const refresh = async () => { if (Cloud.on() && document.visibilityState === 'visible' && await Cloud.pull()) this.afterRemoteUpdate(); };
+    document.addEventListener('visibilitychange', refresh);
+    setInterval(() => { refresh(); this.renderSyncStatus(); }, 60000);
     this.maybeAskNotifications();
     setInterval(() => { this.checkAlarms(); if (!(Store.state.reminders || []).length) return; this.renderReminders(); }, 15000);
     setTimeout(() => this.checkAlarms(), 1500);
