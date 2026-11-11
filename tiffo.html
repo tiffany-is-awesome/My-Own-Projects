@@ -1682,6 +1682,18 @@ const LegalAnalyzer = {
       why: (m) => `Payment is due ${m[1] || m[2]} days after invoicing — plan your cash flow for that gap.` },
     { re: /governed by the laws of (?:the )?(?:state of )?([A-Z][A-Za-z ]+?)[,.;]/, sev: 'low', label: 'Out-of-area law',
       why: (m) => `Disputes are governed by ${m[1].trim()} law — this could mean travel or hiring a lawyer there.` },
+    { re: /(?:payable|paid|due) (?:in full )?(?:in advance|upfront|up-front)|advance payment|prepay/i, sev: 'medium', label: 'Pay in advance',
+      why: 'You pay before getting the work or goods. If they don\'t deliver, getting money back can be hard.' },
+    { re: /(?:may|reserves? the right to) (?:amend|modify|change|update) (?:this agreement|these terms|the terms)(?: at any time)?(?: without(?: prior)? notice)?|at its sole discretion/i, sev: 'high', label: 'They can change the deal alone',
+      why: 'The other side can change the rules whenever they like, and you\'re bound by the new version.' },
+    { re: /(?:share|disclose|sell|transfer) (?:your |customer |personal )?(?:data|information) (?:with|to) (?:third parties|affiliates|partners)/i, sev: 'medium', label: 'Your data may be shared',
+      why: 'Your (or your customers\') information can be passed to other companies.' },
+    { re: /minimum (?:term|commitment|period|order)|(?:non-cancell?able|cannot be cancell?ed)/i, sev: 'medium', label: 'Minimum commitment',
+      why: 'You must stay (or keep paying) for a set time, even if you stop using it.' },
+    { re: /terminate (?:this agreement )?(?:at any time|for any reason|for convenience)(?:,? with or without cause)?/i, sev: 'low', label: 'Either side can walk away',
+      why: 'The agreement can be ended easily. Good for flexibility, but the other side can drop you too.' },
+    { re: /(?:penalt(?:y|ies)|fine[sd]?) of\b/i, sev: 'medium', label: 'Penalty charges',
+      why: 'There are set penalties if a rule is broken. Check what triggers them.' },
     { re: /confidential/i, sev: 'low', label: 'Confidentiality duty',
       why: 'You must keep their information private — usually even after the contract ends.' },
   ],
@@ -1792,6 +1804,34 @@ const LegalAnalyzer = {
     [/\bprior written notice\b/gi, 'written notice in advance'],
     [/\bin lieu of\b/gi, 'instead of'],
     [/\bsaid\b(?= [a-z])/gi, 'the'],
+    [/\s*\((?:the |hereinafter )?["“][^"”]{1,30}["”]\)/g, ''],                 // drop ("Agency") style labels
+    [/\bwith or without cause\b/gi, 'for any reason'],
+    [/\bfor convenience\b/gi, 'whenever they choose'],
+    [/\bat (?:its|their) sole discretion\b/gi, 'whenever they decide'],
+    [/\bwithout prior notice\b/gi, 'without warning'],
+    [/\bshall be entitled to\b/gi, 'can'],
+    [/\bis entitled to\b/gi, 'can'],
+    [/\bin full force and effect\b/gi, 'still in effect'],
+    [/\bnull and void\b/gi, 'cancelled'],
+    [/\bwritten consent\b/gi, 'written permission'],
+    [/\bmaterial breach\b/gi, 'serious broken promise'],
+    [/\bbreach(?:es)?\b/gi, (m) => (/es$/i.test(m) ? 'breaks' : 'breaking')],
+    [/\bremedies\b/gi, 'ways to fix it'],
+    [/\bcure\b(?= (?:the|such|any) )/gi, 'fix'],
+    [/\bassign or transfer\b/gi, 'hand over'],
+    [/\bsubcontract\b/gi, 'hire someone else to do'],
+    [/\bwarrant(?:s|ies)?\b/gi, (m) => (/ies$/i.test(m) ? 'promises' : /s$/i.test(m) ? 'promises' : 'promise')],
+    [/\bas is\b/gi, 'as it is, with no promises'],
+    [/\bhereinbefore\b/gi, 'earlier'],
+    [/\bto the extent (?:permitted|allowed) by (?:applicable )?law\b/gi, 'as far as the law allows'],
+    [/\bapplicable law\b/gi, 'the law'],
+    [/\binvoices?\b(?= (?:will|must) be)/gi, (m) => m],
+    [/\bupon\b/gi, 'on'],
+    [/\bensure\b/gi, 'make sure'],
+    [/\bterminated\b/gi, 'ended'],
+    [/\bremaining balance of the (?:term|contract|agreement)\b/gi, 'money still owed for the rest of the contract'],
+    [/\bremaining balance\b/gi, 'money still owed'],
+    [/\bsuch\b(?= [a-z]+\b)/gi, 'that'],
   ],
 
   /* Fancy multi-word phrases → everyday words (checked before single words). */
@@ -1862,7 +1902,7 @@ const LegalAnalyzer = {
     // "horse blind" → "blind horse" (the fancy version puts the description after the noun)
     out = out.replace(/\b(horse|dog|cat|cow|pig|bat|bird|mouse|man|woman|person|animal|child)\s+(blind|deaf)\b/gi, '$2 $1');
     // Fix "a"/"an" after swaps ("an equine" → "a horse"); leaves "an hour", "an honest" alone.
-    return out.replace(/\b([Aa])n (?=(?!hour|honest|honou?r|heir)[bcdfghjklmnpqrstvwxyz])/g, '$1 ').replace(/\b([Aa]) (?=[aeio])/g, '$1n ');
+    return out.replace(/\b([Aa])n (?=(?!hour|honest|honou?r|heir)[bcdfghjklmnpqrstvwxyz])/g, '$1 ').replace(/\b([Aa]) (?=(?!one\b|one-|once|uni|use|usu|eu)[aeio])/g, '$1n ').replace(/\b([Aa])n (?=(?:one\b|one-|once|uni|use|usu|eu))/g, '$1 ');
   },
 
   idiomNote(x) {
@@ -1879,6 +1919,34 @@ const LegalAnalyzer = {
   },
 
   /** Split into sections ("1. Fees. …") and rewrite each in plain English. */
+  ROLES: ['Client', 'Customer', 'Tenant', 'Landlord', 'Lessee', 'Lessor', 'Contractor', 'Freelancer', 'Consultant', 'Employee', 'Employer',
+          'Buyer', 'Seller', 'Vendor', 'Supplier', 'Licensee', 'Licensor', 'Agency', 'Company', 'Provider', 'Service Provider', 'Borrower', 'Lender', 'Member', 'User', 'Subscriber'],
+
+  /** Who the document talks about, e.g. ["Agency", "Client"]. */
+  parties(text) {
+    const found = new Set();
+    for (const m of text.matchAll(/\(\s*(?:the |hereinafter )?["“]([A-Z][A-Za-z ]{1,24})["”]\s*\)/g)) found.add(m[1].trim());
+    for (const r of this.ROLES) if (new RegExp(`\\b${r}\\b`).test(text) && (text.match(new RegExp(`\\b${r}\\b`, 'g')) || []).length >= 2) found.add(r);
+    return [...found].slice(0, 4);
+  },
+
+  /** Rewrite a sentence from one party's point of view ("Client must…" → "You must…"). */
+  personalize(text, me) {
+    if (!me) return text;
+    const esc = me.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let t = text
+      .replace(new RegExp(`\\b(?:the )?${esc}'s\\b`, 'g'), 'your').replace(new RegExp(`\\b(?:The )?${esc}'s\\b`, 'g'), 'Your')
+      .replace(new RegExp(`(^|[.!?]\\s+)(?:The )?${esc}\\b`, 'g'), '$1You')
+      .replace(new RegExp(`\\b(?:the )?${esc}\\b`, 'g'), 'you');
+    // Fix verbs after "you": "you agrees" → "you agree", "you is" → "you are"
+    const fix = { agrees: 'agree', provides: 'provide', pays: 'pay', has: 'have', is: 'are', was: 'were', gives: 'give', hands: 'hand',
+      ends: 'end', owns: 'own', receives: 'receive', reserves: 'reserve', keeps: 'keep', accepts: 'accept', acknowledges: 'acknowledge',
+      covers: 'cover', takes: 'take', uses: 'use', makes: 'make', needs: 'need', wants: 'want', becomes: 'become', follows: 'follow',
+      breaks: 'break', promises: 'promise', does: 'do', represents: 'represent', remains: 'remain', returns: 'return', submits: 'submit' };
+    t = t.replace(/\b([Yy]ou) (\w+)\b/g, (m, y, v) => `${y} ${fix[v.toLowerCase()] || v}`);
+    return t.replace(/\byou hereby\b/gi, 'you');
+  },
+
   plainEnglish(text, docType) {
     const t = text.replace(/\r/g, '').trim();
     if (docType === 'Receipt' || docType === 'Invoice') {
@@ -1913,7 +1981,7 @@ const LegalAnalyzer = {
       const rule = this.RULES.find((r) => r.re.test(body));
       const m = rule && body.match(rule.re);
       const note = rule ? `${rule.sev === 'high' ? '🚩' : rule.sev === 'medium' ? '⚠️' : 'ℹ️'} ${typeof rule.why === 'function' ? rule.why(m) : rule.why}` : '';
-      if (heading.startsWith('Part ') && /^this agreement is made between\b/i.test(body)) heading = 'Who it\'s between';
+      if (heading.startsWith('Part ') && /^this (?:agreement|lease|contract)\b.{0,30}\bbetween\b/i.test(body)) heading = 'Who it\'s between';
       const plain = heading === 'Title' ? `This document is called “${body}”.` : this.plainSentence(body);
       const idiom = this.idiomNote(plain);
       const unchanged = heading !== 'Title' && plain.replace(/\W/g, '').toLowerCase() === body.replace(/\W/g, '').toLowerCase();
@@ -1977,7 +2045,7 @@ const LegalAnalyzer = {
       ];
     }
     const title = (t.split('\n').map((l) => l.trim()).find((l) => l.length > 3) || docType).slice(0, 60);
-    return { docType, title, summary, obligations: obligations.slice(0, 6), redFlags: flags, receipt, plainEnglish: this.plainEnglish(t, docType) };
+    return { docType, title, summary, obligations: obligations.slice(0, 6), redFlags: flags, receipt, plainEnglish: this.plainEnglish(t, docType), parties: this.parties(t) };
   },
 };
 
@@ -2765,10 +2833,16 @@ const UI = {
               <span class="text-xs text-stone-500 group-open:rotate-180 transition" aria-hidden="true">▾</span>
             </span>
           </summary>
+          ${(r.parties || []).length >= 1 ? `
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <span class="font-semibold text-emerald-900 dark:text-emerald-200">Read it as:</span>
+            <button type="button" data-me="" class="me-btn rounded-full px-2.5 py-1 border font-semibold ${!UI.translatorMe ? 'bg-emerald-600 text-white border-emerald-600' : 'border-emerald-300 dark:border-emerald-800 hover:bg-white dark:hover:bg-stone-800'}">Just explain it</button>
+            ${r.parties.map((p) => `<button type="button" data-me="${escapeHTML(p)}" class="me-btn rounded-full px-2.5 py-1 border font-semibold ${UI.translatorMe === p ? 'bg-emerald-600 text-white border-emerald-600' : 'border-emerald-300 dark:border-emerald-800 hover:bg-white dark:hover:bg-stone-800'}">I'm the ${escapeHTML(p)}</button>`).join('')}
+          </div>` : ''}
           <ol class="mt-3 space-y-3">${r.plainEnglish.map((p) => `
             <li class="rounded-xl bg-white/90 dark:bg-stone-900/70 border border-emerald-200/70 dark:border-emerald-900/50 p-3">
               <div class="text-xs font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">${escapeHTML(p.heading || '')}</div>
-              <p class="text-sm mt-1 leading-relaxed">${escapeHTML(p.plain || '')}</p>
+              ${UI.plainHTML(LegalAnalyzer.personalize(p.plain || '', UI.translatorMe))}
               ${p.note ? `<p class="text-xs mt-1.5 text-stone-600 dark:text-stone-300">${escapeHTML(p.note)}</p>` : ''}
               ${p.original ? `<details class="mt-1.5"><summary class="cursor-pointer text-[11px] font-semibold text-stone-400 hover:text-stone-600 dark:hover:text-stone-300">Show original wording</summary>
                 <p class="mt-1 text-xs italic text-stone-500 dark:text-stone-400 leading-relaxed">${escapeHTML(p.original)}</p></details>` : ''}
@@ -2779,9 +2853,16 @@ const UI = {
         ${receiptBlock}
       </div>`;
 
+    $$('#docOutput .me-btn').forEach((b) => b.addEventListener('click', (e) => {
+      e.preventDefault();
+      UI.translatorMe = b.dataset.me || null;
+      const open = $('#docOutput details[open]') != null;
+      this.renderDocResult(r, meta);
+      $('#docOutput .me-btn')?.closest('details')?.scrollIntoView({ block: 'nearest' });
+    }));
     $('#copyPlainBtn')?.addEventListener('click', async (e) => {
       e.preventDefault(); e.stopPropagation();
-      const txt = (r.title ? r.title + '\n\n' : '') + r.plainEnglish.map((p) => `${p.heading}\n${p.plain}${p.note ? '\n' + p.note : ''}`).join('\n\n');
+      const txt = (r.title ? r.title + '\n\n' : '') + r.plainEnglish.map((p) => `${p.heading}\n${LegalAnalyzer.personalize(p.plain, UI.translatorMe)}${p.note ? '\n' + p.note : ''}`).join('\n\n');
       try { await navigator.clipboard.writeText(txt); toast('📋 Plain-English version copied.'); }
       catch (err) {
         const ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select();
@@ -2798,6 +2879,26 @@ const UI = {
       UI.renderAll();
       toast(`Logged ${fmt(rc.total)} expense from receipt.`);
     });
+  },
+
+  translatorMe: null,
+
+  /** Plain text → HTML: bold money/numbers/time spans, and one sentence per bullet when there are several. */
+  plainHTML(text) {
+    const hl = (x) => {
+      const re = new RegExp(`((?:${CUR_PREFIX})?\\s?\\d[\\d,]*(?:\\.\\d+)?\\s*(?:%|percent|(?:business |calendar )?days?|weeks?|months?|years?|hours?|(?:\\/|per )(?:month|mo|year|yr|hour|hr|week))?(?:\\s*(?:\\/|per)\\s*(?:month|year|hour|week))?)`, 'gi');
+      let out = '', last = 0, m;
+      while ((m = re.exec(x))) {
+        if (!m[0].trim()) { re.lastIndex++; continue; }
+        const lead = m[0].length - m[0].trimStart().length, core = m[0].trim();
+        out += escapeHTML(x.slice(last, m.index + lead)) + `<b class="font-semibold text-stone-900 dark:text-white bg-amber-100/70 dark:bg-amber-900/40 rounded px-0.5">${escapeHTML(core)}</b>`;
+        last = m.index + lead + core.length;
+      }
+      return out + escapeHTML(x.slice(last));
+    };
+    const sents = text.split(/(?<=[.!?])\s+(?=[A-Z0-9₱$€£“"(])/).map((x) => x.trim()).filter(Boolean);
+    if (sents.length <= 1) return `<p class="text-sm mt-1 leading-relaxed">${hl(text)}</p>`;
+    return `<ul class="mt-1 space-y-1 text-sm leading-relaxed list-disc pl-5 marker:text-emerald-500">${sents.map((x) => `<li>${hl(x)}</li>`).join('')}</ul>`;
   },
 
   renderEmptyDoc() {
