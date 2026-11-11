@@ -7,6 +7,10 @@ create table if not exists public.tiffo_data (
   updated_at timestamptz not null default now()
 );
 
+-- Signed-in users may use the table (newer Supabase projects don't grant this automatically).
+-- Row Level Security below still limits each person to their OWN row. Guests (anon) get no access.
+grant select, insert, update, delete on table public.tiffo_data to authenticated;
+
 -- Row Level Security: every user can only see and change their OWN row.
 alter table public.tiffo_data enable row level security;
 
