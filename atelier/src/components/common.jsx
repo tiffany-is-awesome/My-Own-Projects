@@ -57,6 +57,13 @@ export function ToastProvider({ children }) {
 }
 export const useToast = () => useContext(ToastCtx);
 
+/** Click once to arm, again to confirm (no browser dialogs). */
+export function ConfirmButton({ label, confirmLabel = 'Click again to confirm', onConfirm, className = 'btn ghost sm', style }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => { if (!armed) return; const t = setTimeout(() => setArmed(false), 3500); return () => clearTimeout(t); }, [armed]);
+  return <button className={className} style={{ ...style, ...(armed ? { color: 'var(--accent)' } : {}) }} onClick={() => (armed ? (setArmed(false), onConfirm()) : setArmed(true))}>{armed ? confirmLabel : label}</button>;
+}
+
 export function ScoreBadge({ score }) {
   return <span className="score-ring"><b>{score}</b><span className="tiny">/100</span></span>;
 }

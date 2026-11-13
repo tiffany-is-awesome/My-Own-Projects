@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
-import { Modal, OutfitThumb, ScoreBadge, useToast } from '../components/common.jsx';
+import { ConfirmButton, Modal, OutfitThumb, ScoreBadge, useToast } from '../components/common.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
 import { SLOTS } from '../data/closet.js';
 
@@ -98,6 +98,7 @@ export function LookbookList({ go }) {
 export function LookbookDetail({ id, go }) {
   const { state, dispatch, resolve, get, scoreOf } = useStore();
   const toast = useToast();
+  const [sharing, setSharing] = useState(false);
   const c = state.catalogs.find((x) => x.id === id);
   if (!c) return <div className="page"><div className="empty">This lookbook no longer exists. <button className="btn sm" onClick={() => go('#/lookbooks')}>Back</button></div></div>;
   const outfits = c.outfitIds.map((oid) => state.outfits.find((o) => o.id === oid)).filter(Boolean);
@@ -107,12 +108,11 @@ export function LookbookDetail({ id, go }) {
   const packing = Object.entries(v.counts).map(([gid, n]) => ({ g: get(gid), n })).filter((x) => x.g)
     .sort((a, b) => SLOTS.indexOf(a.g.category) - SLOTS.indexOf(b.g.category) || b.n - a.n);
 
-  function share() {
-    const hasUploads = outfits.some((o) => Object.values(o.slots).some((sid) => sid && sid.startsWith('u-')));
-    const url = `${location.origin}${location.pathname}#/share/${encodeShare(c, outfits)}`;
-    const done = () => toast(hasUploads ? 'Link copied. (Your uploaded photos show as basics until accounts are live.)' : 'Read-only link copied');
-    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(done, () => { window.prompt('Copy this link', url); });
-    else window.prompt('Copy this link', url);
+  const hasUploads = outfits.some((o) => Object.values(o.slots).some((sid) => sid && sid.startsWith('u-')));
+  const shareUrl = `${location.origin}${location.pathname}#/share/${encodeShare(c, outfits)}`;
+  function copy() {
+    const ok = () => toast('Read-only link copied');
+    try { navigator.clipboard.writeText(shareUrl).then(ok, () => toast('Select the link and copy it')); } catch { toast('Select the link and copy it'); }
   }
 
   function edit(o) {
@@ -130,7 +130,7 @@ export function LookbookDetail({ id, go }) {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn" onClick={() => go('#/share/' + encodeShare(c, outfits))}>Preview shared page</button>
-          <button className="btn primary" onClick={share} disabled={!outfits.length}>Copy share link</button>
+          <button className="btn primary" onClick={() => setSharing(true)} disabled={!outfits.length}>Share</button>
         </div>
       </div>
 
@@ -183,8 +183,19 @@ export function LookbookDetail({ id, go }) {
         </div>
       )}
 
+      {sharing && (
+        <Modal title="Share this lookbook" onClose={() => setSharing(false)}>
+          <p className="small muted" style={{ marginTop: 0 }}>Anyone with this link sees a clean, read-only lookbook. No sign-in needed, and critique notes stay private.</p>
+          <div className="context-box">
+            <input className="input" readOnly value={shareUrl} onFocus={(e) => e.target.select()} aria-label="Share link" />
+            <button className="btn primary" onClick={copy}>Copy</button>
+          </div>
+          {hasUploads && <p className="tiny" style={{ marginTop: 10 }}>Pieces you uploaded appear only on your device until accounts are switched on (Phase 1).</p>}
+        </Modal>
+      )}
+
       <div style={{ marginTop: 48, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-        <button className="btn ghost sm" onClick={() => { if (window.confirm(`Delete “${c.title}”? Saved looks stay in your history.`)) { dispatch({ type: 'DELETE_CATALOG', id: c.id }); go('#/lookbooks'); } }}>Delete lookbook</button>
+        <ConfirmButton label="Delete lookbook" confirmLabel={`Delete “${c.title}”? Click again`} onConfirm={() => { dispatch({ type: 'DELETE_CATALOG', id: c.id }); go('#/lookbooks'); }} />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import Closet from './views/Closet.jsx';
 import DressingRoom from './views/DressingRoom.jsx';
 import MixMatch from './views/MixMatch.jsx';
 import Inspiration from './views/Inspiration.jsx';
+import { ConfirmButton } from './components/common.jsx';
 import { LookbookList, LookbookDetail, SharedLookbook } from './views/Lookbooks.jsx';
 
 const NAV = [
@@ -57,7 +58,7 @@ export default function App() {
       <main>{view}</main>
       <footer className="footer">
         Atelier prototype · AI is simulated by a real rules engine · data stays in this browser ·{' '}
-        <button onClick={() => { if (window.confirm('Reset the sample closet and lookbooks?')) dispatch({ type: 'RESET' }); }}>Reset demo</button>
+        <ConfirmButton className="" label="Reset demo" confirmLabel="Click again to reset everything" onConfirm={() => { dispatch({ type: 'RESET' }); window.location.hash = '#/closet'; }} />
       </footer>
     </>
   );
