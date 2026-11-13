@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pantry to Plate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a quiet retail grid. White floor, #F4F4F4 product cards, mono "spec sheet" labels, one pine accent for actions. */
+:root{
+  --bg:#FFFFFF;
+  --card:#F4F4F4;
+  --ink:#1B1C1A;
+  --muted:#6C6E69;
+  --line:#E1E2DE;
+  --accent:#1F5A4A;
+  --accent-ink:#FFFFFF;
+  --urgent:#B42318;
+  --soon:#9A5B06;
+  --field:#FFFFFF;
+  --display:"Zen Kaku Gothic New", "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
+  --body:"Zen Kaku Gothic New", "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121311; --card:#1D1F1C; --ink:#ECEDE9; --muted:#9A9C96; --line:#2E312C;
+    --accent:#5FB49A; --accent-ink:#0E1B16; --urgent:#F0715F; --soon:#E0A74A; --field:#161815;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121311; --card:#1D1F1C; --ink:#ECEDE9; --muted:#9A9C96; --line:#2E312C;
+  --accent:#5FB49A; --accent-ink:#0E1B16; --urgent:#F0715F; --soon:#E0A74A; --field:#161815;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.2}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+@media (max-width:520px){.wrap{padding:0 16px}}
+
+/* Header */
+header{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:20}
+.bar{display:flex;align-items:center;gap:24px;height:64px}
+.brand{display:flex;align-items:baseline;gap:10px;font-family:var(--display);font-weight:900;font-size:20px;letter-spacing:-.01em;white-space:nowrap}
+.brand .arrow{color:var(--accent)}
+nav{display:flex;gap:4px;margin-left:auto}
+nav button{background:none;border:0;padding:8px 12px;cursor:pointer;display:flex;gap:8px;align-items:baseline;border-bottom:2px solid transparent;font-weight:500}
+nav button .mono{font-size:11px;color:var(--muted)}
+nav button[aria-current="page"]{border-bottom-color:var(--ink)}
+.status{font-family:var(--mono);font-size:11px;padding:4px 8px;border:1px solid var(--line);white-space:nowrap}
+.status.live{border-color:var(--accent);color:var(--accent)}
+@media (max-width:720px){.bar{flex-wrap:wrap;height:auto;padding:12px 0;gap:8px}nav{margin-left:0;order:3;width:100%}.status{margin-left:auto}}
+
+main{padding:28px 0 64px}
+.view[hidden]{display:none}
+.headline{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px;margin-bottom:20px}
+.headline h1{font-size:30px;font-weight:900;letter-spacing:-.01em}
+.headline p{margin:4px 0 0;color:var(--muted);max-width:60ch}
+
+/* Buttons */
+.btn{border:1px solid var(--ink);background:var(--bg);padding:9px 16px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn:hover{background:var(--card)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn[disabled]{opacity:.5;cursor:progress}
+.seg{display:inline-flex;border:1px solid var(--ink)}
+.seg button{border:0;background:var(--bg);padding:8px 14px;cursor:pointer;font-weight:500}
+.seg button+button{border-left:1px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+select,input[type=text],input[type=number]{border:1px solid var(--line);background:var(--field);padding:8px 10px;min-width:0}
+select:focus,input:focus{border-color:var(--ink)}
+
+/* Pantry */
+.pantry-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:28px}
+@media (max-width:860px){.pantry-layout{grid-template-columns:1fr}}
+.side{display:flex;flex-direction:column;gap:20px}
+.panel{background:var(--card);padding:18px}
+.panel h3{font-size:15px;font-weight:700;margin-bottom:4px}
+.panel p{margin:0 0 12px;color:var(--muted);font-size:13px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1px dashed var(--muted);padding:22px 12px;text-align:center;cursor:pointer;background:var(--bg)}
+.drop:hover,.drop.over{border-color:var(--accent);border-style:solid}
+.drop strong{font-family:var(--display)}
+.drop span{font-size:12px;color:var(--muted)}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.scan-preview{margin-top:10px;display:none}
+.scan-preview img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.staples{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bg);padding:4px 10px;font-size:13px;cursor:pointer;user-select:none}
+.chip input{position:absolute;opacity:0;width:1px;height:1px}
+.chip:has(input:checked){border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.chip:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.addform{display:grid;grid-template-columns:1fr 64px auto;gap:6px}
+.addform input{width:100%}
+
+.summary{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:14px}
+.summary .stat{font-family:var(--mono);font-size:13px}
+.summary .stat b{font-size:18px;font-weight:500}
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
+.filters button{border:1px solid var(--line);background:var(--bg);padding:4px 10px;font-size:13px;cursor:pointer}
+.filters button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.item{background:var(--card);display:flex;flex-direction:column;position:relative;min-height:176px}
+.item .swatch{height:6px}
+.item .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
+.item .name{font-family:var(--display);font-weight:700;font-size:17px;line-height:1.25;padding-right:22px}
+.item dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:0;font-size:12px}
+.item dt{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:2px}
+.item dd{margin:0;font-family:var(--mono)}
+.item .rm{position:absolute;top:12px;right:8px;border:0;background:none;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px}
+.item .rm:hover{color:var(--ink)}
+.badge{align-self:flex-start;margin-top:auto;font-family:var(--mono);font-size:11px;padding:3px 7px;border:1px solid var(--line);background:var(--bg)}
+.badge.urgent{background:var(--urgent);border-color:var(--urgent);color:#fff}
+.badge.soon{border-color:var(--soon);color:var(--soon)}
+.item.new{animation:pop .5s ease}
+@keyframes pop{from{transform:scale(.96);background:var(--line)}to{transform:none}}
+.empty{padding:40px;text-align:center;color:var(--muted);background:var(--card)}
+
+/* Studio */
+.controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px;background:var(--card);margin-bottom:16px}
+.controls .grow{flex:1}
+.picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:20px}
+.pick{text-align:left;border:1px solid var(--line);background:var(--bg);padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:4px}
+.pick:hover{border-color:var(--muted)}
+.pick[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 -3px 0 var(--accent)}
+.pick strong{font-family:var(--display);font-size:15px;line-height:1.3}
+.pick .meta{display:flex;justify-content:space-between;gap:8px}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+.stage{position:sticky;top:84px;display:flex;flex-direction:column;gap:10px}
+@media (max-width:900px){.stage{position:static}}
+.frame{background:var(--card);aspect-ratio:4/5;width:100%;position:relative;overflow:hidden}
+.frame canvas{width:100%;height:100%;display:block}
+.frame .tag{position:absolute;left:12px;top:12px;background:var(--bg);font-family:var(--mono);font-size:11px;padding:4px 8px}
+.stage .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.stage .row .label{margin-left:auto}
+.sheet{display:flex;flex-direction:column;gap:22px}
+.sheet h2{font-size:28px;font-weight:900;letter-spacing:-.01em}
+.spec{border-top:1px solid var(--ink)}
+.spec>div{display:grid;grid-template-columns:140px 1fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center}
+.spec dt{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.spec dd{margin:0}
+.meter{height:6px;background:var(--line);position:relative;margin-top:6px}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--accent)}
+.flavor{display:grid;grid-template-columns:72px 1fr 18px;gap:6px 10px;align-items:center;font-size:13px}
+.flavor .meter{margin:0}
+.sec-title{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+.sec-title h3{font-size:16px;font-weight:700}
+.blocks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+@media (max-width:520px){.blocks{grid-template-columns:repeat(2,1fr)}}
+.blocks div{background:var(--card);padding:10px}
+.blocks b{display:block;font-size:13px;font-weight:500;margin-top:2px}
+.ings{list-style:none;margin:0;padding:0}
+.ings li{display:grid;grid-template-columns:1fr auto;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);align-items:center}
+.ings .amt{color:var(--muted);font-family:var(--mono);font-size:12px;margin-left:6px}
+.st{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;padding:2px 7px;border:1px solid var(--line);white-space:nowrap}
+.st.have{border-color:var(--accent);color:var(--accent)}
+.st.need{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.swap{display:block;font-size:12px;color:var(--muted)}
+.pillars{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:520px){.pillars{grid-template-columns:1fr}}
+.pillar{background:var(--card);padding:14px;display:flex;flex-direction:column;gap:6px}
+.pillar .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pillar h4{margin:0;font-size:14px;font-family:var(--display)}
+.score{display:flex;gap:3px}
+.score i{width:12px;height:6px;background:var(--line)}
+.score i.on{background:var(--accent)}
+.pillar p{margin:0;font-size:13px;line-height:1.5}
+.pillar p b{font-family:var(--mono);font-weight:500;margin-right:6px}
+.verdict{border-left:3px solid var(--accent);padding:4px 0 4px 14px;font-size:15px}
+.save-wrap{position:relative}
+.pop{position:absolute;z-index:10;top:calc(100% + 6px);left:0;background:var(--bg);border:1px solid var(--ink);padding:12px;min-width:260px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.pop[hidden]{display:none}
+.pop button.opt{text-align:left;border:1px solid var(--line);background:var(--bg);padding:7px 10px;cursor:pointer}
+.pop button.opt:hover{border-color:var(--ink)}
+.pop form{display:flex;gap:6px}
+.pop form input{flex:1}
+.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:32px 1fr;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.steps li::before{content:counter(s,decimal-leading-zero);font-family:var(--mono);font-size:12px;color:var(--muted);padding-top:2px}
+.rescue{display:flex;flex-wrap:wrap;gap:6px}
+.fixes{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.fix{background:var(--card);padding:10px 12px;font-size:14px}
+.fix span{display:block;color:var(--muted);font-size:12.5px}
+.loading{display:flex;align-items:center;gap:10px;color:var(--muted);font-family:var(--mono);font-size:12px;padding:14px;background:var(--card)}
+.loading::before{content:"";width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Cookbooks */
+.books{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
+@media (max-width:900px){.books{grid-template-columns:1fr}}
+.collection{margin-bottom:28px}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.rcard{background:var(--card);display:flex;flex-direction:column}
+.rcard canvas{width:100%;aspect-ratio:4/5;display:block;background:var(--line)}
+.rcard .body{padding:12px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
+.rcard strong{font-family:var(--display);font-size:15px;line-height:1.3}
+.rcard .actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;align-items:center}
+.wk{display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.wk input{accent-color:var(--accent);width:16px;height:16px}
+.list{background:var(--card);padding:18px;position:sticky;top:84px}
+.list h3{font-size:18px;font-weight:900}
+.list ul{list-style:none;margin:12px 0;padding:0}
+.list li{padding:8px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:18px 1fr;gap:8px}
+.list li input{accent-color:var(--accent);margin-top:4px}
+.list li span{display:block;font-size:12px;color:var(--muted)}
+.newcol{display:flex;gap:6px;margin-bottom:20px;max-width:420px}
+.newcol input{flex:1}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;font-size:14px;z-index:50;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-size:12px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <div class="brand">Pantry <span class="arrow">→</span> Plate</div>
+    <nav aria-label="Sections">
+      <button data-act="tab" data-tab="pantry"><span class="mono">01</span>Pantry</button>
+      <button data-act="tab" data-tab="studio"><span class="mono">02</span>Plating Studio</button>
+      <button data-act="tab" data-tab="cookbooks"><span class="mono">03</span>Cookbooks</button>
+    </nav>
+    <span class="status" id="aiStatus">AI · connecting</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- PANTRY -->
+  <section class="view" id="view-pantry">
+    <div class="headline">
+      <div>
+        <h1>Your fridge, as a grid</h1>
+        <p>Snap one photo of your open fridge, countertop or grocery receipt. Every item lands here as a card, sorted by what needs using first.</p>
+      </div>
+      <button class="btn primary" data-act="tab" data-tab="studio">Cook with what I have →</button>
+    </div>
+    <div class="pantry-layout">
+      <aside class="side">
+        <div class="panel">
+          <h3>Fridge Scan</h3>
+          <p>One photo. Claude finds every item and estimates how long it has left.</p>
+          <label class="drop" id="drop">
+            <input type="file" id="scanInput" accept="image/*">
+            <strong>Drop a photo or tap to upload</strong>
+            <span>Fridge shelf · pantry · receipt</span>
+          </label>
+          <div class="scan-preview" id="scanPreview"><img alt="Your uploaded scan" id="scanImg"></div>
+          <div id="scanState"></div>
+        </div>
+        <div class="panel">
+          <h3>Pantry staples</h3>
+          <p>Tick what you always keep. Recipes assume these are on hand.</p>
+          <div class="staples" id="staples"></div>
+        </div>
+        <div class="panel">
+          <h3>Add by hand</h3>
+          <p>Name and days until it should be used.</p>
+          <form class="addform" id="addForm">
+            <input type="text" id="addName" placeholder="e.g. Tofu, 1 block" aria-label="Item name" required>
+            <input type="number" id="addDays" min="0" max="365" value="5" aria-label="Days left">
+            <button class="btn small" type="submit">Add</button>
+          </form>
+        </div>
+      </aside>
+      <div>
+        <div class="summary" id="summary"></div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STUDIO -->
+  <section class="view" id="view-studio" hidden>
+    <div class="headline">
+      <div>
+        <h1>Plating Studio</h1>
+        <p>Pick a cuisine or let the AI freestyle. Every recipe gets a plated preview, a spec sheet and an honest critique.</p>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Recipe mode">
+        <button data-act="mode" data-mode="passport">Cuisine Passport</button>
+        <button data-act="mode" data-mode="freestyle">Freestyle</button>
+      </div>
+      <select id="cuisine" aria-label="Cuisine">
+        <option>Korean</option><option>Mexican</option><option>Italian</option><option>Thai</option><option>Japanese</option><option>Filipino</option><option>Indian</option><option>Chinese</option><option>French</option><option>Mediterranean</option>
+      </select>
+      <div class="seg" role="group" aria-label="Ingredient approach" id="variantSeg">
+        <button data-act="variant" data-variant="adapted">Fridge-Adapted</button>
+        <button data-act="variant" data-variant="authentic">Authentic</button>
+      </div>
+      <span class="grow"></span>
+      <button class="btn primary" data-act="generate" id="genBtn">Generate 3 recipes</button>
+    </div>
+    <div class="picks" id="picks"></div>
+    <div class="split">
+      <div class="stage">
+        <div class="frame"><canvas id="plate" width="800" height="1000" aria-label="Plated dish preview"></canvas><span class="tag" id="plateTag"></span></div>
+        <div class="row">
+          <label class="btn small">Stage on my table<input type="file" id="tableInput" accept="image/*" hidden></label>
+          <button class="btn small" data-act="table-clear" id="tableClear" hidden>Studio backdrop</button>
+          <span class="label">4:5 · plating preview</span>
+        </div>
+      </div>
+      <article class="sheet" id="sheet"></article>
+    </div>
+  </section>
+
+  <!-- COOKBOOKS -->
+  <section class="view" id="view-cookbooks" hidden>
+    <div class="headline">
+      <div>
+        <h1>Cookbooks</h1>
+        <p>Your saved recipes in collections. Tick the ones you'll cook this week and the list on the right shows only what you still need to buy.</p>
+      </div>
+    </div>
+    <div class="books">
+      <div>
+        <form class="newcol" id="newCol">
+          <input type="text" id="newColName" placeholder="New collection name" aria-label="New collection name" required>
+          <button class="btn small" type="submit">Create</button>
+        </form>
+        <div id="collections"></div>
+      </div>
+      <aside class="list" id="shopList"></aside>
+    </div>
+  </section>
+</main>
+<footer><div class="wrap">Pantry to Plate · prototype. Freshness estimates are guesses: trust your nose.</div></footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const CATS={produce:"#7FA35B",protein:"#C2674A",dairy:"#E6D8A8",grain:"#C9A06A",condiment:"#8E3B2E",other:"#9A9C96"};
+
+/* ---------- Seed data ---------- */
+const SEED_PANTRY=[
+  ["Chicken thigh","300 g","protein",1],["Spinach","1 bag, 150 g","produce",2],["Cilantro","½ bunch","produce",2],
+  ["Leftover rice","2 cups","grain",2],["Red bell pepper","1","produce",3],["Onion","½","produce",4],
+  ["Greek yogurt","200 g","dairy",5],["Corn tortillas","6","grain",6],["Lime","2","produce",8],
+  ["Eggs","6","protein",10],["Cheddar","120 g","dairy",12],["Gnocchi","1 pack, 400 g","grain",20],["Gochujang","½ tub","condiment",60]
+].map(([name,qty,cat,days])=>({id:uid(),name,qty,cat,days}));
+const SEED_STAPLES=[["Salt",1],["Black pepper",1],["Cooking oil",1],["Garlic",1],["Soy sauce",1],["Sugar",1],["Chili flakes",1],["Butter",1],["Vinegar",1],["Flour",0],["Fish sauce",0],["Sesame oil",0],["Cumin",0],["Honey",0]].map(([name,on])=>({name,on:!!on}));
+
+const PRESETS=[
+{id:"p-tteok",title:"Fridge Tteokbokki with Seared Gnocchi",cuisine:"Korean",mode:"passport",plating:"skillet",prep:5,cook:15,servings:2,
+ palette:["#C8341F","#EADBB8","#F2B33D","#4E8A3E"],flavor:{spicy:4,savory:4,sweet:3,sour:1,rich:3},blocks:null,
+ ingredients:[
+  {name:"Gnocchi",amount:"400 g",source:"pantry",sub_for:"Korean rice cakes (tteok)"},
+  {name:"Gochujang",amount:"2 tbsp",source:"pantry"},
+  {name:"Onion",amount:"½, sliced",source:"pantry"},
+  {name:"Eggs",amount:"2, soft-boiled",source:"pantry"},
+  {name:"Cheddar",amount:"40 g, to melt",source:"pantry",sub_for:"Mozzarella"},
+  {name:"Soy sauce",amount:"1 tbsp",source:"staple"},
+  {name:"Sugar",amount:"1 tbsp",source:"staple"},
+  {name:"Garlic",amount:"2 cloves",source:"staple"},
+  {name:"Scallions",amount:"2 stalks",source:"missing"}],
+ steps:["Soft-boil the eggs for 6½ minutes, then cool and peel.","Sear the gnocchi in oil over high heat until the edges blister, about 4 minutes. This is what gives them a rice-cake chew.","Add onion and garlic, then 250 ml water, gochujang, soy sauce and sugar. Simmer 5 minutes.","Toss the gnocchi back through until the sauce turns glossy and clings.","Lay cheddar over the top, cover 1 minute to melt, add the halved eggs and serve in the skillet."],
+ critique:{flavor:{score:4,pro:"Searing the gnocchi first gets you crisp edges and a chewy middle, close to real tteok.",con:"Gochujang and sugar can tip cloying. A squeeze of lime at the end fixes it."},
+  authenticity:{score:3,pro:"The gochujang, soy and sugar sauce is the real backbone of the dish.",con:"Gnocchi is softer and drinks sauce faster than rice cakes; there's no fish cake or anchovy stock."},
+  effort:{score:5,pro:"One skillet, about 20 minutes, almost no chopping.",con:"The eggs need a separate small pot."},
+  efficiency:{score:3,pro:"Clears the onion, two eggs and a chunk of cheddar.",con:"Your spinach expires in 2 days and isn't used. Wilt a handful in at step 4."}},
+ verdict:"A convincing weeknight tteokbokki. Add the spinach and it also does fridge-cleanup duty."},
+{id:"p-tacos",title:"Chicken Street Tacos, Lime & Cilantro",cuisine:"Mexican",mode:"passport",plating:"board",prep:10,cook:12,servings:3,
+ palette:["#B5532C","#F4EBD0","#6E9E3F","#E8D27A"],flavor:{spicy:2,savory:4,sweet:1,sour:4,rich:2},blocks:null,
+ ingredients:[
+  {name:"Chicken thigh",amount:"300 g",source:"pantry"},
+  {name:"Corn tortillas",amount:"6",source:"pantry"},
+  {name:"Onion",amount:"¼, finely diced",source:"pantry"},
+  {name:"Cilantro",amount:"½ bunch",source:"pantry"},
+  {name:"Lime",amount:"2",source:"pantry"},
+  {name:"Greek yogurt",amount:"3 tbsp",source:"pantry",sub_for:"Mexican crema"},
+  {name:"Chili flakes",amount:"1 tsp",source:"staple"},
+  {name:"Garlic",amount:"2 cloves",source:"staple"},
+  {name:"Cumin",amount:"1 tsp",source:"missing"},
+  {name:"Jalapeño",amount:"1",source:"missing"}],
+ steps:["Marinate chicken 10 minutes with garlic, chili flakes, the juice of one lime, salt and oil.","Sear over high heat 5 to 6 minutes a side until charred, rest 3 minutes and chop small.","Warm tortillas in a dry pan until they puff and spot, then stack them in a towel.","Stir lime zest and a pinch of salt into the yogurt.","Fill doubled tortillas with chicken, raw onion, cilantro and the lime yogurt. Lime wedges on the side."],
+ critique:{flavor:{score:4,pro:"Charred chicken, raw onion and lots of lime: the classic bright, sharp taqueria balance.",con:"Without cumin the marinade reads a little flat. Brown the chili flakes in oil first for depth."},
+  authenticity:{score:4,pro:"The build (doubled corn tortillas, onion, cilantro, lime) is true to a street stand.",con:"Lime yogurt standing in for crema is tangier and thinner."},
+  effort:{score:4,pro:"One pan for the chicken and one for the tortillas.",con:"There's some fine dicing and a 10-minute marinade."},
+  efficiency:{score:5,pro:"Uses up the chicken (1 day left) and cilantro (2 days left), the two most urgent items.",con:"Half the yogurt is left over."}},
+ verdict:"The best rescue for today's most urgent items. Make this one first."},
+{id:"p-bowl",title:"Crispy Rice Bowl with Spinach, Jammy Egg & Lime Yogurt",cuisine:"Freestyle",mode:"freestyle",plating:"bowl",prep:5,cook:12,servings:2,
+ palette:["#E9D9B0","#3E7A3A","#D2412B","#F7F3EA"],flavor:{spicy:2,savory:4,sweet:1,sour:3,rich:3},
+ blocks:{base:"Leftover rice, pan-crisped",protein:"Jammy eggs + spinach & pepper",aromatics:"Garlic, chili flakes",finisher:"Lime yogurt, soy drizzle"},
+ ingredients:[
+  {name:"Leftover rice",amount:"2 cups",source:"pantry"},
+  {name:"Spinach",amount:"150 g",source:"pantry"},
+  {name:"Red bell pepper",amount:"1, in strips",source:"pantry"},
+  {name:"Eggs",amount:"2",source:"pantry"},
+  {name:"Greek yogurt",amount:"3 tbsp",source:"pantry"},
+  {name:"Lime",amount:"½",source:"pantry"},
+  {name:"Garlic",amount:"2 cloves",source:"staple"},
+  {name:"Chili flakes",amount:"pinch",source:"staple"},
+  {name:"Soy sauce",amount:"2 tsp",source:"staple"}],
+ steps:["Press the cold rice into a hot oiled pan and leave it alone 6 minutes until a golden crust forms.","Meanwhile boil the eggs for 7 minutes, then cool and peel.","In a second pan, blister the pepper strips, add garlic and chili, then wilt in all the spinach.","Whisk yogurt with the lime juice and a pinch of salt.","Break the crispy rice into bowls, top with the greens and halved eggs, then spoon over the yogurt and a drizzle of soy."],
+ critique:{flavor:{score:4,pro:"Crunchy rice, soft yolk, cool tangy yogurt: plenty of contrast in every bite.",con:"Could use one more crunchy element. Toasted seeds would do it if you have them."},
+  authenticity:{score:3,pro:"Freestyle, but it borrows sensibly from bibimbap and Persian tahdig.",con:"Not tied to any one tradition, so the flavors are a little generic."},
+  effort:{score:4,pro:"Two pans and very little chopping.",con:"The rice crust needs patience; stirring it ruins it."},
+  efficiency:{score:5,pro:"Uses all the spinach and rice (both 2 days left) plus the pepper, with nothing to buy.",con:"Leaves the chicken untouched, and that expires tomorrow."}},
+ verdict:"A zero-shopping clear-out. Pair it with the tacos tomorrow and the fridge is reset."}
+];
+
+/* ---------- State ---------- */
+const S={tab:"pantry",pantry:[],staples:[],filter:"all",mode:"passport",cuisine:"Korean",variant:"adapted",
+  recipes:PRESETS.slice(),current:0,tableImg:null,saved:[],collections:[],week:[],sample:null,newIds:new Set(),loading:false};
+function load(){
+  let d=null; try{d=JSON.parse(localStorage.getItem("p2p.v1")||"null")}catch(e){}
+  if(d&&Array.isArray(d.pantry)){Object.assign(S,{pantry:d.pantry,staples:d.staples,saved:d.saved||[],collections:d.collections||[],week:d.week||[]});}
+  else{
+    S.pantry=SEED_PANTRY; S.staples=SEED_STAPLES;
+    S.collections=["Fridge Cleanout","15-Minute Lunches","Weeknight Wins"];
+    S.saved=[{id:uid(),recipe:PRESETS[0],variant:"adapted",col:"Fridge Cleanout"},{id:uid(),recipe:PRESETS[2],variant:"adapted",col:"15-Minute Lunches"},{id:uid(),recipe:PRESETS[1],variant:"adapted",col:"Weeknight Wins"}];
+    S.week=[S.saved[0].id,S.saved[2].id];
+  }
+}
+function persist(){try{localStorage.setItem("p2p.v1",JSON.stringify({pantry:S.pantry,staples:S.staples,saved:S.saved,collections:S.collections,week:S.week}))}catch(e){}}
+
+/* ---------- Matching ---------- */
+const STOP=new Set(["half","leftover","fresh","sliced","diced","cups","cup","tbsp","tsp","large","small","pack","bag","cloves","clove","the","and","for","with","red","green","yellow","bunch","block","whole","chopped","minced","optional"]);
+const words=s=>String(s).toLowerCase().replace(/[^a-z\s]/g," ").split(/\s+/).filter(w=>w.length>2&&!STOP.has(w)).map(w=>w.replace(/(es|s)$/,""));
+function owns(name){
+  const w=words(name); if(!w.length) return null;
+  for(const p of S.pantry){ if(words(p.name).some(x=>w.includes(x))) return {src:"pantry",item:p}; }
+  for(const st of S.staples){ if(st.on&&words(st.name).some(x=>w.includes(x))) return {src:"staple",item:st}; }
+  return null;
+}
+function ingStatus(ing,variant){
+  if(ing.sub_for&&variant==="authentic"){ const o=owns(ing.sub_for); return {name:ing.sub_for,src:o?o.src:"missing",swap:null}; }
+  const o=owns(ing.name);
+  let src=o?o.src:(ing.source==="staple"&&S.staples.some(s=>s.on&&words(s.name).some(x=>words(ing.name).includes(x)))?"staple":"missing");
+  return {name:ing.name,src,swap:ing.sub_for||null,item:o&&o.item};
+}
+function analyze(r,variant){
+  const list=r.ingredients.map(i=>({...ingStatus(i,variant),amount:i.amount}));
+  const core=list.filter(i=>i.src!=="staple");
+  const have=core.filter(i=>i.src==="pantry");
+  const clears=[...new Set(have.filter(i=>i.item&&i.item.days<=3).map(i=>i.item.name))];
+  return {list,core:core.length,have:have.length,pct:core.length?Math.round(have.length/core.length*100):100,clears,missing:list.filter(i=>i.src==="missing")};
+}
+
+/* ---------- Toast ---------- */
+let tt; function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),3200)}
+
+/* ---------- Tabs ---------- */
+function setTab(t){
+  S.tab=t; document.querySelectorAll(".view").forEach(v=>v.hidden=v.id!=="view-"+t);
+  document.querySelectorAll("nav button").forEach(b=>{ if(b.dataset.tab===t) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+  if(location.hash.slice(1)!==t) history.replaceState(null,"","#"+t);
+  if(t==="pantry") renderPantry(); if(t==="studio") renderStudio(); if(t==="cookbooks") renderBooks();
+  window.scrollTo({top:0});
+}
+
+/* ---------- Pantry ---------- */
+function badge(d){
+  if(d<=0) return `<span class="badge urgent">Use today</span>`;
+  if(d<=2) return `<span class="badge urgent">Use in ${d} day${d>1?"s":""}</span>`;
+  if(d<=5) return `<span class="badge soon">Use in ${d} days</span>`;
+  return `<span class="badge">Good for ${d} days</span>`;
+}
+function renderPantry(){
+  const items=S.pantry.slice().sort((a,b)=>a.days-b.days);
+  const urgent=items.filter(i=>i.days<=2).length;
+  const cats=["all","soon","produce","protein","dairy","grain","condiment"];
+  const names={all:"All",soon:"Use soon",produce:"Produce",protein:"Protein",dairy:"Dairy",grain:"Grains",condiment:"Condiments"};
+  $("#summary").innerHTML=`<span class="stat"><b>${items.length}</b> items</span><span class="stat" style="color:var(--urgent)"><b>${urgent}</b> use within 2 days</span><span class="stat"><b>${S.staples.filter(s=>s.on).length}</b> staples</span>
+   <div class="filters" role="group" aria-label="Filter">${cats.map(c=>`<button data-act="filter" data-f="${c}" aria-pressed="${S.filter===c}">${names[c]}</button>`).join("")}</div>`;
+  const shown=items.filter(i=>S.filter==="all"||(S.filter==="soon"?i.days<=5:i.cat===S.filter));
+  $("#grid").innerHTML=shown.length?shown.map(i=>`<div class="item${S.newIds.has(i.id)?" new":""}">
+    <div class="swatch" style="background:${CATS[i.cat]||CATS.other}"></div>
+    <div class="body"><div class="name">${esc(i.name)}</div>
+    <dl><dt>Qty</dt><dd>${esc(i.qty||"—")}</dd><dt>Type</dt><dd>${esc(i.cat)}</dd></dl>
+    ${badge(i.days)}</div>
+    <button class="rm" data-act="rm" data-id="${i.id}" aria-label="Remove ${esc(i.name)}">×</button></div>`).join("")
+    :`<div class="empty">Nothing here yet. Scan a photo or add an item.</div>`;
+  S.newIds.clear();
+  $("#staples").innerHTML=S.staples.map((s,i)=>`<label class="chip"><input type="checkbox" data-staple="${i}" ${s.on?"checked":""}>${esc(s.name)}</label>`).join("");
+}
+function addItems(arr){
+  arr.forEach(x=>{
+    const name=String(x.name||"").trim(); if(!name) return;
+    const ex=S.pantry.find(p=>p.name.toLowerCase()===name.toLowerCase());
+    const days=Math.max(0,Math.min(365,parseInt(x.days,10)||5));
+    const cat=CATS[x.category]?x.category:(CATS[x.cat]?x.cat:"other");
+    if(ex){ex.days=Math.min(ex.days,days);ex.qty=x.qty||ex.qty;S.newIds.add(ex.id);}
+    else{const it={id:uid(),name,qty:String(x.qty||""),cat,days};S.pantry.push(it);S.newIds.add(it.id);}
+  });
+  persist(); renderPantry();
+}
+async function scan(file){
+  if(!file) return;
+  const url=URL.createObjectURL(file); $("#scanImg").src=url; $("#scanPreview").style.display="block";
+  const st=$("#scanState");
+  if(!S.sample||!S.imagesOK){
+    st.innerHTML=`<p style="margin:10px 0 0;font-size:13px;color:var(--muted)">Live photo scanning isn't available in this view, so here's a demo result.</p>`;
+    addItems([{name:"Mushrooms",qty:"200 g",category:"produce",days:3},{name:"Firm tofu",qty:"1 block",category:"protein",days:4},{name:"Scallions",qty:"4 stalks",category:"produce",days:5}]);
+    return;
+  }
+  st.innerHTML=`<div class="loading" style="margin-top:10px">Finding items in your photo…</div>`;
+  try{
+    const res=await S.sample.json(`You are the vision step of a pantry app. Look at this photo (it may be an open fridge, a countertop, a pantry shelf, or a grocery receipt). List every distinct food ingredient you can identify.
+For each item estimate how many days it has before it should be used, based on typical freshness for that food (cooked leftovers 1-3, herbs and leafy greens 2-4, raw meat 1-2, eggs 14, hard cheese 21, condiments 60+).
+Respond with JSON only: {"items":[{"name":"Spinach","qty":"1 bag","category":"produce|protein|dairy|grain|condiment|other","days":2}]}. Use short everyday names. If there is no food, return {"items":[]}.`,{images:[file],modelTier:"default"});
+    const items=(res&&res.items)||(Array.isArray(res)?res:[]);
+    if(!items.length){st.innerHTML=`<p style="margin:10px 0 0;font-size:13px">No ingredients found. Try a closer, brighter photo.</p>`;return;}
+    addItems(items);
+    st.innerHTML=`<p style="margin:10px 0 0;font-size:13px">Added ${items.length} item${items.length>1?"s":""} to your grid.</p>`;
+  }catch(e){
+    st.innerHTML=`<p style="margin:10px 0 0;font-size:13px;color:var(--urgent)">${e&&e.code==="rate_limited"?"Too many scans just now. Wait a minute and try again.":e&&e.code==="not_granted"?"AI access wasn't granted, so the scan couldn't run.":"The scan didn't work. Try another photo."}</p>`;
+  }
+}
+
+/* ---------- Studio ---------- */
+function renderControls(){
+  document.querySelectorAll("[data-act=mode]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===S.mode));
+  document.querySelectorAll("[data-act=variant]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.variant===S.variant));
+  $("#cuisine").value=S.cuisine; $("#cuisine").hidden=S.mode!=="passport"; $("#variantSeg").hidden=S.mode!=="passport";
+  $("#genBtn").textContent=S.mode==="passport"?`Generate ${S.cuisine} recipes`:"Invent from my leftovers";
+}
+function renderStudio(){
+  renderControls();
+  if(S.loading){
+    $("#picks").innerHTML=`<div class="loading">Reading your pantry and writing three recipes. This takes about 20 seconds.</div>`;
+    return;
+  }
+  $("#picks").innerHTML=S.recipes.map((r,i)=>{const a=analyze(r,S.variant);return `<button class="pick" data-act="pick" data-i="${i}" aria-pressed="${i===S.current}">
+     <span class="label">${esc(r.cuisine)}${r.mode==="freestyle"?" · invented":""}</span><strong>${esc(r.title)}</strong>
+     <span class="meta mono" style="font-size:12px"><span>${r.prep+r.cook} min</span><span>${a.pct}% pantry match</span></span></button>`}).join("");
+  const r=S.recipes[S.current]; if(!r) return;
+  drawPlate($("#plate"),r,S.tableImg);
+  $("#plateTag").textContent=`${r.plating} · ${S.tableImg?"your table":"studio"}`;
+  $("#tableClear").hidden=!S.tableImg;
+  renderSheet(r);
+}
+function scoreBar(n){n=Math.max(0,Math.min(5,Math.round(n||0)));return `<span class="score" aria-label="${n} out of 5">${[1,2,3,4,5].map(k=>`<i class="${k<=n?"on":""}"></i>`).join("")}</span>`}
+function renderSheet(r){
+  const a=analyze(r,S.variant), f=r.flavor||{}, c=r.critique||{};
+  const P=[["flavor","Flavor & texture"],["authenticity","Authenticity vs. swaps"],["effort","Prep effort & cleanup"],["efficiency","Leftover efficiency"]];
+  const tag=s=>s.src==="pantry"?`<span class="st have">In pantry</span>`:s.src==="staple"?`<span class="st">Staple</span>`:`<span class="st need">Need to buy</span>`;
+  $("#sheet").innerHTML=`
+  <div><span class="label">${esc(r.cuisine)} · ${r.mode==="freestyle"?"Freestyle invention":(S.variant==="authentic"?"Authentic":"Fridge-Adapted")}</span>
+  <h2 style="margin-top:6px">${esc(r.title)}</h2></div>
+  <dl class="spec" style="margin:0">
+    <div><dt>Prep / Cook</dt><dd class="mono">${r.prep} min / ${r.cook} min</dd></div>
+    <div><dt>Serves</dt><dd class="mono">${r.servings||2}</dd></div>
+    <div><dt>Pantry match</dt><dd><span class="mono">${a.pct}%</span> · Uses ${a.have} of ${a.core} items you own<div class="meter"><i style="width:${a.pct}%"></i></div></dd></div>
+    <div><dt>Clears soon</dt><dd>${a.clears.length?esc(a.clears.join(", ")):"<span style='color:var(--muted)'>No items expiring within 3 days</span>"}</dd></div>
+    <div><dt>To buy</dt><dd>${a.missing.length?esc(a.missing.map(m=>m.name).join(", ")):"Nothing. You're set."}</dd></div>
+  </dl>
+  <div class="save-wrap">
+    <button class="btn primary" data-act="save-open">Save to Cookbook</button>
+    <div class="pop" id="savePop" hidden>
+      <span class="label">Save to collection</span>
+      ${S.collections.map(cn=>`<button class="opt" data-act="save-to" data-col="${esc(cn)}">${esc(cn)}</button>`).join("")}
+      <form id="popNew"><input type="text" id="popNewName" placeholder="New collection" aria-label="New collection name" required><button class="btn small" type="submit">Add</button></form>
+    </div>
+  </div>
+  <section><div class="sec-title"><h3>Spice & flavor profile</h3><span class="label">0–5</span></div>
+    <div class="flavor">${["spicy","savory","sweet","sour","rich"].map(k=>`<span>${k[0].toUpperCase()+k.slice(1)}</span><div class="meter"><i style="width:${(f[k]||0)*20}%"></i></div><span class="mono">${f[k]||0}</span>`).join("")}</div></section>
+  ${r.blocks?`<section><div class="sec-title"><h3>Building blocks</h3><span class="label">Freestyle formula</span></div><div class="blocks">
+    ${[["base","Base"],["protein","Protein / veg"],["aromatics","Aromatics"],["finisher","Acid / fat finish"]].map(([k,l])=>`<div><span class="label">${l}</span><b>${esc(r.blocks[k]||"—")}</b></div>`).join("")}</div></section>`:""}
+  <section><div class="sec-title"><h3>Ingredients</h3><span class="label">${a.list.length} items</span></div>
+    <ul class="ings">${a.list.map(s=>`<li><div>${esc(s.name)}<span class="amt">${esc(s.amount||"")}</span>${s.swap&&S.variant!=="authentic"?`<span class="swap">Stands in for ${esc(s.swap)}</span>`:""}</div>${tag(s)}</li>`).join("")}</ul></section>
+  <section><div class="sec-title"><h3>AI Chef critique</h3><span class="label">Pros & cons</span></div>
+    <div class="pillars">${P.map(([k,l])=>{const p=c[k]||{};return `<div class="pillar"><div class="top"><h4>${l}</h4>${scoreBar(p.score)}</div><p><b>+</b>${esc(p.pro||"")}</p><p><b>−</b>${esc(p.con||"")}</p></div>`}).join("")}</div>
+    ${r.verdict?`<p class="verdict" style="margin:12px 0 0">${esc(r.verdict)}</p>`:""}</section>
+  <section><div class="sec-title"><h3>Method</h3><span class="label">${(r.steps||[]).length} steps</span></div>
+    <ol class="steps">${(r.steps||[]).map(s=>`<li><span>${esc(s)}</span></li>`).join("")}</ol></section>
+  <section><div class="sec-title"><h3>Rescue my dish</h3><span class="label">Mid-cook fixes</span></div>
+    <div class="rescue">${["Too salty","Sauce too thin","Needs more depth","Too spicy","Too bland"].map(p=>`<button class="btn small" data-act="rescue" data-p="${p}">${p}</button>`).join("")}</div>
+    <div class="fixes" id="fixes"></div></section>`;
+}
+function normRecipe(x,i){
+  const clamp=(n,a,b)=>Math.max(a,Math.min(b,parseInt(n,10)||0));
+  const plat=["skillet","board","bowl","plate"].includes(x.plating)?x.plating:"plate";
+  const pal=(Array.isArray(x.palette)?x.palette:[]).filter(h=>/^#[0-9a-f]{6}$/i.test(h));
+  while(pal.length<4) pal.push(["#C8341F","#EADBB8","#4E8A3E","#F2B33D"][pal.length]);
+  const fl={}; ["spicy","savory","sweet","sour","rich"].forEach(k=>fl[k]=clamp((x.flavor||{})[k],0,5));
+  return {id:"ai-"+uid(),title:String(x.title||"Untitled dish"),cuisine:String(x.cuisine||(S.mode==="passport"?S.cuisine:"Freestyle")),mode:S.mode,plating:plat,
+    prep:clamp(x.prep_min??x.prep,0,240),cook:clamp(x.cook_min??x.cook,0,480),servings:clamp(x.servings,1,12)||2,palette:pal,flavor:fl,
+    blocks:x.blocks&&typeof x.blocks==="object"&&x.blocks.base?x.blocks:null,
+    ingredients:(x.ingredients||[]).map(g=>({name:String(g.name||""),amount:String(g.amount||""),source:g.source,sub_for:g.sub_for||null})).filter(g=>g.name),
+    steps:(x.steps||[]).map(String),critique:x.critique||{},verdict:String(x.verdict||"")};
+}
+async function generate(){
+  if(!S.sample){
+    const pool=S.mode==="freestyle"?PRESETS.filter(p=>p.mode==="freestyle"):PRESETS.filter(p=>p.mode==="passport");
+    const pref=pool.filter(p=>p.cuisine===S.cuisine);
+    S.recipes=[...pref,...pool.filter(p=>!pref.includes(p))]; S.current=0; renderStudio();
+    toast(S.mode==="passport"&&!pref.length?`Live AI isn't available here, so these are demo recipes (no ${S.cuisine} demo yet).`:"Live AI isn't available here, so these are demo recipes.");
+    return;
+  }
+  S.loading=true; $("#genBtn").disabled=true; renderStudio();
+  const pantry=S.pantry.slice().sort((a,b)=>a.days-b.days).map(p=>`- ${p.name} — ${p.qty||"some"} — use within ${p.days} days`).join("\n");
+  const staples=S.staples.filter(s=>s.on).map(s=>s.name).join(", ");
+  const modeText=S.mode==="passport"
+    ?`MODE: Cuisine Passport, ${S.cuisine} cuisine. Write 3 different well-known ${S.cuisine} dishes (street food to home cooking).
+APPROACH: ${S.variant==="authentic"?"Authentic. Use the traditional ingredients even when the user doesn't own them (mark them missing).":"Fridge-Adapted. Swap missing specialty ingredients for clever pantry substitutes, and for every swap put the traditional ingredient's name in sub_for (e.g. gnocchi with sub_for \"Korean rice cakes\")."}`
+    :`MODE: Freestyle. Invent 3 original dishes that don't fit a traditional recipe, each built from: Base + Protein/Veg + Aromatics + Acid/Fat Finisher. Size them to the actual leftover quantities and prioritize items that expire soonest. Fill the blocks object.`;
+  try{
+    const res=await S.sample.json(`You are the recipe engine of a "pantry to plate" cooking app.
+USER'S PANTRY (most urgent first):
+${pantry}
+ALWAYS-AVAILABLE STAPLES: ${staples||"none"}
+${modeText}
+
+Respond with JSON only, shaped exactly like:
+{"recipes":[{"title":"","cuisine":"","plating":"skillet|board|bowl|plate","prep_min":10,"cook_min":15,"servings":2,
+"palette":["#hex","#hex","#hex","#hex"],
+"flavor":{"spicy":0,"savory":0,"sweet":0,"sour":0,"rich":0},
+"blocks":{"base":"","protein":"","aromatics":"","finisher":""} or null,
+"ingredients":[{"name":"","amount":"","source":"pantry|staple|missing","sub_for":null}],
+"steps":["4 to 7 short imperative steps"],
+"critique":{"flavor":{"score":1-5,"pro":"","con":""},"authenticity":{...},"effort":{...},"efficiency":{...}},
+"verdict":"one sentence"}]}
+Rules: pantry ingredient names must match the pantry names exactly. palette = 4 hex colors you'd actually see on the finished plate. plating = the vessel it's served in (skillet for sizzling dishes, board for tacos/sandwiches/shared, bowl for soups/rice bowls/noodles, plate otherwise). flavor values are integers 0-5. The critique must be honest: every pillar needs a real con. "efficiency" judges how well it clears expiring items and should name any urgent item it leaves unused.`,{modelTier:"default"});
+    const arr=(res&&res.recipes)||(Array.isArray(res)?res:[]);
+    if(!arr.length) throw {code:"empty"};
+    S.recipes=arr.slice(0,3).map(normRecipe); S.current=0;
+  }catch(e){
+    toast(e&&e.code==="rate_limited"?"Too many requests just now. Wait a minute and try again.":e&&e.code==="not_granted"?"AI access wasn't granted, so you're seeing demo recipes.":"Recipe generation didn't work. Try again.");
+  }finally{S.loading=false;$("#genBtn").disabled=false;renderStudio();}
+}
+const CANNED={
+  "Too salty":[["Add more of the base, unseasoned.","Extra rice, gnocchi or tortilla dilutes the salt without changing the dish."],["Squeeze in lime.","Acid doesn't remove salt, but it distracts the palate and rebalances."],["Swirl in Greek yogurt or a little butter off the heat.","Fat and dairy soften how salty it reads."]],
+  "Sauce too thin":[["Simmer uncovered for 3 to 4 minutes.","Reduction is the cleanest fix."],["Mash a few pieces of the starch into the sauce.","Gnocchi or rice starch thickens it naturally."],["Whisk 1 tsp flour into cold water and stir it in.","Bring back to a simmer for a minute to cook out the raw taste."]],
+  "Needs more depth":[["Add a splash of soy sauce.","It gives instant savory, umami backbone."],["Brown garlic and chili flakes in oil, then add them.","The toasted aromatics bring a darker, rounder flavor."],["Finish with a squeeze of lime.","Sometimes 'flat' means it actually needs acid, not salt."]],
+  "Too spicy":[["Stir in Greek yogurt or melt over cheese.","Dairy fat binds capsaicin."],["Add a pinch of sugar.","Sweetness masks heat."],["Serve over extra rice.","Spreads the heat across more food."]],
+  "Too bland":[["Salt in small pinches, tasting between each.","Most bland food is under-salted."],["Add acid: lime or vinegar.","Brightness makes the other flavors pop."],["Top with fresh cilantro or a chili oil drizzle.","Fresh or hot finishes add contrast."]]
+};
+async function rescue(p){
+  const r=S.recipes[S.current], box=$("#fixes");
+  const show=fx=>{box.innerHTML=fx.map(([f,w])=>`<div class="fix">${esc(f)}<span>${esc(w)}</span></div>`).join("")};
+  if(!S.sample){show(CANNED[p]);return;}
+  box.innerHTML=`<div class="loading">Finding a fix with what you have…</div>`;
+  try{
+    const res=await S.sample.json(`A home cook is mid-way through making "${r.title}". Problem: "${p}".
+Ingredients they have: ${S.pantry.map(x=>x.name).join(", ")}; staples: ${S.staples.filter(s=>s.on).map(s=>s.name).join(", ")}.
+Give 3 quick fixes using ONLY those ingredients or techniques. JSON only: {"fixes":[{"fix":"short instruction","why":"one short sentence"}]}`,{modelTier:"quick"});
+    const fx=(res&&res.fixes||[]).slice(0,3).map(x=>[x.fix,x.why]);
+    show(fx.length?fx:CANNED[p]);
+  }catch(e){show(CANNED[p]);}
+}
+
+/* ---------- Plate drawing ---------- */
+function rng(seed){let h=2166136261>>>0;for(const ch of seed){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0}return()=>{h^=h<<13;h>>>=0;h^=h>>>17;h^=h<<5;h>>>=0;return (h%100000)/100000}}
+function drawPlate(cv,r,bg){
+  const x=cv.getContext("2d"),W=cv.width,H=cv.height,R=rng(r.title),pal=r.palette;
+  const k=W/800; x.setTransform(1,0,0,1,0,0); x.clearRect(0,0,W,H); x.scale(k,k);
+  const w=800,h=1000;
+  if(bg){const s=Math.max(w/bg.width,h/bg.height),iw=bg.width*s,ih=bg.height*s;x.drawImage(bg,(w-iw)/2,(h-ih)/2,iw,ih);x.fillStyle="rgba(0,0,0,.08)";x.fillRect(0,0,w,h);}
+  else{const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,"#EDEBE6");g.addColorStop(1,"#DCD8D0");x.fillStyle=g;x.fillRect(0,0,w,h);
+    x.strokeStyle="rgba(0,0,0,.035)";x.lineWidth=1;for(let i=0;i<140;i++){const yy=R()*h;x.beginPath();x.moveTo(0,yy);x.lineTo(w,yy+(R()-.5)*20);x.stroke();}}
+  const cx=400,cy=500;
+  const shadow=(b,oy)=>{x.shadowColor="rgba(0,0,0,.28)";x.shadowBlur=b;x.shadowOffsetY=oy};
+  const noShadow=()=>{x.shadowColor="transparent";x.shadowBlur=0;x.shadowOffsetY=0};
+  const blob=(bx,by,rad,col,pts=9)=>{x.fillStyle=col;x.beginPath();for(let i=0;i<=pts;i++){const a=i/pts*Math.PI*2,rr=rad*(.75+R()*.4);const px=bx+Math.cos(a)*rr,py=by+Math.sin(a)*rr;i?x.lineTo(px,py):x.moveTo(px,py)}x.closePath();x.fill()};
+  const specks=(n,rad,col,sz)=>{x.fillStyle=col;for(let i=0;i<n;i++){const a=R()*Math.PI*2,d=Math.sqrt(R())*rad;x.beginPath();x.ellipse(cx+Math.cos(a)*d,cy+Math.sin(a)*d,sz*(.6+R()*.8),sz*.5,R()*3,0,Math.PI*2);x.fill()}};
+  const egg=(ex,ey,s)=>{x.fillStyle="#FBF8F1";x.beginPath();x.ellipse(ex,ey,38*s,28*s,R(),0,Math.PI*2);x.fill();x.fillStyle="#F2AE2E";x.beginPath();x.arc(ex+2,ey,15*s,0,Math.PI*2);x.fill();x.fillStyle="rgba(255,255,255,.35)";x.beginPath();x.arc(ex-3,ey-4,5*s,0,Math.PI*2);x.fill()};
+  const hasEgg=r.ingredients.some(i=>/egg/i.test(i.name));
+  if(r.plating==="skillet"){
+    shadow(40,18); x.save();x.translate(cx,cy);x.rotate(.75);x.fillStyle="#1A1A1A";x.beginPath();x.roundRect(250,-28,260,56,26);x.fill();x.restore();
+    x.fillStyle="#232323";x.beginPath();x.arc(cx,cy,300,0,Math.PI*2);x.fill();noShadow();
+    x.fillStyle="#303030";x.beginPath();x.arc(cx,cy,272,0,Math.PI*2);x.fill();
+    x.fillStyle=pal[0];x.globalAlpha=.95;x.beginPath();x.arc(cx,cy,258,0,Math.PI*2);x.fill();x.globalAlpha=1;
+    for(let i=0;i<26;i++){const a=R()*Math.PI*2,d=Math.sqrt(R())*215;x.save();x.translate(cx+Math.cos(a)*d,cy+Math.sin(a)*d);x.rotate(R()*Math.PI);x.fillStyle=pal[1];x.beginPath();x.roundRect(-30,-14,60,28,14);x.fill();x.fillStyle="rgba(120,40,20,.35)";x.fillRect(-26,4,52,6);x.restore();}
+    for(let i=0;i<5;i++){const a=R()*Math.PI*2,d=R()*140;blob(cx+Math.cos(a)*d,cy+Math.sin(a)*d,34,pal[2]);}
+    if(hasEgg){egg(cx-60,cy-30,1.1);egg(cx+70,cy+40,1.1);}
+    specks(70,240,pal[3],7);
+  }else if(r.plating==="board"){
+    shadow(36,16);x.fillStyle="#B98A57";x.beginPath();x.roundRect(110,150,580,720,28);x.fill();noShadow();
+    x.strokeStyle="rgba(80,45,15,.18)";x.lineWidth=2;for(let i=0;i<26;i++){const xx=130+R()*540;x.beginPath();x.moveTo(xx,165);x.bezierCurveTo(xx+(R()-.5)*30,400,xx+(R()-.5)*30,650,xx+(R()-.5)*20,855);x.stroke();}
+    const spots=[[300,330],[500,500],[300,680]];
+    spots.forEach(([tx,ty],j)=>{shadow(14,6);x.fillStyle="#EAD7A6";x.beginPath();x.ellipse(tx,ty,150,120,-.25,0,Math.PI*2);x.fill();noShadow();
+      x.fillStyle="rgba(110,70,30,.18)";for(let s=0;s<14;s++){x.beginPath();x.arc(tx+(R()-.5)*240,ty+(R()-.5)*190,4+R()*6,0,Math.PI*2);x.fill();}
+      for(let b=0;b<9;b++)blob(tx+(R()-.5)*170,ty+(R()-.5)*110,22,pal[b%2?0:1]);
+      x.fillStyle=pal[2];for(let s=0;s<26;s++){x.beginPath();x.ellipse(tx+(R()-.5)*190,ty+(R()-.5)*130,6,3,R()*3,0,Math.PI*2);x.fill();}
+      x.fillStyle="#F3EEDF";for(let s=0;s<10;s++){x.fillRect(tx+(R()-.5)*170,ty+(R()-.5)*110,9,9);}});
+    [[590,250],[620,760]].forEach(([lx,ly])=>{x.fillStyle="#7DA944";x.beginPath();x.arc(lx,ly,40,Math.PI*.1,Math.PI*1.1);x.fill();x.fillStyle="#D9E8A0";x.beginPath();x.arc(lx,ly,30,Math.PI*.1,Math.PI*1.1);x.fill();});
+  }else if(r.plating==="bowl"){
+    shadow(40,20);const g=x.createRadialGradient(cx-60,cy-80,40,cx,cy,330);g.addColorStop(0,"#FFFFFF");g.addColorStop(1,"#E4E1DA");x.fillStyle=g;x.beginPath();x.arc(cx,cy,320,0,Math.PI*2);x.fill();noShadow();
+    x.fillStyle="#EEEBE4";x.beginPath();x.arc(cx,cy,282,0,Math.PI*2);x.fill();
+    const n=4;for(let s=0;s<n;s++){const a0=s/n*Math.PI*2+.3;for(let b=0;b<16;b++){const a=a0+R()*(Math.PI*2/n)*.85,d=70+R()*180;blob(cx+Math.cos(a)*d,cy+Math.sin(a)*d,30+R()*16,pal[s%pal.length]);}}
+    if(hasEgg){egg(cx-20,cy-10,1.4);egg(cx+50,cy+35,1.2);} else blob(cx,cy,60,pal[3]);
+    specks(40,250,"#3D6B2C",5);x.fillStyle="rgba(255,255,255,.85)";x.beginPath();x.ellipse(cx+120,cy-120,60,24,-.5,0,Math.PI*2);x.fill();
+  }else{
+    shadow(36,16);x.fillStyle="#FAFAF7";x.beginPath();x.arc(cx,cy,330,0,Math.PI*2);x.fill();noShadow();
+    x.strokeStyle="rgba(0,0,0,.06)";x.lineWidth=3;x.beginPath();x.arc(cx,cy,250,0,Math.PI*2);x.stroke();
+    x.strokeStyle=pal[0];x.lineCap="round";x.lineWidth=34;x.beginPath();x.arc(cx,cy+20,180,Math.PI*.15,Math.PI*.85);x.stroke();
+    for(let b=0;b<22;b++){const a=R()*Math.PI*2,d=Math.sqrt(R())*130;blob(cx+Math.cos(a)*d,cy-20+Math.sin(a)*d,34,pal[1+b%3]);}
+    if(hasEgg)egg(cx,cy-40,1.3);
+    specks(30,160,"#3D6B2C",6);
+  }
+  x.setTransform(1,0,0,1,0,0);
+}
+
+/* ---------- Cookbooks ---------- */
+function renderBooks(){
+  const cols=S.collections;
+  $("#collections").innerHTML=cols.map(cn=>{const rs=S.saved.filter(s=>s.col===cn);return `<div class="collection"><div class="sec-title"><h3>${esc(cn)}</h3><span class="label">${rs.length} recipe${rs.length===1?"":"s"}</span></div>
+    ${rs.length?`<div class="rgrid">${rs.map(s=>{const a=analyze(s.recipe,s.variant);return `<div class="rcard"><canvas width="400" height="500" data-thumb="${s.id}" aria-label="${esc(s.recipe.title)}"></canvas>
+      <div class="body"><span class="label">${esc(s.recipe.cuisine)} · ${s.recipe.prep+s.recipe.cook} min</span><strong>${esc(s.recipe.title)}</strong>
+      <span class="mono" style="font-size:12px">${a.pct}% match · ${a.missing.length?a.missing.length+" to buy":"nothing to buy"}</span>
+      <div class="actions"><label class="wk"><input type="checkbox" data-week="${s.id}" ${S.week.includes(s.id)?"checked":""}>This week</label>
+      <span style="flex:1"></span><button class="btn small" data-act="open" data-id="${s.id}">Open</button><button class="btn small" data-act="unsave" data-id="${s.id}" aria-label="Remove ${esc(s.recipe.title)}">Remove</button></div></div></div>`}).join("")}</div>`
+    :`<div class="empty" style="padding:22px">Empty. Save a recipe from the Plating Studio.</div>`}</div>`}).join("");
+  document.querySelectorAll("canvas[data-thumb]").forEach(cv=>{const s=S.saved.find(z=>z.id===cv.dataset.thumb);if(s)drawPlate(cv,s.recipe,null)});
+  renderList();
+}
+function renderList(){
+  const picked=S.saved.filter(s=>S.week.includes(s.id)), need=new Map();
+  picked.forEach(s=>analyze(s.recipe,s.variant).missing.forEach(m=>{const key=m.name.toLowerCase();if(!need.has(key))need.set(key,{name:m.name,for:[]});need.get(key).for.push(s.recipe.title)}));
+  const items=[...need.values()];
+  $("#shopList").innerHTML=`<span class="label">Gap shopping list</span><h3 style="margin-top:4px">${items.length} item${items.length===1?"":"s"} to buy</h3>
+   <p style="margin:6px 0 0;font-size:13px;color:var(--muted)">For ${picked.length} recipe${picked.length===1?"":"s"} this week, checked against your current fridge.</p>
+   ${items.length?`<ul>${items.map((it,i)=>`<li><input type="checkbox" id="buy${i}" aria-label="Got ${esc(it.name)}"><label for="buy${i}">${esc(it.name)}<span>${esc(it.for.join(" · "))}</span></label></li>`).join("")}</ul>
+   <button class="btn small" data-act="copy">Copy list</button>`
+   :`<p style="margin-top:14px">${picked.length?"You already own everything. Nothing to buy.":"Tick “This week” on a few recipes to build your list."}</p>`}`;
+  S._listText=items.map(i=>"- "+i.name).join("\n");
+}
+
+/* ---------- Events ---------- */
+document.addEventListener("click",e=>{
+  const t=e.target.closest("[data-act]");
+  const pop=$("#savePop"); if(pop&&!pop.hidden&&!e.target.closest(".save-wrap")) pop.hidden=true;
+  if(!t) return; const act=t.dataset.act;
+  if(act==="tab") setTab(t.dataset.tab);
+  else if(act==="filter"){S.filter=t.dataset.f;renderPantry();}
+  else if(act==="rm"){S.pantry=S.pantry.filter(p=>p.id!==t.dataset.id);persist();renderPantry();}
+  else if(act==="mode"){S.mode=t.dataset.mode;renderControls();}
+  else if(act==="variant"){S.variant=t.dataset.variant;renderStudio();}
+  else if(act==="generate") generate();
+  else if(act==="pick"){S.current=+t.dataset.i;renderStudio();}
+  else if(act==="save-open"){const p=$("#savePop");p.hidden=!p.hidden;}
+  else if(act==="save-to"){saveTo(t.dataset.col);}
+  else if(act==="rescue") rescue(t.dataset.p);
+  else if(act==="table-clear"){S.tableImg=null;renderStudio();}
+  else if(act==="unsave"){S.saved=S.saved.filter(s=>s.id!==t.dataset.id);S.week=S.week.filter(w=>w!==t.dataset.id);persist();renderBooks();}
+  else if(act==="open"){const s=S.saved.find(z=>z.id===t.dataset.id);if(s){S.recipes=[s.recipe];S.current=0;S.variant=s.variant;S.mode=s.recipe.mode||"passport";setTab("studio");}}
+  else if(act==="copy"){navigator.clipboard.writeText(S._listText||"").then(()=>toast("Shopping list copied."),()=>toast("Couldn't copy. Select the list and copy it by hand."));}
+});
+function saveTo(col){
+  const r=S.recipes[S.current]; if(!r) return;
+  if(S.saved.some(s=>s.recipe.title===r.title&&s.col===col)){toast(`Already in ${col}.`);return;}
+  S.saved.push({id:uid(),recipe:r,variant:S.variant,col}); persist(); $("#savePop").hidden=true; toast(`Saved to ${col}.`);
+}
+document.addEventListener("submit",e=>{
+  e.preventDefault();
+  if(e.target.id==="addForm"){addItems([{name:$("#addName").value,days:$("#addDays").value,category:"other",qty:""}]);$("#addName").value="";}
+  if(e.target.id==="newCol"){const n=$("#newColName").value.trim();if(n&&!S.collections.includes(n)){S.collections.push(n);persist();renderBooks();}$("#newColName").value="";}
+  if(e.target.id==="popNew"){const n=$("#popNewName").value.trim();if(n){if(!S.collections.includes(n))S.collections.push(n);saveTo(n);renderSheet(S.recipes[S.current]);}}
+});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.staple!==undefined){S.staples[+t.dataset.staple].on=t.checked;persist();renderPantry();}
+  else if(t.id==="scanInput") scan(t.files[0]);
+  else if(t.id==="cuisine"){S.cuisine=t.value;renderControls();}
+  else if(t.id==="tableInput"&&t.files[0]){const img=new Image();img.onload=()=>{S.tableImg=img;renderStudio()};img.src=URL.createObjectURL(t.files[0]);}
+  else if(t.dataset.week){const id=t.dataset.week;S.week=t.checked?[...S.week,id]:S.week.filter(w=>w!==id);persist();renderList();}
+});
+const drop=$("#drop");
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f&&f.type.startsWith("image/"))scan(f)});
+window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(["pantry","studio","cookbooks"].includes(h)&&h!==S.tab)setTab(h)});
+
+/* ---------- Boot ---------- */
+load();
+const h0=location.hash.slice(1); setTab(["pantry","studio","cookbooks"].includes(h0)?h0:"pantry");
+const st=$("#aiStatus");
+if(window.claude&&typeof window.claude.use==="function"){
+  window.claude.use("sample").then(async s=>{
+    if(!s){st.textContent="Demo mode";return;}
+    S.sample=s; try{const l=await s.limits();S.imagesOK=!!(l&&l.images)}catch(e){S.imagesOK=false}
+    st.textContent="AI live"; st.classList.add("live");
+  }).catch(()=>{st.textContent="Demo mode"});
+}else st.textContent="Demo mode";
+})();
+</script>
+</body>
+</html>
