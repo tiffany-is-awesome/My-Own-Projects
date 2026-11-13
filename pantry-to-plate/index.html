@@ -8,16 +8,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* Layout idea: a quiet retail grid. White floor, #F4F4F4 product cards, mono "spec sheet" labels, one pine accent for actions. */
+/* Layout idea: a quiet retail grid. White floor, #F4F4F4 product cards, mono "spec sheet" labels, one soft pine accent. Light only, by choice. */
 :root{
   --bg:#FFFFFF;
   --card:#F4F4F4;
-  --ink:#1B1C1A;
-  --muted:#6C6E69;
-  --line:#E1E2DE;
-  --accent:#1F5A4A;
+  --ink:#2A2B29;
+  --muted:#7A7C77;
+  --line:#E6E6E3;
+  --edge:#D3D4D0;
+  --accent:#2E6B5A;
+  --accent-soft:#EDF4F0;
   --accent-ink:#FFFFFF;
   --urgent:#B42318;
+  --urgent-soft:#FDF0EE;
   --soon:#9A5B06;
   --field:#FFFFFF;
   --display:"Zen Kaku Gothic New", "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
@@ -25,19 +28,8 @@
   --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   color-scheme:light;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#121311; --card:#1D1F1C; --ink:#ECEDE9; --muted:#9A9C96; --line:#2E312C;
-    --accent:#5FB49A; --accent-ink:#0E1B16; --urgent:#F0715F; --soon:#E0A74A; --field:#161815;
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#121311; --card:#1D1F1C; --ink:#ECEDE9; --muted:#9A9C96; --line:#2E312C;
-  --accent:#5FB49A; --accent-ink:#0E1B16; --urgent:#F0715F; --soon:#E0A74A; --field:#161815;
-  color-scheme:dark;
-}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
 h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.2}
@@ -56,9 +48,9 @@ header{border-bottom:1px solid var(--line);position:sticky;top:0;background:var(
 nav{display:flex;gap:4px;margin-left:auto}
 nav button{background:none;border:0;padding:8px 12px;cursor:pointer;display:flex;gap:8px;align-items:baseline;border-bottom:2px solid transparent;font-weight:500}
 nav button .mono{font-size:11px;color:var(--muted)}
-nav button[aria-current="page"]{border-bottom-color:var(--ink)}
+nav button[aria-current="page"]{border-bottom-color:var(--accent);color:var(--accent)}
 .status{font-family:var(--mono);font-size:11px;padding:4px 8px;border:1px solid var(--line);white-space:nowrap}
-.status.live{border-color:var(--accent);color:var(--accent)}
+.status.live{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 @media (max-width:720px){.bar{flex-wrap:wrap;height:auto;padding:12px 0;gap:8px}nav{margin-left:0;order:3;width:100%}.status{margin-left:auto}}
 
 main{padding:28px 0 64px}
@@ -68,18 +60,18 @@ main{padding:28px 0 64px}
 .headline p{margin:4px 0 0;color:var(--muted);max-width:60ch}
 
 /* Buttons */
-.btn{border:1px solid var(--ink);background:var(--bg);padding:9px 16px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
-.btn:hover{background:var(--card)}
+.btn{border:1px solid var(--line);background:var(--bg);padding:9px 16px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn:hover{background:var(--card);border-color:var(--muted)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn.primary:hover{filter:brightness(1.08)}
 .btn.small{padding:5px 10px;font-size:13px}
 .btn[disabled]{opacity:.5;cursor:progress}
-.seg{display:inline-flex;border:1px solid var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line);background:var(--bg)}
 .seg button{border:0;background:var(--bg);padding:8px 14px;cursor:pointer;font-weight:500}
-.seg button+button{border-left:1px solid var(--ink)}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent)}
 select,input[type=text],input[type=number]{border:1px solid var(--line);background:var(--field);padding:8px 10px;min-width:0}
-select:focus,input:focus{border-color:var(--ink)}
+select:focus,input:focus{border-color:var(--accent)}
 
 /* Pantry */
 .pantry-layout{display:grid;grid-template-columns:300px minmax(0,1fr);gap:28px}
@@ -98,7 +90,7 @@ select:focus,input:focus{border-color:var(--ink)}
 .staples{display:flex;flex-wrap:wrap;gap:6px}
 .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--bg);padding:4px 10px;font-size:13px;cursor:pointer;user-select:none}
 .chip input{position:absolute;opacity:0;width:1px;height:1px}
-.chip:has(input:checked){border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.chip:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .chip:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
 .addform{display:grid;grid-template-columns:1fr 64px auto;gap:6px}
 .addform input{width:100%}
@@ -108,7 +100,7 @@ select:focus,input:focus{border-color:var(--ink)}
 .summary .stat b{font-size:18px;font-weight:500}
 .filters{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
 .filters button{border:1px solid var(--line);background:var(--bg);padding:4px 10px;font-size:13px;cursor:pointer}
-.filters button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.filters button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
 .item{background:var(--card);display:flex;flex-direction:column;position:relative;min-height:176px}
 .item .swatch{height:6px}
@@ -120,7 +112,7 @@ select:focus,input:focus{border-color:var(--ink)}
 .item .rm{position:absolute;top:12px;right:8px;border:0;background:none;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px}
 .item .rm:hover{color:var(--ink)}
 .badge{align-self:flex-start;margin-top:auto;font-family:var(--mono);font-size:11px;padding:3px 7px;border:1px solid var(--line);background:var(--bg)}
-.badge.urgent{background:var(--urgent);border-color:var(--urgent);color:#fff}
+.badge.urgent{background:var(--urgent-soft);border-color:var(--urgent);color:var(--urgent)}
 .badge.soon{border-color:var(--soon);color:var(--soon)}
 .item.new{animation:pop .5s ease}
 @keyframes pop{from{transform:scale(.96);background:var(--line)}to{transform:none}}
@@ -129,12 +121,22 @@ select:focus,input:focus{border-color:var(--ink)}
 /* Studio */
 .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:14px;background:var(--card);margin-bottom:16px}
 .controls .grow{flex:1}
-.picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:20px}
-.pick{text-align:left;border:1px solid var(--line);background:var(--bg);padding:12px 14px;cursor:pointer;display:flex;flex-direction:column;gap:4px}
+.browse{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:12px}
+.browse .count{font-family:var(--mono);font-size:13px}
+.browse .count b{font-size:18px;font-weight:500}
+.browse .filters{margin-left:0}
+.browse select{margin-left:auto}
+.picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;margin-bottom:24px}
+.pick{text-align:left;border:1px solid var(--line);background:var(--bg);padding:10px;cursor:pointer;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:start}
+.pick canvas{width:64px;height:80px;display:block;background:var(--card)}
+.pick .pt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pick .meta{font-size:11.5px;color:var(--muted)}
+.pick.more{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:2px;border-style:dashed;color:var(--accent);font-weight:500;min-height:102px;text-align:center}
+.pick.more span{font-size:12px;color:var(--muted);font-weight:400}
+.pick.more:hover{background:var(--accent-soft);border-color:var(--accent)}
 .pick:hover{border-color:var(--muted)}
-.pick[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 -3px 0 var(--accent)}
+.pick[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
 .pick strong{font-family:var(--display);font-size:15px;line-height:1.3}
-.pick .meta{display:flex;justify-content:space-between;gap:8px}
 .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
 @media (max-width:900px){.split{grid-template-columns:1fr}}
 .stage{position:sticky;top:84px;display:flex;flex-direction:column;gap:10px}
@@ -146,7 +148,7 @@ select:focus,input:focus{border-color:var(--ink)}
 .stage .row .label{margin-left:auto}
 .sheet{display:flex;flex-direction:column;gap:22px}
 .sheet h2{font-size:28px;font-weight:900;letter-spacing:-.01em}
-.spec{border-top:1px solid var(--ink)}
+.spec{border-top:1px solid var(--line)}
 .spec>div{display:grid;grid-template-columns:140px 1fr;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center}
 .spec dt{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .spec dd{margin:0}
@@ -154,7 +156,7 @@ select:focus,input:focus{border-color:var(--ink)}
 .meter i{position:absolute;inset:0 auto 0 0;background:var(--accent)}
 .flavor{display:grid;grid-template-columns:72px 1fr 18px;gap:6px 10px;align-items:center;font-size:13px}
 .flavor .meter{margin:0}
-.sec-title{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+.sec-title{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:10px}
 .sec-title h3{font-size:16px;font-weight:700}
 .blocks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
 @media (max-width:520px){.blocks{grid-template-columns:repeat(2,1fr)}}
@@ -165,7 +167,7 @@ select:focus,input:focus{border-color:var(--ink)}
 .ings .amt{color:var(--muted);font-family:var(--mono);font-size:12px;margin-left:6px}
 .st{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;padding:2px 7px;border:1px solid var(--line);white-space:nowrap}
 .st.have{border-color:var(--accent);color:var(--accent)}
-.st.need{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.st.need{background:var(--urgent-soft);color:var(--urgent);border-color:var(--urgent)}
 .swap{display:block;font-size:12px;color:var(--muted)}
 .pillars{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media (max-width:520px){.pillars{grid-template-columns:1fr}}
@@ -179,10 +181,10 @@ select:focus,input:focus{border-color:var(--ink)}
 .pillar p b{font-family:var(--mono);font-weight:500;margin-right:6px}
 .verdict{border-left:3px solid var(--accent);padding:4px 0 4px 14px;font-size:15px}
 .save-wrap{position:relative}
-.pop{position:absolute;z-index:10;top:calc(100% + 6px);left:0;background:var(--bg);border:1px solid var(--ink);padding:12px;min-width:260px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
+.pop{position:absolute;z-index:10;top:calc(100% + 6px);left:0;background:var(--bg);border:1px solid var(--line);padding:12px;min-width:260px;display:flex;flex-direction:column;gap:6px;box-shadow:0 10px 30px rgba(0,0,0,.12)}
 .pop[hidden]{display:none}
 .pop button.opt{text-align:left;border:1px solid var(--line);background:var(--bg);padding:7px 10px;cursor:pointer}
-.pop button.opt:hover{border-color:var(--ink)}
+.pop button.opt:hover{border-color:var(--accent)}
 .pop form{display:flex;gap:6px}
 .pop form input{flex:1}
 .steps{margin:0;padding:0;list-style:none;counter-reset:s}
@@ -217,7 +219,7 @@ select:focus,input:focus{border-color:var(--ink)}
 .newcol{display:flex;gap:6px;margin-bottom:20px;max-width:420px}
 .newcol input{flex:1}
 
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;font-size:14px;z-index:50;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--bg);color:var(--ink);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.08);padding:10px 16px;font-size:14px;z-index:50;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-size:12px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -286,7 +288,7 @@ footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-s
     <div class="headline">
       <div>
         <h1>Plating Studio</h1>
-        <p>Pick a cuisine or let the AI freestyle. Every recipe gets a plated preview, a spec sheet and an honest critique.</p>
+        <p>Pick a cuisine or let the AI freestyle. You get six ideas at a time and can ask for more, then filter by time or by what you'd need to buy.</p>
       </div>
     </div>
     <div class="controls">
@@ -302,8 +304,9 @@ footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-s
         <button data-act="variant" data-variant="authentic">Authentic</button>
       </div>
       <span class="grow"></span>
-      <button class="btn primary" data-act="generate" id="genBtn">Generate 3 recipes</button>
+      <button class="btn primary" data-act="generate" id="genBtn">Get 6 recipe ideas</button>
     </div>
+    <div class="browse" id="browse"></div>
     <div class="picks" id="picks"></div>
     <div class="split">
       <div class="stage">
@@ -347,6 +350,26 @@ footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-s
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
+/* ================= AI PROVIDER =================
+   Every AI request in this app goes through AI.json().
+   For now it uses Claude, through claude.ai's built-in "sample" capability.
+   To switch to your own AI later, change only AI.init() and AI.json():
+   keep the same input (a prompt string, optional image files) and the same
+   output (the parsed JSON object). Nothing else in the app needs to change. */
+const AI={
+  name:"Claude", ready:false, images:false, _c:null,
+  async init(){
+    if(!(window.claude&&typeof window.claude.use==="function")) return false;
+    const c=await window.claude.use("sample"); if(!c) return false;
+    this._c=c; try{const l=await c.limits(); this.images=!!(l&&l.images)}catch(e){this.images=false}
+    this.ready=true; return true;
+  },
+  json(prompt,{images,fast}={}){
+    const opts={modelTier:fast?"quick":"default"}; if(images&&images.length) opts.images=images;
+    return this._c.json(prompt,opts);
+  }
+};
+
 const CATS={produce:"#7FA35B",protein:"#C2674A",dairy:"#E6D8A8",grain:"#C9A06A",condiment:"#8E3B2E",other:"#9A9C96"};
 
 /* ---------- Seed data ---------- */
@@ -414,12 +437,67 @@ const PRESETS=[
   authenticity:{score:3,pro:"Freestyle, but it borrows sensibly from bibimbap and Persian tahdig.",con:"Not tied to any one tradition, so the flavors are a little generic."},
   effort:{score:4,pro:"Two pans and very little chopping.",con:"The rice crust needs patience; stirring it ruins it."},
   efficiency:{score:5,pro:"Uses all the spinach and rice (both 2 days left) plus the pepper, with nothing to buy.",con:"Leaves the chicken untouched, and that expires tomorrow."}},
- verdict:"A zero-shopping clear-out. Pair it with the tacos tomorrow and the fridge is reset."}
+ verdict:"A zero-shopping clear-out. Pair it with the tacos tomorrow and the fridge is reset."},
+{id:"p-adobo",title:"Chicken Adobo with Garlic Fried Rice",cuisine:"Filipino",mode:"passport",plating:"plate",prep:5,cook:35,servings:2,
+ palette:["#5A2E1A","#EFE4C8","#8A4A2A","#7A9A3E"],flavor:{spicy:1,savory:5,sweet:1,sour:4,rich:3},blocks:null,
+ ingredients:[
+  {name:"Chicken thigh",amount:"300 g",source:"pantry"},
+  {name:"Leftover rice",amount:"2 cups",source:"pantry"},
+  {name:"Eggs",amount:"2, fried",source:"pantry"},
+  {name:"Onion",amount:"¼, sliced",source:"pantry"},
+  {name:"Soy sauce",amount:"4 tbsp",source:"staple"},
+  {name:"Vinegar",amount:"4 tbsp",source:"staple"},
+  {name:"Garlic",amount:"1 whole head",source:"staple"},
+  {name:"Black pepper",amount:"1 tsp, cracked",source:"staple"},
+  {name:"Bay leaves",amount:"2",source:"missing"}],
+ steps:["Brown the chicken skin-side down in a dry pan until golden, about 6 minutes.","Add half the garlic (smashed), the onion, soy sauce, vinegar, pepper and 120 ml water. Don't stir until it boils, so the vinegar mellows.","Cover and simmer 25 minutes, then uncover and reduce until the sauce is glossy.","Fry the rest of the garlic, minced, in oil until golden. Toss the cold rice through it with a pinch of salt.","Fry the eggs and serve everything together with the sauce spooned over."],
+ critique:{flavor:{score:5,pro:"Salty, sour and peppery with crisp garlic rice: a classic combination that's hard to beat.",con:"Very savory overall. Sliced tomato or pickled papaya on the side would add freshness."},
+  authenticity:{score:4,pro:"This is the real method: braise in soy and vinegar, then reduce.",con:"Without bay leaves it's missing a background note. Nobody will complain, but you'll notice."},
+  effort:{score:3,pro:"Mostly hands-off simmering.",con:"Takes 40 minutes in total and uses two pans."},
+  efficiency:{score:4,pro:"Uses the chicken (1 day left) and the rice (2 days left).",con:"Leaves the spinach and cilantro to wilt."}},
+ verdict:"The comfort pick. Worth the 40 minutes if you have them tonight."},
+{id:"p-gnocchi",title:"Brown-Butter Gnocchi with Spinach & Cheddar",cuisine:"Italian",mode:"passport",plating:"plate",prep:3,cook:10,servings:2,
+ palette:["#C99A4B","#F1E3BF","#3E7A3A","#F4E7A1"],flavor:{spicy:0,savory:4,sweet:1,sour:2,rich:5},blocks:null,
+ ingredients:[
+  {name:"Gnocchi",amount:"400 g",source:"pantry"},
+  {name:"Spinach",amount:"100 g",source:"pantry"},
+  {name:"Cheddar",amount:"40 g, finely grated",source:"pantry",sub_for:"Parmigiano-Reggiano"},
+  {name:"Lime",amount:"zest of ½",source:"pantry",sub_for:"Lemon"},
+  {name:"Butter",amount:"3 tbsp",source:"staple"},
+  {name:"Garlic",amount:"1 clove",source:"staple"},
+  {name:"Black pepper",amount:"to taste",source:"staple"},
+  {name:"Fresh sage",amount:"6 leaves",source:"missing"}],
+ steps:["Boil the gnocchi until they float, then lift them out and keep a mug of the cooking water.","Melt the butter over medium heat until it foams, smells nutty and turns golden brown.","Add the gnocchi and let them crisp for 2 minutes, then add the garlic and spinach and toss until wilted.","Loosen with a splash of cooking water, take it off the heat and toss in the cheddar.","Finish with lime zest and plenty of black pepper."],
+ critique:{flavor:{score:4,pro:"Nutty butter and crisp-edged gnocchi make this feel like more effort than it is.",con:"Rich, with only the zest to cut through it. Don't skip that."},
+  authenticity:{score:3,pro:"Burro e salvia is a real northern Italian classic.",con:"Cheddar is oilier than Parmigiano, and there's no sage, which is the dish's signature."},
+  effort:{score:5,pro:"About 15 minutes from start to finish.",con:"Brown butter can burn in seconds, so stay at the stove."},
+  efficiency:{score:3,pro:"Uses spinach (2 days left) and some of the cheddar.",con:"The gnocchi keeps for weeks, so this doesn't touch the chicken or cilantro."}},
+ verdict:"The fastest dinner on the list, and it saves the spinach."},
+{id:"p-quesa",title:"Spinach & Cheddar Egg Quesadillas, Pepper Salsa",cuisine:"Freestyle",mode:"freestyle",plating:"board",prep:8,cook:8,servings:2,
+ palette:["#E9C46A","#F4EBD0","#3E7A3A","#D2412B"],flavor:{spicy:2,savory:4,sweet:1,sour:3,rich:4},
+ blocks:{base:"Corn tortillas",protein:"Scrambled eggs + spinach",aromatics:"Onion, chili flakes",finisher:"Lime yogurt + raw pepper salsa"},
+ ingredients:[
+  {name:"Corn tortillas",amount:"4",source:"pantry"},
+  {name:"Eggs",amount:"3",source:"pantry"},
+  {name:"Spinach",amount:"50 g",source:"pantry"},
+  {name:"Cheddar",amount:"60 g",source:"pantry"},
+  {name:"Red bell pepper",amount:"½, finely diced",source:"pantry"},
+  {name:"Onion",amount:"¼, finely diced",source:"pantry"},
+  {name:"Lime",amount:"½",source:"pantry"},
+  {name:"Greek yogurt",amount:"2 tbsp",source:"pantry"},
+  {name:"Chili flakes",amount:"pinch",source:"staple"},
+  {name:"Butter",amount:"1 tbsp",source:"staple"}],
+ steps:["Mix the diced pepper and half the onion with lime juice and salt to make a quick salsa.","Soft-scramble the eggs in butter with the rest of the onion, then fold in the spinach until it just wilts.","Fill each tortilla with egg and cheddar, fold it in half and crisp in a dry pan, 2 minutes a side.","Cut into wedges and serve with the salsa and the yogurt."],
+ critique:{flavor:{score:4,pro:"Molten cheese, soft eggs and a sharp raw salsa: a lot of contrast for so little effort.",con:"Corn tortillas can crack when folded. Warm them first."},
+  authenticity:{score:2,pro:"It borrows the quesadilla shape.",con:"It's a breakfast mash-up, not a traditional dish."},
+  effort:{score:5,pro:"One pan and 16 minutes.",con:"You have to cook them in batches if your pan is small."},
+  efficiency:{score:4,pro:"Uses six pantry items, including the spinach and pepper, with nothing to buy.",con:"Doesn't touch the chicken, which needs using tomorrow."}},
+ verdict:"A great lunch that uses up a lot of small bits at once."}
 ];
 
 /* ---------- State ---------- */
 const S={tab:"pantry",pantry:[],staples:[],filter:"all",mode:"passport",cuisine:"Korean",variant:"adapted",
-  recipes:PRESETS.slice(),current:0,tableImg:null,saved:[],collections:[],week:[],sample:null,newIds:new Set(),loading:false};
+  recipes:PRESETS.slice(),current:0,rf:{time:"any",buy:false,sort:"match"},tableImg:null,saved:[],collections:[],week:[],sample:null,newIds:new Set(),loading:false};
 function load(){
   let d=null; try{d=JSON.parse(localStorage.getItem("p2p.v1")||"null")}catch(e){}
   if(d&&Array.isArray(d.pantry)){Object.assign(S,{pantry:d.pantry,staples:d.staples,saved:d.saved||[],collections:d.collections||[],week:d.week||[]});}
@@ -507,16 +585,16 @@ async function scan(file){
   if(!file) return;
   const url=URL.createObjectURL(file); $("#scanImg").src=url; $("#scanPreview").style.display="block";
   const st=$("#scanState");
-  if(!S.sample||!S.imagesOK){
+  if(!AI.ready||!AI.images){
     st.innerHTML=`<p style="margin:10px 0 0;font-size:13px;color:var(--muted)">Live photo scanning isn't available in this view, so here's a demo result.</p>`;
     addItems([{name:"Mushrooms",qty:"200 g",category:"produce",days:3},{name:"Firm tofu",qty:"1 block",category:"protein",days:4},{name:"Scallions",qty:"4 stalks",category:"produce",days:5}]);
     return;
   }
   st.innerHTML=`<div class="loading" style="margin-top:10px">Finding items in your photo…</div>`;
   try{
-    const res=await S.sample.json(`You are the vision step of a pantry app. Look at this photo (it may be an open fridge, a countertop, a pantry shelf, or a grocery receipt). List every distinct food ingredient you can identify.
+    const res=await AI.json(`You are the vision step of a pantry app. Look at this photo (it may be an open fridge, a countertop, a pantry shelf, or a grocery receipt). List every distinct food ingredient you can identify.
 For each item estimate how many days it has before it should be used, based on typical freshness for that food (cooked leftovers 1-3, herbs and leafy greens 2-4, raw meat 1-2, eggs 14, hard cheese 21, condiments 60+).
-Respond with JSON only: {"items":[{"name":"Spinach","qty":"1 bag","category":"produce|protein|dairy|grain|condiment|other","days":2}]}. Use short everyday names. If there is no food, return {"items":[]}.`,{images:[file],modelTier:"default"});
+Respond with JSON only: {"items":[{"name":"Spinach","qty":"1 bag","category":"produce|protein|dairy|grain|condiment|other","days":2}]}. Use short everyday names. If there is no food, return {"items":[]}.`,{images:[file]});
     const items=(res&&res.items)||(Array.isArray(res)?res:[]);
     if(!items.length){st.innerHTML=`<p style="margin:10px 0 0;font-size:13px">No ingredients found. Try a closer, brighter photo.</p>`;return;}
     addItems(items);
@@ -531,22 +609,48 @@ function renderControls(){
   document.querySelectorAll("[data-act=mode]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===S.mode));
   document.querySelectorAll("[data-act=variant]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.variant===S.variant));
   $("#cuisine").value=S.cuisine; $("#cuisine").hidden=S.mode!=="passport"; $("#variantSeg").hidden=S.mode!=="passport";
-  $("#genBtn").textContent=S.mode==="passport"?`Generate ${S.cuisine} recipes`:"Invent from my leftovers";
+  $("#genBtn").textContent=S.mode==="passport"?`Get 6 ${S.cuisine} ideas`:"Invent 6 from my leftovers";
 }
 function renderStudio(){
   renderControls();
-  if(S.loading){
-    $("#picks").innerHTML=`<div class="loading">Reading your pantry and writing three recipes. This takes about 20 seconds.</div>`;
-    return;
-  }
-  $("#picks").innerHTML=S.recipes.map((r,i)=>{const a=analyze(r,S.variant);return `<button class="pick" data-act="pick" data-i="${i}" aria-pressed="${i===S.current}">
-     <span class="label">${esc(r.cuisine)}${r.mode==="freestyle"?" · invented":""}</span><strong>${esc(r.title)}</strong>
-     <span class="meta mono" style="font-size:12px"><span>${r.prep+r.cook} min</span><span>${a.pct}% pantry match</span></span></button>`}).join("");
+  renderPicks();
   const r=S.recipes[S.current]; if(!r) return;
   drawPlate($("#plate"),r,S.tableImg);
   $("#plateTag").textContent=`${r.plating} · ${S.tableImg?"your table":"studio"}`;
   $("#tableClear").hidden=!S.tableImg;
   renderSheet(r);
+}
+function visibleRecipes(){
+  let v=S.recipes.map((r,i)=>({r,i,a:analyze(r,S.variant)}));
+  if(S.rf.time!=="any") v=v.filter(x=>x.r.prep+x.r.cook<=+S.rf.time);
+  if(S.rf.buy) v=v.filter(x=>!x.a.missing.length);
+  const mins=x=>x.r.prep+x.r.cook;
+  const by={match:(x,y)=>y.a.pct-x.a.pct||x.a.missing.length-y.a.missing.length,
+    time:(x,y)=>mins(x)-mins(y),
+    clears:(x,y)=>y.a.clears.length-x.a.clears.length||y.a.pct-x.a.pct}[S.rf.sort];
+  return v.sort(by);
+}
+function renderPicks(){
+  const times=[["any","Any time"],["20","Under 20 min"],["30","Under 30 min"],["45","Under 45 min"]];
+  const v=visibleRecipes();
+  $("#browse").innerHTML=`<span class="count"><b>${v.length}</b>${v.length!==S.recipes.length?` of ${S.recipes.length}`:""} idea${S.recipes.length===1?"":"s"}</span>
+    <div class="filters" role="group" aria-label="Cooking time">${times.map(([k,l])=>`<button data-act="rf-time" data-v="${k}" aria-pressed="${S.rf.time===k}">${l}</button>`).join("")}
+    <button data-act="rf-buy" aria-pressed="${S.rf.buy}">Nothing to buy</button></div>
+    <select id="rfSort" aria-label="Sort recipes">
+      <option value="match"${S.rf.sort==="match"?" selected":""}>Sort: best pantry match</option>
+      <option value="time"${S.rf.sort==="time"?" selected":""}>Sort: quickest first</option>
+      <option value="clears"${S.rf.sort==="clears"?" selected":""}>Sort: uses up expiring food</option>
+    </select>`;
+  if(S.loading==="new"){$("#picks").innerHTML=`<div class="loading" style="grid-column:1/-1">Reading your pantry and writing six recipe ideas. This takes about 30 seconds.</div>`;return;}
+  const cards=v.map(({r,i,a})=>`<button class="pick" data-act="pick" data-i="${i}" aria-pressed="${i===S.current}">
+     <canvas width="160" height="200" data-pthumb="${i}" aria-hidden="true"></canvas>
+     <span class="pt"><span class="label">${esc(r.cuisine)}${r.mode==="freestyle"?" · invented":""}</span><strong>${esc(r.title)}</strong>
+     <span class="meta mono">${r.prep+r.cook} min · ${a.pct}% match · <span style="white-space:nowrap">${a.missing.length?a.missing.length+" to buy":"nothing to buy"}</span></span></span></button>`).join("");
+  const empty=v.length?"":`<div class="empty" style="grid-column:1/-1;padding:22px">No ideas match these filters. <button class="btn small" data-act="rf-clear">Clear filters</button></div>`;
+  const more=S.loading==="more"?`<div class="loading">Writing six more ideas…</div>`
+    :`<button class="pick more" data-act="more">+ 6 more ideas<span>${S.mode==="passport"?esc(S.cuisine)+", different from these":"New freestyle inventions"}</span></button>`;
+  $("#picks").innerHTML=cards+empty+more;
+  document.querySelectorAll("canvas[data-pthumb]").forEach(cv=>drawPlate(cv,S.recipes[+cv.dataset.pthumb],null));
 }
 function scoreBar(n){n=Math.max(0,Math.min(5,Math.round(n||0)));return `<span class="score" aria-label="${n} out of 5">${[1,2,3,4,5].map(k=>`<i class="${k<=n?"on":""}"></i>`).join("")}</span>`}
 function renderSheet(r){
@@ -598,27 +702,29 @@ function normRecipe(x,i){
     ingredients:(x.ingredients||[]).map(g=>({name:String(g.name||""),amount:String(g.amount||""),source:g.source,sub_for:g.sub_for||null})).filter(g=>g.name),
     steps:(x.steps||[]).map(String),critique:x.critique||{},verdict:String(x.verdict||"")};
 }
-async function generate(){
-  if(!S.sample){
-    const pool=S.mode==="freestyle"?PRESETS.filter(p=>p.mode==="freestyle"):PRESETS.filter(p=>p.mode==="passport");
-    const pref=pool.filter(p=>p.cuisine===S.cuisine);
-    S.recipes=[...pref,...pool.filter(p=>!pref.includes(p))]; S.current=0; renderStudio();
-    toast(S.mode==="passport"&&!pref.length?`Live AI isn't available here, so these are demo recipes (no ${S.cuisine} demo yet).`:"Live AI isn't available here, so these are demo recipes.");
+async function generate(append){
+  if(S.loading) return;
+  if(!AI.ready){
+    if(append){toast("More ideas need the live AI, which isn't available in this view.");return;}
+    const rank=p=>(p.mode===S.mode?0:2)+(S.mode==="passport"&&p.cuisine===S.cuisine?0:1);
+    S.recipes=PRESETS.slice().sort((a,b)=>rank(a)-rank(b)); S.current=0; renderStudio();
+    toast("Live AI isn't available in this view, so these are the demo recipes.");
     return;
   }
-  S.loading=true; $("#genBtn").disabled=true; renderStudio();
+  S.loading=append?"more":"new"; $("#genBtn").disabled=true; renderPicks();
+  const avoid=append?`\nALREADY SUGGESTED (don't repeat these or near-copies): ${S.recipes.map(r=>r.title).join("; ")}`:"";
   const pantry=S.pantry.slice().sort((a,b)=>a.days-b.days).map(p=>`- ${p.name} — ${p.qty||"some"} — use within ${p.days} days`).join("\n");
   const staples=S.staples.filter(s=>s.on).map(s=>s.name).join(", ");
   const modeText=S.mode==="passport"
-    ?`MODE: Cuisine Passport, ${S.cuisine} cuisine. Write 3 different well-known ${S.cuisine} dishes (street food to home cooking).
+    ?`MODE: Cuisine Passport, ${S.cuisine} cuisine. Write 6 different well-known ${S.cuisine} dishes, a real spread from street food to home cooking to festive.
 APPROACH: ${S.variant==="authentic"?"Authentic. Use the traditional ingredients even when the user doesn't own them (mark them missing).":"Fridge-Adapted. Swap missing specialty ingredients for clever pantry substitutes, and for every swap put the traditional ingredient's name in sub_for (e.g. gnocchi with sub_for \"Korean rice cakes\")."}`
-    :`MODE: Freestyle. Invent 3 original dishes that don't fit a traditional recipe, each built from: Base + Protein/Veg + Aromatics + Acid/Fat Finisher. Size them to the actual leftover quantities and prioritize items that expire soonest. Fill the blocks object.`;
+    :`MODE: Freestyle. Invent 6 original, clearly different dishes that don't fit a traditional recipe, each built from: Base + Protein/Veg + Aromatics + Acid/Fat Finisher. Size them to the actual leftover quantities and prioritize items that expire soonest. Fill the blocks object.`;
   try{
-    const res=await S.sample.json(`You are the recipe engine of a "pantry to plate" cooking app.
+    const res=await AI.json(`You are the recipe engine of a "pantry to plate" cooking app.
 USER'S PANTRY (most urgent first):
 ${pantry}
 ALWAYS-AVAILABLE STAPLES: ${staples||"none"}
-${modeText}
+${modeText}${avoid}
 
 Respond with JSON only, shaped exactly like:
 {"recipes":[{"title":"","cuisine":"","plating":"skillet|board|bowl|plate","prep_min":10,"cook_min":15,"servings":2,
@@ -626,13 +732,15 @@ Respond with JSON only, shaped exactly like:
 "flavor":{"spicy":0,"savory":0,"sweet":0,"sour":0,"rich":0},
 "blocks":{"base":"","protein":"","aromatics":"","finisher":""} or null,
 "ingredients":[{"name":"","amount":"","source":"pantry|staple|missing","sub_for":null}],
-"steps":["4 to 7 short imperative steps"],
+"steps":["4 to 6 short imperative steps"],
 "critique":{"flavor":{"score":1-5,"pro":"","con":""},"authenticity":{...},"effort":{...},"efficiency":{...}},
 "verdict":"one sentence"}]}
-Rules: pantry ingredient names must match the pantry names exactly. palette = 4 hex colors you'd actually see on the finished plate. plating = the vessel it's served in (skillet for sizzling dishes, board for tacos/sandwiches/shared, bowl for soups/rice bowls/noodles, plate otherwise). flavor values are integers 0-5. The critique must be honest: every pillar needs a real con. "efficiency" judges how well it clears expiring items and should name any urgent item it leaves unused.`,{modelTier:"default"});
+Rules: pantry ingredient names must match the pantry names exactly. palette = 4 hex colors you'd actually see on the finished plate. plating = the vessel it's served in (skillet for sizzling dishes, board for tacos/sandwiches/shared, bowl for soups/rice bowls/noodles, plate otherwise). flavor values are integers 0-5. The critique must be honest: every pillar needs a real con. "efficiency" judges how well it clears expiring items and should name any urgent item it leaves unused.`);
     const arr=(res&&res.recipes)||(Array.isArray(res)?res:[]);
     if(!arr.length) throw {code:"empty"};
-    S.recipes=arr.slice(0,3).map(normRecipe); S.current=0;
+    const fresh=arr.slice(0,6).map(normRecipe);
+    if(append){S.recipes=S.recipes.concat(fresh);toast(`Added ${fresh.length} more ideas.`);}
+    else{S.recipes=fresh;S.current=0;}
   }catch(e){
     toast(e&&e.code==="rate_limited"?"Too many requests just now. Wait a minute and try again.":e&&e.code==="not_granted"?"AI access wasn't granted, so you're seeing demo recipes.":"Recipe generation didn't work. Try again.");
   }finally{S.loading=false;$("#genBtn").disabled=false;renderStudio();}
@@ -647,12 +755,12 @@ const CANNED={
 async function rescue(p){
   const r=S.recipes[S.current], box=$("#fixes");
   const show=fx=>{box.innerHTML=fx.map(([f,w])=>`<div class="fix">${esc(f)}<span>${esc(w)}</span></div>`).join("")};
-  if(!S.sample){show(CANNED[p]);return;}
+  if(!AI.ready){show(CANNED[p]);return;}
   box.innerHTML=`<div class="loading">Finding a fix with what you have…</div>`;
   try{
-    const res=await S.sample.json(`A home cook is mid-way through making "${r.title}". Problem: "${p}".
+    const res=await AI.json(`A home cook is mid-way through making "${r.title}". Problem: "${p}".
 Ingredients they have: ${S.pantry.map(x=>x.name).join(", ")}; staples: ${S.staples.filter(s=>s.on).map(s=>s.name).join(", ")}.
-Give 3 quick fixes using ONLY those ingredients or techniques. JSON only: {"fixes":[{"fix":"short instruction","why":"one short sentence"}]}`,{modelTier:"quick"});
+Give 3 quick fixes using ONLY those ingredients or techniques. JSON only: {"fixes":[{"fix":"short instruction","why":"one short sentence"}]}`,{fast:true});
     const fx=(res&&res.fixes||[]).slice(0,3).map(x=>[x.fix,x.why]);
     show(fx.length?fx:CANNED[p]);
   }catch(e){show(CANNED[p]);}
@@ -745,14 +853,18 @@ document.addEventListener("click",e=>{
   else if(act==="rm"){S.pantry=S.pantry.filter(p=>p.id!==t.dataset.id);persist();renderPantry();}
   else if(act==="mode"){S.mode=t.dataset.mode;renderControls();}
   else if(act==="variant"){S.variant=t.dataset.variant;renderStudio();}
-  else if(act==="generate") generate();
+  else if(act==="generate") generate(false);
+  else if(act==="more") generate(true);
+  else if(act==="rf-time"){S.rf.time=t.dataset.v;renderPicks();}
+  else if(act==="rf-buy"){S.rf.buy=!S.rf.buy;renderPicks();}
+  else if(act==="rf-clear"){S.rf.time="any";S.rf.buy=false;renderPicks();}
   else if(act==="pick"){S.current=+t.dataset.i;renderStudio();}
   else if(act==="save-open"){const p=$("#savePop");p.hidden=!p.hidden;}
   else if(act==="save-to"){saveTo(t.dataset.col);}
   else if(act==="rescue") rescue(t.dataset.p);
   else if(act==="table-clear"){S.tableImg=null;renderStudio();}
   else if(act==="unsave"){S.saved=S.saved.filter(s=>s.id!==t.dataset.id);S.week=S.week.filter(w=>w!==t.dataset.id);persist();renderBooks();}
-  else if(act==="open"){const s=S.saved.find(z=>z.id===t.dataset.id);if(s){S.recipes=[s.recipe];S.current=0;S.variant=s.variant;S.mode=s.recipe.mode||"passport";setTab("studio");}}
+  else if(act==="open"){const s=S.saved.find(z=>z.id===t.dataset.id);if(s){S.recipes=[s.recipe,...S.recipes.filter(r=>r.title!==s.recipe.title)];S.current=0;S.variant=s.variant;S.mode=s.recipe.mode||"passport";setTab("studio");}}
   else if(act==="copy"){navigator.clipboard.writeText(S._listText||"").then(()=>toast("Shopping list copied."),()=>toast("Couldn't copy. Select the list and copy it by hand."));}
 });
 function saveTo(col){
@@ -771,6 +883,7 @@ document.addEventListener("change",e=>{
   if(t.dataset.staple!==undefined){S.staples[+t.dataset.staple].on=t.checked;persist();renderPantry();}
   else if(t.id==="scanInput") scan(t.files[0]);
   else if(t.id==="cuisine"){S.cuisine=t.value;renderControls();}
+  else if(t.id==="rfSort"){S.rf.sort=t.value;renderPicks();}
   else if(t.id==="tableInput"&&t.files[0]){const img=new Image();img.onload=()=>{S.tableImg=img;renderStudio()};img.src=URL.createObjectURL(t.files[0]);}
   else if(t.dataset.week){const id=t.dataset.week;S.week=t.checked?[...S.week,id]:S.week.filter(w=>w!==id);persist();renderList();}
 });
@@ -784,13 +897,10 @@ window.addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(["pa
 load();
 const h0=location.hash.slice(1); setTab(["pantry","studio","cookbooks"].includes(h0)?h0:"pantry");
 const st=$("#aiStatus");
-if(window.claude&&typeof window.claude.use==="function"){
-  window.claude.use("sample").then(async s=>{
-    if(!s){st.textContent="Demo mode";return;}
-    S.sample=s; try{const l=await s.limits();S.imagesOK=!!(l&&l.images)}catch(e){S.imagesOK=false}
-    st.textContent="AI live"; st.classList.add("live");
-  }).catch(()=>{st.textContent="Demo mode"});
-}else st.textContent="Demo mode";
+AI.init().then(ok=>{
+  if(ok){st.textContent="AI · "+AI.name;st.classList.add("live");}
+  else st.textContent="Demo mode";
+}).catch(()=>{st.textContent="Demo mode"});
 })();
 </script>
 </body>
