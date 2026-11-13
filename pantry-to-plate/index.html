@@ -213,7 +213,8 @@ select:focus,input:focus{border-color:var(--accent)}
 .list{background:var(--card);padding:18px;position:sticky;top:84px}
 .list h3{font-size:18px;font-weight:900}
 .list ul{list-style:none;margin:12px 0;padding:0}
-.list li{padding:8px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:18px 1fr;gap:8px}
+.list li{padding:8px 0;border-bottom:1px solid var(--line);display:block}
+.list .label{display:block;margin-top:14px}
 .list li input{accent-color:var(--accent);margin-top:4px}
 .list li span{display:block;font-size:12px;color:var(--muted)}
 .newcol{display:flex;gap:6px;margin-bottom:20px;max-width:420px}
@@ -288,7 +289,7 @@ footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-s
     <div class="headline">
       <div>
         <h1>Plating Studio</h1>
-        <p>Pick a cuisine or let the AI freestyle. You get six ideas at a time and can ask for more, then filter by time or by what you'd need to buy.</p>
+        <p>Dishes from every cuisine, made only from what's in your kitchen. When something's missing, the recipe swaps in what you have, so there's never anything to buy.</p>
       </div>
     </div>
     <div class="controls">
@@ -299,9 +300,9 @@ footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-s
       <select id="cuisine" aria-label="Cuisine">
         <option>Korean</option><option>Mexican</option><option>Italian</option><option>Thai</option><option>Japanese</option><option>Filipino</option><option>Indian</option><option>Chinese</option><option>French</option><option>Mediterranean</option>
       </select>
-      <div class="seg" role="group" aria-label="Ingredient approach" id="variantSeg">
-        <button data-act="variant" data-variant="adapted">Fridge-Adapted</button>
-        <button data-act="variant" data-variant="authentic">Authentic</button>
+      <div class="seg" role="group" aria-label="How closely to follow the classic" id="variantSeg">
+        <button data-act="variant" data-variant="classic">Close to the classic</button>
+        <button data-act="variant" data-variant="improv">Improvise freely</button>
       </div>
       <span class="grow"></span>
       <button class="btn primary" data-act="generate" id="genBtn">Get 6 recipe ideas</button>
@@ -326,7 +327,7 @@ footer{border-top:1px solid var(--line);padding:18px 0;color:var(--muted);font-s
     <div class="headline">
       <div>
         <h1>Cookbooks</h1>
-        <p>Your saved recipes in collections. Tick the ones you'll cook this week and the list on the right shows only what you still need to buy.</p>
+        <p>Your saved recipes in collections. Tick the ones you'll cook this week and the panel on the right checks the plan against your kitchen.</p>
       </div>
     </div>
     <div class="books">
@@ -382,7 +383,7 @@ const SEED_PANTRY=[
 const SEED_STAPLES=[["Salt",1],["Black pepper",1],["Cooking oil",1],["Garlic",1],["Soy sauce",1],["Sugar",1],["Chili flakes",1],["Butter",1],["Vinegar",1],["Flour",0],["Fish sauce",0],["Sesame oil",0],["Cumin",0],["Honey",0]].map(([name,on])=>({name,on:!!on}));
 
 const PRESETS=[
-{id:"p-tteok",title:"Fridge Tteokbokki with Seared Gnocchi",cuisine:"Korean",mode:"passport",plating:"skillet",prep:5,cook:15,servings:2,
+{id:"p-tteok",inspiration:"Korean tteokbokki",title:"Fridge Tteokbokki with Seared Gnocchi",cuisine:"Korean",mode:"passport",plating:"skillet",prep:5,cook:15,servings:2,
  palette:["#C8341F","#EADBB8","#F2B33D","#4E8A3E"],flavor:{spicy:4,savory:4,sweet:3,sour:1,rich:3},blocks:null,
  ingredients:[
   {name:"Gnocchi",amount:"400 g",source:"pantry",sub_for:"Korean rice cakes (tteok)"},
@@ -393,14 +394,14 @@ const PRESETS=[
   {name:"Soy sauce",amount:"1 tbsp",source:"staple"},
   {name:"Sugar",amount:"1 tbsp",source:"staple"},
   {name:"Garlic",amount:"2 cloves",source:"staple"},
-  {name:"Scallions",amount:"2 stalks",source:"missing"}],
- steps:["Soft-boil the eggs for 6½ minutes, then cool and peel.","Sear the gnocchi in oil over high heat until the edges blister, about 4 minutes. This is what gives them a rice-cake chew.","Add onion and garlic, then 250 ml water, gochujang, soy sauce and sugar. Simmer 5 minutes.","Toss the gnocchi back through until the sauce turns glossy and clings.","Lay cheddar over the top, cover 1 minute to melt, add the halved eggs and serve in the skillet."],
+  {name:"Cilantro",amount:"a small handful",source:"pantry",sub_for:"Scallions"}],
+ steps:["Soft-boil the eggs for 6½ minutes, then cool and peel.","Sear the gnocchi in oil over high heat until the edges blister, about 4 minutes. This is what gives them a rice-cake chew.","Add onion and garlic, then 250 ml water, gochujang, soy sauce and sugar. Simmer 5 minutes.","Toss the gnocchi back through until the sauce turns glossy and clings.","Lay cheddar over the top, cover 1 minute to melt, add the halved eggs, scatter over the cilantro and serve in the skillet."],
  critique:{flavor:{score:4,pro:"Searing the gnocchi first gets you crisp edges and a chewy middle, close to real tteok.",con:"Gochujang and sugar can tip cloying. A squeeze of lime at the end fixes it."},
   authenticity:{score:3,pro:"The gochujang, soy and sugar sauce is the real backbone of the dish.",con:"Gnocchi is softer and drinks sauce faster than rice cakes; there's no fish cake or anchovy stock."},
   effort:{score:5,pro:"One skillet, about 20 minutes, almost no chopping.",con:"The eggs need a separate small pot."},
   efficiency:{score:3,pro:"Clears the onion, two eggs and a chunk of cheddar.",con:"Your spinach expires in 2 days and isn't used. Wilt a handful in at step 4."}},
  verdict:"A convincing weeknight tteokbokki. Add the spinach and it also does fridge-cleanup duty."},
-{id:"p-tacos",title:"Chicken Street Tacos, Lime & Cilantro",cuisine:"Mexican",mode:"passport",plating:"board",prep:10,cook:12,servings:3,
+{id:"p-tacos",inspiration:"Mexico City tacos de pollo",title:"Chicken Street Tacos, Lime & Cilantro",cuisine:"Mexican",mode:"passport",plating:"board",prep:10,cook:12,servings:3,
  palette:["#B5532C","#F4EBD0","#6E9E3F","#E8D27A"],flavor:{spicy:2,savory:4,sweet:1,sour:4,rich:2},blocks:null,
  ingredients:[
   {name:"Chicken thigh",amount:"300 g",source:"pantry"},
@@ -411,15 +412,14 @@ const PRESETS=[
   {name:"Greek yogurt",amount:"3 tbsp",source:"pantry",sub_for:"Mexican crema"},
   {name:"Chili flakes",amount:"1 tsp",source:"staple"},
   {name:"Garlic",amount:"2 cloves",source:"staple"},
-  {name:"Cumin",amount:"1 tsp",source:"missing"},
-  {name:"Jalapeño",amount:"1",source:"missing"}],
- steps:["Marinate chicken 10 minutes with garlic, chili flakes, the juice of one lime, salt and oil.","Sear over high heat 5 to 6 minutes a side until charred, rest 3 minutes and chop small.","Warm tortillas in a dry pan until they puff and spot, then stack them in a towel.","Stir lime zest and a pinch of salt into the yogurt.","Fill doubled tortillas with chicken, raw onion, cilantro and the lime yogurt. Lime wedges on the side."],
- critique:{flavor:{score:4,pro:"Charred chicken, raw onion and lots of lime: the classic bright, sharp taqueria balance.",con:"Without cumin the marinade reads a little flat. Brown the chili flakes in oil first for depth."},
+  {name:"Red bell pepper",amount:"¼, finely diced",source:"pantry",sub_for:"Jalapeño"}],
+ steps:["Marinate chicken 10 minutes with garlic, chili flakes, the juice of one lime, salt and oil.","Sear over high heat 5 to 6 minutes a side until charred, rest 3 minutes and chop small.","Warm tortillas in a dry pan until they puff and spot, then stack them in a towel.","Stir lime zest and a pinch of salt into the yogurt.","Fill doubled tortillas with chicken, raw onion, the diced pepper, cilantro and the lime yogurt. Lime wedges on the side."],
+ critique:{flavor:{score:4,pro:"Charred chicken, raw onion and lots of lime: the classic bright, sharp taqueria balance.",con:"Without cumin the marinade reads a little flat. Bloom the chili flakes in hot oil first for depth."},
   authenticity:{score:4,pro:"The build (doubled corn tortillas, onion, cilantro, lime) is true to a street stand.",con:"Lime yogurt standing in for crema is tangier and thinner."},
   effort:{score:4,pro:"One pan for the chicken and one for the tortillas.",con:"There's some fine dicing and a 10-minute marinade."},
   efficiency:{score:5,pro:"Uses up the chicken (1 day left) and cilantro (2 days left), the two most urgent items.",con:"Half the yogurt is left over."}},
  verdict:"The best rescue for today's most urgent items. Make this one first."},
-{id:"p-bowl",title:"Crispy Rice Bowl with Spinach, Jammy Egg & Lime Yogurt",cuisine:"Freestyle",mode:"freestyle",plating:"bowl",prep:5,cook:12,servings:2,
+{id:"p-bowl",inspiration:"Korean bibimbap and Persian tahdig",title:"Crispy Rice Bowl with Spinach, Jammy Egg & Lime Yogurt",cuisine:"Freestyle",mode:"freestyle",plating:"bowl",prep:5,cook:12,servings:2,
  palette:["#E9D9B0","#3E7A3A","#D2412B","#F7F3EA"],flavor:{spicy:2,savory:4,sweet:1,sour:3,rich:3},
  blocks:{base:"Leftover rice, pan-crisped",protein:"Jammy eggs + spinach & pepper",aromatics:"Garlic, chili flakes",finisher:"Lime yogurt, soy drizzle"},
  ingredients:[
@@ -438,7 +438,7 @@ const PRESETS=[
   effort:{score:4,pro:"Two pans and very little chopping.",con:"The rice crust needs patience; stirring it ruins it."},
   efficiency:{score:5,pro:"Uses all the spinach and rice (both 2 days left) plus the pepper, with nothing to buy.",con:"Leaves the chicken untouched, and that expires tomorrow."}},
  verdict:"A zero-shopping clear-out. Pair it with the tacos tomorrow and the fridge is reset."},
-{id:"p-adobo",title:"Chicken Adobo with Garlic Fried Rice",cuisine:"Filipino",mode:"passport",plating:"plate",prep:5,cook:35,servings:2,
+{id:"p-adobo",inspiration:"Filipino chicken adobo with sinangag",title:"Chicken Adobo with Garlic Fried Rice",cuisine:"Filipino",mode:"passport",plating:"plate",prep:5,cook:35,servings:2,
  palette:["#5A2E1A","#EFE4C8","#8A4A2A","#7A9A3E"],flavor:{spicy:1,savory:5,sweet:1,sour:4,rich:3},blocks:null,
  ingredients:[
   {name:"Chicken thigh",amount:"300 g",source:"pantry"},
@@ -448,15 +448,14 @@ const PRESETS=[
   {name:"Soy sauce",amount:"4 tbsp",source:"staple"},
   {name:"Vinegar",amount:"4 tbsp",source:"staple"},
   {name:"Garlic",amount:"1 whole head",source:"staple"},
-  {name:"Black pepper",amount:"1 tsp, cracked",source:"staple"},
-  {name:"Bay leaves",amount:"2",source:"missing"}],
+  {name:"Black pepper",amount:"1½ tsp, cracked",source:"staple",sub_for:"Bay leaves (extra pepper carries the aroma)"}],
  steps:["Brown the chicken skin-side down in a dry pan until golden, about 6 minutes.","Add half the garlic (smashed), the onion, soy sauce, vinegar, pepper and 120 ml water. Don't stir until it boils, so the vinegar mellows.","Cover and simmer 25 minutes, then uncover and reduce until the sauce is glossy.","Fry the rest of the garlic, minced, in oil until golden. Toss the cold rice through it with a pinch of salt.","Fry the eggs and serve everything together with the sauce spooned over."],
  critique:{flavor:{score:5,pro:"Salty, sour and peppery with crisp garlic rice: a classic combination that's hard to beat.",con:"Very savory overall. Sliced tomato or pickled papaya on the side would add freshness."},
   authenticity:{score:4,pro:"This is the real method: braise in soy and vinegar, then reduce.",con:"Without bay leaves it's missing a background note. Nobody will complain, but you'll notice."},
   effort:{score:3,pro:"Mostly hands-off simmering.",con:"Takes 40 minutes in total and uses two pans."},
   efficiency:{score:4,pro:"Uses the chicken (1 day left) and the rice (2 days left).",con:"Leaves the spinach and cilantro to wilt."}},
  verdict:"The comfort pick. Worth the 40 minutes if you have them tonight."},
-{id:"p-gnocchi",title:"Brown-Butter Gnocchi with Spinach & Cheddar",cuisine:"Italian",mode:"passport",plating:"plate",prep:3,cook:10,servings:2,
+{id:"p-gnocchi",inspiration:"Italian gnocchi burro e salvia",title:"Brown-Butter Gnocchi with Spinach & Cheddar",cuisine:"Italian",mode:"passport",plating:"plate",prep:3,cook:10,servings:2,
  palette:["#C99A4B","#F1E3BF","#3E7A3A","#F4E7A1"],flavor:{spicy:0,savory:4,sweet:1,sour:2,rich:5},blocks:null,
  ingredients:[
   {name:"Gnocchi",amount:"400 g",source:"pantry"},
@@ -466,14 +465,14 @@ const PRESETS=[
   {name:"Butter",amount:"3 tbsp",source:"staple"},
   {name:"Garlic",amount:"1 clove",source:"staple"},
   {name:"Black pepper",amount:"to taste",source:"staple"},
-  {name:"Fresh sage",amount:"6 leaves",source:"missing"}],
- steps:["Boil the gnocchi until they float, then lift them out and keep a mug of the cooking water.","Melt the butter over medium heat until it foams, smells nutty and turns golden brown.","Add the gnocchi and let them crisp for 2 minutes, then add the garlic and spinach and toss until wilted.","Loosen with a splash of cooking water, take it off the heat and toss in the cheddar.","Finish with lime zest and plenty of black pepper."],
+  {name:"Garlic",amount:"1 extra clove, thinly sliced and fried crisp",source:"staple",sub_for:"Fresh sage"}],
+ steps:["Boil the gnocchi until they float, then lift them out and keep a mug of the cooking water.","Melt the butter over medium heat until it foams, smells nutty and turns golden brown.","Add the gnocchi and let them crisp for 2 minutes, then add the garlic and spinach and toss until wilted.","Loosen with a splash of cooking water, take it off the heat and toss in the cheddar.","Finish with lime zest, plenty of black pepper and the crisp fried garlic."],
  critique:{flavor:{score:4,pro:"Nutty butter and crisp-edged gnocchi make this feel like more effort than it is.",con:"Rich, with only the zest to cut through it. Don't skip that."},
   authenticity:{score:3,pro:"Burro e salvia is a real northern Italian classic.",con:"Cheddar is oilier than Parmigiano, and there's no sage, which is the dish's signature."},
   effort:{score:5,pro:"About 15 minutes from start to finish.",con:"Brown butter can burn in seconds, so stay at the stove."},
   efficiency:{score:3,pro:"Uses spinach (2 days left) and some of the cheddar.",con:"The gnocchi keeps for weeks, so this doesn't touch the chicken or cilantro."}},
  verdict:"The fastest dinner on the list, and it saves the spinach."},
-{id:"p-quesa",title:"Spinach & Cheddar Egg Quesadillas, Pepper Salsa",cuisine:"Freestyle",mode:"freestyle",plating:"board",prep:8,cook:8,servings:2,
+{id:"p-quesa",inspiration:"Mexican quesadillas and huevos a la mexicana",title:"Spinach & Cheddar Egg Quesadillas, Pepper Salsa",cuisine:"Freestyle",mode:"freestyle",plating:"board",prep:8,cook:8,servings:2,
  palette:["#E9C46A","#F4EBD0","#3E7A3A","#D2412B"],flavor:{spicy:2,savory:4,sweet:1,sour:3,rich:4},
  blocks:{base:"Corn tortillas",protein:"Scrambled eggs + spinach",aromatics:"Onion, chili flakes",finisher:"Lime yogurt + raw pepper salsa"},
  ingredients:[
@@ -496,42 +495,43 @@ const PRESETS=[
 ];
 
 /* ---------- State ---------- */
-const S={tab:"pantry",pantry:[],staples:[],filter:"all",mode:"passport",cuisine:"Korean",variant:"adapted",
+const S={tab:"pantry",pantry:[],staples:[],filter:"all",mode:"passport",cuisine:"Korean",variant:"classic",
   recipes:PRESETS.slice(),current:0,rf:{time:"any",buy:false,sort:"match"},tableImg:null,saved:[],collections:[],week:[],sample:null,newIds:new Set(),loading:false};
 function load(){
-  let d=null; try{d=JSON.parse(localStorage.getItem("p2p.v1")||"null")}catch(e){}
+  let d=null; try{d=JSON.parse(localStorage.getItem("p2p.v2")||"null")}catch(e){}
   if(d&&Array.isArray(d.pantry)){Object.assign(S,{pantry:d.pantry,staples:d.staples,saved:d.saved||[],collections:d.collections||[],week:d.week||[]});}
   else{
     S.pantry=SEED_PANTRY; S.staples=SEED_STAPLES;
     S.collections=["Fridge Cleanout","15-Minute Lunches","Weeknight Wins"];
-    S.saved=[{id:uid(),recipe:PRESETS[0],variant:"adapted",col:"Fridge Cleanout"},{id:uid(),recipe:PRESETS[2],variant:"adapted",col:"15-Minute Lunches"},{id:uid(),recipe:PRESETS[1],variant:"adapted",col:"Weeknight Wins"}];
+    S.saved=[{id:uid(),recipe:PRESETS[0],variant:"classic",col:"Fridge Cleanout"},{id:uid(),recipe:PRESETS[2],variant:"adapted",col:"15-Minute Lunches"},{id:uid(),recipe:PRESETS[1],variant:"adapted",col:"Weeknight Wins"}];
     S.week=[S.saved[0].id,S.saved[2].id];
   }
 }
-function persist(){try{localStorage.setItem("p2p.v1",JSON.stringify({pantry:S.pantry,staples:S.staples,saved:S.saved,collections:S.collections,week:S.week}))}catch(e){}}
+function persist(){try{localStorage.setItem("p2p.v2",JSON.stringify({pantry:S.pantry,staples:S.staples,saved:S.saved,collections:S.collections,week:S.week}))}catch(e){}}
 
 /* ---------- Matching ---------- */
 const STOP=new Set(["half","leftover","fresh","sliced","diced","cups","cup","tbsp","tsp","large","small","pack","bag","cloves","clove","the","and","for","with","red","green","yellow","bunch","block","whole","chopped","minced","optional"]);
 const words=s=>String(s).toLowerCase().replace(/[^a-z\s]/g," ").split(/\s+/).filter(w=>w.length>2&&!STOP.has(w)).map(w=>w.replace(/(es|s)$/,""));
 function owns(name){
   const w=words(name); if(!w.length) return null;
+  if(w.some(x=>x==="water"||x==="ice")) return {src:"staple",item:{name:"Water"}};
   for(const p of S.pantry){ if(words(p.name).some(x=>w.includes(x))) return {src:"pantry",item:p}; }
   for(const st of S.staples){ if(st.on&&words(st.name).some(x=>w.includes(x))) return {src:"staple",item:st}; }
   return null;
 }
-function ingStatus(ing,variant){
-  if(ing.sub_for&&variant==="authentic"){ const o=owns(ing.sub_for); return {name:ing.sub_for,src:o?o.src:"missing",swap:null}; }
+/* Kitchen-only rule: a recipe is shown only if every ingredient is in the pantry grid or a ticked staple. */
+function ingStatus(ing){
   const o=owns(ing.name);
-  let src=o?o.src:(ing.source==="staple"&&S.staples.some(s=>s.on&&words(s.name).some(x=>words(ing.name).includes(x)))?"staple":"missing");
-  return {name:ing.name,src,swap:ing.sub_for||null,item:o&&o.item};
+  return {name:ing.name,src:o?o.src:"missing",swap:ing.sub_for||null,item:o&&o.item};
 }
-function analyze(r,variant){
-  const list=r.ingredients.map(i=>({...ingStatus(i,variant),amount:i.amount}));
-  const core=list.filter(i=>i.src!=="staple");
-  const have=core.filter(i=>i.src==="pantry");
-  const clears=[...new Set(have.filter(i=>i.item&&i.item.days<=3).map(i=>i.item.name))];
-  return {list,core:core.length,have:have.length,pct:core.length?Math.round(have.length/core.length*100):100,clears,missing:list.filter(i=>i.src==="missing")};
+function analyze(r){
+  const list=r.ingredients.map(i=>({...ingStatus(i),amount:i.amount}));
+  const pantryUsed=[...new Set(list.filter(i=>i.src==="pantry"&&i.item).map(i=>i.item.name))];
+  const clears=S.pantry.filter(p=>p.days<=3&&pantryUsed.includes(p.name)).map(p=>p.name);
+  return {list,uses:pantryUsed.length,staples:list.filter(i=>i.src==="staple").length,clears,
+    subs:list.filter(i=>i.swap),missing:list.filter(i=>i.src==="missing")};
 }
+const cookable=r=>!!r&&!analyze(r).missing.length;
 
 /* ---------- Toast ---------- */
 let tt; function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),3200)}
@@ -613,19 +613,21 @@ function renderControls(){
 }
 function renderStudio(){
   renderControls();
+  if(!cookable(S.recipes[S.current])){const v=visibleRecipes();S.current=v.length?v[0].i:-1;}
   renderPicks();
-  const r=S.recipes[S.current]; if(!r) return;
+  const r=S.recipes[S.current];
+  document.querySelector(".split").hidden=!r;
+  if(!r) return;
   drawPlate($("#plate"),r,S.tableImg);
   $("#plateTag").textContent=`${r.plating} · ${S.tableImg?"your table":"studio"}`;
   $("#tableClear").hidden=!S.tableImg;
   renderSheet(r);
 }
 function visibleRecipes(){
-  let v=S.recipes.map((r,i)=>({r,i,a:analyze(r,S.variant)}));
+  let v=S.recipes.map((r,i)=>({r,i,a:analyze(r)})).filter(x=>!x.a.missing.length);
   if(S.rf.time!=="any") v=v.filter(x=>x.r.prep+x.r.cook<=+S.rf.time);
-  if(S.rf.buy) v=v.filter(x=>!x.a.missing.length);
   const mins=x=>x.r.prep+x.r.cook;
-  const by={match:(x,y)=>y.a.pct-x.a.pct||x.a.missing.length-y.a.missing.length,
+  const by={match:(x,y)=>y.a.uses-x.a.uses||y.a.clears.length-x.a.clears.length,
     time:(x,y)=>mins(x)-mins(y),
     clears:(x,y)=>y.a.clears.length-x.a.clears.length||y.a.pct-x.a.pct}[S.rf.sort];
   return v.sort(by);
@@ -633,11 +635,11 @@ function visibleRecipes(){
 function renderPicks(){
   const times=[["any","Any time"],["20","Under 20 min"],["30","Under 30 min"],["45","Under 45 min"]];
   const v=visibleRecipes();
-  $("#browse").innerHTML=`<span class="count"><b>${v.length}</b>${v.length!==S.recipes.length?` of ${S.recipes.length}`:""} idea${S.recipes.length===1?"":"s"}</span>
-    <div class="filters" role="group" aria-label="Cooking time">${times.map(([k,l])=>`<button data-act="rf-time" data-v="${k}" aria-pressed="${S.rf.time===k}">${l}</button>`).join("")}
-    <button data-act="rf-buy" aria-pressed="${S.rf.buy}">Nothing to buy</button></div>
+  const okAll=S.recipes.filter(cookable).length, gone=S.recipes.length-okAll;
+  $("#browse").innerHTML=`<span class="count"><b>${v.length}</b> idea${v.length===1?"":"s"} you can cook now${gone?` <span style="color:var(--muted);font-size:12px">· ${gone} hidden: your kitchen changed</span>`:""}</span>
+    <div class="filters" role="group" aria-label="Cooking time">${times.map(([k,l])=>`<button data-act="rf-time" data-v="${k}" aria-pressed="${S.rf.time===k}">${l}</button>`).join("")}</div>
     <select id="rfSort" aria-label="Sort recipes">
-      <option value="match"${S.rf.sort==="match"?" selected":""}>Sort: best pantry match</option>
+      <option value="match"${S.rf.sort==="match"?" selected":""}>Sort: uses the most of my pantry</option>
       <option value="time"${S.rf.sort==="time"?" selected":""}>Sort: quickest first</option>
       <option value="clears"${S.rf.sort==="clears"?" selected":""}>Sort: uses up expiring food</option>
     </select>`;
@@ -645,8 +647,8 @@ function renderPicks(){
   const cards=v.map(({r,i,a})=>`<button class="pick" data-act="pick" data-i="${i}" aria-pressed="${i===S.current}">
      <canvas width="160" height="200" data-pthumb="${i}" aria-hidden="true"></canvas>
      <span class="pt"><span class="label">${esc(r.cuisine)}${r.mode==="freestyle"?" · invented":""}</span><strong>${esc(r.title)}</strong>
-     <span class="meta mono">${r.prep+r.cook} min · ${a.pct}% match · <span style="white-space:nowrap">${a.missing.length?a.missing.length+" to buy":"nothing to buy"}</span></span></span></button>`).join("");
-  const empty=v.length?"":`<div class="empty" style="grid-column:1/-1;padding:22px">No ideas match these filters. <button class="btn small" data-act="rf-clear">Clear filters</button></div>`;
+     <span class="meta mono">${r.prep+r.cook} min · uses ${a.uses} pantry items${a.clears.length?` · <span style="white-space:nowrap">saves ${a.clears.length} expiring</span>`:""}</span></span></button>`).join("");
+  const empty=v.length?"":`<div class="empty" style="grid-column:1/-1;padding:22px">${okAll?`No ideas match this cooking time. <button class="btn small" data-act="rf-clear">Show all times</button>`:"None of these ideas fit your kitchen right now. Ask for new ones and they'll use only what you have."}</div>`;
   const more=S.loading==="more"?`<div class="loading">Writing six more ideas…</div>`
     :`<button class="pick more" data-act="more">+ 6 more ideas<span>${S.mode==="passport"?esc(S.cuisine)+", different from these":"New freestyle inventions"}</span></button>`;
   $("#picks").innerHTML=cards+empty+more;
@@ -654,18 +656,18 @@ function renderPicks(){
 }
 function scoreBar(n){n=Math.max(0,Math.min(5,Math.round(n||0)));return `<span class="score" aria-label="${n} out of 5">${[1,2,3,4,5].map(k=>`<i class="${k<=n?"on":""}"></i>`).join("")}</span>`}
 function renderSheet(r){
-  const a=analyze(r,S.variant), f=r.flavor||{}, c=r.critique||{};
+  const a=analyze(r), f=r.flavor||{}, c=r.critique||{};
   const P=[["flavor","Flavor & texture"],["authenticity","Authenticity vs. swaps"],["effort","Prep effort & cleanup"],["efficiency","Leftover efficiency"]];
-  const tag=s=>s.src==="pantry"?`<span class="st have">In pantry</span>`:s.src==="staple"?`<span class="st">Staple</span>`:`<span class="st need">Need to buy</span>`;
+  const tag=s=>s.src==="pantry"?`<span class="st have">In pantry</span>`:`<span class="st">Staple</span>`;
   $("#sheet").innerHTML=`
-  <div><span class="label">${esc(r.cuisine)} · ${r.mode==="freestyle"?"Freestyle invention":(S.variant==="authentic"?"Authentic":"Fridge-Adapted")}</span>
-  <h2 style="margin-top:6px">${esc(r.title)}</h2></div>
+  <div><span class="label">${esc(r.cuisine)} · ${r.mode==="freestyle"?"Freestyle invention":"Made from your kitchen"}</span>
+  <h2 style="margin-top:6px">${esc(r.title)}</h2>${r.inspiration?`<p style="margin:6px 0 0;color:var(--muted)">Inspired by ${esc(r.inspiration)}</p>`:""}</div>
   <dl class="spec" style="margin:0">
     <div><dt>Prep / Cook</dt><dd class="mono">${r.prep} min / ${r.cook} min</dd></div>
     <div><dt>Serves</dt><dd class="mono">${r.servings||2}</dd></div>
-    <div><dt>Pantry match</dt><dd><span class="mono">${a.pct}%</span> · Uses ${a.have} of ${a.core} items you own<div class="meter"><i style="width:${a.pct}%"></i></div></dd></div>
+    <div><dt>From your kitchen</dt><dd>${a.uses} pantry item${a.uses===1?"":"s"} + ${a.staples} staple${a.staples===1?"":"s"} · <b style="color:var(--accent);font-weight:500">nothing to buy</b></dd></div>
     <div><dt>Clears soon</dt><dd>${a.clears.length?esc(a.clears.join(", ")):"<span style='color:var(--muted)'>No items expiring within 3 days</span>"}</dd></div>
-    <div><dt>To buy</dt><dd>${a.missing.length?esc(a.missing.map(m=>m.name).join(", ")):"Nothing. You're set."}</dd></div>
+    <div><dt>Swaps</dt><dd>${a.subs.length?esc(a.subs.map(m=>`${m.name} for ${m.swap}`).join(" · ")):"None. Made just as the classic is."}</dd></div>
   </dl>
   <div class="save-wrap">
     <button class="btn primary" data-act="save-open">Save to Cookbook</button>
@@ -680,7 +682,7 @@ function renderSheet(r){
   ${r.blocks?`<section><div class="sec-title"><h3>Building blocks</h3><span class="label">Freestyle formula</span></div><div class="blocks">
     ${[["base","Base"],["protein","Protein / veg"],["aromatics","Aromatics"],["finisher","Acid / fat finish"]].map(([k,l])=>`<div><span class="label">${l}</span><b>${esc(r.blocks[k]||"—")}</b></div>`).join("")}</div></section>`:""}
   <section><div class="sec-title"><h3>Ingredients</h3><span class="label">${a.list.length} items</span></div>
-    <ul class="ings">${a.list.map(s=>`<li><div>${esc(s.name)}<span class="amt">${esc(s.amount||"")}</span>${s.swap&&S.variant!=="authentic"?`<span class="swap">Stands in for ${esc(s.swap)}</span>`:""}</div>${tag(s)}</li>`).join("")}</ul></section>
+    <ul class="ings">${a.list.map(s=>`<li><div>${esc(s.name)}<span class="amt">${esc(s.amount||"")}</span>${s.swap?`<span class="swap">Stands in for ${esc(s.swap)}</span>`:""}</div>${tag(s)}</li>`).join("")}</ul></section>
   <section><div class="sec-title"><h3>AI Chef critique</h3><span class="label">Pros & cons</span></div>
     <div class="pillars">${P.map(([k,l])=>{const p=c[k]||{};return `<div class="pillar"><div class="top"><h4>${l}</h4>${scoreBar(p.score)}</div><p><b>+</b>${esc(p.pro||"")}</p><p><b>−</b>${esc(p.con||"")}</p></div>`}).join("")}</div>
     ${r.verdict?`<p class="verdict" style="margin:12px 0 0">${esc(r.verdict)}</p>`:""}</section>
@@ -696,7 +698,7 @@ function normRecipe(x,i){
   const pal=(Array.isArray(x.palette)?x.palette:[]).filter(h=>/^#[0-9a-f]{6}$/i.test(h));
   while(pal.length<4) pal.push(["#C8341F","#EADBB8","#4E8A3E","#F2B33D"][pal.length]);
   const fl={}; ["spicy","savory","sweet","sour","rich"].forEach(k=>fl[k]=clamp((x.flavor||{})[k],0,5));
-  return {id:"ai-"+uid(),title:String(x.title||"Untitled dish"),cuisine:String(x.cuisine||(S.mode==="passport"?S.cuisine:"Freestyle")),mode:S.mode,plating:plat,
+  return {id:"ai-"+uid(),title:String(x.title||"Untitled dish"),inspiration:String(x.inspiration||""),cuisine:String(x.cuisine||(S.mode==="passport"?S.cuisine:"Freestyle")),mode:S.mode,plating:plat,
     prep:clamp(x.prep_min??x.prep,0,240),cook:clamp(x.cook_min??x.cook,0,480),servings:clamp(x.servings,1,12)||2,palette:pal,flavor:fl,
     blocks:x.blocks&&typeof x.blocks==="object"&&x.blocks.base?x.blocks:null,
     ingredients:(x.ingredients||[]).map(g=>({name:String(g.name||""),amount:String(g.amount||""),source:g.source,sub_for:g.sub_for||null})).filter(g=>g.name),
@@ -717,7 +719,7 @@ async function generate(append){
   const staples=S.staples.filter(s=>s.on).map(s=>s.name).join(", ");
   const modeText=S.mode==="passport"
     ?`MODE: Cuisine Passport, ${S.cuisine} cuisine. Write 6 different well-known ${S.cuisine} dishes, a real spread from street food to home cooking to festive.
-APPROACH: ${S.variant==="authentic"?"Authentic. Use the traditional ingredients even when the user doesn't own them (mark them missing).":"Fridge-Adapted. Swap missing specialty ingredients for clever pantry substitutes, and for every swap put the traditional ingredient's name in sub_for (e.g. gnocchi with sub_for \"Korean rice cakes\")."}`
+STYLE: ${S.variant==="improv"?"Improvise freely: riff boldly on the classics with creative substitutions and twists, as long as the result is delicious.":"Stay as close to the classic dish as this kitchen allows, substituting only where an ingredient is missing."}`
     :`MODE: Freestyle. Invent 6 original, clearly different dishes that don't fit a traditional recipe, each built from: Base + Protein/Veg + Aromatics + Acid/Fat Finisher. Size them to the actual leftover quantities and prioritize items that expire soonest. Fill the blocks object.`;
   try{
     const res=await AI.json(`You are the recipe engine of a "pantry to plate" cooking app.
@@ -726,23 +728,27 @@ ${pantry}
 ALWAYS-AVAILABLE STAPLES: ${staples||"none"}
 ${modeText}${avoid}
 
+HARD RULE, KITCHEN ONLY: use ONLY ingredients from the pantry and staples lists above, plus water. Never require anything else, not even a garnish or "optional" item. When a dish traditionally needs something this kitchen doesn't have, substitute the closest thing from the lists and put the traditional ingredient's name in sub_for (e.g. "Gnocchi" with sub_for "Korean rice cakes"). If no substitute would still taste great, choose a different dish.
+QUALITY: every dish must be genuinely delicious, cooked to the standard of the best cookbooks and cooks (the rigor of Samin Nosrat, J. Kenji López-Alt, Marcella Hazan, Maangchi, Rick Bayless, Yotam Ottolenghi, Andrea Nguyen): balance salt, fat, acid and heat; use proper technique (browning, blooming spices, deglazing, resting); give exact amounts and timings. Draw on the whole world's cooking. Don't claim a recipe comes from a specific book.
+
 Respond with JSON only, shaped exactly like:
-{"recipes":[{"title":"","cuisine":"","plating":"skillet|board|bowl|plate","prep_min":10,"cook_min":15,"servings":2,
+{"recipes":[{"title":"","cuisine":"","inspiration":"the classic dish or tradition it riffs on, e.g. Korean tteokbokki","plating":"skillet|board|bowl|plate","prep_min":10,"cook_min":15,"servings":2,
 "palette":["#hex","#hex","#hex","#hex"],
 "flavor":{"spicy":0,"savory":0,"sweet":0,"sour":0,"rich":0},
 "blocks":{"base":"","protein":"","aromatics":"","finisher":""} or null,
-"ingredients":[{"name":"","amount":"","source":"pantry|staple|missing","sub_for":null}],
+"ingredients":[{"name":"","amount":"","source":"pantry|staple","sub_for":null}],
 "steps":["4 to 6 short imperative steps"],
 "critique":{"flavor":{"score":1-5,"pro":"","con":""},"authenticity":{...},"effort":{...},"efficiency":{...}},
 "verdict":"one sentence"}]}
-Rules: pantry ingredient names must match the pantry names exactly. palette = 4 hex colors you'd actually see on the finished plate. plating = the vessel it's served in (skillet for sizzling dishes, board for tacos/sandwiches/shared, bowl for soups/rice bowls/noodles, plate otherwise). flavor values are integers 0-5. The critique must be honest: every pillar needs a real con. "efficiency" judges how well it clears expiring items and should name any urgent item it leaves unused.`);
+Rules: ingredient names must match the pantry and staple names exactly. palette = 4 hex colors you'd actually see on the finished plate. plating = the vessel it's served in (skillet for sizzling dishes, board for tacos/sandwiches/shared, bowl for soups/rice bowls/noodles, plate otherwise). flavor values are integers 0-5. The critique must be honest: every pillar needs a real con. "efficiency" judges how well it clears expiring items and should name any urgent item it leaves unused.`);
     const arr=(res&&res.recipes)||(Array.isArray(res)?res:[]);
     if(!arr.length) throw {code:"empty"};
-    const fresh=arr.slice(0,6).map(normRecipe);
-    if(append){S.recipes=S.recipes.concat(fresh);toast(`Added ${fresh.length} more ideas.`);}
-    else{S.recipes=fresh;S.current=0;}
+    const all=arr.slice(0,6).map(normRecipe), fresh=all.filter(cookable), dropped=all.length-fresh.length;
+    if(!fresh.length) throw {code:"none_cookable"};
+    if(append){S.recipes=S.recipes.concat(fresh);toast(`Added ${fresh.length} more ideas${dropped?`, and skipped ${dropped} that needed shopping`:""}.`);}
+    else{S.recipes=fresh;S.current=0;if(dropped)toast(`Skipped ${dropped} idea${dropped>1?"s":""} that needed shopping.`);}
   }catch(e){
-    toast(e&&e.code==="rate_limited"?"Too many requests just now. Wait a minute and try again.":e&&e.code==="not_granted"?"AI access wasn't granted, so you're seeing demo recipes.":"Recipe generation didn't work. Try again.");
+    toast(e&&e.code==="none_cookable"?"Every idea needed something you don't have. Try again, or add a few staples.":e&&e.code==="rate_limited"?"Too many requests just now. Wait a minute and try again.":e&&e.code==="not_granted"?"AI access wasn't granted, so you're seeing demo recipes.":"Recipe generation didn't work. Try again.");
   }finally{S.loading=false;$("#genBtn").disabled=false;renderStudio();}
 }
 const CANNED={
@@ -822,9 +828,9 @@ function drawPlate(cv,r,bg){
 function renderBooks(){
   const cols=S.collections;
   $("#collections").innerHTML=cols.map(cn=>{const rs=S.saved.filter(s=>s.col===cn);return `<div class="collection"><div class="sec-title"><h3>${esc(cn)}</h3><span class="label">${rs.length} recipe${rs.length===1?"":"s"}</span></div>
-    ${rs.length?`<div class="rgrid">${rs.map(s=>{const a=analyze(s.recipe,s.variant);return `<div class="rcard"><canvas width="400" height="500" data-thumb="${s.id}" aria-label="${esc(s.recipe.title)}"></canvas>
+    ${rs.length?`<div class="rgrid">${rs.map(s=>{const a=analyze(s.recipe);return `<div class="rcard"><canvas width="400" height="500" data-thumb="${s.id}" aria-label="${esc(s.recipe.title)}"></canvas>
       <div class="body"><span class="label">${esc(s.recipe.cuisine)} · ${s.recipe.prep+s.recipe.cook} min</span><strong>${esc(s.recipe.title)}</strong>
-      <span class="mono" style="font-size:12px">${a.pct}% match · ${a.missing.length?a.missing.length+" to buy":"nothing to buy"}</span>
+      <span class="mono" style="font-size:12px;${a.missing.length?"color:var(--urgent)":"color:var(--accent)"}">${a.missing.length?"Used up: "+esc(a.missing.map(m=>m.name).join(", ")):"Ready to cook"}</span>
       <div class="actions"><label class="wk"><input type="checkbox" data-week="${s.id}" ${S.week.includes(s.id)?"checked":""}>This week</label>
       <span style="flex:1"></span><button class="btn small" data-act="open" data-id="${s.id}">Open</button><button class="btn small" data-act="unsave" data-id="${s.id}" aria-label="Remove ${esc(s.recipe.title)}">Remove</button></div></div></div>`}).join("")}</div>`
     :`<div class="empty" style="padding:22px">Empty. Save a recipe from the Plating Studio.</div>`}</div>`}).join("");
@@ -832,15 +838,20 @@ function renderBooks(){
   renderList();
 }
 function renderList(){
-  const picked=S.saved.filter(s=>S.week.includes(s.id)), need=new Map();
-  picked.forEach(s=>analyze(s.recipe,s.variant).missing.forEach(m=>{const key=m.name.toLowerCase();if(!need.has(key))need.set(key,{name:m.name,for:[]});need.get(key).for.push(s.recipe.title)}));
-  const items=[...need.values()];
-  $("#shopList").innerHTML=`<span class="label">Gap shopping list</span><h3 style="margin-top:4px">${items.length} item${items.length===1?"":"s"} to buy</h3>
-   <p style="margin:6px 0 0;font-size:13px;color:var(--muted)">For ${picked.length} recipe${picked.length===1?"":"s"} this week, checked against your current fridge.</p>
-   ${items.length?`<ul>${items.map((it,i)=>`<li><input type="checkbox" id="buy${i}" aria-label="Got ${esc(it.name)}"><label for="buy${i}">${esc(it.name)}<span>${esc(it.for.join(" · "))}</span></label></li>`).join("")}</ul>
-   <button class="btn small" data-act="copy">Copy list</button>`
-   :`<p style="margin-top:14px">${picked.length?"You already own everything. Nothing to buy.":"Tick “This week” on a few recipes to build your list."}</p>`}`;
-  S._listText=items.map(i=>"- "+i.name).join("\n");
+  const picked=S.saved.filter(s=>S.week.includes(s.id)).map(s=>({s,a:analyze(s.recipe)}));
+  const use=new Map();
+  picked.forEach(({s,a})=>a.list.filter(x=>x.src==="pantry"&&x.item).forEach(x=>{const k=x.item.name;if(!use.has(k))use.set(k,new Set());use.get(k).add(s.recipe.title)}));
+  const shared=[...use].filter(([,v])=>v.size>1);
+  const unused=S.pantry.filter(p=>p.days<=3&&!use.has(p.name)).sort((a,b)=>a.days-b.days);
+  const ready=picked.filter(x=>!x.a.missing.length).length;
+  $("#shopList").innerHTML=`<span class="label">This week · kitchen check</span><h3 style="margin-top:4px">${picked.length} meal${picked.length===1?"":"s"} planned</h3>
+   <p style="margin:6px 0 0;font-size:13px;color:var(--muted)">${picked.length?`${ready} of ${picked.length} ready to cook from what you have.`:"Tick “This week” on a few recipes to plan them."}</p>
+   ${picked.length?`<ul class="plan">${picked.map(({s,a})=>`<li>${esc(s.recipe.title)}<span style="color:${a.missing.length?"var(--urgent)":"var(--accent)"}">${a.missing.length?"Used up: "+esc(a.missing.map(m=>m.name).join(", "))+". Generate a new idea instead.":"Ready to cook"}</span></li>`).join("")}</ul>`:""}
+   ${shared.length?`<span class="label">Shared ingredients</span><ul class="plan">${shared.map(([k,v])=>`<li>${esc(k)}<span>Used by ${v.size} meals. Check you have enough.</span></li>`).join("")}</ul>`:""}
+   ${unused.length?`<span class="label">Expiring, not planned yet</span><ul class="plan">${unused.map(p=>`<li>${esc(p.name)}<span>${p.days<=0?"Use today":`Use in ${p.days} day${p.days>1?"s":""}`}</span></li>`).join("")}</ul>
+     <button class="btn small" data-act="rescue-leftovers">Invent a dish for these</button>`:""}
+   ${picked.length?`<button class="btn small" data-act="copy" style="margin-top:8px">Copy plan</button>`:""}`;
+  S._listText=picked.map(({s})=>"- "+s.recipe.title).join("\n")+(unused.length?"\nStill to use: "+unused.map(p=>p.name).join(", "):"");
 }
 
 /* ---------- Events ---------- */
@@ -855,9 +866,9 @@ document.addEventListener("click",e=>{
   else if(act==="variant"){S.variant=t.dataset.variant;renderStudio();}
   else if(act==="generate") generate(false);
   else if(act==="more") generate(true);
+  else if(act==="rescue-leftovers"){S.mode="freestyle";setTab("studio");generate(false);}
   else if(act==="rf-time"){S.rf.time=t.dataset.v;renderPicks();}
-  else if(act==="rf-buy"){S.rf.buy=!S.rf.buy;renderPicks();}
-  else if(act==="rf-clear"){S.rf.time="any";S.rf.buy=false;renderPicks();}
+    else if(act==="rf-clear"){S.rf.time="any";renderStudio();}
   else if(act==="pick"){S.current=+t.dataset.i;renderStudio();}
   else if(act==="save-open"){const p=$("#savePop");p.hidden=!p.hidden;}
   else if(act==="save-to"){saveTo(t.dataset.col);}
@@ -865,7 +876,7 @@ document.addEventListener("click",e=>{
   else if(act==="table-clear"){S.tableImg=null;renderStudio();}
   else if(act==="unsave"){S.saved=S.saved.filter(s=>s.id!==t.dataset.id);S.week=S.week.filter(w=>w!==t.dataset.id);persist();renderBooks();}
   else if(act==="open"){const s=S.saved.find(z=>z.id===t.dataset.id);if(s){S.recipes=[s.recipe,...S.recipes.filter(r=>r.title!==s.recipe.title)];S.current=0;S.variant=s.variant;S.mode=s.recipe.mode||"passport";setTab("studio");}}
-  else if(act==="copy"){navigator.clipboard.writeText(S._listText||"").then(()=>toast("Shopping list copied."),()=>toast("Couldn't copy. Select the list and copy it by hand."));}
+  else if(act==="copy"){navigator.clipboard.writeText(S._listText||"").then(()=>toast("Plan copied."),()=>toast("Couldn't copy. Select the plan and copy it by hand."));}
 });
 function saveTo(col){
   const r=S.recipes[S.current]; if(!r) return;
