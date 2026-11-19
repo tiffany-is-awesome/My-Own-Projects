@@ -6,11 +6,13 @@ import Worn from './Worn.jsx';
 
 // Box positions in % of the 4:5 stage: [left, top, width, height]
 const FLATLAY_WITH_OUTER = {
-  outer: [2, 4, 50, 56], top: [46, 2, 44, 44], bottom: [50, 40, 38, 56], shoes: [4, 56, 42, 38], accessory: [78, 64, 22, 26],
+  outer: [2, 4, 50, 56], top: [46, 2, 44, 44], bottom: [50, 40, 38, 56], shoes: [4, 60, 40, 34], bag: [78, 66, 22, 26], accessory: [36, 60, 20, 20],
 };
 const FLATLAY = {
-  top: [4, 4, 52, 50], bottom: [50, 14, 42, 60], shoes: [8, 52, 44, 40], accessory: [66, 70, 28, 26],
+  top: [4, 4, 52, 50], bottom: [50, 14, 42, 60], shoes: [8, 56, 40, 36], bag: [68, 72, 28, 26], accessory: [52, 2, 20, 20],
 };
+// A dress takes the whole left/centre column
+const DRESS = { top: [10, 2, 50, 72], outer: [54, 2, 44, 52], shoes: [12, 72, 40, 26], bag: [66, 66, 28, 28], accessory: [60, 46, 22, 20] };
 
 // Soft-focus "photographic" treatment: background out of focus, film grain, vignette.
 function PhotoFinish({ children }) {
@@ -30,28 +32,27 @@ function PhotoFinish({ children }) {
 
 const box = ([l, t, w, h], extra = {}) => ({ left: l + '%', top: t + '%', width: w + '%', height: h + '%', ...extra });
 
-export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', customBg = null, personPhoto = null, caption, compact = false }) {
+export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', customBg = null, personPhoto = null, caption, compact = false, child = false }) {
   const o = outfit || {};
   const photos = usePhotos();
   const person = personPhoto || photos.model;
   const scenePhoto = photos.scenes[sceneId];
   const scene = SCENES.find((s) => s.id === sceneId) || SCENES[0];
   const onBody = mode === 'mannequin' || mode === 'scene';
-  const empty = !['top', 'bottom', 'outer', 'shoes', 'accessory'].some((k) => o[k]);
+  const KEYS = ['outer', 'bottom', 'top', 'shoes', 'bag', 'accessory'];
+  const empty = !KEYS.some((k) => o[k]);
 
   let layers;
   if (!onBody) {
-    const L = o.outer ? FLATLAY_WITH_OUTER : FLATLAY;
-    const order = ['outer', 'bottom', 'top', 'shoes', 'accessory'];
-    layers = order.filter((k) => o[k]).map((k) => (
+    const L = o.top?.category === 'dress' ? DRESS : o.outer ? FLATLAY_WITH_OUTER : FLATLAY;
+    layers = KEYS.filter((k) => o[k]).map((k) => (
       <div key={k} className="stage-item" style={box(L[k] || FLATLAY[k])}>
         <GarmentArt item={o[k]} />
-        {!compact && o[k].placeholder && <span className="basic-tag">Basic</span>}
       </div>
     ));
   } else {
     // dressed on the mannequin: every piece drawn to fit the body
-    layers = <Worn outfit={o} photoFor={(it) => it.image || photos.garments[it.id] || null} />;
+    layers = <Worn outfit={o} child={child} photoFor={(it) => it.image || photos.garments[it.id] || null} />;
   }
 
   // "On you": a real photo of a person, with the outfit pinned beside it as a product card.
@@ -60,7 +61,7 @@ export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', cu
       <div className={`stage ${compact ? 'compact' : ''} mode-person`}>
         {person ? <img className="stage-layer cover" src={person} alt={personPhoto ? 'Your photo' : 'Model'} /> : <div className="stage-empty">Add a photo of yourself (or a model you like) to see your outfit beside a real person.</div>}
         <div className="person-card">
-          {['outer', 'top', 'bottom', 'shoes', 'accessory'].filter((k) => o[k]).map((k) => <div key={k} className="person-piece"><GarmentArt item={o[k]} /></div>)}
+          {['outer', 'top', 'bottom', 'shoes', 'bag', 'accessory'].filter((k) => o[k]).map((k) => <div key={k} className="person-piece"><GarmentArt item={o[k]} /></div>)}
         </div>
         {caption && <div className="stage-caption">{caption}</div>}
       </div>

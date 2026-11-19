@@ -180,6 +180,9 @@ async function fromProxy() {
   };
 }
 
+/** Tests only: force a provider (undefined = back to normal detection). */
+export function __setProviderForTests(p) { providerPromise = p === undefined ? null : Promise.resolve(p); }
+
 /** Resolves the best available provider, or null (→ rules engine). */
 export function getClaude() {
   if (disabledReason) return Promise.resolve(null);

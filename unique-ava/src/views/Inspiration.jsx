@@ -4,8 +4,7 @@ import Stage from '../components/Stage.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
 import { Modal, useToast } from '../components/common.jsx';
 import { decomposeLook, matchLook } from '../ai/inspiration.js';
-import { BASICS, SLOTS } from '../data/closet.js';
-import { parseContext } from '../ai/context.js';
+import { SLOTS, slotOf } from '../data/closet.js';
 import { decomposeWithClaude } from '../ai/stylist.js';
 import { useClaudeStatus } from '../ai/claude.js';
 
@@ -13,8 +12,9 @@ import { useClaudeStatus } from '../ai/claude.js';
 function lookAsOutfit(items) {
   const o = {};
   for (const it of items) {
-    if (o[it.category]) continue;
-    o[it.category] = { id: 'look-' + it.label, name: it.label, category: it.category, art: it.art, colors: [it.color || { name: 'gray', hex: '#9A9B9E' }], fit: 'regular' };
+    const k = slotOf(it);
+    if (o[k]) continue;
+    o[k] = { id: 'look-' + it.label, name: it.label, category: it.category, art: it.art, colors: [it.color || { name: 'gray', hex: '#9A9B9E' }], fit: 'regular' };
   }
   return o;
 }
@@ -69,7 +69,7 @@ function AddInspiration({ onClose, onAdded }) {
 }
 
 export default function Inspiration({ go }) {
-  const { state, dispatch } = useStore();
+  const { state, dispatch, owned } = useStore();
   const toast = useToast();
   const [sel, setSel] = useState(state.inspirations[0]?.id);
   const [adding, setAdding] = useState(false);
@@ -77,20 +77,16 @@ export default function Inspiration({ go }) {
 
   const scored = useMemo(() => state.inspirations.map((i) => {
     const items = i.items || decomposeLook(i.text || '');
-    return { ...i, items, match: matchLook(items, state.garments) };
-  }), [state.inspirations, state.garments]);
+    return { ...i, items, match: matchLook(items, owned) };
+  }), [state.inspirations, owned]);
   const cur = scored.find((s) => s.id === current?.id);
 
   function recreate() {
     const slots = Object.fromEntries(SLOTS.map((k) => [k, null]));
-    for (const m of cur.match.matches) if (!slots[m.garment.category]) slots[m.garment.category] = m.garment.id;
-    for (const miss of cur.match.missing) {
-      if (slots[miss.category]) continue;
-      const basic = BASICS.find((b) => b.category === miss.category && b.art === miss.art) || BASICS.find((b) => b.category === miss.category);
-      if (basic) slots[miss.category] = basic.id;
-    }
-    dispatch({ type: 'LOAD_DRAFT', draft: { slots, name: cur.title, context: parseContext(cur.title.toLowerCase().includes('rain') ? 'Rainy city commute, 12°C' : state.draft.context.prompt) } });
-    toast('Recreated with your pieces. Gaps are filled with basics.');
+    for (const m of cur.match.matches) { const k = slotOf(m.garment); if (!slots[k]) slots[k] = m.garment.id; }
+    if (slots.top && owned.find((g) => g.id === slots.top)?.category === 'dress') slots.bottom = null;
+    dispatch({ type: 'LOAD_DRAFT', draft: { slots, name: cur.title } });
+    toast(cur.match.missing.length ? `Recreated with your pieces. ${cur.match.missing.length} piece${cur.match.missing.length > 1 ? 's are' : ' is'} missing from your closet.` : 'Recreated with your pieces.');
     go('#/dressing');
   }
 
@@ -133,7 +129,7 @@ export default function Inspiration({ go }) {
             <div style={{ marginTop: 16 }}>
               {cur.match.matches.map((m) => (
                 <div className="match-row" key={m.want.label}>
-                  <div className="mini" style={{ background: cur.mood }}><GarmentArt item={lookAsOutfit([m.want])[m.want.category]} /></div>
+                  <div className="mini" style={{ background: cur.mood }}><GarmentArt item={Object.values(lookAsOutfit([m.want]))[0]} /></div>
                   <span className="muted" style={{ textAlign: 'center' }}>→</span>
                   <div className="mini"><GarmentArt item={m.garment} /></div>
                   <div><div className="small" style={{ fontWeight: 600 }}>{m.garment.name}</div><div className="tiny">{m.exact ? 'Exact match' : 'Close match'} for “{m.want.label}”</div></div>
@@ -141,10 +137,10 @@ export default function Inspiration({ go }) {
               ))}
               {cur.match.missing.map((m) => (
                 <div className="match-row" key={m.label}>
-                  <div className="mini" style={{ background: cur.mood }}><GarmentArt item={lookAsOutfit([m])[m.category]} /></div>
+                  <div className="mini" style={{ background: cur.mood }}><GarmentArt item={Object.values(lookAsOutfit([m]))[0]} /></div>
                   <span className="muted" style={{ textAlign: 'center' }}>→</span>
                   <div className="mini missing"><span className="tiny">missing</span></div>
-                  <div><div className="small" style={{ fontWeight: 600 }}>{m.label}</div><div className="tiny">Not in your closet · a basic stands in for now</div></div>
+                  <div><div className="small" style={{ fontWeight: 600 }}>{m.label}</div><div className="tiny">Not in your closet</div></div>
                 </div>
               ))}
             </div>

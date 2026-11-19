@@ -17,6 +17,7 @@ const P = {
   skirt: 'M72 40 L128 40 C138 90 150 160 160 210 C161 214 158.5 217 154.5 217.5 C120 222 80 222 45.5 217.5 C41.5 217 39 214 40 210 C50 160 62 90 72 40 Z',
   coat: 'M68 30 C76 27 84 25 88 24 L100 72 L112 24 C116 25 124 27 132 30 C144 34 152 42 155 56 L170 196 C170.5 200 168 202 164 202.5 L155 203.5 C151 204 148.5 202 148 198.5 L142 112 L143 228 C143 231 140.5 233 137 233 L63 233 C59.5 233 57 231 57 228 L58 112 L52 198.5 C51.5 202 49 204 45 203.5 L36 202.5 C32 202 29.5 200 30 196 L45 56 C48 42 56 34 68 30 Z',
   jacket: 'M68 38 C76 35 84 33 88 32 L100 78 L112 32 C116 33 124 35 132 38 C144 42 152 50 155 64 L168 176 C168.5 180 166 182 162 182.5 L153 183.5 C149 184 146.5 182 146 178.5 L142 116 L142.5 184 C142.5 187 140 189 136.5 189 L63.5 189 C60 189 57.5 187 57.5 184 L58 116 L54 178.5 C53.5 182 51 184 47 183.5 L38 182.5 C34 182 31.5 180 32 176 L45 64 C48 50 56 42 68 38 Z',
+  dress: 'M84 22 C90 20 110 20 116 22 L122 40 C126 52 128 62 126 76 L124 92 C130 110 140 150 152 214 C153 219 150 222 145 223 C116 228 84 228 55 223 C50 222 47 219 48 214 C60 150 70 110 76 92 L74 76 C72 62 74 52 78 40 Z',
   puffer: 'M66 40 C78 34 88 32 90 32 C94 40 106 40 110 32 C112 32 122 34 134 40 C148 47 156 56 159 70 L172 178 C173 184 169 188 163 188.5 L151 189.5 C146 190 142.5 186.5 142 182 L141 120 L142 188 C142 192.5 138.5 195 134 195 L66 195 C61.5 195 58 192.5 58 188 L59 120 L58 182 C57.5 186.5 54 190 49 189.5 L37 188.5 C31 188 27 184 28 178 L41 70 C44 56 52 47 66 40 Z',
 };
 
@@ -301,7 +302,64 @@ function Shoes(props) {
   );
 }
 
+function Dress({ id, item, c, fab }) {
+  const c2 = item.colors?.[1]?.hex;
+  return (
+    <g>
+      <Body id={id} d={P.dress} c={c} fab={fab}
+        folds={['M86 100 Q80 160 70 214', 'M114 100 Q120 160 130 214', 'M100 110 Q98 170 100 220']}
+        lights={['M92 40 Q96 70 94 92', 'M96 110 Q90 170 84 216']}>
+        {item.pattern === 'floral' && Array.from({ length: 26 }, (_, i) => (
+          <g key={i} transform={`translate(${60 + (i * 37) % 84} ${34 + Math.floor(i / 4) * 30 + (i % 2) * 8})`}>
+            {[0, 72, 144, 216, 288].map((a) => <ellipse key={a} cx="0" cy="-3" rx="2" ry="3.4" fill={c2 || shade(c, 0.45)} transform={`rotate(${a})`} opacity=".85" />)}
+            <circle r="1.3" fill={shade(c, -0.4)} />
+          </g>
+        ))}
+        {item.pattern === 'stripe' && Array.from({ length: 16 }, (_, i) => <line key={i} x1="40" y1={30 + i * 13} x2="160" y2={30 + i * 13} stroke={c2 || '#1F2A44'} strokeWidth="4" />)}
+        <path d="M76 92 C90 98 110 98 124 92" fill="none" stroke={shade(c, -0.35)} strokeOpacity=".5" strokeWidth="1.2" />
+      </Body>
+      {item.sleeve && item.sleeve !== 'sleeveless' && (
+        <g>
+          <path d="M80 26 C70 30 60 40 54 56 L66 62 C70 50 76 42 80 38 Z" fill={`url(#${id}g)`} filter={`url(#${id}t)`} />
+          <path d="M120 26 C130 30 140 40 146 56 L134 62 C130 50 124 42 120 38 Z" fill={`url(#${id}g)`} filter={`url(#${id}t)`} />
+        </g>
+      )}
+      {(!item.sleeve || item.sleeve === 'sleeveless') && <path d="M86 22 L86 8 M114 22 L114 8" stroke={shade(c, -0.3)} strokeWidth="2" />}
+      <path d="M88 22 C94 30 106 30 112 22" fill="none" stroke={shade(c, -0.35)} strokeWidth="1.4" />
+    </g>
+  );
+}
+
 function Accessory({ id, item, c, fab }) {
+  if (item.art === 'hat') {
+    const d = 'M30 150 C30 138 60 130 100 130 C140 130 170 138 170 150 C170 160 140 166 100 166 C60 166 30 160 30 150 Z M62 140 C62 100 76 80 100 80 C124 80 138 100 138 140 Z';
+    return (
+      <g>
+        <Body id={id} d={d} c={c} fab={fab} folds={['M70 150 Q100 158 130 150']} lights={['M80 100 Q90 90 110 90']}>
+          <rect x="62" y="124" width="76" height="10" fill={shade(c, -0.3)} />
+        </Body>
+      </g>
+    );
+  }
+  if (item.art === 'necklace') {
+    return (
+      <g fill="none" strokeLinecap="round">
+        <path d="M58 60 C58 150 142 150 142 60" stroke={shade(c, -0.25)} strokeWidth="3.5" />
+        <path d="M58 60 C58 150 142 150 142 60" stroke={shade(c, 0.35)} strokeWidth="1.2" strokeDasharray="2 3" />
+        <circle cx="100" cy="132" r="8" fill={c} stroke={shade(c, -0.35)} strokeWidth="1.5" />
+        <circle cx="97" cy="129" r="2.5" fill="#fff" opacity=".6" />
+      </g>
+    );
+  }
+  if (item.art === 'belt') {
+    return (
+      <g>
+        <path d="M24 120 C60 110 140 110 176 120 L176 134 C140 124 60 124 24 134 Z" fill={`url(#${id}g)`} filter={`url(#${id}t)`} stroke={shade(c, -0.4)} strokeWidth=".8" />
+        <rect x="88" y="108" width="24" height="30" rx="3" fill="none" stroke="#B9A35A" strokeWidth="4" />
+        {stitch(c, 'M28 124 C60 115 140 115 172 124')}
+      </g>
+    );
+  }
   if (item.art === 'scarf') {
     const d = 'M72 36 C88 32 112 32 128 36 L132 196 C126 198 116 198 110 196 L110 74 L90 74 L90 212 C84 214 74 214 68 212 Z';
     return (
@@ -350,7 +408,7 @@ export default function GarmentArt({ item, className = '', style }) {
   const fab = fabricFor(item);
   const id = 'g' + rid;
   const props = { id, item, c, fab };
-  const body = { top: <Top {...props} />, bottom: <Bottom {...props} />, outer: <Outer {...props} />, shoes: <Shoes {...props} />, accessory: <Accessory {...props} /> }[item.category]
+  const body = { top: <Top {...props} />, bottom: <Bottom {...props} />, dress: <Dress {...props} />, outer: <Outer {...props} />, shoes: <Shoes {...props} />, accessory: <Accessory {...props} /> }[item.category]
     || <Body id={id} d="M50 40 L150 40 L150 210 L50 210 Z" c={c} fab={fab} />;
   return (
     <svg className={'garment-svg ' + className} style={style} viewBox="0 0 200 250" role="img" aria-label={`${item.colors?.[0]?.name || ''} ${item.name}`}>

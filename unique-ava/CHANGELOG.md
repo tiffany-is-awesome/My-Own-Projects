@@ -12,8 +12,8 @@
 - **Stack:** React 18 + Vite, built into ONE self-contained file (`/unique-ava.html` at the repo root, served by GitHub Pages).
   Build: `cd unique-ava && npm install && npm run build`. Tests: `npm test` (Vitest, rules engine).
 - **Look:** minimalist "boutique" style (white / `#F4F4F4`, crisp grids, product cards, spec sheets).
-- **Screens:** Closet · Dressing Room (4:5 stage: flat-lay / mannequin / scene / "on you" + stylist spec sheet) ·
-  Mix & Match (3 outfits for a situation) · Lookbooks & trips (versatility score, packing list, share links) · Inspiration.
+- **Screens (since Phase 1):** Home · My Closet · **Create an Outfit** (primary) · Builder (4:5 stage) · Saved Outfits ·
+  Family · Settings. Also: Style Me With This (`#/style/<id>`), Lookbooks & trips, Inspiration.
 - **Accounts:** Supabase Auth + table `public.unique_ava_data` (one JSON row per user, Row Level Security).
   Same Supabase project as the owner's other apps (Tiffo, Pantry to Plate).
 - **AI stylist:** Google Gemini through **Puter.js** (no API key; each user signs in to Puter). Used for photo tagging,
@@ -27,11 +27,38 @@
 |---|---|
 | `src/ai/claude.js` | AI connection layer: Gemini via Puter (main), Claude in the claude.ai preview, optional Supabase proxy |
 | `src/ai/stylist.js` | The four AI features: prompts + validation of the JSON the AI returns |
-| `src/ai/critic.js` | Rules engine: proportions, fabric & weather, color harmony, occasion fit |
+| `src/ai/critic.js` | Rules engine: 5 pillars (proportions; weather & comfort; color & pattern; occasion & formality; style, shoes & accessories) |
+| `src/ai/generator.js` | 3 distinct outfits, Style Me directions, alternatives, family coordination (owned + available items only) |
+| `src/components/Choose.jsx` | Context picker chips, outfit card, side-by-side comparison |
 | `src/components/Worn.jsx` | Outfit drawn fitted on a front-facing mannequin |
 | `src/components/GarmentArt.jsx` | Realistic flat-lay product renders |
 | `src/auth.jsx`, `src/components/Account.jsx` | Sign-in and cloud sync |
 | `supabase/unique-ava.sql` | Table + Row Level Security |
+
+---
+
+## 2026-11-19 · Phase 1: real wardrobe, Create an Outfit, compare, Style Me, family looks
+**Branch / PR:** `unique-ava-phase1` · plan: [`docs/DEVELOPMENT-PLAN.md`](docs/DEVELOPMENT-PLAN.md)
+
+**What changed (and why)**
+- **Empty start, no fake data.** New users start with an empty closet. The old built-in "basics" (items she didn't own) are gone; suggestions only use her own *available* items. A clearly labelled **demo closet** (incl. sample Dad + Mia) can be added and removed in one click. Old saved data is migrated (`store.jsx → migrate`, data v2).
+- **Closet:** batch upload (up to 12 photos) with a review list, camera capture, **add without a photo**, edit any item (shared `ItemForm`), status (available / laundry / repair / stored), filters by category, color, style, occasion, season, status. New categories: dresses; hats, necklaces, belts; bags get their own slot.
+- **Create an Outfit:** chips for occasion, weather, style, preferences + optional note and "wear this piece". Gemini picks 3 outfits; the **rules engine validates every pick** (owned, complete, weather-safe, score ≥ 62) and tops up from its own picks. Each card: preview (flat-lay / mannequin), explanation, "watch" note, items, **Change items** (owned-only alternatives with score delta), ♡ Save, Open in builder.
+- **Compare side by side:** previews, pieces, why, strengths, weaknesses, occasion + weather suitability, pillar scores, "♥ This one" saves it as a favorite.
+- **Style Me With This:** 4–5 directions (for the occasion, casual, elegant, minimalist, trendy), the chosen piece in every one.
+- **Stronger scoring:** new 5th pillar (style consistency, shoe fit, accessory clutter, visual balance), pattern compatibility, comfort, deal-breakers (suede/canvas/sandals in rain, sandals in cold, heavy pieces in heat, sneakers/canvas tote with elegant looks).
+- **Family:** profiles (adult/child), profile switcher in the header, strictly separate closets and saved outfits, **Family Look** (coordinated color + formality, not identical), saved family looks, child-sized mannequin.
+- **Builder:** 6 slots, dress replaces the bottom, alternatives list replaces the single swap tip, fake "Generate scene" removed (scenes are labelled "illustrated backdrop · not a photo").
+- **Saved Outfits** (favorites, delete) and **Settings** (account, Puter sign-in, family members, demo on/off, **delete all my data** = local + Supabase row).
+
+**Database:** no schema change. Data model v2 is migrated client-side inside the existing `unique_ava_data.data` JSON. RLS delete policy already existed (used by "delete all my data").
+
+**Tests (actual results, 2026-11-19)**
+- `npm test`: **27/27 pass** (context, critic, generator, Style Me, alternatives, family, migration, AI validation with a stand-in AI).
+- Headless Chrome end-to-end (`/tmp/e2e/flow.py`, local build, no network): **25/25 pass** — empty start, honest "missing items" message, manual add, demo load + banner, filters, 3 outfits for rainy work (no suede), alternatives, compare, save + favorite, persistence after reload, Style Me (4 directions), builder dress, family look (3 members, kid only in kid clothes), profile separation, remove demo, delete all.
+- **Not yet tested live:** a real Gemini request (needs a Puter sign-in), real sign-up → logout → login persistence on Supabase, real photo uploads on a phone. In the sandbox the AI call failed (no network) and the app correctly fell back to the rules engine with a visible message.
+
+**Still open:** wardrobe versatility, Rediscover My Closet, outfit history & feedback (Phase 2); calendar, packing, assistant (later).
 
 ---
 

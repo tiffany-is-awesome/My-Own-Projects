@@ -54,7 +54,7 @@ export function matchLook(items, closet) {
   for (const want of items) {
     let best = null, bestS = 0;
     for (const g of closet) {
-      if (used.has(g.id) || g.placeholder) continue;
+      if (used.has(g.id)) continue;
       const s = similarity(want, g);
       if (s > bestS) { bestS = s; best = g; }
     }

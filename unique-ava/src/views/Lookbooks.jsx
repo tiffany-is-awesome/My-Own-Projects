@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../store.jsx';
 import { ConfirmButton, Modal, OutfitThumb, ScoreBadge, useToast } from '../components/common.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
-import { SLOTS } from '../data/closet.js';
+import { SLOTS, slotOf } from '../data/closet.js';
 
 /** Versatility = 1 − unique items / total item slots (docs/ARCHITECTURE.md §5). */
 export function versatility(outfits) {
@@ -66,7 +66,7 @@ function Cover({ outfits, resolve }) {
 }
 
 export function LookbookList({ go }) {
-  const { state, resolve } = useStore();
+  const { state, resolve, profile } = useStore();
   const [creating, setCreating] = useState(false);
   return (
     <div className="page">
@@ -75,7 +75,7 @@ export function LookbookList({ go }) {
         <button className="btn primary" onClick={() => setCreating(true)}>+ New lookbook</button>
       </div>
       <div className="grid three">
-        {state.catalogs.map((c) => {
+        {state.catalogs.filter((c) => !c.profileId || c.profileId === profile.id).map((c) => {
           const outfits = c.outfitIds.map((id) => state.outfits.find((o) => o.id === id)).filter(Boolean);
           const v = versatility(outfits);
           return (
@@ -106,7 +106,7 @@ export function LookbookDetail({ id, go }) {
   const isTrip = c.kind === 'trip';
 
   const packing = Object.entries(v.counts).map(([gid, n]) => ({ g: get(gid), n })).filter((x) => x.g)
-    .sort((a, b) => SLOTS.indexOf(a.g.category) - SLOTS.indexOf(b.g.category) || b.n - a.n);
+    .sort((a, b) => SLOTS.indexOf(slotOf(a.g)) - SLOTS.indexOf(slotOf(b.g)) || b.n - a.n);
 
   const hasUploads = outfits.some((o) => Object.values(o.slots).some((sid) => sid && sid.startsWith('u-')));
   const shareUrl = `${location.origin}${location.pathname}#/share/${encodeShare(c, outfits)}`;
@@ -170,7 +170,7 @@ export function LookbookDetail({ id, go }) {
           <div className="pack-list">
             {packing.map(({ g, n }) => (
               <div key={g.id}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span className="mini" style={{ width: 34 }}><GarmentArt item={g} /></span>{g.name}{g.placeholder ? ' (basic, buy or borrow)' : ''}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span className="mini" style={{ width: 34 }}><GarmentArt item={g} /></span>{g.name}</span>
                 <span className="muted">× {n} {n === 1 ? 'look' : 'looks'}</span>
               </div>
             ))}
