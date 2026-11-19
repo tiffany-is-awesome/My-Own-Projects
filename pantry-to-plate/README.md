@@ -22,6 +22,20 @@ Also optional: **nicer email links.** In Supabase, go to **Authentication → UR
 
 ## How it's built
 
-- One file: `index.html`. The settings are in the `CONFIG` block near the top of the script. The key there is Supabase's **publishable** key, which is safe to be public.
-- Every AI request goes through the `AI PROVIDER` block: Claude inside claude.ai; on this site, your `pantry-ai` function if it has a key, otherwise free Gemini through Puter.
-- The AI helper's code is in [`supabase/functions/pantry-ai/index.ts`](../supabase/functions/pantry-ai/index.ts), and the table setup is in [`supabase/pantry-setup.sql`](../supabase/pantry-setup.sql).
+`index.html` is the whole site in one file. It's **built** from the readable source in [`src/`](src/):
+
+| File | What it does |
+|---|---|
+| `src/engine.js` | The "brain", no AI needed: ingredients, units, freshness and food-safety rules, recipe matching, ranking, swaps, and updating the kitchen after cooking. |
+| `src/recipes.js` | The curated library of 26 dependable recipes with exact amounts, essential vs optional ingredients, explained swaps, storage and reheating. |
+| `src/app.js` | The screens: Home, My kitchen, Cook something, "I made this", Saved. |
+| `src/ai.js` | Settings and the AI connection (Claude in claude.ai, free Gemini through Puter, or your own key via the `pantry-ai` Supabase function). |
+| `src/cloud.js` | Sign-in and syncing with Supabase. |
+| `src/plate.js`, `src/fix.js`, `src/status.js`, `src/boot.js` | Dish drawings, Rescue My Dish fixes, the AI badge, and startup. |
+| `src/base.css`, `src/extra.css`, `src/body.html` | Look and page structure. |
+| `src/test-engine.js` | The brief's acceptance tests, run in code: `node src/test-engine.js` |
+
+After changing anything in `src/`, run `python3 src/build.py` to rebuild `index.html`.
+
+### Food-safety rules
+Freshness times are deliberately at the short end of public guidance: the USDA / FoodSafety.gov cold-storage chart (fridge at 4°C / 40°F or colder; freezer times are for quality, since frozen food stays safe), and the UK Food Standards Agency for cooked rice (eat within 24 hours, reheat once). Printed use-by dates always win. Cooked or perishable food with an unknown history is never called safe, and it's left out of recipes.

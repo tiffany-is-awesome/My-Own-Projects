@@ -1,0 +1,122 @@
+<header>
+  <div class="wrap bar">
+    <a class="brand" href="#home" data-act="tab" data-tab="home">Pantry <span class="arrow">→</span> Plate</a>
+    <nav aria-label="Sections">
+      <button data-act="tab" data-tab="home">Home</button>
+      <button data-act="tab" data-tab="kitchen">My kitchen <span class="mono count" id="navKitchen"></span></button>
+      <button data-act="tab" data-tab="cook">Cook something</button>
+      <button data-act="tab" data-tab="saved">Saved <span class="mono count" id="navSaved"></span></button>
+    </nav>
+    <button class="btn small acct out" id="acctBtn" data-act="account" hidden>Sign in</button>
+    <button class="status" id="aiStatus" data-act="ai-info" type="button">AI · connecting</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- HOME -->
+  <section class="view" id="view-home">
+    <div class="hero">
+      <h1>Tell us what you have.<br>We'll help you turn it into something delicious.</h1>
+      <div class="hero-actions">
+        <button class="btn primary big" data-act="cook-today">What can I cook today?</button>
+        <form class="quickadd big" id="homeAdd">
+          <label class="sr" for="homeAddText">Add food you have</label>
+          <input type="text" id="homeAddText" placeholder="Add food: 3 eggs, half a cabbage, leftover rice" autocomplete="off">
+          <button class="btn" type="submit">Add</button>
+        </form>
+      </div>
+      <div id="homeAlert"></div>
+    </div>
+    <div class="home-grid">
+      <section class="card" aria-labelledby="hUse"><div class="card-head"><h2 id="hUse">Use these first</h2><button class="linkbtn" data-act="tab" data-tab="kitchen">My kitchen →</button></div><div id="homeUse"></div></section>
+      <section class="card" aria-labelledby="hPick"><div class="card-head"><h2 id="hPick">Today's pick</h2><button class="linkbtn" data-act="cook-today">More ideas →</button></div><div id="homePick"></div></section>
+      <section class="card" aria-labelledby="hQuick"><div class="card-head"><h2 id="hQuick">Quick ideas for your leftovers</h2></div><div id="homeQuick"></div></section>
+      <section class="card" aria-labelledby="hProg"><div class="card-head"><h2 id="hProg">Your progress</h2></div><div id="homeProgress"></div></section>
+    </div>
+  </section>
+
+  <!-- MY KITCHEN -->
+  <section class="view" id="view-kitchen" hidden>
+    <div class="headline">
+      <div>
+        <h1>My kitchen</h1>
+        <p>Everything you have, grouped by what needs using first. Tap any food to change its amount, place or dates.</p>
+      </div>
+      <div class="head-actions">
+        <button class="btn" data-act="item-new">Add with details</button>
+        <button class="btn primary" data-act="cook-today">What can I cook?</button>
+      </div>
+    </div>
+    <div id="sampleNote"></div>
+    <form class="quickadd big" id="quickAdd">
+      <label class="sr" for="qaText">Add several foods at once</label>
+      <input type="text" id="qaText" placeholder="Type several at once: 3 eggs, half a cabbage, 2 cups of rice, one leftover chicken breast" autocomplete="off">
+      <button class="btn primary" type="submit">Add</button>
+    </form>
+    <div class="kitchen-tools">
+      <div class="filters" role="group" aria-label="Where" id="locFilters"></div>
+      <label class="sortsel">Sort by
+        <select id="kitchenSort"><option value="fresh">What to use first</option><option value="date">Date</option><option value="name">Name</option><option value="loc">Where it's kept</option></select>
+      </label>
+    </div>
+    <div class="pantry-layout">
+      <div class="pantry-main" id="kitchenList"></div>
+      <aside class="side">
+        <div class="panel">
+          <h3>Check every spot</h3>
+          <p>Food hiding at the back is what gets forgotten. Open each spot and tap what you find.</p>
+          <div class="zones" id="zones"></div>
+        </div>
+        <div class="panel">
+          <h3>Always in my kitchen</h3>
+          <p>Tick the basics you always keep. Recipes assume you have enough of them.</p>
+          <div class="staples" id="staples"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- COOK SOMETHING -->
+  <section class="view" id="view-cook" hidden>
+    <div class="headline">
+      <div>
+        <h1>Cook something</h1>
+        <p>Dependable recipes made only from what's in your kitchen. Taste comes first, then using up what needs using.</p>
+      </div>
+    </div>
+    <div class="modes" role="group" aria-label="How to choose recipes" id="modes"></div>
+    <div class="cook-filters" id="cookFilters"></div>
+    <div class="studio-body">
+      <aside class="ideas" aria-label="Recipe ideas"><div id="ideas"></div></aside>
+      <article class="detail" id="detail" aria-live="polite"></article>
+    </div>
+  </section>
+
+  <!-- SAVED -->
+  <section class="view" id="view-saved" hidden>
+    <div class="headline">
+      <div>
+        <h1>Saved recipes</h1>
+        <p>Everything you've saved, in one place. Search it, sort it into collections, and tick what you'll cook this week.</p>
+      </div>
+    </div>
+    <div class="books">
+      <div>
+        <div class="savedbar">
+          <label class="sr" for="savedSearch">Search saved recipes</label>
+          <input type="search" id="savedSearch" placeholder="Search saved recipes">
+          <select id="savedSort" aria-label="Sort saved recipes">
+            <option value="new">Newest first</option><option value="ready">Ready to cook first</option><option value="quick">Quickest first</option><option value="az">A to Z</option>
+          </select>
+        </div>
+        <div class="filters colfilters" id="colFilters" role="group" aria-label="Collections"></div>
+        <div class="rgrid" id="savedGrid"></div>
+      </div>
+      <aside class="list" id="weekPanel"></aside>
+    </div>
+  </section>
+</main>
+<footer><div class="wrap">Pantry → Plate. Freshness times are conservative estimates based on USDA cold-storage guidance and the UK Food Standards Agency (cooked rice). Printed use-by dates always win. When in doubt, throw it out.</div></footer>
+<div class="cookbar" id="cookbar" hidden></div>
+<div class="modal" id="authModal" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="authTitle" id="authBox"></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
