@@ -1,6 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import GarmentArt from './GarmentArt.jsx';
 import Stage from './Stage.jsx';
+import { CATEGORY_LABEL } from '../data/closet.js';
+
+const STATUS_FLAG = { laundry: 'In laundry', repair: 'Needs repair', stored: 'Stored' };
 
 export function ProductCard({ item, onClick, action, flag }) {
   const meta = [item.material, item.weight && `${item.weight[0].toUpperCase()}${item.weight.slice(1)} weight`].filter(Boolean).join(' · ');
@@ -9,11 +12,12 @@ export function ProductCard({ item, onClick, action, flag }) {
       <button className="card" onClick={onClick} aria-label={`Open ${item.name}`}>
         <div className="card-stage">
           <GarmentArt item={item} />
-          {item.placeholder && <span className="card-flag basic">Basic</span>}
+          {item.demo && <span className="card-flag basic">Demo</span>}
+          {item.status && item.status !== 'available' && <span className="card-flag status">{STATUS_FLAG[item.status]}</span>}
           {flag && <span className="card-flag new">{flag}</span>}
         </div>
         <div className="card-body">
-          <div className="tiny">{item.category === 'outer' ? 'OUTERWEAR' : item.category.toUpperCase()}</div>
+          <div className="tiny">{(CATEGORY_LABEL[item.category] || item.category).toUpperCase()}</div>
           <div className="card-name">{item.name}</div>
           <div className="card-meta">{meta}</div>
           <div className="swatches">{item.colors.map((c) => <span key={c.name} className="swatch" style={{ background: c.hex }} title={c.name} />)}</div>
@@ -44,9 +48,19 @@ export function Modal({ title, onClose, children, wide }) {
   );
 }
 
-export function OutfitThumb({ outfit, resolve, compactStage = true }) {
+export function OutfitThumb({ outfit, resolve, compactStage = true, child = false }) {
   const o = resolve(outfit.slots);
-  return <Stage outfit={o} mode={outfit.stage?.mode || 'flatlay'} sceneId={outfit.stage?.scene} compact={compactStage} />;
+  return <Stage outfit={o} mode={outfit.stage?.mode || 'flatlay'} sceneId={outfit.stage?.scene} compact={compactStage} child={child} />;
+}
+
+/** Plain list of an outfit's pieces. */
+export function PieceList({ outfit }) {
+  const rows = [['top', outfit.top?.category === 'dress' ? 'Dress' : 'Top'], ['bottom', 'Bottom'], ['outer', 'Outerwear'], ['shoes', 'Shoes'], ['bag', 'Bag'], ['accessory', 'Accessory']];
+  return (
+    <ul className="piece-list">
+      {rows.filter(([k]) => outfit[k]).map(([k, l]) => <li key={k}><span>{l}</span><span>{outfit[k].name}</span></li>)}
+    </ul>
+  );
 }
 
 const ToastCtx = createContext(() => {});

@@ -196,10 +196,66 @@ function WornShoes({ item }) {
   );
 }
 
+function WornDress({ item }) {
+  const id = 'w' + useId().replace(/[^a-zA-Z0-9]/g, '');
+  const c = item.colors?.[0]?.hex || '#999';
+  const c2 = item.colors?.[1]?.hex;
+  const fab = fabricFor(item);
+  const body = 'M156 104 C170 100 184 100 190 100 C194 110 206 110 210 100 C216 100 230 100 244 104 C254 130 256 180 250 236 C262 300 272 360 280 404 C281 408 278 411 274 411 C226 416 174 416 126 411 C122 411 119 408 120 404 C128 360 138 300 150 236 C144 180 146 130 156 104 Z';
+  const sleeved = item.sleeve && item.sleeve !== 'sleeveless';
+  const parts = sleeved ? [SLEEVE_SHORT, mirror(SLEEVE_SHORT), body] : [body];
+  return (
+    <g>
+      <Defs id={id} c={c} fab={fab} />
+      <Parts id={id} c={c} fab={fab} parts={parts}
+        folds={['M170 260 Q160 330 150 404', 'M230 260 Q240 330 250 404', 'M200 250 Q198 330 200 410']}
+        lights={['M186 120 Q190 180 186 230', 'M182 260 Q174 330 168 404']}>
+        {item.pattern === 'floral' && Array.from({ length: 40 }, (_, i) => (
+          <g key={i} transform={`translate(${130 + (i * 41) % 140} ${110 + Math.floor(i / 5) * 37 + (i % 2) * 9})`}>
+            {[0, 72, 144, 216, 288].map((a) => <ellipse key={a} cx="0" cy="-3" rx="2" ry="3.4" fill={c2 || shade(c, 0.45)} transform={`rotate(${a})`} opacity=".85" />)}
+            <circle r="1.3" fill={shade(c, -0.4)} />
+          </g>
+        ))}
+        <path d="M150 236 C180 242 220 242 250 236" fill="none" stroke={shade(c, -0.35)} strokeOpacity=".45" strokeWidth="1.2" />
+      </Parts>
+      <path d="M190 100 C194 112 206 112 210 100" fill="none" stroke={shade(c, -0.3)} strokeWidth="2" />
+    </g>
+  );
+}
+
 function WornAccessory({ item }) {
   const id = 'w' + useId().replace(/[^a-zA-Z0-9]/g, '');
   const c = item.colors?.[0]?.hex || '#999';
   const fab = fabricFor(item);
+  if (item.art === 'hat') {
+    const d = 'M146 48 C146 39 170 34 200 34 C230 34 254 39 254 48 C254 55 230 59 200 59 C170 59 146 55 146 48 Z M174 42 C174 20 186 10 200 10 C214 10 226 20 226 42 Z';
+    return (
+      <g>
+        <Defs id={id} c={c} fab={fab} />
+        <Body id={id} d={d} c={c} fab={fab} folds={['M160 50 Q200 58 240 50']} lights={['M184 22 Q194 14 210 16']}>
+          <rect x="174" y="36" width="52" height="6" fill={shade(c, -0.3)} />
+        </Body>
+      </g>
+    );
+  }
+  if (item.art === 'necklace') {
+    return (
+      <g fill="none">
+        <path d="M188 100 C188 134 212 134 212 100" stroke={shade(c, -0.2)} strokeWidth="2" />
+        <path d="M188 100 C188 134 212 134 212 100" stroke={shade(c, 0.4)} strokeWidth=".8" strokeDasharray="1.5 2.5" />
+        <circle cx="200" cy="128" r="4" fill={c} stroke={shade(c, -0.35)} strokeWidth="1" />
+      </g>
+    );
+  }
+  if (item.art === 'belt') {
+    return (
+      <g>
+        <Defs id={id} c={c} fab={fab} />
+        <path d="M144 234 C180 240 220 240 256 234 L256 244 C220 250 180 250 144 244 Z" fill={`url(#${id}g)`} filter={`url(#${id}t)`} />
+        <rect x="192" y="232" width="16" height="16" rx="2" fill="none" stroke="#B9A35A" strokeWidth="2.6" />
+      </g>
+    );
+  }
   if (item.art === 'scarf') {
     const d = 'M182 90 C190 104 210 104 218 90 L222 104 C212 120 188 120 178 104 Z M186 110 L178 230 C178 233 180 235 183 235 L194 235 C196 235 197 233 197 231 L199 114 Z M206 112 L212 212 C212 215 214 216 217 216 L226 214 C228 213 229 211 228 208 L215 108 Z';
     return (
@@ -236,25 +292,31 @@ function WornAccessory({ item }) {
 }
 
 // Fallback placement for pieces that only have a photo (box: left, top, width, height in %).
-const PHOTO_BOX = { shoes: [37, 86, 26, 8], bottom: [35, 45, 30, 44], top: [33, 20, 34, 33], outer: [31, 19, 38, 60], accessory: [58, 48, 18, 20] };
+const PHOTO_BOX = { shoes: [37, 86, 26, 8], bottom: [35, 45, 30, 44], top: [33, 20, 34, 33], outer: [31, 19, 38, 60], bag: [58, 48, 18, 20], accessory: [40, 18, 20, 16] };
+const CHILD_BOX = (b) => [36 + (b[0] - 36) * 0.64, 30 + b[1] * 0.64, b[2] * 0.64, b[3] * 0.64];
 
-export default function Worn({ outfit, photoFor }) {
+export default function Worn({ outfit, photoFor, child = false }) {
   const o = outfit || {};
   const drawable = (k) => o[k] && !photoFor(o[k]);
+  const acc = drawable('accessory') ? o.accessory : null;
+  const under = acc && ['necklace', 'belt'].includes(acc.art); // worn under an open coat
+  const isDressTop = o.top?.category === 'dress';
   return (
     <>
-      <svg className="stage-layer" viewBox="0 0 400 500" aria-label="Outfit on a studio mannequin" role="img">
-        <g transform="translate(20 16) scale(0.9)">
+      <svg className="stage-layer" viewBox="0 0 400 500" aria-label={child ? "Outfit on a child's mannequin" : 'Outfit on a studio mannequin'} role="img">
+        <g transform={child ? 'translate(72 150) scale(0.64)' : 'translate(20 16) scale(0.9)'}>
         <Mannequin />
         {drawable('shoes') && <WornShoes item={o.shoes} />}
-        {drawable('bottom') && <WornBottom item={o.bottom} />}
-        {drawable('top') && <WornTop item={o.top} />}
+        {drawable('bottom') && !isDressTop && <WornBottom item={o.bottom} />}
+        {drawable('top') && (isDressTop ? <WornDress item={o.top} /> : <WornTop item={o.top} />)}
+        {under && <WornAccessory item={acc} />}
         {drawable('outer') && <WornOuter item={o.outer} />}
-        {drawable('accessory') && <WornAccessory item={o.accessory} />}
+        {drawable('bag') && <WornAccessory item={o.bag} />}
+        {acc && !under && <WornAccessory item={acc} />}
         </g>
       </svg>
-      {['shoes', 'bottom', 'top', 'outer', 'accessory'].filter((k) => o[k] && photoFor(o[k])).map((k) => {
-        const [l, t, w, h] = PHOTO_BOX[k];
+      {['shoes', 'bottom', 'top', 'outer', 'bag', 'accessory'].filter((k) => o[k] && photoFor(o[k])).map((k) => {
+        const [l, t, w, h] = child ? CHILD_BOX(PHOTO_BOX[k]) : PHOTO_BOX[k];
         return <img key={k} className="stage-photo-piece" src={photoFor(o[k])} alt={o[k].name} style={{ left: l + '%', top: t + '%', width: w + '%', height: h + '%' }} />;
       })}
     </>

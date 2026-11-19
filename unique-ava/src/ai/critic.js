@@ -1,15 +1,18 @@
-// The Stylist Critic: a deterministic four-pillar rules engine.
-// It produces scores + specific findings. In production, an LLM only rewrites these
-// findings in a stylist's voice (it never adds new ones). See docs/ARCHITECTURE.md §4.2.
+// The Stylist Critic: a deterministic rules engine (no AI) covering the brief's eight quality checks:
+// color harmony, proportion, occasion, weather, style consistency, footwear, accessories, comfort.
+// It produces scores + specific findings. The AI stylist (Gemini) may add taste on top, but is
+// told not to contradict these facts. See docs/ARCHITECTURE.md §4.2.
 
 import { hexToHsl, hueDistance, isNeutral, temperature } from './color.js';
+import { slotOf } from '../data/closet.js';
 
 const NOUN = {
   tee: 'tee', turtleneck: 'turtleneck', shirt: 'shirt', stripe: 'striped tee', knit: 'sweater',
   trousers: 'trousers', jeans: 'jeans', shorts: 'shorts', skirt: 'skirt',
   trench: 'trench', blazer: 'blazer', coat: 'coat', puffer: 'down jacket', jacket: 'jacket', cardigan: 'cardigan',
   sneaker: 'sneakers', loafer: 'loafers', boot: 'boots', sandal: 'sandals',
-  tote: 'tote', scarf: 'scarf', crossbody: 'crossbody bag', generic: 'piece',
+  tote: 'tote', scarf: 'scarf', crossbody: 'crossbody bag', hat: 'hat', necklace: 'necklace', belt: 'belt',
+  dress: 'dress', generic: 'piece',
 };
 const VOLUME = { fitted: -1, regular: 0, relaxed: 1, oversized: 2 };
 const FORMALITY_LABEL = ['', 'Lounge', 'Casual', 'Smart casual', 'Business', 'Formal'];
@@ -18,20 +21,42 @@ const FORMALITY_LABEL = ['', 'Lounge', 'Casual', 'Smart casual', 'Business', 'Fo
 export function short(item) {
   if (!item) return '';
   const noun = NOUN[item.art] || item.category;
-  return `${item.colors?.[0]?.name || ''} ${noun}`.trim();
+  let color = item.colors?.[0]?.name || '';
+  if (item.art === 'jeans' && /denim/.test(color)) color = 'blue';
+  return `${color} ${noun}`.trim();
 }
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const PLURAL = new Set(['trousers', 'jeans', 'shorts', 'sneaker', 'loafer', 'boot', 'sandal']);
+const plural = (i) => PLURAL.has(i?.art);
+const isAre = (items) => (items.length > 1 || plural(items[0]) ? 'are' : 'is');
+/** "a date", "church", "work" … */
+export const occ = (ctx) => {
+  const l = (ctx.occasionLabel || 'today').toLowerCase();
+  return ['date', 'party', 'wedding', 'special occasion', 'interview'].includes(l) ? `${aAn(l)} ${l}` : l;
+};
+const aAn = (w) => (/^[aeiou]/i.test(w) ? 'an' : 'a');
 const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, Math.round(v)));
-const pieces = (o) => ['top', 'bottom', 'outer', 'shoes', 'accessory'].map((k) => o[k]).filter(Boolean);
+const pieces = (o) => ['top', 'bottom', 'outer', 'shoes', 'bag', 'accessory'].map((k) => o[k]).filter(Boolean);
+export const isDress = (item) => item?.category === 'dress';
+/** True when the outfit has the essentials: (top + bottom) or a dress, plus shoes. */
+export const isComplete = (o) => !!(o.top && (o.bottom || isDress(o.top)) && o.shoes);
 
 // ───────────────────────────────── Pillar 1: Proportions & Silhouette
 function proportions(o) {
   const pros = [], cons = [];
   let s = 74;
   const { top, bottom, outer, shoes } = o;
+  if (isDress(top)) {
+    s = 82;
+    pros.push(`The ${short(top)} gives one clean, unbroken line.`);
+    if (outer?.length === 'long') { s += 4; pros.push(`A long ${short(outer)} over the dress keeps the long, elegant line.`); }
+    if (outer?.length === 'cropped') { s += 3; pros.push(`A cropped ${short(outer)} marks the waist over the dress.`); }
+    if (shoes?.profile === 'chunky' && top.formality >= 4) { s -= 6; cons.push(`Chunky ${short(shoes)} feel heavy under a dressy ${short(top)}. Sleeker shoes would suit it better.`); }
+    return { score: clamp(s), pros, cons };
+  }
   if (!top || !bottom) {
-    return { score: 50, pros, cons: ['Add both a top and a bottom so the silhouette can be judged.'] };
+    return { score: 50, pros, cons: ['Add both a top and a bottom (or a dress) so the silhouette can be judged.'] };
   }
   const tv = VOLUME[top.fit] ?? 0, bv = VOLUME[bottom.fit] ?? 0;
 
@@ -68,7 +93,7 @@ function proportions(o) {
 
 // ───────────────────────────────── Pillar 2: Fabric & Weather Practicality
 export function warmthOf(o) {
-  return (o.top?.warmth || 0) + (o.outer?.warmth || 0) + 0.5 * (o.bottom?.warmth || 0) + 0.3 * (o.shoes?.warmth || 0) + (o.accessory?.warmth || 0);
+  return (o.top?.warmth || 0) + (isDress(o.top) ? 0.5 * (o.top?.warmth || 0) : 0) + (o.outer?.warmth || 0) + 0.5 * (o.bottom?.warmth || 0) + 0.3 * (o.shoes?.warmth || 0) + (o.accessory?.warmth || 0);
 }
 export function warmthNeeded(tempC) {
   return Math.max(1.5, Math.min(12, 3 + (22 - tempC) / 2.5));
@@ -114,11 +139,20 @@ function fabricWeather(o, ctx) {
   const offSeason = items.filter((i) => i.seasons && !i.seasons.includes(ctx.season) && i.category !== 'accessory').slice(0, 2);
   for (const i of offSeason) { s -= 6; cons.push(`The ${short(i)} is meant for ${i.seasons.join('/')}, so it looks out of place in ${ctx.season}.`); }
 
+  // Comfort & practicality (weighted more when she asked for comfort, or it's sports/vacation)
+  const wantsComfort = ctx.prefs?.includes('comfortable') || ['sports', 'vacation'].includes(ctx.occasion);
+  const stiff = items.filter((i) => comfortOf(i) <= 1);
+  const easy = items.filter((i) => comfortOf(i) >= 3 && i.category !== 'accessory');
+  if (wantsComfort) {
+    if (stiff.length) { s -= 8 * stiff.length; cons.push(`For comfort, the ${stiff.map(short).join(' and ')} ${isAre(stiff)} on the stiff side.`); }
+    else if (easy.length >= 2) { s += 6; pros.push(`Comfortable all day: the ${easy.slice(0, 2).map(short).join(' and ')} move with you.`); }
+  }
+  if (ctx.occasion === 'sports' && o.shoes && o.shoes.art !== 'sneaker') { s -= 14; cons.push(`You'll want sneakers for sports, not ${short(o.shoes)}.`); }
   return { score: clamp(s), pros, cons };
 }
 
 // ───────────────────────────────── Pillar 3: Color Harmony
-function colorHarmony(o) {
+function colorHarmony(o, ctx = {}) {
   const pros = [], cons = [];
   const items = pieces(o);
   if (!items.length) return { score: 0, pros, cons: ['Add pieces to see color feedback.'] };
@@ -151,6 +185,28 @@ function colorHarmony(o) {
     s = 50; cons.push(`Too many focal colors (${uniqueAccents.map((a) => a.name).join(', ')}). Let one lead.`);
   }
 
+  // Pattern compatibility: one pattern leads; two need a shared color and different scale
+  const patterned = items.filter((i) => i.pattern && i.pattern !== 'solid');
+  if (patterned.length >= 2) {
+    const shareColor = patterned[0].colors.some((c) => patterned[1].colors.some((d) => d.name === c.name));
+    if (patterned[0].pattern === patterned[1].pattern) { s -= 14; cons.push(`Two ${patterned[0].pattern} patterns (${short(patterned[0])} and ${short(patterned[1])}) fight each other. Keep one and go plain with the other.`); }
+    else if (shareColor) { s -= 2; pros.push(`Brave pattern mix, held together by a shared color.`); }
+    else { s -= 10; cons.push(`The ${patterned[0].pattern} ${short(patterned[0])} and ${patterned[1].pattern} ${short(patterned[1])} don't share a color, so they clash.`); }
+  } else if (patterned.length === 1) {
+    pros.push(`The ${patterned[0].pattern} ${short(patterned[0])} leads; the plain pieces let it breathe.`);
+  }
+
+  // Her preference: simple vs colorful / stand out
+  const prefs = ctx.prefs || [];
+  if (prefs.includes('simple')) {
+    if (uniqueAccents.length + patterned.length >= 2) { s -= 10; cons.push('You asked for simple: there\'s a lot going on in color and pattern here.'); }
+    else { s += 4; pros.push('Clean and simple, as you asked.'); }
+  }
+  if (prefs.includes('colorful') || prefs.includes('standout')) {
+    if (uniqueAccents.length === 0 && patterned.length === 0) { s -= 12; cons.push(prefs.includes('colorful') ? 'You wanted more color, but this look is all neutrals.' : 'You wanted to stand out, but this look plays it very safe.'); }
+    else { s += 6; pros.push(prefs.includes('colorful') ? 'Brings in the color you asked for.' : 'Has the eye-catching point you asked for.'); }
+  }
+
   // Classic near-miss: black right next to navy as separate pieces.
   const names = items.map((i) => i.colors[0].name);
   if (names.includes('black') && names.includes('navy')) {
@@ -171,33 +227,117 @@ function occasionFit(o, ctx) {
   const low = core.reduce((a, b) => (b.formality < a.formality ? b : a));
   const high = core.reduce((a, b) => (b.formality > a.formality ? b : a));
 
-  if (Math.abs(diff) <= 0.6) { s = 90; pros.push(`The formality sits right for ${ctx.occasionLabel.toLowerCase()}.`); }
-  else if (diff < 0) { s = clamp(90 - 26 * Math.abs(diff)); cons.push(`Too casual for ${ctx.occasionLabel.toLowerCase()}. The ${short(low)} pulls the look down.`); }
-  else if (diff <= 1.25) { s = 82; pros.push(`A touch polished for ${ctx.occasionLabel.toLowerCase()}, which reads intentional rather than overdone.`); }
-  else { s = clamp(92 - 20 * diff); cons.push(`Overdressed for ${ctx.occasionLabel.toLowerCase()}. Relax it by swapping the ${short(high)}.`); }
+  if (Math.abs(diff) <= 0.6) { s = 90; pros.push(`The formality sits right for ${occ(ctx)}.`); }
+  else if (diff < 0) { s = clamp(90 - 26 * Math.abs(diff)); cons.push(`Too casual for ${occ(ctx)}. The ${short(low)} ${plural(low) ? 'pull' : 'pulls'} the look down.`); }
+  else if (diff <= 1.25) { s = 82; pros.push(`A touch polished for ${occ(ctx)}, which reads intentional rather than overdone.`); }
+  else { s = clamp(92 - 20 * diff); cons.push(`Overdressed for ${occ(ctx)}. Relax it by swapping the ${short(high)}.`); }
 
   if (high.formality - low.formality >= 3) {
     if (low.category === 'shoes' && low.art === 'sneaker') { s += 4; pros.push(`High-low mix: ${short(low)} with the ${short(high)} is a deliberate, modern touch.`); }
     else { s -= 10; cons.push(`Formality gap: the ${short(low)} and ${short(high)} come from different worlds.`); }
   }
   if (!o.shoes) { s -= 10; cons.push('Add shoes to complete the look.'); }
+  if (o.top && !isDress(o.top) && !o.bottom) { s -= 15; cons.push('Add a bottom (or choose a dress) to complete the look.'); }
   return { score: clamp(s), pros, cons, avg };
+}
+
+// ───────────────────────────────── Comfort helper (0 stiff … 4 very comfortable)
+export function comfortOf(i) {
+  if (!i) return 2;
+  const m = (i.material || '').toLowerCase();
+  let c = 2;
+  if (/jersey|knit|fleece|stretch|linen|cotton|modal|down/.test(m)) c += 1;
+  if (/satin|patent|gabardine|cashmere/.test(m)) c -= 1;
+  if (i.fit === 'relaxed' || i.fit === 'oversized') c += 1;
+  if (i.fit === 'fitted' && /denim/.test(m)) c -= 1;
+  if (i.art === 'sneaker' || i.art === 'sandal') c += 1;
+  if (i.art === 'loafer' && i.formality >= 4) c -= 1;
+  return Math.max(0, Math.min(4, c));
+}
+
+// ───────────────────────────────── Pillar 5: Style, Shoes, Accessories & Balance
+// Style families: pieces within a family (or neighbouring families) look like they belong together.
+const STYLE_FAMILY = {
+  casual: 'easy', minimalist: 'clean', classic: 'clean', preppy: 'clean', business: 'polished', elegant: 'polished',
+  feminine: 'soft', sporty: 'sport', streetwear: 'street', edgy: 'street',
+};
+const CLASHES = [['sport', 'polished'], ['street', 'polished'], ['sport', 'soft'], ['street', 'soft']];
+const styleName = (x) => (x === 'business' ? 'business-casual' : x);
+function finish(o, ctx) {
+  const pros = [], cons = [];
+  let s = 80;
+  const core = ['top', 'bottom', 'outer', 'shoes'].map((k) => o[k]).filter(Boolean);
+  const styled = core.filter((i) => i.style);
+  const fams = [...new Set(styled.map((i) => STYLE_FAMILY[i.style]).filter(Boolean))];
+  const clash = CLASHES.find(([a, b]) => fams.includes(a) && fams.includes(b));
+  if (clash) {
+    const A = styled.find((i) => STYLE_FAMILY[i.style] === clash[0]), B = styled.find((i) => STYLE_FAMILY[i.style] === clash[1]);
+    s -= 16; cons.push(`Mixed messages: the ${styleName(A.style)} ${short(A)} and the ${styleName(B.style)} ${short(B)} pull in different directions.`);
+  } else if (styled.length >= 3 && fams.length <= 2) {
+    s += 8; { const mood = [...new Set(styled.map((i) => styleName(i.style)))].slice(0, 2).join(' / '); pros.push(`Consistent feel: the pieces share ${aAn(mood)} ${mood} mood.`); }
+  }
+  if (ctx.style && styled.length) {
+    const match = styled.filter((i) => i.style === ctx.style || STYLE_FAMILY[i.style] === STYLE_FAMILY[ctx.style]).length / styled.length;
+    if (match >= 0.6) { s += 6; pros.push(`Fits the ${styleName(ctx.style)} style you picked.`); }
+    else if (match < 0.3) { s -= 10; cons.push(`Not very ${styleName(ctx.style)}: most pieces lean another way.`); }
+  }
+
+  // Footwear: do the shoes suit the rest?
+  const sh = o.shoes;
+  if (sh) {
+    const rest = core.filter((i) => i !== sh);
+    const avg = rest.length ? rest.reduce((a, i) => a + i.formality, 0) / rest.length : sh.formality;
+    const be = plural(sh) ? 'are' : 'is';
+    if (sh.formality - avg >= 2) { s -= 10; cons.push(`The ${short(sh)} ${be} dressier than the rest of the outfit.`); }
+    else if (avg - sh.formality >= 2 && sh.art !== 'sneaker') { s -= 10; cons.push(`The ${short(sh)} ${be} too casual for the rest of the outfit.`); }
+    else if (avg - sh.formality >= 2 && sh.art === 'sneaker' && (ctx.formality >= 4 || ctx.style === 'elegant')) { s -= 10; cons.push(`The ${short(sh)} are too casual for an ${ctx.style === 'elegant' ? 'elegant' : 'dressy'} look.`); }
+    else if (avg - sh.formality >= 2 && sh.art === 'sneaker') { pros.push(`The ${short(sh)} relax a smart outfit, a modern touch.`); }
+    else { s += 4; pros.push(`The ${short(sh)} ${plural(sh) ? 'suit' : 'suits'} the outfit.`); }
+    if (sh.art === 'sandal' && o.outer?.weight === 'heavy') { s -= 10; cons.push(`Sandals with a heavy ${short(o.outer)} mix two seasons.`); }
+  }
+
+  // Accessories: add, don't clutter
+  const extras = [o.bag, o.accessory].filter(Boolean);
+  const loud = extras.filter((i) => !isNeutral(i.colors[0].name));
+  const before = cons.length;
+  if (loud.length >= 2) { s -= 8; cons.push(`Two bold accessories (${loud.map(short).join(', ')}) compete. Keep one.`); }
+  if (o.accessory?.art === 'scarf' && ctx.tempC >= 25) { s -= 10; cons.push(`A ${short(o.accessory)} is too warm for ${ctx.tempC}°C.`); }
+  if (o.accessory?.art === 'necklace' && core.some((i) => i.style === 'sporty')) { s -= 6; cons.push(`The ${short(o.accessory)} feels out of place with sporty pieces.`); }
+  const coreAvg = core.length ? core.reduce((a, i) => a + (i.formality || 2), 0) / core.length : 2;
+  if (o.bag && o.bag.formality <= 1 && (ctx.formality >= 4 || coreAvg >= 3.5)) { s -= 6; cons.push(`A ${short(o.bag)} is too casual for ${(ctx.occasionLabel || 'this occasion').toLowerCase()}.`); }
+  if (cons.length === before) {
+    if (extras.length && !loud.length) { s += 3; pros.push(`The ${extras.map(short).join(' and ')} ${extras.length > 1 ? 'finish' : 'finishes'} the look without crowding it.`); }
+    else if (loud.length === 1) { s += 4; pros.push(`The ${short(loud[0])} adds a point of interest.`); }
+  }
+
+  // Overall visual balance: where the eye lands (light vs dark, heavy vs light pieces)
+  const upper = o.outer || o.top, lower = isDress(o.top) ? o.top : o.bottom;
+  if (upper && lower && o.shoes) {
+    const L = (i) => hexToHsl(i.colors[0].hex)[2];
+    const heavyTop = (o.outer?.weight === 'heavy' || o.top?.fit === 'oversized') && lower.art === 'shorts';
+    if (heavyTop) { s -= 8; cons.push(`Top-heavy: the bulky ${short(upper)} overwhelms the ${short(lower)}.`); }
+    if (L(upper) < 0.3 && L(lower) > 0.75 && L(o.shoes) > 0.75) { s -= 4; cons.push('Dark on top and pale below. Darker shoes would ground the look.'); }
+    else if (Math.abs(L(upper) - L(lower)) > 0.25 && Math.abs(L(o.shoes) - L(lower)) < 0.35) { s += 3; pros.push('Good light-and-dark balance from top to toe.'); }
+  }
+  return { score: clamp(s), pros, cons };
 }
 
 // ───────────────────────────────── Public API
 export const PILLARS = [
-  { id: 'proportions', label: 'Proportions & Silhouette', weight: 0.23 },
-  { id: 'fabric', label: 'Fabric & Weather', weight: 0.31 },
-  { id: 'color', label: 'Color Harmony', weight: 0.23 },
-  { id: 'occasion', label: 'Occasion Fit', weight: 0.23 },
+  { id: 'proportions', label: 'Proportions & Silhouette', weight: 0.17 },
+  { id: 'fabric', label: 'Weather & Comfort', weight: 0.25 },
+  { id: 'color', label: 'Color & Pattern', weight: 0.2 },
+  { id: 'occasion', label: 'Occasion & Formality', weight: 0.2 },
+  { id: 'finish', label: 'Style, Shoes & Accessories', weight: 0.18 },
 ];
 
 export function critique(outfit, ctx) {
   const results = {
     proportions: proportions(outfit),
     fabric: fabricWeather(outfit, ctx),
-    color: colorHarmony(outfit),
+    color: colorHarmony(outfit, ctx),
     occasion: occasionFit(outfit, ctx),
+    finish: finish(outfit, ctx),
   };
   const overall = clamp(PILLARS.reduce((sum, p) => sum + results[p.id].score * p.weight, 0));
   const items = pieces(outfit);
@@ -215,14 +355,15 @@ export function critique(outfit, ctx) {
   };
 }
 
-/** Find the single swap (or added layer) that improves the overall score most. */
+/** The single swap (or added/removed layer) from HER closet that improves the score most. */
 export function suggestSwap(outfit, ctx, pool) {
   const base = critique(outfit, ctx).overall;
   let best = null;
   for (const slot of ['top', 'bottom', 'outer', 'shoes']) {
-    const candidates = pool.filter((g) => g.category === slot && g.id !== outfit[slot]?.id);
+    if (slot === 'bottom' && isDress(outfit.top)) continue;
+    const candidates = pool.filter((g) => slotOf(g) === slot && g.id !== outfit[slot]?.id && (slot !== 'top' || isDress(g) === isDress(outfit.top)));
     for (const c of candidates) {
-      const score = critique({ ...outfit, [slot]: c }, ctx).overall - (c.placeholder ? 3 : 0);
+      const score = critique({ ...outfit, [slot]: c }, ctx).overall;
       if (!best || score > best.score) best = { slot, to: c, from: outfit[slot] || null, score };
     }
     if (slot === 'outer' && outfit.outer) {
@@ -234,7 +375,7 @@ export function suggestSwap(outfit, ctx, pool) {
   const gain = best.score - base;
   let text;
   if (!best.to) text = `Drop the ${short(best.from)}. You don't need the layer today.`;
-  else if (!best.from) text = `Add the ${short(best.to)}${best.to.placeholder ? ' (a basic you don\'t own yet)' : ''}.`;
-  else text = `Swap the ${short(best.from)} for the ${short(best.to)}${best.to.placeholder ? ' (basic)' : ''}.`;
+  else if (!best.from) text = `Add your ${short(best.to)}.`;
+  else text = `Swap the ${short(best.from)} for your ${short(best.to)}.`;
   return { ...best, gain, text };
 }

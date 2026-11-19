@@ -3,15 +3,9 @@ import { Modal } from './common.jsx';
 import GarmentArt from './GarmentArt.jsx';
 import { processUpload } from '../ai/tagger.js';
 import { tagGarment } from '../ai/stylist.js';
-import { NAMED_COLORS } from '../ai/color.js';
-import { CATEGORIES } from '../data/closet.js';
+import ItemForm, { blankItem } from './ItemForm.jsx';
 
 const STEPS = ['Reading photo', 'Removing background', 'Reading colors', 'Tagging (category, fabric, season)'];
-const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
-const ART_BY_CAT = {
-  top: ['tee', 'shirt', 'turtleneck', 'knit', 'stripe'], bottom: ['trousers', 'jeans', 'shorts', 'skirt'],
-  outer: ['coat', 'trench', 'blazer', 'jacket', 'puffer', 'cardigan'], shoes: ['sneaker', 'loafer', 'boot', 'sandal'], accessory: ['tote', 'crossbody', 'scarf'],
-};
 
 /** Makes a "messy" demo photo: a sweater lying on a bed sheet. */
 async function samplePhoto() {
@@ -29,118 +23,132 @@ async function samplePhoto() {
   return new File([blob], 'green-knit-sweater-on-bed.jpg', { type: 'image/jpeg' });
 }
 
-export default function UploadModal({ onClose, onSaved }) {
-  const [phase, setPhase] = useState('pick'); // pick | working | confirm
-  const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState(null);
+export default function UploadModal({ onClose, onSaved, ownerName }) {
+  const [phase, setPhase] = useState('pick'); // pick | working | review
+  const [queue, setQueue] = useState([]);     // [{ key, file, state: 'waiting'|'working'|'done'|'failed', step, item, taggedBy, error }]
+  const [sel, setSel] = useState(0);
   const [drag, setDrag] = useState(false);
   const [error, setError] = useState('');
-  const [aiLine, setAiLine] = useState('');
-  const [taggedBy, setTaggedBy] = useState('');
   const inputRef = useRef();
+  const patch = (key, p) => setQueue((q) => q.map((x) => (x.key === key ? { ...x, ...p } : x)));
 
-  async function run(file) {
-    if (!file || !file.type.startsWith('image/')) { setError('Please choose an image file.'); return; }
-    setError(''); setPhase('working'); setStep(0);
-    try {
-      const g = await processUpload(file, (label) => setStep(STEPS.indexOf(label)));
-      // Real AI: send the cut-out to Claude for tagging. Falls back to the on-device guess.
-      setAiLine('The AI stylist is looking at the piece…');
-      const blob = await (await fetch(g.image)).blob();
-      const ai = await tagGarment(blob, g);
-      setAiLine('');
-      if (ai?.garment) { setDraft(ai.garment); setTaggedBy(ai.provider); }
-      else { setDraft(g); setTaggedBy(''); if (ai?.error) setError(ai.error); }
-      setStep(STEPS.length);
-      setPhase('confirm');
-    } catch (e) {
-      setError('That photo could not be read. Try another one.'); setPhase('pick');
+  async function runAll(fileList) {
+    const files = [...(fileList || [])].filter((f) => f.type.startsWith('image/')).slice(0, 12);
+    if (!files.length) { setError('Please choose one or more image files.'); return; }
+    setError('');
+    const jobs = files.map((file, i) => ({ key: Date.now() + '-' + i, file, state: 'waiting', step: 0 }));
+    setQueue(jobs); setSel(0); setPhase('working');
+    for (const job of jobs) { // one at a time keeps the browser responsive and the AI within rate limits
+      patch(job.key, { state: 'working' });
+      try {
+        const g = await processUpload(job.file, (label) => patch(job.key, { step: STEPS.indexOf(label) }));
+        g.id = 'u-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        g.status = 'available';
+        const blob = await (await fetch(g.image)).blob();
+        const ai = await tagGarment(blob, g);
+        if (ai?.garment) patch(job.key, { state: 'done', item: ai.garment, taggedBy: ai.provider });
+        else patch(job.key, { state: 'done', item: g, taggedBy: '', error: ai?.error || '' });
+      } catch {
+        patch(job.key, { state: 'failed', error: 'This photo could not be read.' });
+      }
     }
+    setPhase('review');
   }
 
-  const set = (k, v) => setDraft((d) => ({ ...d, [k]: v }));
+  function manual() {
+    setQueue([{ key: 'manual', state: 'done', item: blankItem('top'), taggedBy: '', manual: true }]);
+    setSel(0); setPhase('review');
+  }
+
+  const ready = queue.filter((x) => x.state === 'done' && x.item);
+  const current = queue[sel];
+  const valid = (it) => it.name.trim().length > 0;
+
+  function addAll() {
+    const items = ready.map((x) => ({ ...x.item, name: x.item.name.trim() || 'Untitled piece' }));
+    onSaved(items);
+  }
 
   return (
-    <Modal title={phase === 'confirm' ? 'Confirm the details' : 'Add a piece'} onClose={onClose} wide={phase === 'confirm'}>
+    <Modal title={phase === 'review' ? (queue.length > 1 ? `Review ${ready.length} pieces` : 'Check the details') : 'Add pieces'} onClose={onClose} wide={phase !== 'pick'}>
       {phase === 'pick' && (
         <>
-          <p className="muted small" style={{ marginTop: 0 }}>Messy photos are fine: on a bed, a hanger or the floor. Unique Ava cuts the piece out, reads its colors, and drafts the tags for you.</p>
+          <p className="muted small" style={{ marginTop: 0 }}>Choose one photo or several at once (up to 12). Messy photos are fine: on a bed, a hanger or the floor. Each piece is cut out, its colors are measured, and the AI drafts the details for you to check.{ownerName && ownerName !== 'Me' ? <> These go into <b>{ownerName}</b>'s closet.</> : null}</p>
           <div
             className={'dropzone' + (drag ? ' drag' : '')}
             onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
             onDragLeave={() => setDrag(false)}
-            onDrop={(e) => { e.preventDefault(); setDrag(false); run(e.dataTransfer.files[0]); }}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); runAll(e.dataTransfer.files); }}
           >
-            <div className="label">Drop a photo here</div>
-            <button className="btn primary" onClick={() => inputRef.current.click()}>Choose photo</button>
-            <input ref={inputRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => run(e.target.files[0])} />
-            <span className="tiny">Tip: plain backgrounds give the cleanest cut-out in this prototype.</span>
+            <div className="label">Drop photos here</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button className="btn primary" onClick={() => inputRef.current.click()}>Choose photos</button>
+              <label className="btn">Take a photo<input type="file" accept="image/*" capture="environment" hidden onChange={(e) => runAll(e.target.files)} /></label>
+            </div>
+            <input ref={inputRef} type="file" accept="image/*" multiple hidden onChange={(e) => runAll(e.target.files)} />
+            <span className="tiny">Plain backgrounds give the cleanest cut-out.</span>
           </div>
           {error && <p className="small" style={{ color: 'var(--accent)' }}>{error}</p>}
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span className="small muted">No photo handy?</span>
-            <button className="btn sm" onClick={async () => run(await samplePhoto())}>Try a sample messy photo</button>
+            <button className="btn sm" onClick={manual}>Add without a photo</button>
+            <button className="btn ghost sm" onClick={async () => runAll([await samplePhoto()])}>Test with a sample photo</button>
           </div>
         </>
       )}
 
       {phase === 'working' && (
         <>
-          <span className="ai-badge">AI processing</span>
+          <span className="ai-badge">Reading {queue.length} photo{queue.length > 1 ? 's' : ''}</span>
           <div className="loading-bar"><i /></div>
-          <ul className="steps">{STEPS.map((s, i) => <li key={s} className={i < step ? 'done' : i === step ? 'now' : ''}>{s}</li>)}</ul>
-          {aiLine && <p className="small" style={{ fontWeight: 600 }}>{aiLine}</p>}
+          <ul className="steps">
+            {queue.map((x, i) => (
+              <li key={x.key} className={x.state === 'done' ? 'done' : x.state === 'working' ? 'now' : ''}>
+                Photo {i + 1} · {x.state === 'working' ? (STEPS[x.step] || 'Asking the AI for details') : x.state === 'done' ? 'ready' : x.state === 'failed' ? 'could not be read' : 'waiting'}
+              </li>
+            ))}
+          </ul>
           <p className="tiny">Background removal and color reading run on your device. Only the cut-out piece is sent to the AI (Google Gemini, through your Puter account), never the original photo.</p>
         </>
       )}
 
-      {phase === 'confirm' && draft && (
-        <div className="confirm">
-          <div>
-            <div className="card-stage"><GarmentArt item={draft} /></div>
-            <div className="swatches" style={{ marginTop: 10 }}><span className="swatch" style={{ background: draft.colors[0].hex }} /> <span className="small">{draft.colors[0].name} · read from pixels</span></div>
-            <p style={{ marginTop: 10 }}>{taggedBy ? <span className="ai-badge">Tagged by {taggedBy}</span> : <span className="tiny">Tagged by the on-device guesser (AI unavailable)</span>}</p>
-            {draft.aiNote && <p className="small muted">“{draft.aiNote}”</p>}
-            {draft.confidence < 0.6 && <p className="small" style={{ color: 'var(--warn)' }}>We're not sure about some details, so please check them.</p>}
-            {error && <p className="tiny" style={{ color: 'var(--warn)' }}>{error}</p>}
-          </div>
-          <div>
-            <div className="field"><label className="label">Name</label><input className="input" value={draft.name} onChange={(e) => set('name', e.target.value)} /></div>
-            <div className="field-row">
-              <div className="field"><label className="label">Category</label>
-                <select className="select" value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value, art: ART_BY_CAT[e.target.value][0] }))}>
-                  {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                </select></div>
-              <div className="field"><label className="label">Type</label>
-                <select className="select" value={draft.art} onChange={(e) => set('art', e.target.value)}>
-                  {ART_BY_CAT[draft.category].map((a) => <option key={a} value={a}>{a}</option>)}
-                </select></div>
+      {phase === 'review' && current && (
+        <div className="review">
+          {queue.length > 1 && (
+            <div className="review-list" role="tablist" aria-label="Uploaded pieces">
+              {queue.map((x, i) => (
+                <button key={x.key} role="tab" aria-selected={i === sel} className={'review-thumb' + (i === sel ? ' on' : '') + (x.state === 'failed' ? ' failed' : '')} onClick={() => setSel(i)}>
+                  {x.item ? <GarmentArt item={x.item} /> : <span className="tiny">Failed</span>}
+                </button>
+              ))}
             </div>
-            <div className="field-row">
-              <div className="field"><label className="label">Color</label>
-                <select className="select" value={draft.colors[0].name} onChange={(e) => set('colors', [{ ...draft.colors[0], name: e.target.value }])}>
-                  {NAMED_COLORS.map((c) => <option key={c.name}>{c.name}</option>)}
-                </select></div>
-              <div className="field"><label className="label">Material</label><input className="input" value={draft.material} onChange={(e) => set('material', e.target.value)} /></div>
+          )}
+          {current.state === 'failed' ? (
+            <div className="empty"><p className="small">{current.error} Try another photo, or add the piece without one.</p></div>
+          ) : (
+            <div className="confirm">
+              <div>
+                <div className="card-stage"><GarmentArt item={current.item} /></div>
+                {current.item.image && <div className="swatches" style={{ marginTop: 10 }}><span className="swatch" style={{ background: current.item.colors[0].hex }} /> <span className="small">Color measured from your photo</span></div>}
+                <p style={{ marginTop: 10 }}>
+                  {current.manual ? <span className="tiny">Added by hand. Fill in what you know.</span>
+                    : current.taggedBy ? <span className="ai-badge">Details drafted by {current.taggedBy}</span>
+                    : <span className="tiny">The AI wasn't available, so these details are a rough on-device guess. Please check them.</span>}
+                </p>
+                {current.item.aiNote && <p className="small muted">“{current.item.aiNote}”</p>}
+                {!current.manual && current.item.confidence < 0.6 && <p className="small" style={{ color: 'var(--warn)' }}>Some details are uncertain. Please check them.</p>}
+                {current.error && <p className="tiny" style={{ color: 'var(--warn)' }}>{current.error}</p>}
+              </div>
+              <div>
+                <ItemForm item={current.item} onChange={(item) => patch(current.key, { item })} />
+              </div>
             </div>
-            <div className="field-row">
-              <div className="field"><label className="label">Fit</label>
-                <select className="select" value={draft.fit} onChange={(e) => set('fit', e.target.value)}>{['fitted', 'regular', 'relaxed', 'oversized'].map((f) => <option key={f}>{f}</option>)}</select></div>
-              <div className="field"><label className="label">Weight</label>
-                <select className="select" value={draft.weight} onChange={(e) => set('weight', e.target.value)}>{['light', 'mid', 'heavy'].map((f) => <option key={f}>{f}</option>)}</select></div>
-            </div>
-            <div className="field-row">
-              <div className="field"><label className="label">Warmth · {draft.warmth}/5</label><input type="range" min="0" max="5" value={draft.warmth} onChange={(e) => set('warmth', +e.target.value)} /></div>
-              <div className="field"><label className="label">Formality · {draft.formality}/5</label><input type="range" min="1" max="5" value={draft.formality} onChange={(e) => set('formality', +e.target.value)} /></div>
-            </div>
-            <div className="field"><label className="label">Seasons</label>
-              <div className="chips">{SEASONS.map((s) => (
-                <button key={s} className={'chip' + (draft.seasons.includes(s) ? ' on' : '')} onClick={() => set('seasons', draft.seasons.includes(s) ? draft.seasons.filter((x) => x !== s) : [...draft.seasons, s])}>{s}</button>
-              ))}</div></div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-              <button className="btn primary" style={{ flex: 1 }} onClick={() => { onSaved(draft); }}>Looks right · Add to closet</button>
-              <button className="btn" onClick={() => setPhase('pick')}>Retake</button>
-            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, marginTop: 14, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            {queue.length > 1 && current.state === 'done' && <button className="btn" onClick={() => { setQueue((q) => q.filter((x) => x.key !== current.key)); setSel(0); }}>Skip this one</button>}
+            <button className="btn" onClick={() => setPhase('pick')}>Start over</button>
+            <button className="btn primary" disabled={!ready.length || (current.manual && !valid(current.item))} onClick={addAll}>
+              {ready.length > 1 ? `Add all ${ready.length} to closet` : 'Add to closet'}
+            </button>
           </div>
         </div>
       )}
