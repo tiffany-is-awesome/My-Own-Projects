@@ -453,18 +453,39 @@ const AI={
       const c=await window.claude.use("sample");
       if(c){this._c=c;this.mode="claude-ai";this.name="Claude";this.ready=true;return true;}
     }
-    // 2) On your own site: use the pantry-ai function in Supabase, once an AI key is added there.
-    if(CLOUD_OK){
-      try{
-        const r=await fetch(this.FUNCTION_URL,{method:"POST",headers:{"Content-Type":"application/json",apikey:CONFIG.SUPABASE_KEY},body:JSON.stringify({task:"status"})});
-        const j=await r.json();
-        if(j&&j.ready){this.mode="server";this.name=j.provider||"AI";this.ready=true;return true;}
-      }catch(e){}
-    }
+    if(!CLOUD_OK) return false;
+    // 2) On your own site, if you ever add an AI key in Supabase, the pantry-ai function is used.
+    try{
+      const r=await fetch(this.FUNCTION_URL,{method:"POST",headers:{"Content-Type":"application/json",apikey:CONFIG.SUPABASE_KEY},body:JSON.stringify({task:"status"})});
+      const j=await r.json();
+      if(j&&j.ready){this.mode="server";this.name=j.provider||"AI";this.ready=true;return true;}
+    }catch(e){}
+    // 3) Otherwise: free Gemini through Puter. No API key anywhere. Each visitor signs in to a
+    //    free Puter account once, and their AI use comes out of that account's free allowance.
+    try{ await this.loadPuter(); this.mode="puter"; this.name="Gemini"; this.ready=true; return true; }catch(e){}
     return false;
   },
+  PUTER_MODELS:{full:["google/gemini-3.5-flash","google/gemini-2.5-flash"],fast:["google/gemini-3.5-flash-lite","google/gemini-2.5-flash-lite"]},
+  loadPuter(){
+    if(window.puter) return Promise.resolve();
+    if(this._pl) return this._pl;
+    this._pl=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="https://js.puter.com/v2/";sc.onload=()=>window.puter?res():rej(new Error("Puter missing"));sc.onerror=()=>{this._pl=null;rej(new Error("Couldn't load Puter"));};document.head.appendChild(sc);});
+    return this._pl;
+  },
+  async puterSignedIn(){try{await this.loadPuter();return !!(await window.puter.auth.isSignedIn());}catch(e){return false;}},
+  async puterSignIn(){await this.loadPuter();await window.puter.auth.signIn();},
   async json(prompt,{fast}={}){
     if(this.mode==="claude-ai") return this._c.json(prompt,{modelTier:fast?"quick":"default"});
+    if(this.mode==="puter"){
+      if(!(await this.puterSignedIn())) throw {code:"puter_sign_in"};
+      const full="You are the AI inside a cooking app. Answer with valid JSON only: no markdown, no code fences, no extra text.\n\n"+prompt;
+      let lastErr;
+      for(const model of this.PUTER_MODELS[fast?"fast":"full"]){
+        try{ const res=await window.puter.ai.chat(full,{model}); return parseJSON(puterText(res)); }
+        catch(e){ lastErr=e; if(e&&e.code==="bad_json") throw e; }
+      }
+      throw {code:"puter_failed",message:lastErr&&(lastErr.message||lastErr.error&&lastErr.error.message)};
+    }
     let session=null;
     try{ if(Cloud.user){ session=(await (await Cloud.client()).auth.getSession()).data.session; } }catch(e){}
     if(!session) throw {code:"sign_in"};
@@ -474,6 +495,24 @@ const AI={
     return parseJSON(j.text);
   }
 };
+function puterText(r){
+  if(typeof r==="string") return r;
+  const c=r&&r.message&&r.message.content;
+  if(typeof c==="string") return c;
+  if(Array.isArray(c)) return c.map(x=>x&&(x.text||"")).join("");
+  if(r&&typeof r.text==="string") return r.text;
+  return String(r||"");
+}
+/* One tap to turn on the free AI. Signing in opens Puter's pop-up, so it must follow a click. */
+function openPuterConnect(then){
+  S.afterPuter=then||null;
+  $("#authBox").innerHTML=`<h2 id="authTitle">Turn on the free AI</h2>
+    <p>Recipe ideas and dish fixes come from Google's Gemini through Puter, so there's no key and nothing to pay on this site.</p>
+    <p>Sign in to a free Puter account once. Your AI use comes out of that account's free allowance, and it remembers you next time.</p>
+    <button class="btn primary" data-act="puter-connect">Connect free AI</button>
+    <button class="linkbtn" data-act="auth-close" style="align-self:center">Not now</button>`;
+  $("#authModal").hidden=false; $("#authBox").querySelector(".btn").focus();
+}
 function parseJSON(t){
   t=String(t||"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```\s*$/,"").trim();
   try{return JSON.parse(t);}catch(e){const m=t.match(/[\[{][\s\S]*[\]}]/);if(m)return JSON.parse(m[0]);throw {code:"bad_json"};}
@@ -791,7 +830,7 @@ function renderAiStatus(){
 function openAiInfo(){
   const st=aiState();
   const T={
-    live:`<h2 id="authTitle">Live AI is on</h2><p>${esc(AI.name)} writes recipes from what's in your kitchen and suggests fixes in Rescue My Dish.</p>${AI.mode==="server"&&!Cloud.user?`<p>Sign in to use it.</p><button class="btn" data-act="account">Sign in</button>`:""}`,
+    live:`<h2 id="authTitle">Live AI is on</h2><p>${esc(AI.name)} writes recipes from what's in your kitchen and suggests fixes in Rescue My Dish.</p>${AI.mode==="server"&&!Cloud.user?`<p>Sign in to use it.</p><button class="btn" data-act="account">Sign in</button>`:""}${AI.mode==="puter"?`<p>It runs through Puter: no key needed. The first time, you sign in to a free Puter account.</p>`:""}`,
     demo:`<h2 id="authTitle">You're in demo mode</h2><p>Live AI isn't switched on for this site yet, so you're seeing built-in sample recipes and ready-made dish fixes. Everything else works: your kitchen, saved recipes and sign-in.</p>`,
     off:`<h2 id="authTitle">You're offline</h2><p>Your pantry and cookbooks still work on this device. AI and account syncing pick up again as soon as you're back online.</p>`,
     checking:`<h2 id="authTitle">Connecting to the AI…</h2><p>This takes a few seconds. If it can't connect, the app switches to demo mode with sample recipes.</p>`
@@ -1066,7 +1105,9 @@ Rules: ingredient names must match the pantry and staple names exactly. palette 
     if(append){S.recipes=S.recipes.concat(fresh);toast(`Added ${fresh.length} more ideas${dropped?`, and skipped ${dropped} that needed shopping`:""}.`);}
     else{S.recipes=fresh;S.current=0;if(dropped)toast(`Skipped ${dropped} idea${dropped>1?"s":""} that needed shopping.`);}
   }catch(e){
-    if(e&&e.code==="sign_in"){toast("Sign in to use the free AI. It only takes a moment.");openAuth("signin");}
+    if(e&&e.code==="puter_sign_in"){openPuterConnect(()=>generate(append));}
+    else if(e&&e.code==="puter_failed"){toast("The free AI couldn't answer just now. Your Puter allowance may be used up for today. Try again later.");}
+    else if(e&&e.code==="sign_in"){toast("Sign in to use the free AI. It only takes a moment.");openAuth("signin");}
     else toast(e&&e.code==="none_cookable"?"Every idea needed something you don't have. Try again, or add a few staples.":e&&e.code==="rate_limited"?"Too many requests just now. Wait a minute and try again.":e&&e.code==="not_granted"?"AI access wasn't granted, so you're seeing demo recipes.":"Recipe generation didn't work. Try again.");
   }finally{S.loading=false;$("#genBtn").disabled=false;renderStudio();}
 }
@@ -1106,7 +1147,9 @@ Ingredients they have: ${S.pantry.map(x=>x.name).join(", ")}; staples: ${S.stapl
 Give 3 quick fixes using ONLY those ingredients or techniques. JSON only: {"fixes":[{"fix":"short instruction","why":"one short sentence"}]}`,{fast:true});
     const fx=(res&&res.fixes||[]).slice(0,3).map(x=>[x.fix,x.why]);
     show(fx.length?fx:demoFixes(p));
-  }catch(e){show(demoFixes(p)); if(e&&e.code==="sign_in") toast("Sign in to get AI fixes. Showing quick fixes for now.");}
+  }catch(e){show(demoFixes(p));
+    if(e&&e.code==="puter_sign_in") openPuterConnect(()=>rescue(p));
+    else if(e&&e.code==="sign_in") toast("Sign in to get AI fixes. Showing quick fixes for now.");}
 }
 
 /* ---------- Plate drawing ---------- */
@@ -1213,6 +1256,10 @@ document.addEventListener("click",e=>{
   if(e.target.id==="authModal"){closeAuth();return;}
   if(!t) return; const act=t.dataset.act;
   if(act==="ai-info"){openAiInfo();return;}
+  if(act==="puter-connect"){t.disabled=true;t.textContent="Waiting for Puter…";
+    AI.puterSignIn().then(()=>{closeAuth();toast("Free AI is on. Enjoy!");renderAiStatus();const f=S.afterPuter;S.afterPuter=null;if(f)f();})
+      .catch(()=>{t.disabled=false;t.textContent="Connect free AI";toast("Sign-in didn't finish. If nothing opened, allow pop-ups for this site and try again.");});
+    return;}
   if(act==="account"){Cloud.user?openAuth("account"):openAuth("signin");return;}
   if(act==="auth-mode"){openAuth(t.dataset.m);return;}
   if(act==="auth-close"){closeAuth();return;}

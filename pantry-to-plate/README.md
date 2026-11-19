@@ -4,32 +4,24 @@ Recipes from every cuisine, made **only** from what's already in your kitchen. N
 
 Live site: https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/
 
-## What's already set up
+## What's already set up (nothing left to do)
 
+- **Free AI with no API key:** recipes and dish fixes come from Google's Gemini through [Puter](https://docs.puter.com). Nobody needs a key, not you and not your users. The first time someone asks for recipes, they tap **Connect free AI** and sign in to a free Puter account. Their AI use comes out of that account's free allowance, and you're never charged.
 - **Accounts and syncing:** sign in, create an account, reset a password. Your kitchen, staples and saved recipes follow you to every device. They're stored in the `pantry_data` table in the Supabase project you share with Tiffo, and each person can only see their own data.
-- **The AI helper:** a Supabase Edge Function called `pantry-ai` is deployed and uses Google Gemini's free tier. Users just sign in to use it; the key stays secret in Supabase.
-- **Demo mode:** until the AI is switched on, the site shows built-in sample recipes and ready-made dish fixes, so everything can be clicked through.
-
-## The one thing left: add a free Gemini key (once, by you)
-
-App users never need a key. They just sign in. The key is yours, stays hidden in Supabase, and covers everyone.
-
-1. Go to https://aistudio.google.com, sign in with Google, click **Get API key → Create API key**, and copy it. No credit card needed; don't link billing and it stays free.
-2. In Supabase, go to **Edge Functions → Secrets → Add new secret**: name `GEMINI_API_KEY`, value = your key. Save.
-3. Reload the site. The badge at the top changes from **Demo mode** to **AI · Gemini**.
-
-If you already added `GEMINI_API_KEY` for Tiffo, skip all this: secrets are shared across the project, so it already works.
+- **Demo mode** only appears if the AI can't load at all. It shows built-in sample recipes, so everything can still be clicked through.
 
 Good to know:
-- On Gemini's free tier, Google may use what's sent to improve its products. Pantry to Plate only sends ingredient lists and recipe requests.
-- When the free daily limit is reached, the site falls back to sample recipes and quick fixes until it resets. You're never charged.
-- Keep the key only in Supabase. Never put it in `index.html`, GitHub or a chat.
-- To use Claude instead later: add `ANTHROPIC_API_KEY` plus `AI_PROVIDER` = `claude`.
-- `PANTRY_ALLOWED_ORIGIN` = `https://tiffany-is-awesome.github.io` lets only your site call the helper.
-- **Nicer email links:** in Supabase, go to **Authentication → URL Configuration → Redirect URLs** and add `https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/`. Without it, account confirmation still works, but the email link lands on Tiffo instead of here.
+- Puter is a separate service from Google. Puter's free allowance has limits; heavy users can top up their own Puter account.
+- What's sent to the AI is just ingredient lists and recipe requests.
+
+## Optional: your own Gemini or Claude key instead
+
+The `pantry-ai` Supabase function is deployed and unused until a key is added. If you ever add `GEMINI_API_KEY` (free, https://aistudio.google.com) in **Supabase → Edge Functions → Secrets**, the site switches to it automatically, and users only need their site account, with no Puter sign-in. `ANTHROPIC_API_KEY` plus `AI_PROVIDER` = `claude` uses Claude instead.
+
+Also optional: **nicer email links.** In Supabase, go to **Authentication → URL Configuration → Redirect URLs** and add `https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/`. Without it, account confirmation still works, but the email link lands on Tiffo instead of here.
 
 ## How it's built
 
 - One file: `index.html`. The settings are in the `CONFIG` block near the top of the script. The key there is Supabase's **publishable** key, which is safe to be public.
-- Every AI request goes through the `AI PROVIDER` block. Inside claude.ai it uses Claude directly. On this site it calls the `pantry-ai` function.
+- Every AI request goes through the `AI PROVIDER` block: Claude inside claude.ai; on this site, your `pantry-ai` function if it has a key, otherwise free Gemini through Puter.
 - The AI helper's code is in [`supabase/functions/pantry-ai/index.ts`](../supabase/functions/pantry-ai/index.ts), and the table setup is in [`supabase/pantry-setup.sql`](../supabase/pantry-setup.sql).
