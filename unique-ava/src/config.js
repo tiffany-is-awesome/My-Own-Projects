@@ -6,16 +6,15 @@
 //    The publishable key below is SAFE to be public: Row Level Security keeps
 //    every user's closet private.
 //
-//  AI: Claude, tried in this order:
-//   1. Inside claude.ai (the published preview): the viewer's own Claude account.
-//   2. On GitHub Pages: the unique-ava-ai Supabase Edge Function (holds your
-//      Anthropic key, signed-in users only). Set AI_PROXY_URL after deploying it
-//      (see unique-ava/SETUP.md).
-//  If neither is available, the built-in rules engine answers instead.
+//  AI: Google Gemini through Puter.js. NO API KEY anywhere: the first time a user
+//    asks the AI stylist something, Puter shows a sign-in pop-up (free account).
+//    Her usage runs on her own Puter allowance, so the site owner pays nothing.
+//    Inside the claude.ai preview (which blocks outside scripts), Claude stands in.
+//  If the AI isn't available, the built-in rules engine answers instead.
 // ───────────────────────────────────────────────────────────────────────────
 export const CONFIG = {
   SUPABASE_URL: 'https://hvhbygkgvxdpvwvclyns.supabase.co',
   SUPABASE_ANON_KEY: 'sb_publishable_t8Zf_XjZPrRZB9piISZOhQ_FXdNja7h',
-  // e.g. 'https://hvhbygkgvxdpvwvclyns.supabase.co/functions/v1/unique-ava-ai' once deployed
+  // Optional backup only (needs a key on the server). Leave empty: the AI runs on Gemini via Puter, no key.
   AI_PROXY_URL: '',
 };

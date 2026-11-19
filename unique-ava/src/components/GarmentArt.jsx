@@ -21,7 +21,7 @@ const P = {
 };
 
 // Fabric look by material/shape: noise frequency, contrast, sheen
-function fabricFor(item) {
+export function fabricFor(item) {
   const m = (item.material || '').toLowerCase();
   if (/leather|patent/.test(m) && !/suede/.test(m)) return { f: '0.035', k: 0.05, sheen: 0.5 };
   if (/suede/.test(m)) return { f: '1.6', k: 0.2, sheen: 0 };
@@ -34,7 +34,7 @@ function fabricFor(item) {
   return { f: '1.5', k: 0.12, sheen: 0.1 }; // cotton & default
 }
 
-function Defs({ id, c, fab }) {
+export function Defs({ id, c, fab }) {
   const k = fab.k;
   return (
     <defs>
@@ -70,12 +70,12 @@ function Defs({ id, c, fab }) {
 }
 
 /** A fabric body: lit fill + texture + folds clipped to the shape + subtle edge. */
-function Body({ id, d, c, fab, folds = [], lights = [], children }) {
+export function Body({ id, d, c, fab, folds = [], lights = [], children, part = '' }) {
   return (
     <g>
-      <clipPath id={`${id}c`}><path d={d} /></clipPath>
+      <clipPath id={`${id}c${part}`}><path d={d} /></clipPath>
       <path d={d} fill={`url(#${id}g)`} filter={`url(#${id}t)`} />
-      <g clipPath={`url(#${id}c)`}>
+      <g clipPath={`url(#${id}c${part})`}>
         {fab.twill && <path d={d} fill={`url(#${id}w)`} />}
         <g filter={`url(#${id}b)`}>
           {folds.map((f, i) => <path key={'f' + i} d={f} fill="none" stroke={shade(c, -0.5)} strokeOpacity=".2" strokeWidth="4.5" strokeLinecap="round" />)}

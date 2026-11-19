@@ -134,6 +134,7 @@ Each pros/cons list: 0-3 short sentences that name the actual pieces. Refer to p
       verdict: str(v.verdict, 300),
       tip: str(v.styling_tip, 300),
       by: 'claude',
+      provider: r.provider,
     },
   };
 }
@@ -186,7 +187,7 @@ Reply with ONLY this JSON:
     }
     o.outfit[slot] = best;
   }
-  if (!outfits.length) return { error: 'Claude returned no usable outfits. Showing the rules engine instead.' };
+  if (!outfits.length) return { error: 'The AI returned no usable outfits. Showing the rules engine instead.' };
   return {
     provider: r.provider,
     outfits,
@@ -211,7 +212,7 @@ At most one item per category except accessories (max 2). Do not describe the pe
     const color = NAMED_COLORS.find((c) => c.name === it.color) || null;
     return { label: str(it.label, 60) || `${color?.name || ''} ${it.art || category}`.trim(), category, art: oneOf(it.art, ARTS[category], ARTS[category][0]), color: color ? { name: color.name, hex: color.hex } : null };
   }).filter(Boolean);
-  if (!items.length) return { error: 'Claude could not find clothing in that image.' };
+  if (!items.length) return { error: 'The AI could not find clothing in that image.' };
   return { provider: r.provider, title: str(r.value?.title, 60), items };
 }
 

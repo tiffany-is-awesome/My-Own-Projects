@@ -17,7 +17,7 @@ const Ctx = createContext(null);
 export const useAuth = () => useContext(Ctx);
 
 let currentSession = null;
-/** Used by the Claude proxy: the signed-in user's access token, or null. */
+/** Used by the AI function: the signed-in user's access token, or null. */
 export const getAccessToken = () => currentSession?.access_token || null;
 const authListeners = new Set();
 export const onAuthChange = (f) => { authListeners.add(f); return () => authListeners.delete(f); };

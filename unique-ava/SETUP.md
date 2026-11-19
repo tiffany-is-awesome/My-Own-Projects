@@ -1,9 +1,9 @@
 # Setting up Unique Ava online
 
 Unique Ava works right away: your closet is saved in the browser and the built-in rules engine styles you.
-These two one-time steps switch on **accounts** and **Claude**.
+Accounts are switched on, and the AI stylist needs no setup.
 
-## 1. Accounts & cloud sync (5 minutes)
+## 1. Accounts & cloud sync ✅ done
 Unique Ava uses **the same free Supabase project as Tiffo**, so it's already connected.
 Sign-ins are shared between the two apps; each app keeps its own private data.
 
@@ -20,26 +20,17 @@ The account menu (top right) shows **☁️ Synced just now**.
 
 > If the menu says **"Cloud not set up"**, step 2 hasn't been run yet.
 
-## 2. Claude (10 minutes)
-In the claude.ai preview Claude works with no setup (it uses your own Claude account).
-For the live site, a small Supabase function holds your Anthropic key. **Only signed-in users can use it**,
-and each user gets a daily limit, so strangers can't run up your bill.
+## 2. The AI stylist: Google Gemini ✅ nothing to set up
+There's **no API key anywhere**. Unique Ava uses Gemini through **Puter.js** (the "user-pays" model):
 
-1. Get an API key at **https://console.anthropic.com** → *API Keys* → *Create key*. Keep it secret.
-2. Supabase → **Edge Functions → Deploy a new function** → name it `unique-ava-ai` → paste
-   [`supabase/functions/unique-ava-ai/index.ts`](../supabase/functions/unique-ava-ai/index.ts) → Deploy.
-   Leave **"Verify JWT"** on (the function also checks the sign-in itself).
-3. **Edge Functions → Secrets** → add `ANTHROPIC_API_KEY` = your key.
-   Recommended: `UNIQUE_AVA_ALLOWED_ORIGIN` = `https://tiffany-is-awesome.github.io` and `UNIQUE_AVA_DAILY_LIMIT` = `60`.
-4. In [`unique-ava/src/config.js`](src/config.js) set
-   ```js
-   AI_PROXY_URL: 'https://hvhbygkgvxdpvwvclyns.supabase.co/functions/v1/unique-ava-ai',
-   ```
-   then rebuild (`cd unique-ava && npm run build`) and commit. Or just ask Claude to do this step.
-5. Sign in on the live site. The header badge turns green: **Claude on**.
+- The first time someone uses an AI feature (or clicks **Gemini · Sign in** in the header), Puter shows a
+  sign-in pop-up. She signs in or creates a free Puter account, and that's it.
+- Her AI use runs on her own Puter allowance (free monthly allowance; she can top up on puter.com if she
+  ever needs more). **You pay nothing**, and there's no key to leak.
+- Until she signs in, the built-in rules engine keeps styling, so nothing breaks.
 
-**Cost:** tagging a piece or writing a critique is roughly a cent or less on Claude's mid-size model;
-Mix & Match sends your closet list, so it's a little more.
+*(Optional backup, off by default:* `supabase/functions/unique-ava-ai` *can run Gemini with a server-side
+`GEMINI_API_KEY` instead. Only needed if you ever want AI without the Puter sign-in.)*
 
 ## 3. Photos (optional, any time)
 Real photos (for example from Gemini) replace the built-in renders without a rebuild.

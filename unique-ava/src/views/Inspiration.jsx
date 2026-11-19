@@ -39,16 +39,16 @@ function AddInspiration({ onClose, onAdded }) {
     const r = await decomposeWithClaude(file);
     setBusy(false);
     if (r?.items) { setAiItems(r.items); if (!title && r.title) setTitle(r.title); }
-    else setErr(r?.error || 'Claude is not connected here, so please list the pieces below.');
+    else setErr(r?.error || 'The AI stylist is not connected here, so please list the pieces below.');
   }
   return (
     <Modal title="Add inspiration" onClose={onClose}>
-      <p className="small muted" style={{ marginTop: 0 }}>Add a screenshot of a look you love and Claude will pick out each piece. You can also just type what's in it. The photo stays private on your device, and the source link keeps the credit.</p>
-      <div className="field"><label className="label">Inspiration photo {ai.status === 'ready' ? '(Claude reads it)' : ''}</label>
+      <p className="small muted" style={{ marginTop: 0 }}>Add a screenshot of a look you love and the AI stylist will pick out each piece. You can also just type what's in it. The photo stays private on your device, and the source link keeps the credit.</p>
+      <div className="field"><label className="label">Inspiration photo {ai.status === 'ready' ? '(the AI reads it)' : ''}</label>
         <div className="context-box" style={{ alignItems: 'center' }}>
           {photo && <img src={photo.dataUrl} alt="" style={{ width: 56, height: 70, objectFit: 'cover' }} />}
           <label className="btn sm" style={{ cursor: 'pointer' }}>{photo ? 'Change photo' : 'Choose photo'}<input type="file" accept="image/*" hidden onChange={(e) => pickPhoto(e.target.files[0])} /></label>
-          {busy && <span className="small">Claude is looking at the outfit…</span>}
+          {busy && <span className="small">The AI stylist is looking at the outfit…</span>}
         </div>
         {err && <span className="tiny" style={{ color: 'var(--warn)' }}>{err}</span>}
       </div>
@@ -56,7 +56,7 @@ function AddInspiration({ onClose, onAdded }) {
       <div className="field"><label className="label">Source link (optional)</label><input className="input" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" /></div>
       <div className="field"><label className="label">What's in the look</label>
         <textarea className="textarea" rows="3" value={text} onChange={(e) => setText(e.target.value)} placeholder="black turtleneck, olive trousers, white sneakers, black crossbody bag" />
-        <span className="tiny">{aiItems ? 'Claude found' : 'Found'} {items.length} item{items.length === 1 ? '' : 's'}{items.length ? ': ' + items.map((i) => i.label).join(' · ') : ''}</span>
+        <span className="tiny">{aiItems ? 'The AI found' : 'Found'} {items.length} item{items.length === 1 ? '' : 's'}{items.length ? ': ' + items.map((i) => i.label).join(' · ') : ''}</span>
       </div>
       <button className="btn primary block" disabled={!items.length || busy} onClick={() => {
         const id = 'insp-' + Date.now().toString(36);
@@ -121,7 +121,7 @@ export default function Inspiration({ go }) {
           <div>
             <div className="label">Inspiration · {cur.source}{cur.url ? <> · <a href={cur.url} target="_blank" rel="noreferrer">source</a></> : null}</div>
             <div className="insp-board" style={{ background: cur.mood, marginTop: 8 }}>{cur.image ? <img src={cur.image} alt={cur.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Stage outfit={lookAsOutfit(cur.items)} />}</div>
-            {cur.by === 'claude' && <span className="ai-badge" style={{ marginTop: 8 }}>Pieces identified by Claude</span>}
+            {cur.by === 'claude' && <span className="ai-badge" style={{ marginTop: 8 }}>Pieces identified by the AI stylist</span>}
           </div>
           <div>
             <div className="label">{cur.title}</div>

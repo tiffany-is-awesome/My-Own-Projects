@@ -41,7 +41,7 @@ export default function DressingRoom({ go }) {
     const r = await critiqueWithClaude(outfit, ctx, rules);
     setAiBusy(false);
     if (r?.critique) { setAiCrit({ key: lookKey, critique: r.critique }); setSource('claude'); dispatch({ type: 'CACHE_CRITIQUE', key: lookKey, critique: r.critique }); }
-    else setAiErr(r?.error || 'Claude is not available here, so the rules engine critique is shown.');
+    else setAiErr(r?.error || 'The AI stylist is not available here, so the rules engine critique is shown.');
   }
   const swap = useMemo(() => suggestSwap(outfit, ctx, pool), [outfit, ctx, pool]);
   const stage = draft.stage;
@@ -176,7 +176,7 @@ export default function DressingRoom({ go }) {
 
           <div className="critique-head">
             <div>
-              <span className="ai-badge">{result.by === 'claude' ? 'Claude · AI stylist' : 'Rules engine'}</span>
+              <span className="ai-badge">{result.by === 'claude' ? `AI stylist · ${result.provider || ai.name || 'AI'}` : 'Rules engine'}</span>
               <h3 className="h2" style={{ marginTop: 4 }}>Critique</h3>
             </div>
             <ScoreBadge score={result.overall} />
@@ -184,16 +184,16 @@ export default function DressingRoom({ go }) {
           <div className="ai-bar">
             {ai.status === 'ready' ? (
               <>
-                <button className="btn sm primary" onClick={askClaude} disabled={aiBusy}>{aiBusy ? 'Claude is styling…' : cached ? '↻ Ask Claude again' : '✦ Ask Claude for a critique'}</button>
+                <button className="btn sm primary" onClick={askClaude} disabled={aiBusy}>{aiBusy ? 'The AI stylist is thinking…' : cached ? '↻ Ask the AI stylist again' : '✦ Ask the AI stylist'}</button>
                 {cached && (
                   <div className="seg">
-                    <button className={source === 'claude' ? 'on' : ''} onClick={() => setSource('claude')}>Claude</button>
+                    <button className={source === 'claude' ? 'on' : ''} onClick={() => setSource('claude')}>AI stylist</button>
                     <button className={source === 'rules' ? 'on' : ''} onClick={() => setSource('rules')}>Rules</button>
                   </div>
                 )}
               </>
             ) : (
-              <span className="tiny">{ai.status === 'checking' ? 'Connecting to Claude…' : ai.status === 'signin' ? 'Sign in (top right) to get Claude\'s critique. Until then, the rules engine is critiquing.' : 'Claude is not connected here, so the built-in rules engine is critiquing. See SETUP.md.'}</span>
+              <span className="tiny">{ai.status === 'checking' ? 'Connecting to the AI stylist…' : ai.status === 'signin' ? 'Sign in (top right) to get the AI stylist\'s critique. Until then, the rules engine is critiquing.' : (ai.status === 'notsetup' ? 'The AI stylist isn\'t switched on yet, so the built-in rules engine is critiquing.' : 'The AI stylist is not connected here, so the built-in rules engine is critiquing.')}</span>
             )}
           </div>
           {aiBusy && <div className="loading-bar"><i /></div>}
@@ -221,7 +221,7 @@ export default function DressingRoom({ go }) {
 
           {result.tip && (
             <div className="swap">
-              <div style={{ flex: 1 }}><span className="label">Claude's styling tip</span><p>{result.tip}</p></div>
+              <div style={{ flex: 1 }}><span className="label">Stylist's tip</span><p>{result.tip}</p></div>
             </div>
           )}
 
@@ -240,7 +240,7 @@ export default function DressingRoom({ go }) {
             <button className="btn accent" style={{ flex: 1 }} onClick={() => setSaving(true)}>Save to lookbook</button>
             <button className="btn" onClick={() => go('#/mix')}>Mix & match</button>
           </div>
-          <p className="tiny" style={{ marginTop: 12 }}>Claude's critique is grounded in Unique Ava’s measured facts (warmth, water resistance, formality), so it can add taste and nuance but not contradict the weather math. The swap tip and live score come from the rules engine.</p>
+          <p className="tiny" style={{ marginTop: 12 }}>The AI stylist's critique is grounded in Unique Ava’s measured facts (warmth, water resistance, formality), so it can add taste and nuance but not contradict the weather math. The swap tip and live score come from the rules engine. AI requests go to Google Gemini through Puter; the first time, Puter asks you to sign in (free, no key).</p>
         </div>
       </div>
       {saving && <SaveModal defaultName={draft.name} onClose={() => setSaving(false)} onDone={(t) => { setSaving(false); toast(`Saved to “${t}”`); }} />}
