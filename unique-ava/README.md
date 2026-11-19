@@ -11,6 +11,7 @@ https://tiffany-is-awesome.github.io/My-Own-Projects/unique-ava.html)
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design, tech stack, AI pipeline, database schema, APIs, costs, privacy |
 | [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) | Design tokens, screens & flows, phased roadmap, metrics |
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed and when (written so another AI can review it) |
 
 ## What works in the prototype
 
