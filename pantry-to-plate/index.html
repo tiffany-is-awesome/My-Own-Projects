@@ -1066,7 +1066,7 @@ Rules: ingredient names must match the pantry and staple names exactly. palette 
     if(append){S.recipes=S.recipes.concat(fresh);toast(`Added ${fresh.length} more ideas${dropped?`, and skipped ${dropped} that needed shopping`:""}.`);}
     else{S.recipes=fresh;S.current=0;if(dropped)toast(`Skipped ${dropped} idea${dropped>1?"s":""} that needed shopping.`);}
   }catch(e){
-    if(e&&e.code==="sign_in"){toast("Sign in to use the AI. It keeps strangers from using up your AI credit.");openAuth("signin");}
+    if(e&&e.code==="sign_in"){toast("Sign in to use the free AI. It only takes a moment.");openAuth("signin");}
     else toast(e&&e.code==="none_cookable"?"Every idea needed something you don't have. Try again, or add a few staples.":e&&e.code==="rate_limited"?"Too many requests just now. Wait a minute and try again.":e&&e.code==="not_granted"?"AI access wasn't granted, so you're seeing demo recipes.":"Recipe generation didn't work. Try again.");
   }finally{S.loading=false;$("#genBtn").disabled=false;renderStudio();}
 }

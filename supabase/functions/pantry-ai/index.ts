@@ -1,10 +1,11 @@
 // Pantry to Plate AI: a tiny server that lets the app use an AI without exposing your key.
 // Deployed as the Supabase Edge Function "pantry-ai".
 //
-// TO TURN ON AI, add ONE secret in Supabase (Edge Functions → Secrets):
-//   ANTHROPIC_API_KEY   use Claude   (key from https://console.anthropic.com, paid per use)
-//   GEMINI_API_KEY      use Gemini   (free key from https://aistudio.google.com)
-// If both are set, Claude is used unless you add AI_PROVIDER = "gemini".
+// Uses Google Gemini's FREE tier. App users never need a key: they just sign in.
+// TO TURN ON AI, the site owner adds ONE secret in Supabase (Edge Functions → Secrets):
+//   GEMINI_API_KEY      free key from https://aistudio.google.com (no credit card)
+// Secrets are shared by every function in the project, so the key Tiffo uses works here too.
+// Optional: ANTHROPIC_API_KEY + AI_PROVIDER = "claude" to use Claude instead (paid per use).
 //
 // Optional secrets:
 //   ANTHROPIC_MODEL / ANTHROPIC_FAST_MODEL   override the Claude models
@@ -26,10 +27,9 @@ function provider(): "claude" | "gemini" | null {
   const forced = (Deno.env.get("AI_PROVIDER") ?? "").toLowerCase();
   const hasClaude = !!Deno.env.get("ANTHROPIC_API_KEY");
   const hasGemini = !!Deno.env.get("GEMINI_API_KEY");
-  if (forced === "gemini" && hasGemini) return "gemini";
   if (forced === "claude" && hasClaude) return "claude";
-  if (hasClaude) return "claude";
   if (hasGemini) return "gemini";
+  if (hasClaude) return "claude";
   return null;
 }
 
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
   // Status check (no sign-in needed): tells the app whether an AI key has been added.
   const p = provider();
   if (body.task === "status") return json({ ready: !!p, provider: p === "claude" ? "Claude" : p === "gemini" ? "Gemini" : null });
-  if (!p) return json({ error: "AI isn't set up yet. Add ANTHROPIC_API_KEY or GEMINI_API_KEY in Supabase." }, 503);
+  if (!p) return json({ error: "AI isn't set up yet. Add GEMINI_API_KEY in Supabase." }, 503);
 
   // Only signed-in users may use AI, so strangers can't run up your bill or quota.
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
