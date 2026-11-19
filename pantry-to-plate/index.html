@@ -445,6 +445,7 @@ footer{font-size:12.5px;line-height:1.5}
 @media (max-width:720px){nav{grid-template-columns:repeat(4,1fr)}nav button{font-size:13px;padding:12px 2px}}
 .pantry-layout{grid-template-columns:minmax(0,1fr) 330px}
 @media (max-width:860px){.pantry-layout{grid-template-columns:1fr}.side{display:flex}.pantry-main{order:0}}
+@media (max-width:860px){.studio-body{grid-template-columns:1fr}.ideas{position:static;max-height:none;overflow:visible;padding-right:0}}
 
 </style>
 </head>
@@ -492,6 +493,7 @@ footer{font-size:12.5px;line-height:1.5}
       <div>
         <h1>My kitchen</h1>
         <p>Everything you have, grouped by what needs using first. Tap any food to change its amount, place or dates.</p>
+        <p class="small muted">Times are cautious estimates to help you plan, not guarantees. A printed use-by date always wins, and how food was stored matters. If in doubt, throw it out.</p>
       </div>
       <div class="head-actions">
         <button class="btn" data-act="item-new">Add with details</button>
@@ -670,6 +672,12 @@ const ING = {
   peas:           {n:"Peas", s:["peas","green peas","frozen peas","mixed vegetables","frozen mixed vegetables"], c:"produce", r:"low", u:"g", cup:145, f:3, z:240, p:null, loc:"freezer"},
   banana:         {n:"Bananas", s:["banana","bananas","saging","overripe bananas","ripe bananas"], c:"produce", r:"low", u:"pcs", w:120, cup:225, f:5, z:90, p:4, loc:"pantry", fz:"Peel, slice and freeze for pancakes, banana bread or smoothies."},
   lemon:          {n:"Lemons / limes", s:["lemon","lemons","lime","limes","calamansi","kalamansi","lemon juice"], c:"produce", r:"low", u:"pcs", w:60, f:21, z:120, p:7, loc:"fridge"},
+  watermelon:     {n:"Watermelon", s:["watermelon","pakwan"], c:"produce", r:"low", u:"g", w:2000, cup:150, f:3, z:240, p:7, loc:"fridge", fz:"Cube and freeze for slushies and smoothies."},
+  pineapple:      {n:"Pineapple", s:["pineapple","pinya","canned pineapple","pineapple chunks"], c:"produce", r:"low", u:"g", w:1000, cup:165, f:4, z:240, p:3, loc:"pantry", fz:"Cut into chunks and freeze flat for smoothies."},
+  papaya:         {n:"Ripe papaya", s:["ripe papaya","papaya"], c:"produce", r:"low", u:"g", w:600, cup:145, f:4, z:240, p:3, loc:"pantry"},
+  orange:         {n:"Oranges", s:["orange","oranges","dalandan","ponkan","mandarin","mandarins","tangerine"], c:"produce", r:"low", u:"pcs", w:150, cup:180, f:14, z:null, p:7, loc:"pantry"},
+  berries:        {n:"Berries", s:["strawberries","strawberry","blueberries","berries","mixed berries","frozen berries"], c:"produce", r:"low", u:"g", w:15, cup:150, f:3, z:240, p:null, loc:"fridge", fz:"Freeze on a tray, then bag them: perfect for smoothies."},
+  avocado:        {n:"Avocados", s:["avocado","avocados","abukado"], c:"produce", r:"low", u:"pcs", w:200, cup:150, f:4, z:120, p:3, loc:"pantry"},
   apple:          {n:"Apples", s:["apple","apples"], c:"produce", r:"low", u:"pcs", w:180, f:30, p:7, loc:"fridge"},
   mango:          {n:"Mangoes", s:["mango","mangoes","ripe mango"], c:"produce", r:"low", u:"pcs", w:250, f:5, z:180, p:4, loc:"pantry"},
   herbs:          {n:"Fresh herbs", s:["cilantro","coriander","parsley","basil","wansoy","kinchay","celery","dill","mint"], c:"produce", r:"low", u:"bunch", w:30, f:5, z:null, p:null, loc:"fridge", fz:"Chop and freeze in oil in an ice-cube tray."},
@@ -696,6 +704,8 @@ const ING = {
   honey:          {n:"Honey", s:["honey"], c:"condiment", r:"low", u:"tbsp", p:730, loc:"pantry", st:true},
   gochujang:      {n:"Gochujang", s:["gochujang","korean chili paste"], c:"condiment", r:"low", u:"tbsp", f:365, p:null, loc:"fridge", st:true},
   kimchi:         {n:"Kimchi", s:["kimchi"], c:"condiment", r:"low", u:"cup", cup:150, f:90, z:null, p:null, loc:"fridge"},
+  condensed_milk: {n:"Condensed milk", s:["condensed milk","sweetened condensed milk","condensada"], c:"dairy", r:"med", u:"tbsp", cup:300, f:7, z:null, p:365, loc:"pantry", d:true, o:7, opensTo:"fridge"},
+  ice:            {n:"Ice", s:["ice","ice cubes","crushed ice"], c:"condiment", r:"low", u:"cup", cup:140, z:99999, loc:"freezer"},
   coconut_milk:   {n:"Coconut milk", s:["coconut milk","gata","coconut cream","kakang gata"], c:"grain", r:"med", u:"ml", cup:240, f:4, z:60, p:540, loc:"pantry", o:4, opensTo:"fridge"},
   peanut_butter:  {n:"Peanut butter", s:["peanut butter"], c:"condiment", r:"low", u:"tbsp", p:90, loc:"pantry"},
   water:          {n:"Water", s:["water"], c:"condiment", r:"low", u:"cup", p:99999, loc:"pantry", free:true}
@@ -820,6 +830,7 @@ function shelfLife(item) {
   const v = ING[item.key] || {};
   const cooked = item.cooked || v.isCooked;
   if (item.loc === "freezer") return { days: v.z === null ? null : (v.z || 90), quality: true };
+  if (item.riceDish) return { days: 1, quality: false }; // FSA: rice dishes within 24 hours
   if (cooked && !v.isCooked) return { days: (item.key === "rice_raw" || /rice/.test(norm(item.name))) ? 1 : 3, quality: false };
   let days = item.loc === "pantry" ? v.p : v.f;
   if (item.opened && v.o) days = Math.min(days ?? v.o, v.o);
@@ -860,17 +871,22 @@ function estimate(item, now) {
   const v = ING[item.key] || {};
   const highRisk = (v.r || "med") !== "low" || item.cooked;
   const sl = shelfLife(item);
-  const start = item.opened && item.openedOn ? item.openedOn : (item.added || todayISO(now));
+  // the clock starts at the latest of: bought/cooked, opened, thawed (moved out of the freezer)
+  const starts = [item.added || todayISO(now)];
+  if (item.opened && item.openedOn) starts.push(item.openedOn);
+  if (item.loc !== "freezer" && item.thawedOn) starts.push(item.thawedOn);
+  const start = starts.sort().slice(-1)[0];
   if (item.est) { // a date the person set themselves
     const d = daysUntil(item.est, now);
     if (d < 0 && highRisk) return { group: "check", daysLeft: d, dateISO: item.est, basis: "own", safe: false, note: "Past the date you set. Don't eat it." };
-    return { group: d < 0 ? "first" : groupFor(d, v), daysLeft: d, dateISO: item.est, basis: "own", safe: true, note: (d < 0 ? "Past the date you set: check it's still good" : "Use by " + prettyDate(item.est) + " (your date)") };
+    return { group: d < 0 ? "first" : groupFor(d, v), daysLeft: d, dateISO: item.est, basis: "own", safe: true, note: (d < 0 ? "Past the date you set: check it carefully; if in doubt, throw it out" : "Use by " + prettyDate(item.est) + " (your date)") };
   }
+  if (item.loc === "freezer" && item.unknownAge) return { group: "long", daysLeft: null, basis: "unknown", safe: true, note: "Kept frozen, so it stays safe while frozen. Its age is unknown, so quality may have dropped: use it soon after thawing." };
   if (item.loc === "freezer") {
     if (sl.days === null) return { group: "check", daysLeft: null, basis: "estimate", safe: true, note: "Not a food that freezes well. Thaw in the fridge and use soon." };
     const d = daysUntil(addDays(start, sl.days), now);
     return { group: "long", daysLeft: d, dateISO: addDays(start, sl.days), basis: "estimate", safe: true,
-      note: d < 0 ? "Frozen food stays safe, but it's past its best quality. Use it soon." : "Frozen: safe while frozen; best quality until about " + prettyDate(addDays(start, sl.days)) };
+      note: d < 0 ? "Frozen food stays safe while frozen, but it's past its best quality. Use it soon." : "Frozen: stays safe while frozen. Best quality until about " + prettyDate(addDays(start, sl.days)) + " (estimate)" };
   }
   if (sl.days === null) {
     return { group: highRisk ? "check" : "soon", daysLeft: null, basis: "estimate", safe: !highRisk,
@@ -878,17 +894,17 @@ function estimate(item, now) {
   }
   const date = addDays(start, sl.days), d = daysUntil(date, now);
   if (d < 0) {
-    if (highRisk) return { group: "check", daysLeft: d, dateISO: date, basis: "estimate", safe: false, note: "Past the safe storage time for this food. Don't eat it." };
-    return { group: "first", daysLeft: d, dateISO: date, basis: "estimate", safe: true, note: "Past its usual freshness. Check it before using." };
+    if (highRisk) return { group: "check", daysLeft: d, dateISO: date, basis: "estimate", safe: false, note: "Past the recommended storage time for this food. Don't eat it." };
+    return { group: "first", daysLeft: d, dateISO: date, basis: "estimate", safe: true, note: "Past its usual freshness. Check it carefully before using; if in doubt, throw it out." };
   }
   return { group: groupFor(d, v), daysLeft: d, dateISO: date, basis: "estimate", safe: true,
-    note: (d === 0 ? "Use today" : "Use within " + d + " day" + (d === 1 ? "" : "s")) + " (estimate)" };
+    note: (d === 0 ? "Best used today" : "Best used within " + d + " day" + (d === 1 ? "" : "s")) + " (estimate)" };
 }
 function groupFor(d, v) { if (d <= 1) return "first"; if (d <= 4) return "soon"; if (d <= 30) return "fresh"; return "long"; }
 const GROUPS = [
   ["check", "Check these first", "Food that may not be safe. When in doubt, throw it out."],
-  ["first", "Use first", "Needs using today or tomorrow."],
-  ["soon", "Use soon", "Best within the next few days."],
+  ["first", "Use first", "Best used today or tomorrow."],
+  ["soon", "Use soon", "Best used in the next few days."],
   ["fresh", "Still fresh", "Good for a while yet."],
   ["long", "Long-lasting", "Cupboard and freezer food."]
 ];
@@ -912,6 +928,8 @@ function newItem(src, now) {
     label: src.label && src.label.date ? { type: src.label.type === "bestbefore" ? "bestbefore" : "useby", date: src.label.date } : null,
     est: src.est || null,
     unknownAge: !!src.unknownAge,
+    riceDish: !!src.riceDish,
+    thawedOn: src.thawedOn || null,
     notes: String(src.notes || "").slice(0, 200)
   };
 }
@@ -921,7 +939,8 @@ function addToPantry(pantry, items, now) {
   const added = [], merged = [];
   for (const src of items) {
     const it = newItem(src, now);
-    const same = pantry.find(p => (p.key && p.key === it.key || !p.key && norm(p.name) === norm(it.name)) && p.loc === it.loc && p.cooked === it.cooked && p.opened === it.opened && !p.unknownAge && !it.unknownAge);
+    const nm = x => norm(x).replace(/(es|s)\b/g, "");
+    const same = pantry.find(p => p.key === it.key && nm(p.name) === nm(it.name) && p.loc === it.loc && p.cooked === it.cooked && p.opened === it.opened && !p.unknownAge && !it.unknownAge && !p.riceDish && !it.riceDish);
     if (same) {
       if (same.qty != null && it.qty != null) {
         if (same.unit === it.unit) same.qty += it.qty;
@@ -934,6 +953,7 @@ function addToPantry(pantry, items, now) {
   return { added, merged };
 }
 function round2(x) { return Math.round(x * 100) / 100; }
+function roundU(x, unit) { return unit === "kg" || unit === "l" ? Math.round(x * 1000) / 1000 : round2(x); } // keep gram-level precision
 function validateItem(it, now) {
   const errs = [];
   if (!it.name || !it.name.trim()) errs.push("Add a name.");
@@ -958,8 +978,10 @@ function findSupply(k, usable, staples, needG) {
   if (items.length) {
     let haveG = 0, unknown = false;
     for (const x of items) { const g = toGrams(k, x.p.qty, x.p.unit); if (g == null) unknown = true; else haveG += g; }
-    const enough = unknown || needG == null || haveG >= needG * ENOUGH;
-    return { src: "pantry", items, haveG, unknown, enough, short: !unknown && needG != null && haveG < needG };
+    let enough = unknown || needG == null || haveG >= needG * ENOUGH;
+    const topUp = !enough && stapleOn(staples, k);
+    if (topUp) enough = true; // e.g. 1 clove left, but garlic is ticked as always-in-the-kitchen
+    return { src: "pantry", items, haveG, unknown, enough, topUp, short: !unknown && !topUp && needG != null && haveG < needG };
   }
   if (stapleOn(staples, k)) return { src: "staple", items: [], enough: true };
   return null;
@@ -1029,6 +1051,7 @@ function matchRecipe(r, pantry, staples, opts = {}, now) {
     if (res.blocked === "diet") res.ok = false;
   }
   if (opts.cuisine && opts.cuisine !== "any" && r.cuisine !== opts.cuisine) { res.ok = false; res.blocked = "cuisine"; }
+  if ((opts.kind === "meals" && r.kind === "drink") || (opts.kind === "drinks" && r.kind !== "drink")) { res.ok = false; res.blocked = "kind"; }
   res.usedCount = res.usedItems.size;
   res.urgentUsed = [...new Map(res.urgentUsed.map(p => [p.id, p])).values()];
   return res;
@@ -1049,14 +1072,14 @@ function dietOf(m) {
 const URG_POINTS = { first: 14, soon: 7, fresh: 1.5, long: 0.3 };
 function scoreMatch(m, mode, now) {
   const r = m.recipe;
-  const quality = (r.q || 3) * 12 - m.swaps.reduce((s, l) => s + (l.sub.cost ?? 4), 0) - (r.ai ? 10 : 0);
+  const quality = 40 + ((r.q || 3) - 3) * 20 - m.swaps.reduce((s, l) => s + (l.sub.cost ?? 4), 0) - (r.ai ? 10 : 0) - (m.scaledDown ? 3 : 0);
   let urgency = 0;
   for (const l of m.lines) for (const x of (l.items || [])) urgency += URG_POINTS[x.fr.group] || 0;
-  urgency = Math.min(urgency, 45);
+  urgency = Math.min(urgency, 35);
   const use = Math.min(m.usedCount * 3, 18);
   const time = (r.prep + r.cook) <= 20 ? 4 : (r.prep + r.cook) <= 35 ? 2 : 0;
   const short = m.lines.filter(l => l.short && !l.ing.opt).length * 3;
-  const w = { most: [1, 0.7, 2.2], urgent: [1, 1.8, 0.6], one: [1.1, 1, 0.8], everything: [1, 1, 1.5] }[mode] || [1, 1, 1];
+  const w = { most: [1, 0.7, 1.8], urgent: [1, 1.3, 0.6], one: [1, 1, 0.8], everything: [1, 1, 1.4] }[mode] || [1, 1, 1];
   const total = quality * w[0] + urgency * w[1] + use * w[2] + time - short;
   return { total, quality, urgency, use, time };
 }
@@ -1094,7 +1117,7 @@ function planEverything(recipes, pantry, staples, opts = {}, now) {
   for (let round = 0; round < 3; round++) {
     const ranked = rankRecipes(recipes.filter(r => !dishes.some(d => d.recipe.id === r.id)), kitchen, staples, { ...opts, mode: "everything", focus: null }, now)
       .map(m => ({ m, gain: [...m.usedItems].filter(id => targets.has(id) && !covered.has(id)).length }))
-      .filter(x => x.gain > 0 && x.m.score.quality >= 40)
+      .filter(x => x.gain > 0 && x.m.score.quality >= 52)
       .sort((a, b) => (b.gain * 10 + b.m.score.total) - (a.gain * 10 + a.m.score.total));
     if (!ranked.length) break;
     const best = ranked[0].m;
@@ -1127,7 +1150,7 @@ function planDeductions(m) {
         const p = x.p;
         if (have[i] == null) { rows.push({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, take: null, all: false, unknown: true }); return; }
         if (share[i] <= 0) return;
-        const take = round2(fromGrams(p.key, share[i], p.unit));
+        const take = roundU(fromGrams(p.key, share[i], p.unit), p.unit);
         rows.push({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, take, all: take >= p.qty - 1e-6, unknown: false });
       });
       continue;
@@ -1138,7 +1161,7 @@ function planDeductions(m) {
       let take = null, all = false;
       if (p.qty == null || haveG == null) { all = l.items.length === 1 ? false : false; take = null; }
       else if (needG == null) { take = p.qty; all = true; }
-      else { const g = Math.min(haveG, needG); take = round2(fromGrams(k, g, p.unit)); needG -= g; all = take >= p.qty - 1e-6; }
+      else { const g = Math.min(haveG, needG); take = roundU(fromGrams(k, g, p.unit), p.unit); needG -= g; all = take >= p.qty - 1e-6; }
       rows.push({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, take, all, unknown: p.qty == null || haveG == null });
       if (needG != null && needG <= 0) break;
     }
@@ -1164,7 +1187,7 @@ function applyDeductions(pantry, rows) {
 }
 function leftoverItem(recipe, servings, now) {
   const rice = recipe.ingredients.some(i => i.k === "rice_cooked" || i.k === "rice_raw");
-  return newItem({ name: "Leftover " + recipe.title, key: rice ? "rice_cooked" : "leftover", qty: servings, unit: "servings", loc: "fridge", cooked: true, added: todayISO(now),
+  return newItem({ name: "Leftover " + recipe.title, key: "leftover", riceDish: rice, qty: servings, unit: "servings", loc: "fridge", cooked: true, added: todayISO(now),
     notes: rice ? "Contains rice: eat within 24 hours, reheat only once until steaming hot." : "Cooked leftovers: eat within 3 days, reheat until steaming hot (74°C / 165°F)." }, now);
 }
 /* General safety notes that always apply to certain ingredients. */
@@ -1177,7 +1200,11 @@ function safetyNotes(m) {
   if (keys.has("rice_cooked") || keys.has("rice_raw")) n.push("Rice: cool leftovers within an hour, keep in the fridge, eat within 24 hours, and reheat only once until steaming hot.");
   if (keys.has("chicken_cooked") || keys.has("leftover") || keys.has("fish_cooked") || keys.has("pasta_cooked") || keys.has("potato_cooked")) n.push("Reheat cooked leftovers until steaming hot all the way through (74°C / 165°F). Reheat only once.");
   if (keys.has("egg")) n.push("Cook eggs until whites are set. For young children, older adults, pregnant people or anyone with weak immunity, cook yolks firm too.");
-  n.push("Wash hands, boards and knives after handling raw meat or seafood, and keep raw meat away from food that won't be cooked.");
+  if (["chicken","ground_pork","pork","ground_beef","beef","fish","shrimp","bacon","longganisa","tocino"].some(k => keys.has(k))) n.push("Wash hands, boards and knives after handling raw meat or seafood, and keep raw meat away from food that won't be cooked.");
+  if (m.recipe.kind === "drink") {
+    n.push("Wash fruit and vegetables well before cutting, even if you'll peel them.");
+    n.push("Fresh, unpasteurized juices and smoothies are best drunk right away. Keep any extra in the fridge and finish it within 24 hours. Young children, older adults, pregnant people and anyone with weak immunity should drink them fresh, from well-washed fruit.");
+  }
   return n;
 }
 
@@ -1635,6 +1662,166 @@ const RECIPES = [
   store:"Refrigerate within 2 hours; eat within 3 days. Reheat until boiling." }
 ];
 
+/* ---------- DRINKS: smoothies, shakes and fresh fruit juices (non-alcoholic) ---------- */
+const FRUIT = ["banana","mango","pineapple","papaya","berries","apple","watermelon","orange","avocado"];
+const DRINKS = [
+{ id:"mango-shake", kind:"drink", title:"Mango Shake", cuisine:"Filipino", style:"Classic",
+  desc:"Thick, icy and intensely mango. The Filipino favorite, perfect for very ripe mangoes.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:5, plating:"glass", palette:["#F4B53F","#FBE3A1","#FFF6DC","#7DAA4F"], flavor:"Sweet, creamy, tropical",
+  ingredients:[
+    {k:"mango", q:2, u:"pcs", note:"ripe, flesh scooped out"},
+    {k:"ice", q:1.5, u:"cup", opt:true},
+    {k:"milk", q:0.5, u:"cup", opt:true, subs:[{k:"evap_milk", q:0.33, u:"cup", f:"Richer, slightly caramel.", t:"Creamier.", w:"Use a little less than milk."},{k:"water", q:0.5, u:"cup", f:"Purer mango flavor, less creamy.", t:"Lighter.", w:"Add an extra tablespoon of sugar if the mangoes aren't very sweet.", cost:2}]},
+    {k:"sugar", q:1, u:"tbsp", note:"to taste", subs:[{k:"condensed_milk", q:2, u:"tbsp", f:"Creamier and sweeter.", t:"Thicker.", w:"Skip the sugar."},{k:"honey", q:1, u:"tbsp", f:"Floral.", t:"Same.", w:"Use the same amount."}]}],
+  steps:["Put the mango, milk and sugar in the blender.","Add the ice last and blend on high until completely smooth, about 45 seconds.","Taste: add more sugar if the mangoes were tart, or a splash of water if it's too thick to pour. Serve right away."],
+  season:"Very ripe mangoes need little or no sugar. A squeeze of calamansi makes it taste brighter.",
+  store:"Best drunk immediately (it separates). Keep any extra in the fridge and finish within 24 hours; re-blend before drinking." },
+
+{ id:"banana-smoothie", kind:"drink", title:"Banana Oat Smoothie", cuisine:"American", style:"Classic",
+  desc:"Creamy and filling: the best use for spotty bananas. A quick breakfast in a glass.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:5, plating:"glass", palette:["#F2DFA0","#FFF4D6","#C9A06A","#8A5A2B"], flavor:"Sweet, creamy, banana",
+  ingredients:[
+    {k:"banana", q:2, u:"pcs", note:"very ripe; frozen is even better"},
+    {k:"milk", q:1, u:"cup", subs:[{k:"yogurt", q:0.5, u:"cup", f:"Tangier.", t:"Thicker.", w:"Add ½ cup water to loosen it."},{k:"coconut_milk", q:0.5, u:"cup", f:"Tropical.", t:"Richer.", w:"Mix with ½ cup water."},{k:"water", q:1, u:"cup", f:"Lighter, more banana-forward.", t:"Thinner.", w:"Add the oats and peanut butter if you have them for body.", cost:3}]},
+    {k:"oats", q:3, u:"tbsp", opt:true},
+    {k:"peanut_butter", q:1, u:"tbsp", opt:true},
+    {k:"honey", q:1, u:"tsp", opt:true, subs:[{k:"sugar", q:1, u:"tsp", f:"Cleaner sweetness.", t:"Same.", w:"Use the same amount."}]},
+    {k:"cinnamon", q:0.25, u:"tsp", opt:true},
+    {k:"ice", q:0.5, u:"cup", opt:true, note:"if your bananas aren't frozen"}],
+  steps:["Add milk to the blender first, then oats, banana, peanut butter, honey and cinnamon.","Blend on high for 45–60 seconds until silky; if using ice, add it and blend again.","Taste and add a little more honey only if needed."],
+  season:"Ripe bananas are sweet enough; taste before adding honey. A pinch of salt makes peanut butter taste nuttier.",
+  store:"Drink right away. Extra keeps in the fridge for up to 24 hours (it browns a little; stir before drinking)." },
+
+{ id:"fruit-yogurt-smoothie", kind:"drink", title:"Mixed Fruit Yogurt Smoothie", cuisine:"Any", style:"Classic",
+  desc:"Whatever fruit is going soft, blended with yogurt into a thick, tangy smoothie.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#E8738A","#F7C9D2","#FFF1F3","#7DAA4F"], flavor:"Fruity, tangy, creamy",
+  ingredients:[
+    {any:FRUIT, label:"Fruit (any mix: banana, mango, pineapple, papaya, berries, apple…)", k:"banana", q:300, u:"g", minKinds:2, maxKinds:3},
+    {k:"yogurt", q:0.5, u:"cup", subs:[{k:"milk", q:0.5, u:"cup", f:"Less tangy.", t:"Thinner.", w:"Add a squeeze of calamansi for tang."}]},
+    {k:"milk", q:0.5, u:"cup", subs:[{k:"water", q:0.5, u:"cup", f:"Lighter.", t:"Thinner.", w:"Use the same amount.", cost:1}]},
+    {k:"honey", q:1, u:"tbsp", opt:true, subs:[{k:"sugar", q:1, u:"tbsp", f:"Cleaner.", t:"Same.", w:"Use the same amount."}]},
+    {k:"ice", q:0.5, u:"cup", opt:true}],
+  steps:["Peel and chop the fruit (core apples, remove seeds).","Blend the milk and yogurt with the softest fruit first, then the firmer fruit.","Add ice and blend until smooth. Taste and sweeten only if needed."],
+  season:"Balance sweet fruit (banana, mango) with a sharper one (pineapple, berries, orange) for the best flavor.",
+  store:"Best fresh. Keep extra in the fridge and finish within 24 hours." },
+
+{ id:"green-smoothie", kind:"drink", title:"Green Smoothie", cuisine:"Any", style:"Classic",
+  desc:"Spinach blended with sweet fruit. Tastes like fruit, not salad, and rescues wilting greens.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#7DB547","#C7E29A","#F4FAE8","#F2C14E"], flavor:"Fresh, fruity, mild",
+  ingredients:[
+    {k:"spinach", q:1, u:"cup", note:"packed, washed", subs:[{k:"leafy_greens", q:1, u:"cup", f:"Kangkong and pechay are milder; malunggay is earthier.", t:"Same once blended.", w:"Use tender leaves only, no thick stems."}]},
+    {k:"banana", q:1, u:"pcs", note:"ripe", subs:[{k:"mango", q:1, u:"pcs", f:"More tropical.", t:"Same.", w:"Use the flesh of one ripe mango."}]},
+    {any:["pineapple","apple","mango","orange","berries"], label:"Sharper fruit (pineapple, apple, mango, orange or berries)", k:"pineapple", q:150, u:"g", opt:true},
+    {k:"water", q:1, u:"cup"},
+    {k:"lemon", q:0.5, u:"pcs", note:"juice of ½ lemon or 3 calamansi", opt:true},
+    {k:"honey", q:1, u:"tsp", opt:true},
+    {k:"ice", q:0.5, u:"cup", opt:true}],
+  steps:["Blend the water and greens first until no leafy bits remain.","Add the fruit, citrus and honey; blend until smooth.","Add ice, blend briefly and taste."],
+  season:"Citrus is the secret: it keeps the color bright and the taste fresh.",
+  store:"Drink right away; it darkens quickly. Fridge up to 24 hours if needed." },
+
+{ id:"avocado-shake", kind:"drink", title:"Avocado Shake", cuisine:"Filipino", style:"Classic",
+  desc:"A rich, sweet avocado shake, the Southeast Asian way. Good for ripe avocados.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#A9C46C","#DDE8B9","#F7FAEC","#5E7A2A"], flavor:"Creamy, sweet, nutty",
+  ingredients:[
+    {k:"avocado", q:1, u:"pcs", note:"ripe, flesh only"},
+    {k:"milk", q:1, u:"cup", subs:[{k:"evap_milk", q:0.5, u:"cup", f:"Richer.", t:"Creamier.", w:"Mix with ½ cup water."},{k:"coconut_milk", q:0.5, u:"cup", f:"Tropical.", t:"Richer.", w:"Mix with ½ cup water."}]},
+    {k:"sugar", q:2, u:"tbsp", subs:[{k:"condensed_milk", q:3, u:"tbsp", f:"Creamier, classic street-stall taste.", t:"Thicker.", w:"Skip the sugar."}]},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend avocado, milk and sugar until silky.","Add ice and blend again until thick and frosty.","Taste and adjust the sweetness."],
+  season:"Avocado needs sweetness to shine; add sugar a spoon at a time.",
+  store:"Drink right away; avocado browns. Fridge up to 24 hours if needed." },
+
+{ id:"calamansi-juice", kind:"drink", title:"Calamansi Juice / Lemonade", cuisine:"Filipino", style:"Classic",
+  desc:"Bright, sweet-sour and refreshing. Works with calamansi, lemons or limes.",
+  serves:4, prep:10, cook:0, difficulty:"Easy", equip:[], q:5, plating:"glass", palette:["#F2E36B","#FCF7C9","#FFFFF0","#7DAA4F"], flavor:"Sour, sweet, refreshing",
+  ingredients:[
+    {k:"lemon", q:3, u:"pcs", note:"juice of 3 lemons/limes or about 20 calamansi (⅓ cup juice)"},
+    {k:"sugar", q:4, u:"tbsp", subs:[{k:"honey", q:3, u:"tbsp", f:"Floral.", t:"Same.", w:"Stir into a little warm water first so it dissolves."}]},
+    {k:"water", q:4, u:"cup", note:"cold"},
+    {k:"ice", q:2, u:"cup", opt:true}],
+  steps:["Stir the sugar into ½ cup of warm water until dissolved.","Squeeze the citrus and strain out the seeds.","Mix juice, sugar water and the remaining cold water. Taste: it should be pleasantly tart. Pour over ice."],
+  season:"Adjust to taste: more sugar for kids, more citrus for a sharper drink. A pinch of salt brightens it.",
+  store:"Keep covered in the fridge and drink within 2 days." },
+
+{ id:"watermelon-juice", kind:"drink", title:"Watermelon Juice", cuisine:"Any", style:"Classic",
+  desc:"Pure blended watermelon with a squeeze of citrus. Very refreshing on hot days.",
+  serves:3, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:5, plating:"glass", palette:["#F0566A","#F9A9B3","#FFF0F2","#4E8A3E"], flavor:"Sweet, fresh",
+  ingredients:[
+    {k:"watermelon", q:4, u:"cup", note:"cubed, seeds removed"},
+    {k:"lemon", q:0.5, u:"pcs", note:"juice of ½ lime or 3 calamansi", opt:true},
+    {k:"sugar", q:1, u:"tsp", opt:true},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend the watermelon until completely liquid, about 30 seconds.","Strain if you like it smooth.","Stir in the citrus, taste, add sugar only if needed, and serve over ice."],
+  season:"Citrus makes watermelon taste sweeter and fresher. Mint is lovely if you have it.",
+  store:"Separates as it stands; stir before serving. Fridge up to 24 hours." },
+
+{ id:"pineapple-juice", kind:"drink", title:"Fresh Pineapple Juice", cuisine:"Any", style:"Classic",
+  desc:"Sweet-tart blended pineapple, strained smooth. Rescues a pineapple that's getting very ripe.",
+  serves:3, prep:10, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#F6CF45","#FCEBA5","#FFFBEA","#5E8C3A"], flavor:"Sweet, tangy, tropical",
+  ingredients:[
+    {k:"pineapple", q:3, u:"cup", note:"chunks, core removed"},
+    {k:"water", q:1, u:"cup", note:"cold"},
+    {k:"sugar", q:1, u:"tbsp", opt:true},
+    {k:"ginger", q:5, u:"g", note:"a thin slice", opt:true},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend the pineapple with the water (and ginger, if using) until completely smooth.","Strain through a sieve, pressing on the pulp.","Taste, sweeten if needed, and serve over ice."],
+  season:"Very ripe pineapple needs no sugar. A tiny slice of ginger adds a nice warmth.",
+  store:"Fridge, covered, up to 24 hours. Stir before drinking." },
+
+{ id:"apple-carrot-juice", kind:"drink", title:"Apple & Carrot Juice", cuisine:"Any", style:"Classic",
+  desc:"Sweet, earthy and bright orange. Uses up carrots and soft apples.",
+  serves:2, prep:10, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#F08A33","#F8C08A","#FFF4E6","#7DAA4F"], flavor:"Sweet, earthy, fresh",
+  ingredients:[
+    {k:"apple", q:2, u:"pcs", note:"cored, chopped"},
+    {k:"carrot", q:2, u:"pcs", note:"peeled, chopped small"},
+    {k:"water", q:1, u:"cup"},
+    {k:"lemon", q:0.5, u:"pcs", note:"juice", opt:true},
+    {k:"ginger", q:5, u:"g", opt:true},
+    {k:"ice", q:0.5, u:"cup", opt:true}],
+  steps:["Blend the carrots with the water first until fine.","Add apple, ginger and lemon juice; blend until smooth.","Strain through a sieve for juice (or leave it thick), and serve cold."],
+  season:"Lemon keeps it bright and stops the apple from browning.",
+  store:"Drink within 24 hours; keep in the fridge and stir before serving." },
+
+{ id:"orange-juice", kind:"drink", title:"Fresh-Squeezed Orange Juice", cuisine:"Any", style:"Classic",
+  desc:"Oranges, dalandan or mandarins squeezed fresh. Nothing added, nothing needed.",
+  serves:2, prep:10, cook:0, difficulty:"Easy", equip:[], q:5, plating:"glass", palette:["#F7A531","#FBD08A","#FFF6E5","#5E8C3A"], flavor:"Sweet, tangy",
+  ingredients:[
+    {k:"orange", q:6, u:"pcs", note:"about 1½ cups juice"},
+    {k:"sugar", q:1, u:"tsp", note:"only if sour", opt:true},
+    {k:"ice", q:0.5, u:"cup", opt:true}],
+  steps:["Roll each orange firmly on the counter to loosen the juice.","Halve and squeeze, then strain out seeds.","Taste; sweeten only if they were sour. Serve cold."],
+  season:"Dalandan is tarter than oranges, so you may want a little sugar.",
+  store:"Best fresh. Fridge, covered, up to 24 hours." },
+
+{ id:"cucumber-cooler", kind:"drink", title:"Cucumber Calamansi Cooler", cuisine:"Any", style:"Classic",
+  desc:"Light, crisp and barely sweet. A good way to use a cucumber before it softens.",
+  serves:3, prep:10, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#B9D88A","#E3F0CF","#F8FCF2","#3E7A3A"], flavor:"Fresh, light, tangy",
+  ingredients:[
+    {k:"cucumber", q:1, u:"pcs", note:"chopped"},
+    {k:"lemon", q:1, u:"pcs", note:"juice of 1 lemon or 6 calamansi"},
+    {k:"sugar", q:2, u:"tbsp", subs:[{k:"honey", q:2, u:"tbsp", f:"Floral.", t:"Same.", w:"Same amount."}]},
+    {k:"water", q:3, u:"cup", note:"cold"},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend the cucumber with 1 cup water until smooth.","Strain into a jug, pressing on the pulp.","Stir in the citrus juice, sugar and remaining water. Taste, then serve over ice."],
+  season:"It should taste lightly sweet and sour. Mint leaves are a great addition.",
+  store:"Fridge, covered, up to 24 hours." },
+
+{ id:"papaya-milk-shake", kind:"drink", title:"Papaya Milkshake", cuisine:"Southeast Asian", style:"Classic",
+  desc:"Smooth, mellow and sweet. A classic way to use very ripe papaya.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#F49A5B","#FBD1B0","#FFF5EC","#5E8C3A"], flavor:"Sweet, mellow, creamy",
+  ingredients:[
+    {k:"papaya", q:2, u:"cup", note:"ripe, seeds removed"},
+    {k:"milk", q:1, u:"cup", subs:[{k:"evap_milk", q:0.5, u:"cup", f:"Richer.", t:"Creamier.", w:"Mix with ½ cup water."}]},
+    {k:"sugar", q:1, u:"tbsp", subs:[{k:"condensed_milk", q:2, u:"tbsp", f:"Creamier, sweeter.", t:"Thicker.", w:"Skip the sugar."}]},
+    {k:"lemon", q:0.25, u:"pcs", note:"a squeeze of lime or calamansi", opt:true},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend papaya, milk and sugar until smooth.","Add the citrus and ice; blend again.","Taste and serve right away."],
+  season:"A squeeze of citrus lifts papaya's mellow flavor.",
+  store:"Drink right away. Fridge up to 24 hours if needed." }
+];
+RECIPES.push(...DRINKS);
+
 
 /* ================= ACCOUNTS (Supabase) =================
    Sign-in and syncing use the same Supabase project as Tiffo.
@@ -1746,22 +1933,25 @@ const CUISINES = ["Filipino","Chinese","Japanese","Korean","Italian","American",
 /* ---------- State ---------- */
 const S = {
   tab: "home", pantry: [], staples: [], saved: [], collections: [], week: [], history: [],
-  prefs: { servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove"] },
+  prefs: { servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals", v: 2 },
   sample: false, savedAt: 0,
   ui: { loc: "all", sort: "fresh", mode: "urgent", focus: [], pins: [], currentId: null, oneId: null, aiRecipes: [], aiBusy: false, servingsOverride: {} },
   aiChecking: true
 };
 const STORE_KEY = "p2p.v3";
-function snapshot() { return { v: 3, pantry: S.pantry, staples: S.staples, saved: S.saved, collections: S.collections, week: S.week, history: S.history, prefs: S.prefs, sample: S.sample, savedAt: S.savedAt || 0 }; }
+function snapshot() { return { v: 3, owner: S.owner || null, pantry: S.pantry, staples: S.staples, saved: S.saved, collections: S.collections, week: S.week, history: S.history, prefs: S.prefs, sample: S.sample, savedAt: S.savedAt || 0 }; }
 function saveLocal() { try { localStorage.setItem(STORE_KEY, JSON.stringify(snapshot())); } catch (e) {} }
-function persist() { S.savedAt = Date.now(); saveLocal(); if (typeof Cloud !== "undefined") Cloud.schedule(); }
+// Each save is always newer than anything this device has already seen, even if another device's clock runs ahead.
+function persist() { S.savedAt = Math.max(Date.now(), (S.savedAt || 0) + 1); saveLocal(); if (typeof Cloud !== "undefined") Cloud.schedule(); }
 function applySnapshot(d) {
   if (!d) return;
   if (d.v !== 3) d = migrateV2(d);
   S.pantry = (d.pantry || []).map(p => E.newItem(p));
   S.staples = Array.isArray(d.staples) ? d.staples : E.DEFAULT_STAPLES.slice();
   S.saved = d.saved || []; S.collections = d.collections || []; S.week = d.week || [];
-  S.history = d.history || []; S.prefs = Object.assign({ servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove"] }, d.prefs || {});
+  S.history = d.history || []; S.prefs = Object.assign({ servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals" }, d.prefs || {});
+  if ((S.prefs.v || 1) < 2) { if (!S.prefs.equipment.includes("blender")) S.prefs.equipment.push("blender"); S.prefs.kind = S.prefs.kind || "meals"; S.prefs.v = 2; }
+  S.owner = d.owner || null;
   S.sample = !!d.sample; S.savedAt = d.savedAt || 0;
 }
 /* Older versions stored "days left" as a fixed number. Keep everything, convert it to dates. */
@@ -1813,14 +2003,22 @@ function load() {
   if (!d) { try { const old = JSON.parse(localStorage.getItem("p2p.v2") || "null"); if (old && Array.isArray(old.pantry)) d = migrateV2(old); } catch (e) {} }
   if (d) applySnapshot(d); else seedKitchen();
 }
-function resetToSample() { try { localStorage.removeItem(STORE_KEY); } catch (e) {} seedKitchen(); S.savedAt = 0; }
+function resetToSample() { try { localStorage.removeItem(STORE_KEY); } catch (e) {} seedKitchen(); S.savedAt = 0; S.owner = null; }
+/* After signing in on a device that had its own kitchen: ask before combining. */
+function offerMerge(local) {
+  S.ui.pendingMerge = local;
+  const n = (local.pantry || []).length, r = (local.saved || []).length;
+  openModal(`<h2 id="authTitle">Add this device's kitchen to your account?</h2>
+    <p>Your account's kitchen is now showing. Before you signed in, this device also had ${n} food${n === 1 ? "" : "s"}${r ? " and " + r + " saved recipe" + (r === 1 ? "" : "s") : ""}.</p>
+    <div class="form-actions"><button class="btn primary" data-act="merge-yes">Add them to my account</button><button class="linkbtn" data-act="merge-no">No, keep my account as it is</button></div>`);
+}
 function rerender() { setTab(S.tab, true); }
 
 /* ---------- Helpers ---------- */
 const fr = p => E.freshness(p);
 const usable = () => E.usableItems(S.pantry);
 function opts(extra = {}) {
-  return { mode: S.ui.mode, prefs: S.prefs, maxTime: S.prefs.maxTime || 0, cuisine: S.prefs.cuisine, servings: S.prefs.servings || null, ...extra };
+  return { mode: S.ui.mode, prefs: S.prefs, maxTime: S.prefs.maxTime || 0, cuisine: S.prefs.cuisine, servings: S.prefs.servings || null, kind: S.prefs.kind || "meals", ...extra };
 }
 function allRecipes() { return LIB.concat(S.ui.aiRecipes); }
 function getRecipe(id) { return allRecipes().find(r => r.id === id) || (S.saved.find(z => z.recipe && z.recipe.id === id) || {}).recipe || null; }
@@ -1863,7 +2061,8 @@ function renderHome() {
   const urgent = items.filter(x => x.f.group === "first" || x.f.group === "soon").sort((a, b) => (a.f.daysLeft ?? 99) - (b.f.daysLeft ?? 99)).slice(0, 6);
   $("#homeUse").innerHTML = urgent.length ? `<ul class="uselist">${urgent.map(({ p, f }) => `<li><span class="dot" style="background:${GROUP_COLORS[f.group]}"></span><span><b>${esc(p.name)}</b> <span class="muted">${esc(amountLabel(p))}</span><br><small>${esc(f.note)}</small></span></li>`).join("")}</ul>`
     : `<p class="muted">Nothing urgent. ${S.pantry.length ? "Your kitchen is in good shape." : "Add what you have to get started."}</p>`;
-  const ranked = E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ mode: "urgent", servings: S.prefs.servings || null }));
+  const ranked = E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ mode: "urgent", servings: S.prefs.servings || null, kind: "meals" }));
+  const drink = E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ mode: "urgent", servings: null, kind: "drinks" }))[0];
   const pick = ranked[0];
   $("#homePick").innerHTML = pick ? `<div class="pick-hero"><canvas width="240" height="300" id="homePickCanvas" aria-hidden="true"></canvas>
       <div><span class="label">${esc(pick.recipe.cuisine)} · ${pick.recipe.prep + pick.recipe.cook} min · ${esc(pick.recipe.difficulty || "Easy")}</span>
@@ -1872,7 +2071,8 @@ function renderHome() {
       <button class="btn primary" data-act="open-recipe" data-id="${esc(pick.recipe.id)}">Cook this</button></div></div>`
     : `<p class="muted">Add a few foods and I'll suggest something.</p>`;
   if (pick) drawPlate($("#homePickCanvas"), pick.recipe, null);
-  $("#homeQuick").innerHTML = ranked.length > 1 ? `<ul class="quicklist">${ranked.slice(1, 5).map(m => `<li><button class="rowbtn" data-act="open-recipe" data-id="${esc(m.recipe.id)}"><b>${esc(m.recipe.title)}</b><span>${m.recipe.prep + m.recipe.cook} min · uses ${m.usedCount} of your foods${m.urgentUsed.length ? " · saves " + m.urgentUsed.length + " that need using" : ""}</span></button></li>`).join("")}</ul>` : `<p class="muted">More ideas appear as you add food.</p>`;
+  const row = (m, pre = "") => `<li><button class="rowbtn" data-act="open-recipe" data-id="${esc(m.recipe.id)}"><b>${pre}${esc(m.recipe.title)}</b><span>${m.recipe.prep + m.recipe.cook} min · uses ${m.usedCount} of your foods${m.urgentUsed.length ? " · saves " + m.urgentUsed.length + " that need using" : ""}</span></button></li>`;
+  $("#homeQuick").innerHTML = ranked.length > 1 || drink ? `<ul class="quicklist">${ranked.slice(1, 4).map(m => row(m)).join("")}${drink ? row(drink, "Drink: ") : ""}</ul>` : `<p class="muted">More ideas appear as you add food.</p>`;
   const meals = S.history.length, used = S.history.reduce((n, h) => n + (h.used || []).length, 0);
   const grams = S.history.reduce((g, h) => g + (h.used || []).reduce((s, u) => s + (u.g || 0), 0), 0);
   const unknown = S.history.some(h => (h.used || []).some(u => u.g == null));
@@ -1896,10 +2096,11 @@ const ZONES = [
   ["Fridge shelves", "dairy, eggs, tofu", ["Eggs", "Milk", "Yogurt", "Cheese", "Tofu", "Ham", "Hotdogs", "Bacon"]],
   ["Crisper drawers", "fruit and vegetables", ["Carrots", "Cabbage", "Tomatoes", "Cucumber", "Bell pepper", "Spring onions", "Spinach", "Calamansi", "Ginger", "Eggplant"]],
   ["Fridge door", "sauces and condiments", ["Butter", "Mayonnaise", "Ketchup", "Oyster sauce", "Fish sauce", "Gochujang"]],
+  ["Fruit bowl & counter", "fruit that's ripening", ["Bananas", "Mangoes", "Pineapple", "Ripe papaya", "Avocado", "Oranges", "Apples", "Watermelon", "Calamansi"]],
   ["Freezer", "meat, fish, frozen veg", ["Chicken thighs", "Ground pork", "Fish fillets", "Shrimp", "Longganisa", "Frozen peas", "Bread"]],
   ["Cupboard & counter", "dry goods, cans, produce", ["Rice", "Pasta", "Instant noodles", "Canned tuna", "Canned tomatoes", "Corned beef", "Coconut milk", "Onions", "Potatoes", "Bananas"]]
 ];
-const ZONE_LOC = { "Freezer": "freezer", "Cupboard & counter": "pantry" };
+const ZONE_LOC = { "Freezer": "freezer", "Cupboard & counter": "pantry", "Fruit bowl & counter": "pantry" };
 function renderKitchen() {
   $("#sampleNote").innerHTML = S.sample ? `<div class="note-bar"><span>This is a <b>sample kitchen</b> so you can see how it works.</span><button class="btn small" data-act="clear-sample">Start with an empty kitchen</button></div>` : "";
   const counts = { all: S.pantry.length, fridge: 0, freezer: 0, pantry: 0 }; S.pantry.forEach(p => counts[p.loc]++);
@@ -1917,7 +2118,9 @@ function renderKitchen() {
         <span class="fresh" style="color:${GROUP_COLORS[f.group]}">${esc(f.note)}</span>
         <span class="tags">${tags.map(t => `<i>${esc(t)}</i>`).join("")}</span>
       </button>
-      ${f.group === "check" ? `<button class="btn small danger" data-act="item-toss" data-id="${p.id}">Throw out</button>` : `<button class="btn small pinbtn" data-act="pin" data-id="${p.id}" aria-pressed="${pinned}">${pinned ? "✓ Cook with this" : "Cook with this"}</button>`}
+      ${f.group === "check" ? `<button class="btn small danger" data-act="item-toss" data-id="${p.id}">Throw out</button>`
+        : p.loc === "freezer" ? `<button class="btn small pinbtn" data-act="thaw" data-id="${p.id}">Thaw in the fridge</button>`
+        : `<button class="btn small pinbtn" data-act="pin" data-id="${p.id}" aria-pressed="${pinned}">${pinned ? "✓ Cook with this" : "Cook with this"}</button>`}
     </div>`;
   };
   let html = "";
@@ -1975,10 +2178,10 @@ function itemForm(p) {
     <label class="check"><input type="checkbox" id="fUnknown"${p.unknownAge ? " checked" : ""}> I'm not sure when it was made or bought</label>
     <label class="check"><input type="checkbox" id="fOpened"${p.opened ? " checked" : ""}> The package is open</label>
     <label for="fOpenedOn" id="fOpenedWrap"${p.opened ? "" : " hidden"}>Opened on<input type="date" id="fOpenedOn" value="${esc(p.openedOn || "")}" max="${E.todayISO()}"></label>
-    <fieldset><legend>Printed date on the package (optional)</legend>
-      <div class="row2"><label for="fLabelType" class="sr">Type of date</label><select id="fLabelType"><option value="">No printed date</option><option value="useby"${p.label?.type === "useby" ? " selected" : ""}>Use by / Expiry (safety)</option><option value="bestbefore"${p.label?.type === "bestbefore" ? " selected" : ""}>Best before (quality)</option></select>
-      <label for="fLabelDate" class="sr">Printed date</label><input type="date" id="fLabelDate" value="${esc(p.label?.date || "")}"></div>
-      <p class="hint">A <b>use-by</b> date is about safety: don't eat after it. A <b>best-before</b> date is about quality.</p></fieldset>
+    <fieldset><legend>Expiry date (optional)</legend>
+      <div class="row2"><label for="fLabelType" class="sr">Type of date</label><select id="fLabelType"><option value="">No date: estimate for me</option><option value="useby"${p.label?.type === "useby" ? " selected" : ""}>Use by / Expiry (printed, safety)</option><option value="bestbefore"${p.label?.type === "bestbefore" ? " selected" : ""}>Best before (printed, quality)</option><option value="own"${!p.label && p.est ? " selected" : ""}>My own use-by date</option></select>
+      <label for="fLabelDate" class="sr">Date</label><input type="date" id="fLabelDate" value="${esc(p.label?.date || p.est || "")}"></div>
+      <p class="hint">A <b>use-by</b> date is about safety: don't eat after it. A <b>best-before</b> date is about quality. Use <b>my own date</b> for homemade food or anything without a label.</p></fieldset>
     <label for="fNotes">Notes (optional)<input type="text" id="fNotes" value="${esc(p.notes || "")}" maxlength="200"></label>
     <div id="formErr"></div>
     <div class="form-actions"><button class="btn primary" type="submit">${isNew ? "Add to my kitchen" : "Save changes"}</button>
@@ -1992,17 +2195,21 @@ function readItemForm() {
   const lt = v("fLabelType").value, ld = v("fLabelDate").value;
   return { name: v("fName").value.trim(), qty, unit: v("fUnit").value, loc: (document.querySelector('input[name="fLoc"]:checked') || {}).value || "fridge",
     cooked: v("fCooked").checked, added: v("fAdded").value || E.todayISO(), unknownAge: v("fUnknown").checked, opened: v("fOpened").checked,
-    openedOn: v("fOpened").checked ? (v("fOpenedOn").value || E.todayISO()) : null, label: lt && ld ? { type: lt, date: ld } : null, notes: v("fNotes").value.trim() };
+    openedOn: v("fOpened").checked ? (v("fOpenedOn").value || E.todayISO()) : null,
+    label: lt && lt !== "own" && ld ? { type: lt, date: ld } : null, est: lt === "own" && ld ? ld : null, notes: v("fNotes").value.trim() };
 }
 function submitItemForm(form) {
   const data = readItemForm(), id = form.dataset.id;
   const errs = E.validateItem({ ...data, qty: data.qty });
-  if (lt_missing(data)) errs.push("Add the printed date, or choose “No printed date”.");
+  if (lt_missing(data)) errs.push("Add the date, or choose “No date: estimate for me”.");
   if (errs.length) { $("#formErr").innerHTML = `<div class="msg err" role="alert">${errs.map(esc).join("<br>")}</div>`; return; }
   if (id) {
     const i = S.pantry.findIndex(p => p.id === id); if (i < 0) return;
     const key = E.norm(data.name) === E.norm(S.pantry[i].name) ? S.pantry[i].key : E.resolveKey(data.name);
-    S.pantry[i] = E.newItem({ ...S.pantry[i], ...data, key, id });
+    const old = S.pantry[i];
+    const thawedOn = old.loc === "freezer" && data.loc !== "freezer" ? E.todayISO() : (data.loc === "freezer" ? null : old.thawedOn);
+    S.pantry[i] = E.newItem({ ...old, ...data, key, id, thawedOn });
+    if (thawedOn && thawedOn !== old.thawedOn) toast("Moved out of the freezer: freshness now counts from today, when it started thawing.");
     toast("Saved " + data.name + ".");
   } else {
     const r = E.addToPantry(S.pantry, [{ ...data }]);
@@ -2036,6 +2243,7 @@ function renderCook() {
   if (S.ui.mode === "one" && !S.ui.oneId && u.length) S.ui.oneId = u[0].p.id;
   const P = S.prefs;
   $("#cookFilters").innerHTML = `
+    <div class="field"><span>Show</span><div class="seg" role="group" aria-label="Meals or drinks">${[["meals","Meals"],["drinks","Drinks"],["both","Both"]].map(([k,l]) => `<button data-act="kind" data-k="${k}" aria-pressed="${(P.kind || "meals") === k}">${l}</button>`).join("")}</div></div>
     ${S.ui.mode === "one" ? `<label class="field">Food to use<select id="oneSel">${u.map(x => `<option value="${x.p.id}"${S.ui.oneId === x.p.id ? " selected" : ""}>${esc(x.p.name)} · ${esc(x.fr.note)}</option>`).join("")}</select></label>` : ""}
     ${S.ui.focus.length ? `<span class="anchor">Built around: ${esc(S.ui.focus.map(id => (S.pantry.find(p => p.id === id) || {}).name).filter(Boolean).join(", "))}<button data-act="focus-clear" aria-label="Stop building around these">×</button></span>` : ""}
     <div class="field"><span>People</span><div class="stepper"><button data-act="serv" data-d="-1" aria-label="Fewer people">−</button><b>${P.servings || "Recipe"}</b><button data-act="serv" data-d="1" aria-label="More people">+</button></div></div>
@@ -2106,9 +2314,9 @@ function renderDetail() {
         <h2>${esc(r.title)}</h2>
         <p>${esc(r.desc)}</p>
         ${r.styleNote ? `<p class="small muted">${esc(r.styleNote)}</p>` : ""}
-        ${r.ai ? `<p class="small warnbox">Written by AI and checked against your kitchen. Read it through before cooking, and follow the safety notes.</p>` : ""}
+        ${r.ai ? `<p class="small warnbox">Written by AI${r.reviewed ? ", reviewed for taste and safety," : ""} and checked against your kitchen and sensible amounts. It hasn't been test-cooked like the library recipes, so read it through before cooking and follow the safety notes.</p>` : ""}
         <dl class="spec">
-          <div><dt>Serves</dt><dd><div class="stepper"><button data-act="rserv" data-d="-1" aria-label="Fewer servings">−</button><b>${sv}</b><button data-act="rserv" data-d="1" aria-label="More servings">+</button></div>${m.scaledDown ? `<small class="muted">Smaller batch to fit what you have</small>` : ""}</dd></div>
+          <div><dt>${r.kind === "drink" ? "Makes" : "Serves"}</dt><dd><div class="stepper"><button data-act="rserv" data-d="-1" aria-label="Fewer servings">−</button><b>${sv}${r.kind === "drink" ? " glass" + (sv > 1 ? "es" : "") : ""}</b><button data-act="rserv" data-d="1" aria-label="More servings">+</button></div>${m.scaledDown ? `<small class="muted">Smaller batch to fit what you have</small>` : ""}</dd></div>
           <div><dt>Time</dt><dd>${r.prep} min prep · ${r.cook} min cooking</dd></div>
           <div><dt>Difficulty</dt><dd>${esc(r.difficulty || "Easy")}</dd></div>
           <div><dt>From your kitchen</dt><dd>${m.usedCount} of your foods + staples · <b class="ok">nothing to buy</b>${m.urgentUsed.length ? `<br><span class="urg">Uses up: ${esc(m.urgentUsed.map(p => p.name).join(", "))}</span>` : ""}</dd></div>
@@ -2174,7 +2382,7 @@ function submitCooked() {
 /* ----- Diet & equipment ----- */
 function openPrefs() {
   const D = [["vegetarian", "Vegetarian"], ["nopork", "No pork"], ["nobeef", "No beef"], ["noseafood", "No seafood"], ["nodairy", "No dairy"], ["noegg", "No eggs"], ["nogluten", "No gluten"]];
-  const EQ = [["stove", "Stove"], ["oven", "Oven"], ["microwave", "Microwave"], ["ricecooker", "Rice cooker"]];
+  const EQ = [["stove", "Stove"], ["blender", "Blender"], ["oven", "Oven"], ["microwave", "Microwave"], ["ricecooker", "Rice cooker"]];
   openModal(`<h2 id="authTitle">Diet & equipment</h2><form id="prefsForm">
     <fieldset><legend>Leave out</legend><div class="chips">${D.map(([k, l]) => `<label class="chip"><input type="checkbox" name="diet" value="${k}"${S.prefs.diet.includes(k) ? " checked" : ""}>${l}</label>`).join("")}</div></fieldset>
     <fieldset><legend>I can cook with</legend><div class="chips">${EQ.map(([k, l]) => `<label class="chip"><input type="checkbox" name="equip" value="${k}"${S.prefs.equipment.includes(k) ? " checked" : ""}>${l}</label>`).join("")}</div></fieldset>
@@ -2199,18 +2407,33 @@ ${kitchen}
 ALWAYS AVAILABLE: ${staples}, water
 ${focusNames.length ? "MUST FEATURE: " + focusNames.join(", ") + "\n" : ""}${P.diet.length ? "DIET: avoid " + P.diet.join(", ") + "\n" : ""}${P.maxTime ? "TIME LIMIT: " + P.maxTime + " minutes total\n" : ""}${P.servings ? "SERVINGS: " + P.servings + "\n" : ""}ALREADY SUGGESTED (don't repeat): ${have}
 
-Write 3 genuinely delicious, practical recipes, based on well-established dishes, that use ONLY the kitchen and always-available items. Prefer food that needs using first, but never at the cost of taste or safety. Don't force ingredients that don't belong together.
+${S.prefs.kind === "drinks" ? "Write 3 refreshing NON-ALCOHOLIC drinks (smoothies, shakes or fresh fruit juices)" : "Write 3 genuinely delicious, practical MEALS"}, based on well-established recipes, that use ONLY the kitchen and always-available items. Prefer food that needs using first, but never at the cost of taste or safety. Don't force ingredients that don't belong together.
 Use correct proportions, proper seasoning, realistic times, and standard safe cooking temperatures (poultry 74°C/165°F, ground meat 71°C/160°F). Never invent unusual temperatures or times.
 If a dish is changed from the traditional version, set style to "Home-style"; if it mixes cuisines, "Fusion". Only use "Classic" when it's made the traditional way.
 JSON only:
 {"recipes":[{"title":"","cuisine":"","style":"Classic|Home-style|Fusion","desc":"one sentence","serves":2,"prep":10,"cook":15,"difficulty":"Easy|Medium","ingredients":[{"name":"exactly as in the kitchen list","qty":1,"unit":"pcs|g|kg|ml|cup|tbsp|tsp|clove|stalk|can","optional":false,"replaces":null}],"steps":["4-8 clear steps"],"season":"seasoning advice","store":"storage and reheating advice"}]}`);
     const arr = (res && res.recipes) || [];
-    let kept = 0, dropped = 0;
+    const cands = []; let dropped = 0;
     for (const x of arr.slice(0, 3)) {
       const r = aiToRecipe(x);
-      if (r && match(r).ok) { S.ui.aiRecipes.push(r); kept++; } else dropped++;
+      if (r && match(r).ok) cands.push({ r, x }); else dropped++;
     }
-    toast(kept ? `Added ${kept} AI recipe${kept > 1 ? "s" : ""}${dropped ? `; skipped ${dropped} that needed something you don't have` : ""}.` : "The AI's ideas needed things you don't have, so I left them out. Try again.");
+    // Second opinion: a strict head-chef review. Only recipes rated tasty, practical and safe are kept.
+    let kept = [];
+    if (cands.length) {
+      try {
+        const rev = await AI.json(`You are a strict head chef and food-safety inspector reviewing recipes before they're published.
+For each recipe, rate taste (1-5: would people happily cook and eat this again?) and practicality (1-5), and say if anything is unsafe (undercooked meat, risky storage, wrong temperatures, raw egg in drinks).
+Be critical: a recipe that just throws leftovers together, has odd flavor pairings, wrong proportions or vague steps scores 3 or less.
+RECIPES:
+${cands.map((c, i) => `#${i} ${c.x.title}\nIngredients: ${c.x.ingredients.map(g => (g.qty || "") + " " + (g.unit || "") + " " + g.name).join("; ")}\nSteps: ${c.x.steps.join(" | ")}`).join("\n\n")}
+JSON only: {"reviews":[{"index":0,"taste":4,"practical":4,"unsafe":false,"problem":"one short sentence or empty"}]}`, { fast: true });
+        const by = new Map(((rev && rev.reviews) || []).map(v => [v.index, v]));
+        cands.forEach((c, i) => { const v = by.get(i); if (v && v.taste >= 4 && v.practical >= 4 && !v.unsafe) { c.r.reviewed = true; kept.push(c.r); } else dropped++; });
+      } catch (e) { kept = []; dropped += cands.length; }
+    }
+    kept.forEach(r => S.ui.aiRecipes.push(r));
+    toast(kept.length ? `Added ${kept.length} AI recipe${kept.length > 1 ? "s" : ""}${dropped ? `; left out ${dropped} that didn't pass the taste, safety or ingredient checks` : ""}.` : "None of the AI's ideas passed the taste, safety and ingredient checks, so I left them out. The tested recipes are still here.");
   } catch (e) {
     if (e && e.code === "puter_sign_in") openPuterConnect(() => askAIMore());
     else if (e && e.code === "sign_in") { toast("Sign in to use the AI."); openAuth("signin"); }
@@ -2230,12 +2453,26 @@ function aiToRecipe(x) {
     ings.push({ k, q, u: unit, opt: !!i.optional, note: i.replaces ? "instead of " + i.replaces : "" });
   }
   if (ings.filter(i => i.q == null).length > ings.length * 0.3) return null; // needs real quantities
+  // Sanity limits per serving: reject recipes with clearly wrong amounts.
+  const serves = Math.max(1, Math.min(12, Math.round(+x.serves || 2)));
+  const per = k => ings.filter(i => i.k === k && i.q != null).reduce((g, i) => g + (E.toGrams(k, i.q, i.u) || 0), 0) / serves;
+  const drink = S.prefs.kind === "drinks";
+  if (per("salt") > 6 || per("soy_sauce") > 35 || per("fish_sauce") > 25 || per("oil") > 60 || per("sugar") > (drink ? 40 : 30)) return null;
+  // Raw meat or seafood: the method must make sure it's cooked through, so add the safety step if it's missing.
+  const RAW = ["chicken", "ground_pork", "pork", "ground_beef", "beef", "fish", "shrimp", "bacon", "longganisa", "tocino"];
+  const stepsText = (x.steps || []).join(" ").toLowerCase();
+  const rawUsed = ings.filter(i => RAW.includes(i.k));
+  if (drink && rawUsed.length) return null;
+  if (drink && ings.some(i => i.k === "egg")) return null; // no raw egg in drinks
+  const addSafety = rawUsed.length && !/(74|165|71|160|63|145)\s*°|no (longer )?pink|cooked through|opaque|juices run clear/.test(stepsText);
   let style = ["Classic", "Home-style", "Fusion"].includes(x.style) ? x.style : "Home-style";
   if (style === "Classic" && x.ingredients.some(i => i.replaces)) style = "Home-style";
   const pal = { Filipino: ["#E9D7A8","#A0522D","#5E8C3A","#F2B33D"], Korean: ["#C8341F","#E8A33D","#F7F3EA","#5E8C3A"], Italian: ["#C0392B","#EAD7A6","#5E8C3A","#F7F3EA"] }[x.cuisine] || ["#E9D7A8","#C98B4A","#5E8C3A","#F2C14E"];
   return { id: "ai-" + uid(), ai: true, title: String(x.title).slice(0, 80), cuisine: String(x.cuisine || "Any").slice(0, 30), style, desc: String(x.desc || "").slice(0, 200),
-    serves: Math.max(1, Math.min(12, Math.round(+x.serves || 2))), prep, cook, difficulty: x.difficulty === "Medium" ? "Medium" : "Easy", equip: ["stove"], q: 4,
-    plating: /soup|porridge|bowl|curry|rice/i.test(x.title) ? "bowl" : "plate", palette: pal, ingredients: ings, steps: x.steps.map(s => String(s).slice(0, 400)).slice(0, 10),
+    serves, prep, cook, difficulty: x.difficulty === "Medium" ? "Medium" : "Easy", equip: ["stove"], q: 4,
+    kind: drink ? "drink" : "meal",
+    plating: drink ? "glass" : /soup|porridge|bowl|curry|rice/i.test(x.title) ? "bowl" : "plate", palette: pal, ingredients: ings,
+    steps: x.steps.map(s => String(s).slice(0, 400)).slice(0, 10).concat(addSafety ? ["Before serving, check that all meat or seafood is cooked through: chicken 74°C (165°F), ground meat 71°C (160°F), fish and whole cuts 63°C (145°F)."] : []),
     season: String(x.season || "").slice(0, 300), store: String(x.store || "").slice(0, 300) };
 }
 
@@ -2312,10 +2549,18 @@ document.addEventListener("click", e => {
   if (act === "auth-close") { closeAuth(); return; }
   if (act === "sign-out") { closeAuth(); Cloud.signOut().then(() => toast("Signed out.")); return; }
   switch (act) {
-    case "cook-today": S.ui.mode = "urgent"; S.ui.focus = []; S.ui.currentId = null; setTab("cook"); break;
+    case "cook-today": S.ui.mode = "urgent"; S.ui.focus = []; S.ui.currentId = null; S.prefs.kind = "meals"; setTab("cook"); break;
     case "go-check": S.ui.sort = "fresh"; S.ui.loc = "all"; setTab("kitchen"); break;
-    case "open-recipe": S.ui.currentId = t.dataset.id; S.ui.mode = "urgent"; S.ui.focus = []; setTab("cook"); { const f = document.querySelector(`.pick[data-id="${t.dataset.id}"]`); if (f) f.scrollIntoView({ block: "nearest" }); } break;
+    case "open-recipe": S.ui.currentId = t.dataset.id; S.ui.mode = "urgent"; S.ui.focus = []; { const rr = getRecipe(t.dataset.id); if (rr) S.prefs.kind = rr.kind === "drink" ? "drinks" : "meals"; } setTab("cook"); { const f = document.querySelector(`.pick[data-id="${t.dataset.id}"]`); if (f) f.scrollIntoView({ block: "nearest" }); } break;
     case "clear-sample": openModal(`<h2 id="authTitle">Start with an empty kitchen?</h2><p>This removes the sample foods so you can add your own.</p><div class="form-actions"><button class="btn primary" data-act="clear-sample-yes">Yes, empty it</button><button class="linkbtn" data-act="auth-close">Keep the sample</button></div>`); break;
+    case "merge-yes": { const L = S.ui.pendingMerge; S.ui.pendingMerge = null; if (L) {
+      E.addToPantry(S.pantry, (L.pantry || []).map(p => ({ ...p, id: undefined })));
+      for (const z of L.saved || []) { const r = z.rid ? LIB.find(x => x.id === z.rid) : z.recipe; if (r && !isSaved(r)) S.saved.push(z); }
+      S.collections = [...new Set([...S.collections, ...(L.collections || [])])];
+      S.history = [...S.history, ...(L.history || [])].sort((a, b) => a.at - b.at);
+      persist(); rerender(); toast("Added this device's kitchen to your account."); }
+      closeAuth(); break; }
+    case "merge-no": S.ui.pendingMerge = null; closeAuth(); toast("Kept your account as it is."); break;
     case "clear-sample-yes": S.pantry = []; S.sample = false; persist(); closeAuth(); renderKitchen(); toast("Your kitchen is empty. Add what you have above."); break;
     case "loc": S.ui.loc = t.dataset.v; renderKitchen(); break;
     case "item-new": openModal(itemForm(null), "#fName"); break;
@@ -2327,14 +2572,16 @@ document.addEventListener("click", e => {
     case "zone-add": { const n = t.dataset.n, k = E.resolveKey(n); const ex = S.pantry.find(p => (k && p.key === k) || E.norm(p.name) === E.norm(n));
       if (ex) { openModal(itemForm(ex), "#fQty"); break; }
       const parsed = E.parseIngredientText(n)[0] || { name: n };
-      E.addToPantry(S.pantry, [{ ...parsed, name: n, loc: ZONE_LOC[t.dataset.z] || (parsed.loc === "pantry" && t.dataset.z !== "Cupboard & counter" ? "fridge" : parsed.loc), added: E.todayISO() }]);
+      E.addToPantry(S.pantry, [{ ...parsed, name: n, loc: ZONE_LOC[t.dataset.z] || (["Back of the fridge", "Fridge shelves", "Fridge door", "Crisper drawers"].includes(t.dataset.z) ? "fridge" : parsed.loc), added: E.todayISO() }]);
       S.sample = false; persist(); renderKitchen(); toast(`Added ${n}. Tap it to add the amount or dates.`); break; }
     case "pin": { const id = t.dataset.id; if (S.ui.pins.includes(id)) S.ui.pins = S.ui.pins.filter(x => x !== id); else if (S.ui.pins.length >= 3) toast("Pick up to 3 foods to build a meal around."); else S.ui.pins.push(id); renderKitchen(); break; }
     case "pins-clear": S.ui.pins = []; renderKitchen(); break;
+    case "thaw": { const it = S.pantry.find(x => x.id === t.dataset.id); if (it) { it.loc = "fridge"; it.thawedOn = E.todayISO(); persist(); renderKitchen(); toast(`${it.name} moved to the fridge to thaw. Thaw in the fridge, never on the counter, and use it soon after.`); } break; }
     case "cook-pins": S.ui.focus = S.ui.pins.slice(); S.ui.pins = []; S.ui.mode = "most"; S.ui.currentId = null; setTab("cook"); break;
     case "focus-clear": S.ui.focus = []; renderCook(); break;
     case "mode": S.ui.mode = t.dataset.mode; S.ui.currentId = null; renderCook(); break;
-    case "serv": { const cur = S.prefs.servings || 0; let n = cur + +t.dataset.d; if (n < 1) n = null; if (n > 12) n = 12; S.prefs.servings = n; S.ui.servingsOverride = {}; persist(); renderCook(); break; }
+    case "kind": S.prefs.kind = t.dataset.k; S.ui.currentId = null; persist(); renderCook(); break;
+    case "serv": { let n; if (!S.prefs.servings) n = +t.dataset.d > 0 ? 2 : 1; else { n = S.prefs.servings + +t.dataset.d; if (n < 1) n = null; if (n > 12) n = 12; } S.prefs.servings = n; S.ui.servingsOverride = {}; persist(); renderCook(); break; }
     case "rserv": { const r = getRecipe(S.ui.currentId); const cur = match(r).servings; const n = Math.max(1, Math.min(12, cur + +t.dataset.d)); const test = E.matchRecipe(r, S.pantry, S.staples, opts({ servings: n }));
       if (!test.ok) { toast(`You don't have enough for ${n} servings.`); break; } S.ui.servingsOverride[r.id] = n; renderDetail(); break; }
     case "prefs": openPrefs(); break;
@@ -2421,17 +2668,27 @@ const Cloud={
     this.user=null;this.status="";resetToSample();renderAccount();rerender();
   },
   setStatus(t){this.status=t;const el=document.getElementById("syncState");if(el)el.textContent=t;const b=$("#acctBtn");if(b&&this.user)b.title="Account · "+t;},
+  /* Sync rules: never overwrite newer data.
+     - First sign-in on a device: the account's data wins, and if this device had its own kitchen,
+       you're asked whether to add it to the account (nothing is merged silently).
+     - Afterwards: whichever side was changed most recently wins. */
   async pull(){
     if(!this.user||this.busy) return; this.busy=true; this.setStatus("Syncing…");
     try{
       const sb=await this.client();
       const {data,error}=await sb.from(CONFIG.TABLE).select("data, updated_at").eq("user_id",this.user.id).maybeSingle();
       if(error) throw error;
-      const remoteAt=data&&data.data?(data.data.savedAt||Date.parse(data.updated_at)||1):0;
-      if(data&&data.data&&remoteAt>(S.savedAt||0)){
-        applySnapshot({...data.data,savedAt:remoteAt});
-        saveLocal(); rerender(); this.setStatus("Synced");
-      }else{ this.busy=false; await this.push(); }
+      const remote=data&&data.data, remoteAt=remote?(remote.savedAt||Date.parse(data.updated_at)||1):0;
+      const mine=S.owner===this.user.id;
+      const localOwn=!S.sample&&(S.pantry.length||S.saved.length);
+      if(remote&&!mine){
+        const local=snapshot();
+        applySnapshot({...remote,savedAt:remoteAt}); S.owner=this.user.id; saveLocal(); rerender();
+        if(localOwn) offerMerge(local);
+        this.setStatus("Synced");
+      }else if(remote&&remoteAt>(S.savedAt||0)){
+        applySnapshot({...remote,savedAt:remoteAt}); S.owner=this.user.id; saveLocal(); rerender(); this.setStatus("Synced");
+      }else{ S.owner=this.user.id; this.busy=false; await this.push(); }
     }catch(e){console.warn("Cloud pull failed",e);this.setStatus(tableMissing(e)?"Cloud table not set up yet":"Not synced");}
     finally{this.busy=false;}
   },
@@ -2441,6 +2698,13 @@ const Cloud={
     try{
       const sb=await this.client();
       if(!S.savedAt) S.savedAt=Date.now();
+      // Don't overwrite a newer copy saved from another device: take that one instead.
+      const cur=await sb.from(CONFIG.TABLE).select("data, updated_at").eq("user_id",this.user.id).maybeSingle();
+      if(!cur.error&&cur.data&&cur.data.data){
+        const at=cur.data.data.savedAt||Date.parse(cur.data.updated_at)||0;
+        if(at>S.savedAt){ applySnapshot({...cur.data.data,savedAt:at}); S.owner=this.user.id; saveLocal(); rerender(); this.setStatus("Synced"); toast("Updated with newer changes from your other device."); return; }
+      }
+      S.owner=this.user.id;
       const {error}=await sb.from(CONFIG.TABLE).upsert({user_id:this.user.id,data:snapshot(),updated_at:new Date(S.savedAt).toISOString()});
       if(error) throw error; saveLocal(); this.setStatus("Synced");
     }catch(e){console.warn("Cloud push failed",e);this.setStatus(tableMissing(e)?"Cloud table not set up yet":"Not synced");}
@@ -2450,6 +2714,8 @@ const tableMissing=e=>!!e&&(e.code==="42P01"||e.code==="PGRST205"||/does not exi
 function friendly(e){
   const m=(e&&e.message)||"";
   if(/fetch|network|load/i.test(m)) return "Couldn't reach the account server. Check your connection and try again.";
+  if(/not authorized|error sending|sending (confirmation|recovery|magic)|smtp/i.test(m)) return "We couldn't send the email to that address yet: the site's email service is still being set up. Please try again later.";
+  if(/signups? not allowed|signup is disabled/i.test(m)) return "New accounts aren't open yet. Please try again later.";
   if(/invalid login credentials/i.test(m)) return "Email or password is incorrect.";
   if(/email not confirmed/i.test(m)) return "Please confirm your email first. The link is in your inbox.";
   if(/already registered|already exists/i.test(m)) return "That email already has an account. Try signing in instead.";
@@ -2593,7 +2859,17 @@ function drawPlate(cv,r,bg){
   const specks=(n,rad,col,sz)=>{x.fillStyle=col;for(let i=0;i<n;i++){const a=R()*Math.PI*2,d=Math.sqrt(R())*rad;x.beginPath();x.ellipse(cx+Math.cos(a)*d,cy+Math.sin(a)*d,sz*(.6+R()*.8),sz*.5,R()*3,0,Math.PI*2);x.fill()}};
   const egg=(ex,ey,s)=>{x.fillStyle="#FBF8F1";x.beginPath();x.ellipse(ex,ey,38*s,28*s,R(),0,Math.PI*2);x.fill();x.fillStyle="#F2AE2E";x.beginPath();x.arc(ex+2,ey,15*s,0,Math.PI*2);x.fill();x.fillStyle="rgba(255,255,255,.35)";x.beginPath();x.arc(ex-3,ey-4,5*s,0,Math.PI*2);x.fill()};
   const hasEgg=r.ingredients.some(i=>i.k==="egg"||/egg/i.test(i.n||i.name||""));
-  if(r.plating==="skillet"){
+  if(r.plating==="glass"){
+    // a tall glass of smoothie or juice, top-down 3/4 view
+    shadow(30,14);x.fillStyle="rgba(255,255,255,.55)";x.beginPath();x.moveTo(250,250);x.lineTo(550,250);x.lineTo(515,860);x.quadraticCurveTo(400,890,285,860);x.closePath();x.fill();noShadow();
+    const lg=x.createLinearGradient(0,330,0,860);lg.addColorStop(0,pal[1]);lg.addColorStop(1,pal[0]);
+    x.fillStyle=lg;x.beginPath();x.moveTo(262,330);x.lineTo(538,330);x.lineTo(512,845);x.quadraticCurveTo(400,872,288,845);x.closePath();x.fill();
+    x.fillStyle=pal[2];x.globalAlpha=.85;x.beginPath();x.ellipse(400,332,138,22,0,0,Math.PI*2);x.fill();x.globalAlpha=1;
+    for(let i=0;i<5;i++){x.save();x.translate(320+R()*160,345+R()*30);x.rotate(R()*.8-.4);x.fillStyle="rgba(255,255,255,.55)";x.beginPath();x.roundRect(-22,-16,44,32,6);x.fill();x.restore();}
+    x.strokeStyle="rgba(255,255,255,.7)";x.lineWidth=10;x.beginPath();x.moveTo(275,300);x.lineTo(298,830);x.stroke();
+    x.strokeStyle=pal[3]||"#5E8C3A";x.lineWidth=16;x.lineCap="round";x.beginPath();x.moveTo(470,120);x.lineTo(430,560);x.stroke();
+    x.fillStyle=pal[0];x.beginPath();x.arc(530,268,46,Math.PI*.95,Math.PI*2.05);x.fill();x.fillStyle=pal[2];x.beginPath();x.arc(530,268,34,Math.PI*.95,Math.PI*2.05);x.fill();
+  }else if(r.plating==="skillet"){
     shadow(40,18); x.save();x.translate(cx,cy);x.rotate(.75);x.fillStyle="#1A1A1A";x.beginPath();x.roundRect(250,-28,260,56,26);x.fill();x.restore();
     x.fillStyle="#232323";x.beginPath();x.arc(cx,cy,300,0,Math.PI*2);x.fill();noShadow();
     x.fillStyle="#303030";x.beginPath();x.arc(cx,cy,272,0,Math.PI*2);x.fill();

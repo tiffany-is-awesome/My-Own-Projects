@@ -142,3 +142,4 @@ footer{font-size:12.5px;line-height:1.5}
 @media (max-width:720px){nav{grid-template-columns:repeat(4,1fr)}nav button{font-size:13px;padding:12px 2px}}
 .pantry-layout{grid-template-columns:minmax(0,1fr) 330px}
 @media (max-width:860px){.pantry-layout{grid-template-columns:1fr}.side{display:flex}.pantry-main{order:0}}
+@media (max-width:860px){.studio-body{grid-template-columns:1fr}.ideas{position:static;max-height:none;overflow:visible;padding-right:0}}

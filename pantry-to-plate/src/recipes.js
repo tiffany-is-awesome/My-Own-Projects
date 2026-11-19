@@ -446,4 +446,164 @@ const RECIPES = [
   season:"The broth should taste clean and savory with a ginger bite. Add fish sauce gradually.",
   store:"Refrigerate within 2 hours; eat within 3 days. Reheat until boiling." }
 ];
+
+/* ---------- DRINKS: smoothies, shakes and fresh fruit juices (non-alcoholic) ---------- */
+const FRUIT = ["banana","mango","pineapple","papaya","berries","apple","watermelon","orange","avocado"];
+const DRINKS = [
+{ id:"mango-shake", kind:"drink", title:"Mango Shake", cuisine:"Filipino", style:"Classic",
+  desc:"Thick, icy and intensely mango. The Filipino favorite, perfect for very ripe mangoes.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:5, plating:"glass", palette:["#F4B53F","#FBE3A1","#FFF6DC","#7DAA4F"], flavor:"Sweet, creamy, tropical",
+  ingredients:[
+    {k:"mango", q:2, u:"pcs", note:"ripe, flesh scooped out"},
+    {k:"ice", q:1.5, u:"cup", opt:true},
+    {k:"milk", q:0.5, u:"cup", opt:true, subs:[{k:"evap_milk", q:0.33, u:"cup", f:"Richer, slightly caramel.", t:"Creamier.", w:"Use a little less than milk."},{k:"water", q:0.5, u:"cup", f:"Purer mango flavor, less creamy.", t:"Lighter.", w:"Add an extra tablespoon of sugar if the mangoes aren't very sweet.", cost:2}]},
+    {k:"sugar", q:1, u:"tbsp", note:"to taste", subs:[{k:"condensed_milk", q:2, u:"tbsp", f:"Creamier and sweeter.", t:"Thicker.", w:"Skip the sugar."},{k:"honey", q:1, u:"tbsp", f:"Floral.", t:"Same.", w:"Use the same amount."}]}],
+  steps:["Put the mango, milk and sugar in the blender.","Add the ice last and blend on high until completely smooth, about 45 seconds.","Taste: add more sugar if the mangoes were tart, or a splash of water if it's too thick to pour. Serve right away."],
+  season:"Very ripe mangoes need little or no sugar. A squeeze of calamansi makes it taste brighter.",
+  store:"Best drunk immediately (it separates). Keep any extra in the fridge and finish within 24 hours; re-blend before drinking." },
+
+{ id:"banana-smoothie", kind:"drink", title:"Banana Oat Smoothie", cuisine:"American", style:"Classic",
+  desc:"Creamy and filling: the best use for spotty bananas. A quick breakfast in a glass.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:5, plating:"glass", palette:["#F2DFA0","#FFF4D6","#C9A06A","#8A5A2B"], flavor:"Sweet, creamy, banana",
+  ingredients:[
+    {k:"banana", q:2, u:"pcs", note:"very ripe; frozen is even better"},
+    {k:"milk", q:1, u:"cup", subs:[{k:"yogurt", q:0.5, u:"cup", f:"Tangier.", t:"Thicker.", w:"Add ½ cup water to loosen it."},{k:"coconut_milk", q:0.5, u:"cup", f:"Tropical.", t:"Richer.", w:"Mix with ½ cup water."},{k:"water", q:1, u:"cup", f:"Lighter, more banana-forward.", t:"Thinner.", w:"Add the oats and peanut butter if you have them for body.", cost:3}]},
+    {k:"oats", q:3, u:"tbsp", opt:true},
+    {k:"peanut_butter", q:1, u:"tbsp", opt:true},
+    {k:"honey", q:1, u:"tsp", opt:true, subs:[{k:"sugar", q:1, u:"tsp", f:"Cleaner sweetness.", t:"Same.", w:"Use the same amount."}]},
+    {k:"cinnamon", q:0.25, u:"tsp", opt:true},
+    {k:"ice", q:0.5, u:"cup", opt:true, note:"if your bananas aren't frozen"}],
+  steps:["Add milk to the blender first, then oats, banana, peanut butter, honey and cinnamon.","Blend on high for 45–60 seconds until silky; if using ice, add it and blend again.","Taste and add a little more honey only if needed."],
+  season:"Ripe bananas are sweet enough; taste before adding honey. A pinch of salt makes peanut butter taste nuttier.",
+  store:"Drink right away. Extra keeps in the fridge for up to 24 hours (it browns a little; stir before drinking)." },
+
+{ id:"fruit-yogurt-smoothie", kind:"drink", title:"Mixed Fruit Yogurt Smoothie", cuisine:"Any", style:"Classic",
+  desc:"Whatever fruit is going soft, blended with yogurt into a thick, tangy smoothie.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#E8738A","#F7C9D2","#FFF1F3","#7DAA4F"], flavor:"Fruity, tangy, creamy",
+  ingredients:[
+    {any:FRUIT, label:"Fruit (any mix: banana, mango, pineapple, papaya, berries, apple…)", k:"banana", q:300, u:"g", minKinds:2, maxKinds:3},
+    {k:"yogurt", q:0.5, u:"cup", subs:[{k:"milk", q:0.5, u:"cup", f:"Less tangy.", t:"Thinner.", w:"Add a squeeze of calamansi for tang."}]},
+    {k:"milk", q:0.5, u:"cup", subs:[{k:"water", q:0.5, u:"cup", f:"Lighter.", t:"Thinner.", w:"Use the same amount.", cost:1}]},
+    {k:"honey", q:1, u:"tbsp", opt:true, subs:[{k:"sugar", q:1, u:"tbsp", f:"Cleaner.", t:"Same.", w:"Use the same amount."}]},
+    {k:"ice", q:0.5, u:"cup", opt:true}],
+  steps:["Peel and chop the fruit (core apples, remove seeds).","Blend the milk and yogurt with the softest fruit first, then the firmer fruit.","Add ice and blend until smooth. Taste and sweeten only if needed."],
+  season:"Balance sweet fruit (banana, mango) with a sharper one (pineapple, berries, orange) for the best flavor.",
+  store:"Best fresh. Keep extra in the fridge and finish within 24 hours." },
+
+{ id:"green-smoothie", kind:"drink", title:"Green Smoothie", cuisine:"Any", style:"Classic",
+  desc:"Spinach blended with sweet fruit. Tastes like fruit, not salad, and rescues wilting greens.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#7DB547","#C7E29A","#F4FAE8","#F2C14E"], flavor:"Fresh, fruity, mild",
+  ingredients:[
+    {k:"spinach", q:1, u:"cup", note:"packed, washed", subs:[{k:"leafy_greens", q:1, u:"cup", f:"Kangkong and pechay are milder; malunggay is earthier.", t:"Same once blended.", w:"Use tender leaves only, no thick stems."}]},
+    {k:"banana", q:1, u:"pcs", note:"ripe", subs:[{k:"mango", q:1, u:"pcs", f:"More tropical.", t:"Same.", w:"Use the flesh of one ripe mango."}]},
+    {any:["pineapple","apple","mango","orange","berries"], label:"Sharper fruit (pineapple, apple, mango, orange or berries)", k:"pineapple", q:150, u:"g", opt:true},
+    {k:"water", q:1, u:"cup"},
+    {k:"lemon", q:0.5, u:"pcs", note:"juice of ½ lemon or 3 calamansi", opt:true},
+    {k:"honey", q:1, u:"tsp", opt:true},
+    {k:"ice", q:0.5, u:"cup", opt:true}],
+  steps:["Blend the water and greens first until no leafy bits remain.","Add the fruit, citrus and honey; blend until smooth.","Add ice, blend briefly and taste."],
+  season:"Citrus is the secret: it keeps the color bright and the taste fresh.",
+  store:"Drink right away; it darkens quickly. Fridge up to 24 hours if needed." },
+
+{ id:"avocado-shake", kind:"drink", title:"Avocado Shake", cuisine:"Filipino", style:"Classic",
+  desc:"A rich, sweet avocado shake, the Southeast Asian way. Good for ripe avocados.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#A9C46C","#DDE8B9","#F7FAEC","#5E7A2A"], flavor:"Creamy, sweet, nutty",
+  ingredients:[
+    {k:"avocado", q:1, u:"pcs", note:"ripe, flesh only"},
+    {k:"milk", q:1, u:"cup", subs:[{k:"evap_milk", q:0.5, u:"cup", f:"Richer.", t:"Creamier.", w:"Mix with ½ cup water."},{k:"coconut_milk", q:0.5, u:"cup", f:"Tropical.", t:"Richer.", w:"Mix with ½ cup water."}]},
+    {k:"sugar", q:2, u:"tbsp", subs:[{k:"condensed_milk", q:3, u:"tbsp", f:"Creamier, classic street-stall taste.", t:"Thicker.", w:"Skip the sugar."}]},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend avocado, milk and sugar until silky.","Add ice and blend again until thick and frosty.","Taste and adjust the sweetness."],
+  season:"Avocado needs sweetness to shine; add sugar a spoon at a time.",
+  store:"Drink right away; avocado browns. Fridge up to 24 hours if needed." },
+
+{ id:"calamansi-juice", kind:"drink", title:"Calamansi Juice / Lemonade", cuisine:"Filipino", style:"Classic",
+  desc:"Bright, sweet-sour and refreshing. Works with calamansi, lemons or limes.",
+  serves:4, prep:10, cook:0, difficulty:"Easy", equip:[], q:5, plating:"glass", palette:["#F2E36B","#FCF7C9","#FFFFF0","#7DAA4F"], flavor:"Sour, sweet, refreshing",
+  ingredients:[
+    {k:"lemon", q:3, u:"pcs", note:"juice of 3 lemons/limes or about 20 calamansi (⅓ cup juice)"},
+    {k:"sugar", q:4, u:"tbsp", subs:[{k:"honey", q:3, u:"tbsp", f:"Floral.", t:"Same.", w:"Stir into a little warm water first so it dissolves."}]},
+    {k:"water", q:4, u:"cup", note:"cold"},
+    {k:"ice", q:2, u:"cup", opt:true}],
+  steps:["Stir the sugar into ½ cup of warm water until dissolved.","Squeeze the citrus and strain out the seeds.","Mix juice, sugar water and the remaining cold water. Taste: it should be pleasantly tart. Pour over ice."],
+  season:"Adjust to taste: more sugar for kids, more citrus for a sharper drink. A pinch of salt brightens it.",
+  store:"Keep covered in the fridge and drink within 2 days." },
+
+{ id:"watermelon-juice", kind:"drink", title:"Watermelon Juice", cuisine:"Any", style:"Classic",
+  desc:"Pure blended watermelon with a squeeze of citrus. Very refreshing on hot days.",
+  serves:3, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:5, plating:"glass", palette:["#F0566A","#F9A9B3","#FFF0F2","#4E8A3E"], flavor:"Sweet, fresh",
+  ingredients:[
+    {k:"watermelon", q:4, u:"cup", note:"cubed, seeds removed"},
+    {k:"lemon", q:0.5, u:"pcs", note:"juice of ½ lime or 3 calamansi", opt:true},
+    {k:"sugar", q:1, u:"tsp", opt:true},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend the watermelon until completely liquid, about 30 seconds.","Strain if you like it smooth.","Stir in the citrus, taste, add sugar only if needed, and serve over ice."],
+  season:"Citrus makes watermelon taste sweeter and fresher. Mint is lovely if you have it.",
+  store:"Separates as it stands; stir before serving. Fridge up to 24 hours." },
+
+{ id:"pineapple-juice", kind:"drink", title:"Fresh Pineapple Juice", cuisine:"Any", style:"Classic",
+  desc:"Sweet-tart blended pineapple, strained smooth. Rescues a pineapple that's getting very ripe.",
+  serves:3, prep:10, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#F6CF45","#FCEBA5","#FFFBEA","#5E8C3A"], flavor:"Sweet, tangy, tropical",
+  ingredients:[
+    {k:"pineapple", q:3, u:"cup", note:"chunks, core removed"},
+    {k:"water", q:1, u:"cup", note:"cold"},
+    {k:"sugar", q:1, u:"tbsp", opt:true},
+    {k:"ginger", q:5, u:"g", note:"a thin slice", opt:true},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend the pineapple with the water (and ginger, if using) until completely smooth.","Strain through a sieve, pressing on the pulp.","Taste, sweeten if needed, and serve over ice."],
+  season:"Very ripe pineapple needs no sugar. A tiny slice of ginger adds a nice warmth.",
+  store:"Fridge, covered, up to 24 hours. Stir before drinking." },
+
+{ id:"apple-carrot-juice", kind:"drink", title:"Apple & Carrot Juice", cuisine:"Any", style:"Classic",
+  desc:"Sweet, earthy and bright orange. Uses up carrots and soft apples.",
+  serves:2, prep:10, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#F08A33","#F8C08A","#FFF4E6","#7DAA4F"], flavor:"Sweet, earthy, fresh",
+  ingredients:[
+    {k:"apple", q:2, u:"pcs", note:"cored, chopped"},
+    {k:"carrot", q:2, u:"pcs", note:"peeled, chopped small"},
+    {k:"water", q:1, u:"cup"},
+    {k:"lemon", q:0.5, u:"pcs", note:"juice", opt:true},
+    {k:"ginger", q:5, u:"g", opt:true},
+    {k:"ice", q:0.5, u:"cup", opt:true}],
+  steps:["Blend the carrots with the water first until fine.","Add apple, ginger and lemon juice; blend until smooth.","Strain through a sieve for juice (or leave it thick), and serve cold."],
+  season:"Lemon keeps it bright and stops the apple from browning.",
+  store:"Drink within 24 hours; keep in the fridge and stir before serving." },
+
+{ id:"orange-juice", kind:"drink", title:"Fresh-Squeezed Orange Juice", cuisine:"Any", style:"Classic",
+  desc:"Oranges, dalandan or mandarins squeezed fresh. Nothing added, nothing needed.",
+  serves:2, prep:10, cook:0, difficulty:"Easy", equip:[], q:5, plating:"glass", palette:["#F7A531","#FBD08A","#FFF6E5","#5E8C3A"], flavor:"Sweet, tangy",
+  ingredients:[
+    {k:"orange", q:6, u:"pcs", note:"about 1½ cups juice"},
+    {k:"sugar", q:1, u:"tsp", note:"only if sour", opt:true},
+    {k:"ice", q:0.5, u:"cup", opt:true}],
+  steps:["Roll each orange firmly on the counter to loosen the juice.","Halve and squeeze, then strain out seeds.","Taste; sweeten only if they were sour. Serve cold."],
+  season:"Dalandan is tarter than oranges, so you may want a little sugar.",
+  store:"Best fresh. Fridge, covered, up to 24 hours." },
+
+{ id:"cucumber-cooler", kind:"drink", title:"Cucumber Calamansi Cooler", cuisine:"Any", style:"Classic",
+  desc:"Light, crisp and barely sweet. A good way to use a cucumber before it softens.",
+  serves:3, prep:10, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#B9D88A","#E3F0CF","#F8FCF2","#3E7A3A"], flavor:"Fresh, light, tangy",
+  ingredients:[
+    {k:"cucumber", q:1, u:"pcs", note:"chopped"},
+    {k:"lemon", q:1, u:"pcs", note:"juice of 1 lemon or 6 calamansi"},
+    {k:"sugar", q:2, u:"tbsp", subs:[{k:"honey", q:2, u:"tbsp", f:"Floral.", t:"Same.", w:"Same amount."}]},
+    {k:"water", q:3, u:"cup", note:"cold"},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend the cucumber with 1 cup water until smooth.","Strain into a jug, pressing on the pulp.","Stir in the citrus juice, sugar and remaining water. Taste, then serve over ice."],
+  season:"It should taste lightly sweet and sour. Mint leaves are a great addition.",
+  store:"Fridge, covered, up to 24 hours." },
+
+{ id:"papaya-milk-shake", kind:"drink", title:"Papaya Milkshake", cuisine:"Southeast Asian", style:"Classic",
+  desc:"Smooth, mellow and sweet. A classic way to use very ripe papaya.",
+  serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#F49A5B","#FBD1B0","#FFF5EC","#5E8C3A"], flavor:"Sweet, mellow, creamy",
+  ingredients:[
+    {k:"papaya", q:2, u:"cup", note:"ripe, seeds removed"},
+    {k:"milk", q:1, u:"cup", subs:[{k:"evap_milk", q:0.5, u:"cup", f:"Richer.", t:"Creamier.", w:"Mix with ½ cup water."}]},
+    {k:"sugar", q:1, u:"tbsp", subs:[{k:"condensed_milk", q:2, u:"tbsp", f:"Creamier, sweeter.", t:"Thicker.", w:"Skip the sugar."}]},
+    {k:"lemon", q:0.25, u:"pcs", note:"a squeeze of lime or calamansi", opt:true},
+    {k:"ice", q:1, u:"cup", opt:true}],
+  steps:["Blend papaya, milk and sugar until smooth.","Add the citrus and ice; blend again.","Taste and serve right away."],
+  season:"A squeeze of citrus lifts papaya's mellow flavor.",
+  store:"Drink right away. Fridge up to 24 hours if needed." }
+];
+RECIPES.push(...DRINKS);
 if (typeof module !== "undefined") module.exports = { RECIPES };

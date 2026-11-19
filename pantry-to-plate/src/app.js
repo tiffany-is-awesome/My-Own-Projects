@@ -13,22 +13,25 @@ const CUISINES = ["Filipino","Chinese","Japanese","Korean","Italian","American",
 /* ---------- State ---------- */
 const S = {
   tab: "home", pantry: [], staples: [], saved: [], collections: [], week: [], history: [],
-  prefs: { servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove"] },
+  prefs: { servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals", v: 2 },
   sample: false, savedAt: 0,
   ui: { loc: "all", sort: "fresh", mode: "urgent", focus: [], pins: [], currentId: null, oneId: null, aiRecipes: [], aiBusy: false, servingsOverride: {} },
   aiChecking: true
 };
 const STORE_KEY = "p2p.v3";
-function snapshot() { return { v: 3, pantry: S.pantry, staples: S.staples, saved: S.saved, collections: S.collections, week: S.week, history: S.history, prefs: S.prefs, sample: S.sample, savedAt: S.savedAt || 0 }; }
+function snapshot() { return { v: 3, owner: S.owner || null, pantry: S.pantry, staples: S.staples, saved: S.saved, collections: S.collections, week: S.week, history: S.history, prefs: S.prefs, sample: S.sample, savedAt: S.savedAt || 0 }; }
 function saveLocal() { try { localStorage.setItem(STORE_KEY, JSON.stringify(snapshot())); } catch (e) {} }
-function persist() { S.savedAt = Date.now(); saveLocal(); if (typeof Cloud !== "undefined") Cloud.schedule(); }
+// Each save is always newer than anything this device has already seen, even if another device's clock runs ahead.
+function persist() { S.savedAt = Math.max(Date.now(), (S.savedAt || 0) + 1); saveLocal(); if (typeof Cloud !== "undefined") Cloud.schedule(); }
 function applySnapshot(d) {
   if (!d) return;
   if (d.v !== 3) d = migrateV2(d);
   S.pantry = (d.pantry || []).map(p => E.newItem(p));
   S.staples = Array.isArray(d.staples) ? d.staples : E.DEFAULT_STAPLES.slice();
   S.saved = d.saved || []; S.collections = d.collections || []; S.week = d.week || [];
-  S.history = d.history || []; S.prefs = Object.assign({ servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove"] }, d.prefs || {});
+  S.history = d.history || []; S.prefs = Object.assign({ servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals" }, d.prefs || {});
+  if ((S.prefs.v || 1) < 2) { if (!S.prefs.equipment.includes("blender")) S.prefs.equipment.push("blender"); S.prefs.kind = S.prefs.kind || "meals"; S.prefs.v = 2; }
+  S.owner = d.owner || null;
   S.sample = !!d.sample; S.savedAt = d.savedAt || 0;
 }
 /* Older versions stored "days left" as a fixed number. Keep everything, convert it to dates. */
@@ -80,14 +83,22 @@ function load() {
   if (!d) { try { const old = JSON.parse(localStorage.getItem("p2p.v2") || "null"); if (old && Array.isArray(old.pantry)) d = migrateV2(old); } catch (e) {} }
   if (d) applySnapshot(d); else seedKitchen();
 }
-function resetToSample() { try { localStorage.removeItem(STORE_KEY); } catch (e) {} seedKitchen(); S.savedAt = 0; }
+function resetToSample() { try { localStorage.removeItem(STORE_KEY); } catch (e) {} seedKitchen(); S.savedAt = 0; S.owner = null; }
+/* After signing in on a device that had its own kitchen: ask before combining. */
+function offerMerge(local) {
+  S.ui.pendingMerge = local;
+  const n = (local.pantry || []).length, r = (local.saved || []).length;
+  openModal(`<h2 id="authTitle">Add this device's kitchen to your account?</h2>
+    <p>Your account's kitchen is now showing. Before you signed in, this device also had ${n} food${n === 1 ? "" : "s"}${r ? " and " + r + " saved recipe" + (r === 1 ? "" : "s") : ""}.</p>
+    <div class="form-actions"><button class="btn primary" data-act="merge-yes">Add them to my account</button><button class="linkbtn" data-act="merge-no">No, keep my account as it is</button></div>`);
+}
 function rerender() { setTab(S.tab, true); }
 
 /* ---------- Helpers ---------- */
 const fr = p => E.freshness(p);
 const usable = () => E.usableItems(S.pantry);
 function opts(extra = {}) {
-  return { mode: S.ui.mode, prefs: S.prefs, maxTime: S.prefs.maxTime || 0, cuisine: S.prefs.cuisine, servings: S.prefs.servings || null, ...extra };
+  return { mode: S.ui.mode, prefs: S.prefs, maxTime: S.prefs.maxTime || 0, cuisine: S.prefs.cuisine, servings: S.prefs.servings || null, kind: S.prefs.kind || "meals", ...extra };
 }
 function allRecipes() { return LIB.concat(S.ui.aiRecipes); }
 function getRecipe(id) { return allRecipes().find(r => r.id === id) || (S.saved.find(z => z.recipe && z.recipe.id === id) || {}).recipe || null; }
@@ -130,7 +141,8 @@ function renderHome() {
   const urgent = items.filter(x => x.f.group === "first" || x.f.group === "soon").sort((a, b) => (a.f.daysLeft ?? 99) - (b.f.daysLeft ?? 99)).slice(0, 6);
   $("#homeUse").innerHTML = urgent.length ? `<ul class="uselist">${urgent.map(({ p, f }) => `<li><span class="dot" style="background:${GROUP_COLORS[f.group]}"></span><span><b>${esc(p.name)}</b> <span class="muted">${esc(amountLabel(p))}</span><br><small>${esc(f.note)}</small></span></li>`).join("")}</ul>`
     : `<p class="muted">Nothing urgent. ${S.pantry.length ? "Your kitchen is in good shape." : "Add what you have to get started."}</p>`;
-  const ranked = E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ mode: "urgent", servings: S.prefs.servings || null }));
+  const ranked = E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ mode: "urgent", servings: S.prefs.servings || null, kind: "meals" }));
+  const drink = E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ mode: "urgent", servings: null, kind: "drinks" }))[0];
   const pick = ranked[0];
   $("#homePick").innerHTML = pick ? `<div class="pick-hero"><canvas width="240" height="300" id="homePickCanvas" aria-hidden="true"></canvas>
       <div><span class="label">${esc(pick.recipe.cuisine)} · ${pick.recipe.prep + pick.recipe.cook} min · ${esc(pick.recipe.difficulty || "Easy")}</span>
@@ -139,7 +151,8 @@ function renderHome() {
       <button class="btn primary" data-act="open-recipe" data-id="${esc(pick.recipe.id)}">Cook this</button></div></div>`
     : `<p class="muted">Add a few foods and I'll suggest something.</p>`;
   if (pick) drawPlate($("#homePickCanvas"), pick.recipe, null);
-  $("#homeQuick").innerHTML = ranked.length > 1 ? `<ul class="quicklist">${ranked.slice(1, 5).map(m => `<li><button class="rowbtn" data-act="open-recipe" data-id="${esc(m.recipe.id)}"><b>${esc(m.recipe.title)}</b><span>${m.recipe.prep + m.recipe.cook} min · uses ${m.usedCount} of your foods${m.urgentUsed.length ? " · saves " + m.urgentUsed.length + " that need using" : ""}</span></button></li>`).join("")}</ul>` : `<p class="muted">More ideas appear as you add food.</p>`;
+  const row = (m, pre = "") => `<li><button class="rowbtn" data-act="open-recipe" data-id="${esc(m.recipe.id)}"><b>${pre}${esc(m.recipe.title)}</b><span>${m.recipe.prep + m.recipe.cook} min · uses ${m.usedCount} of your foods${m.urgentUsed.length ? " · saves " + m.urgentUsed.length + " that need using" : ""}</span></button></li>`;
+  $("#homeQuick").innerHTML = ranked.length > 1 || drink ? `<ul class="quicklist">${ranked.slice(1, 4).map(m => row(m)).join("")}${drink ? row(drink, "Drink: ") : ""}</ul>` : `<p class="muted">More ideas appear as you add food.</p>`;
   const meals = S.history.length, used = S.history.reduce((n, h) => n + (h.used || []).length, 0);
   const grams = S.history.reduce((g, h) => g + (h.used || []).reduce((s, u) => s + (u.g || 0), 0), 0);
   const unknown = S.history.some(h => (h.used || []).some(u => u.g == null));
@@ -163,10 +176,11 @@ const ZONES = [
   ["Fridge shelves", "dairy, eggs, tofu", ["Eggs", "Milk", "Yogurt", "Cheese", "Tofu", "Ham", "Hotdogs", "Bacon"]],
   ["Crisper drawers", "fruit and vegetables", ["Carrots", "Cabbage", "Tomatoes", "Cucumber", "Bell pepper", "Spring onions", "Spinach", "Calamansi", "Ginger", "Eggplant"]],
   ["Fridge door", "sauces and condiments", ["Butter", "Mayonnaise", "Ketchup", "Oyster sauce", "Fish sauce", "Gochujang"]],
+  ["Fruit bowl & counter", "fruit that's ripening", ["Bananas", "Mangoes", "Pineapple", "Ripe papaya", "Avocado", "Oranges", "Apples", "Watermelon", "Calamansi"]],
   ["Freezer", "meat, fish, frozen veg", ["Chicken thighs", "Ground pork", "Fish fillets", "Shrimp", "Longganisa", "Frozen peas", "Bread"]],
   ["Cupboard & counter", "dry goods, cans, produce", ["Rice", "Pasta", "Instant noodles", "Canned tuna", "Canned tomatoes", "Corned beef", "Coconut milk", "Onions", "Potatoes", "Bananas"]]
 ];
-const ZONE_LOC = { "Freezer": "freezer", "Cupboard & counter": "pantry" };
+const ZONE_LOC = { "Freezer": "freezer", "Cupboard & counter": "pantry", "Fruit bowl & counter": "pantry" };
 function renderKitchen() {
   $("#sampleNote").innerHTML = S.sample ? `<div class="note-bar"><span>This is a <b>sample kitchen</b> so you can see how it works.</span><button class="btn small" data-act="clear-sample">Start with an empty kitchen</button></div>` : "";
   const counts = { all: S.pantry.length, fridge: 0, freezer: 0, pantry: 0 }; S.pantry.forEach(p => counts[p.loc]++);
@@ -184,7 +198,9 @@ function renderKitchen() {
         <span class="fresh" style="color:${GROUP_COLORS[f.group]}">${esc(f.note)}</span>
         <span class="tags">${tags.map(t => `<i>${esc(t)}</i>`).join("")}</span>
       </button>
-      ${f.group === "check" ? `<button class="btn small danger" data-act="item-toss" data-id="${p.id}">Throw out</button>` : `<button class="btn small pinbtn" data-act="pin" data-id="${p.id}" aria-pressed="${pinned}">${pinned ? "✓ Cook with this" : "Cook with this"}</button>`}
+      ${f.group === "check" ? `<button class="btn small danger" data-act="item-toss" data-id="${p.id}">Throw out</button>`
+        : p.loc === "freezer" ? `<button class="btn small pinbtn" data-act="thaw" data-id="${p.id}">Thaw in the fridge</button>`
+        : `<button class="btn small pinbtn" data-act="pin" data-id="${p.id}" aria-pressed="${pinned}">${pinned ? "✓ Cook with this" : "Cook with this"}</button>`}
     </div>`;
   };
   let html = "";
@@ -242,10 +258,10 @@ function itemForm(p) {
     <label class="check"><input type="checkbox" id="fUnknown"${p.unknownAge ? " checked" : ""}> I'm not sure when it was made or bought</label>
     <label class="check"><input type="checkbox" id="fOpened"${p.opened ? " checked" : ""}> The package is open</label>
     <label for="fOpenedOn" id="fOpenedWrap"${p.opened ? "" : " hidden"}>Opened on<input type="date" id="fOpenedOn" value="${esc(p.openedOn || "")}" max="${E.todayISO()}"></label>
-    <fieldset><legend>Printed date on the package (optional)</legend>
-      <div class="row2"><label for="fLabelType" class="sr">Type of date</label><select id="fLabelType"><option value="">No printed date</option><option value="useby"${p.label?.type === "useby" ? " selected" : ""}>Use by / Expiry (safety)</option><option value="bestbefore"${p.label?.type === "bestbefore" ? " selected" : ""}>Best before (quality)</option></select>
-      <label for="fLabelDate" class="sr">Printed date</label><input type="date" id="fLabelDate" value="${esc(p.label?.date || "")}"></div>
-      <p class="hint">A <b>use-by</b> date is about safety: don't eat after it. A <b>best-before</b> date is about quality.</p></fieldset>
+    <fieldset><legend>Expiry date (optional)</legend>
+      <div class="row2"><label for="fLabelType" class="sr">Type of date</label><select id="fLabelType"><option value="">No date: estimate for me</option><option value="useby"${p.label?.type === "useby" ? " selected" : ""}>Use by / Expiry (printed, safety)</option><option value="bestbefore"${p.label?.type === "bestbefore" ? " selected" : ""}>Best before (printed, quality)</option><option value="own"${!p.label && p.est ? " selected" : ""}>My own use-by date</option></select>
+      <label for="fLabelDate" class="sr">Date</label><input type="date" id="fLabelDate" value="${esc(p.label?.date || p.est || "")}"></div>
+      <p class="hint">A <b>use-by</b> date is about safety: don't eat after it. A <b>best-before</b> date is about quality. Use <b>my own date</b> for homemade food or anything without a label.</p></fieldset>
     <label for="fNotes">Notes (optional)<input type="text" id="fNotes" value="${esc(p.notes || "")}" maxlength="200"></label>
     <div id="formErr"></div>
     <div class="form-actions"><button class="btn primary" type="submit">${isNew ? "Add to my kitchen" : "Save changes"}</button>
@@ -259,17 +275,21 @@ function readItemForm() {
   const lt = v("fLabelType").value, ld = v("fLabelDate").value;
   return { name: v("fName").value.trim(), qty, unit: v("fUnit").value, loc: (document.querySelector('input[name="fLoc"]:checked') || {}).value || "fridge",
     cooked: v("fCooked").checked, added: v("fAdded").value || E.todayISO(), unknownAge: v("fUnknown").checked, opened: v("fOpened").checked,
-    openedOn: v("fOpened").checked ? (v("fOpenedOn").value || E.todayISO()) : null, label: lt && ld ? { type: lt, date: ld } : null, notes: v("fNotes").value.trim() };
+    openedOn: v("fOpened").checked ? (v("fOpenedOn").value || E.todayISO()) : null,
+    label: lt && lt !== "own" && ld ? { type: lt, date: ld } : null, est: lt === "own" && ld ? ld : null, notes: v("fNotes").value.trim() };
 }
 function submitItemForm(form) {
   const data = readItemForm(), id = form.dataset.id;
   const errs = E.validateItem({ ...data, qty: data.qty });
-  if (lt_missing(data)) errs.push("Add the printed date, or choose “No printed date”.");
+  if (lt_missing(data)) errs.push("Add the date, or choose “No date: estimate for me”.");
   if (errs.length) { $("#formErr").innerHTML = `<div class="msg err" role="alert">${errs.map(esc).join("<br>")}</div>`; return; }
   if (id) {
     const i = S.pantry.findIndex(p => p.id === id); if (i < 0) return;
     const key = E.norm(data.name) === E.norm(S.pantry[i].name) ? S.pantry[i].key : E.resolveKey(data.name);
-    S.pantry[i] = E.newItem({ ...S.pantry[i], ...data, key, id });
+    const old = S.pantry[i];
+    const thawedOn = old.loc === "freezer" && data.loc !== "freezer" ? E.todayISO() : (data.loc === "freezer" ? null : old.thawedOn);
+    S.pantry[i] = E.newItem({ ...old, ...data, key, id, thawedOn });
+    if (thawedOn && thawedOn !== old.thawedOn) toast("Moved out of the freezer: freshness now counts from today, when it started thawing.");
     toast("Saved " + data.name + ".");
   } else {
     const r = E.addToPantry(S.pantry, [{ ...data }]);
@@ -303,6 +323,7 @@ function renderCook() {
   if (S.ui.mode === "one" && !S.ui.oneId && u.length) S.ui.oneId = u[0].p.id;
   const P = S.prefs;
   $("#cookFilters").innerHTML = `
+    <div class="field"><span>Show</span><div class="seg" role="group" aria-label="Meals or drinks">${[["meals","Meals"],["drinks","Drinks"],["both","Both"]].map(([k,l]) => `<button data-act="kind" data-k="${k}" aria-pressed="${(P.kind || "meals") === k}">${l}</button>`).join("")}</div></div>
     ${S.ui.mode === "one" ? `<label class="field">Food to use<select id="oneSel">${u.map(x => `<option value="${x.p.id}"${S.ui.oneId === x.p.id ? " selected" : ""}>${esc(x.p.name)} · ${esc(x.fr.note)}</option>`).join("")}</select></label>` : ""}
     ${S.ui.focus.length ? `<span class="anchor">Built around: ${esc(S.ui.focus.map(id => (S.pantry.find(p => p.id === id) || {}).name).filter(Boolean).join(", "))}<button data-act="focus-clear" aria-label="Stop building around these">×</button></span>` : ""}
     <div class="field"><span>People</span><div class="stepper"><button data-act="serv" data-d="-1" aria-label="Fewer people">−</button><b>${P.servings || "Recipe"}</b><button data-act="serv" data-d="1" aria-label="More people">+</button></div></div>
@@ -373,9 +394,9 @@ function renderDetail() {
         <h2>${esc(r.title)}</h2>
         <p>${esc(r.desc)}</p>
         ${r.styleNote ? `<p class="small muted">${esc(r.styleNote)}</p>` : ""}
-        ${r.ai ? `<p class="small warnbox">Written by AI and checked against your kitchen. Read it through before cooking, and follow the safety notes.</p>` : ""}
+        ${r.ai ? `<p class="small warnbox">Written by AI${r.reviewed ? ", reviewed for taste and safety," : ""} and checked against your kitchen and sensible amounts. It hasn't been test-cooked like the library recipes, so read it through before cooking and follow the safety notes.</p>` : ""}
         <dl class="spec">
-          <div><dt>Serves</dt><dd><div class="stepper"><button data-act="rserv" data-d="-1" aria-label="Fewer servings">−</button><b>${sv}</b><button data-act="rserv" data-d="1" aria-label="More servings">+</button></div>${m.scaledDown ? `<small class="muted">Smaller batch to fit what you have</small>` : ""}</dd></div>
+          <div><dt>${r.kind === "drink" ? "Makes" : "Serves"}</dt><dd><div class="stepper"><button data-act="rserv" data-d="-1" aria-label="Fewer servings">−</button><b>${sv}${r.kind === "drink" ? " glass" + (sv > 1 ? "es" : "") : ""}</b><button data-act="rserv" data-d="1" aria-label="More servings">+</button></div>${m.scaledDown ? `<small class="muted">Smaller batch to fit what you have</small>` : ""}</dd></div>
           <div><dt>Time</dt><dd>${r.prep} min prep · ${r.cook} min cooking</dd></div>
           <div><dt>Difficulty</dt><dd>${esc(r.difficulty || "Easy")}</dd></div>
           <div><dt>From your kitchen</dt><dd>${m.usedCount} of your foods + staples · <b class="ok">nothing to buy</b>${m.urgentUsed.length ? `<br><span class="urg">Uses up: ${esc(m.urgentUsed.map(p => p.name).join(", "))}</span>` : ""}</dd></div>
@@ -441,7 +462,7 @@ function submitCooked() {
 /* ----- Diet & equipment ----- */
 function openPrefs() {
   const D = [["vegetarian", "Vegetarian"], ["nopork", "No pork"], ["nobeef", "No beef"], ["noseafood", "No seafood"], ["nodairy", "No dairy"], ["noegg", "No eggs"], ["nogluten", "No gluten"]];
-  const EQ = [["stove", "Stove"], ["oven", "Oven"], ["microwave", "Microwave"], ["ricecooker", "Rice cooker"]];
+  const EQ = [["stove", "Stove"], ["blender", "Blender"], ["oven", "Oven"], ["microwave", "Microwave"], ["ricecooker", "Rice cooker"]];
   openModal(`<h2 id="authTitle">Diet & equipment</h2><form id="prefsForm">
     <fieldset><legend>Leave out</legend><div class="chips">${D.map(([k, l]) => `<label class="chip"><input type="checkbox" name="diet" value="${k}"${S.prefs.diet.includes(k) ? " checked" : ""}>${l}</label>`).join("")}</div></fieldset>
     <fieldset><legend>I can cook with</legend><div class="chips">${EQ.map(([k, l]) => `<label class="chip"><input type="checkbox" name="equip" value="${k}"${S.prefs.equipment.includes(k) ? " checked" : ""}>${l}</label>`).join("")}</div></fieldset>
@@ -466,18 +487,33 @@ ${kitchen}
 ALWAYS AVAILABLE: ${staples}, water
 ${focusNames.length ? "MUST FEATURE: " + focusNames.join(", ") + "\n" : ""}${P.diet.length ? "DIET: avoid " + P.diet.join(", ") + "\n" : ""}${P.maxTime ? "TIME LIMIT: " + P.maxTime + " minutes total\n" : ""}${P.servings ? "SERVINGS: " + P.servings + "\n" : ""}ALREADY SUGGESTED (don't repeat): ${have}
 
-Write 3 genuinely delicious, practical recipes, based on well-established dishes, that use ONLY the kitchen and always-available items. Prefer food that needs using first, but never at the cost of taste or safety. Don't force ingredients that don't belong together.
+${S.prefs.kind === "drinks" ? "Write 3 refreshing NON-ALCOHOLIC drinks (smoothies, shakes or fresh fruit juices)" : "Write 3 genuinely delicious, practical MEALS"}, based on well-established recipes, that use ONLY the kitchen and always-available items. Prefer food that needs using first, but never at the cost of taste or safety. Don't force ingredients that don't belong together.
 Use correct proportions, proper seasoning, realistic times, and standard safe cooking temperatures (poultry 74°C/165°F, ground meat 71°C/160°F). Never invent unusual temperatures or times.
 If a dish is changed from the traditional version, set style to "Home-style"; if it mixes cuisines, "Fusion". Only use "Classic" when it's made the traditional way.
 JSON only:
 {"recipes":[{"title":"","cuisine":"","style":"Classic|Home-style|Fusion","desc":"one sentence","serves":2,"prep":10,"cook":15,"difficulty":"Easy|Medium","ingredients":[{"name":"exactly as in the kitchen list","qty":1,"unit":"pcs|g|kg|ml|cup|tbsp|tsp|clove|stalk|can","optional":false,"replaces":null}],"steps":["4-8 clear steps"],"season":"seasoning advice","store":"storage and reheating advice"}]}`);
     const arr = (res && res.recipes) || [];
-    let kept = 0, dropped = 0;
+    const cands = []; let dropped = 0;
     for (const x of arr.slice(0, 3)) {
       const r = aiToRecipe(x);
-      if (r && match(r).ok) { S.ui.aiRecipes.push(r); kept++; } else dropped++;
+      if (r && match(r).ok) cands.push({ r, x }); else dropped++;
     }
-    toast(kept ? `Added ${kept} AI recipe${kept > 1 ? "s" : ""}${dropped ? `; skipped ${dropped} that needed something you don't have` : ""}.` : "The AI's ideas needed things you don't have, so I left them out. Try again.");
+    // Second opinion: a strict head-chef review. Only recipes rated tasty, practical and safe are kept.
+    let kept = [];
+    if (cands.length) {
+      try {
+        const rev = await AI.json(`You are a strict head chef and food-safety inspector reviewing recipes before they're published.
+For each recipe, rate taste (1-5: would people happily cook and eat this again?) and practicality (1-5), and say if anything is unsafe (undercooked meat, risky storage, wrong temperatures, raw egg in drinks).
+Be critical: a recipe that just throws leftovers together, has odd flavor pairings, wrong proportions or vague steps scores 3 or less.
+RECIPES:
+${cands.map((c, i) => `#${i} ${c.x.title}\nIngredients: ${c.x.ingredients.map(g => (g.qty || "") + " " + (g.unit || "") + " " + g.name).join("; ")}\nSteps: ${c.x.steps.join(" | ")}`).join("\n\n")}
+JSON only: {"reviews":[{"index":0,"taste":4,"practical":4,"unsafe":false,"problem":"one short sentence or empty"}]}`, { fast: true });
+        const by = new Map(((rev && rev.reviews) || []).map(v => [v.index, v]));
+        cands.forEach((c, i) => { const v = by.get(i); if (v && v.taste >= 4 && v.practical >= 4 && !v.unsafe) { c.r.reviewed = true; kept.push(c.r); } else dropped++; });
+      } catch (e) { kept = []; dropped += cands.length; }
+    }
+    kept.forEach(r => S.ui.aiRecipes.push(r));
+    toast(kept.length ? `Added ${kept.length} AI recipe${kept.length > 1 ? "s" : ""}${dropped ? `; left out ${dropped} that didn't pass the taste, safety or ingredient checks` : ""}.` : "None of the AI's ideas passed the taste, safety and ingredient checks, so I left them out. The tested recipes are still here.");
   } catch (e) {
     if (e && e.code === "puter_sign_in") openPuterConnect(() => askAIMore());
     else if (e && e.code === "sign_in") { toast("Sign in to use the AI."); openAuth("signin"); }
@@ -497,12 +533,26 @@ function aiToRecipe(x) {
     ings.push({ k, q, u: unit, opt: !!i.optional, note: i.replaces ? "instead of " + i.replaces : "" });
   }
   if (ings.filter(i => i.q == null).length > ings.length * 0.3) return null; // needs real quantities
+  // Sanity limits per serving: reject recipes with clearly wrong amounts.
+  const serves = Math.max(1, Math.min(12, Math.round(+x.serves || 2)));
+  const per = k => ings.filter(i => i.k === k && i.q != null).reduce((g, i) => g + (E.toGrams(k, i.q, i.u) || 0), 0) / serves;
+  const drink = S.prefs.kind === "drinks";
+  if (per("salt") > 6 || per("soy_sauce") > 35 || per("fish_sauce") > 25 || per("oil") > 60 || per("sugar") > (drink ? 40 : 30)) return null;
+  // Raw meat or seafood: the method must make sure it's cooked through, so add the safety step if it's missing.
+  const RAW = ["chicken", "ground_pork", "pork", "ground_beef", "beef", "fish", "shrimp", "bacon", "longganisa", "tocino"];
+  const stepsText = (x.steps || []).join(" ").toLowerCase();
+  const rawUsed = ings.filter(i => RAW.includes(i.k));
+  if (drink && rawUsed.length) return null;
+  if (drink && ings.some(i => i.k === "egg")) return null; // no raw egg in drinks
+  const addSafety = rawUsed.length && !/(74|165|71|160|63|145)\s*°|no (longer )?pink|cooked through|opaque|juices run clear/.test(stepsText);
   let style = ["Classic", "Home-style", "Fusion"].includes(x.style) ? x.style : "Home-style";
   if (style === "Classic" && x.ingredients.some(i => i.replaces)) style = "Home-style";
   const pal = { Filipino: ["#E9D7A8","#A0522D","#5E8C3A","#F2B33D"], Korean: ["#C8341F","#E8A33D","#F7F3EA","#5E8C3A"], Italian: ["#C0392B","#EAD7A6","#5E8C3A","#F7F3EA"] }[x.cuisine] || ["#E9D7A8","#C98B4A","#5E8C3A","#F2C14E"];
   return { id: "ai-" + uid(), ai: true, title: String(x.title).slice(0, 80), cuisine: String(x.cuisine || "Any").slice(0, 30), style, desc: String(x.desc || "").slice(0, 200),
-    serves: Math.max(1, Math.min(12, Math.round(+x.serves || 2))), prep, cook, difficulty: x.difficulty === "Medium" ? "Medium" : "Easy", equip: ["stove"], q: 4,
-    plating: /soup|porridge|bowl|curry|rice/i.test(x.title) ? "bowl" : "plate", palette: pal, ingredients: ings, steps: x.steps.map(s => String(s).slice(0, 400)).slice(0, 10),
+    serves, prep, cook, difficulty: x.difficulty === "Medium" ? "Medium" : "Easy", equip: ["stove"], q: 4,
+    kind: drink ? "drink" : "meal",
+    plating: drink ? "glass" : /soup|porridge|bowl|curry|rice/i.test(x.title) ? "bowl" : "plate", palette: pal, ingredients: ings,
+    steps: x.steps.map(s => String(s).slice(0, 400)).slice(0, 10).concat(addSafety ? ["Before serving, check that all meat or seafood is cooked through: chicken 74°C (165°F), ground meat 71°C (160°F), fish and whole cuts 63°C (145°F)."] : []),
     season: String(x.season || "").slice(0, 300), store: String(x.store || "").slice(0, 300) };
 }
 
@@ -579,10 +629,18 @@ document.addEventListener("click", e => {
   if (act === "auth-close") { closeAuth(); return; }
   if (act === "sign-out") { closeAuth(); Cloud.signOut().then(() => toast("Signed out.")); return; }
   switch (act) {
-    case "cook-today": S.ui.mode = "urgent"; S.ui.focus = []; S.ui.currentId = null; setTab("cook"); break;
+    case "cook-today": S.ui.mode = "urgent"; S.ui.focus = []; S.ui.currentId = null; S.prefs.kind = "meals"; setTab("cook"); break;
     case "go-check": S.ui.sort = "fresh"; S.ui.loc = "all"; setTab("kitchen"); break;
-    case "open-recipe": S.ui.currentId = t.dataset.id; S.ui.mode = "urgent"; S.ui.focus = []; setTab("cook"); { const f = document.querySelector(`.pick[data-id="${t.dataset.id}"]`); if (f) f.scrollIntoView({ block: "nearest" }); } break;
+    case "open-recipe": S.ui.currentId = t.dataset.id; S.ui.mode = "urgent"; S.ui.focus = []; { const rr = getRecipe(t.dataset.id); if (rr) S.prefs.kind = rr.kind === "drink" ? "drinks" : "meals"; } setTab("cook"); { const f = document.querySelector(`.pick[data-id="${t.dataset.id}"]`); if (f) f.scrollIntoView({ block: "nearest" }); } break;
     case "clear-sample": openModal(`<h2 id="authTitle">Start with an empty kitchen?</h2><p>This removes the sample foods so you can add your own.</p><div class="form-actions"><button class="btn primary" data-act="clear-sample-yes">Yes, empty it</button><button class="linkbtn" data-act="auth-close">Keep the sample</button></div>`); break;
+    case "merge-yes": { const L = S.ui.pendingMerge; S.ui.pendingMerge = null; if (L) {
+      E.addToPantry(S.pantry, (L.pantry || []).map(p => ({ ...p, id: undefined })));
+      for (const z of L.saved || []) { const r = z.rid ? LIB.find(x => x.id === z.rid) : z.recipe; if (r && !isSaved(r)) S.saved.push(z); }
+      S.collections = [...new Set([...S.collections, ...(L.collections || [])])];
+      S.history = [...S.history, ...(L.history || [])].sort((a, b) => a.at - b.at);
+      persist(); rerender(); toast("Added this device's kitchen to your account."); }
+      closeAuth(); break; }
+    case "merge-no": S.ui.pendingMerge = null; closeAuth(); toast("Kept your account as it is."); break;
     case "clear-sample-yes": S.pantry = []; S.sample = false; persist(); closeAuth(); renderKitchen(); toast("Your kitchen is empty. Add what you have above."); break;
     case "loc": S.ui.loc = t.dataset.v; renderKitchen(); break;
     case "item-new": openModal(itemForm(null), "#fName"); break;
@@ -594,14 +652,16 @@ document.addEventListener("click", e => {
     case "zone-add": { const n = t.dataset.n, k = E.resolveKey(n); const ex = S.pantry.find(p => (k && p.key === k) || E.norm(p.name) === E.norm(n));
       if (ex) { openModal(itemForm(ex), "#fQty"); break; }
       const parsed = E.parseIngredientText(n)[0] || { name: n };
-      E.addToPantry(S.pantry, [{ ...parsed, name: n, loc: ZONE_LOC[t.dataset.z] || (parsed.loc === "pantry" && t.dataset.z !== "Cupboard & counter" ? "fridge" : parsed.loc), added: E.todayISO() }]);
+      E.addToPantry(S.pantry, [{ ...parsed, name: n, loc: ZONE_LOC[t.dataset.z] || (["Back of the fridge", "Fridge shelves", "Fridge door", "Crisper drawers"].includes(t.dataset.z) ? "fridge" : parsed.loc), added: E.todayISO() }]);
       S.sample = false; persist(); renderKitchen(); toast(`Added ${n}. Tap it to add the amount or dates.`); break; }
     case "pin": { const id = t.dataset.id; if (S.ui.pins.includes(id)) S.ui.pins = S.ui.pins.filter(x => x !== id); else if (S.ui.pins.length >= 3) toast("Pick up to 3 foods to build a meal around."); else S.ui.pins.push(id); renderKitchen(); break; }
     case "pins-clear": S.ui.pins = []; renderKitchen(); break;
+    case "thaw": { const it = S.pantry.find(x => x.id === t.dataset.id); if (it) { it.loc = "fridge"; it.thawedOn = E.todayISO(); persist(); renderKitchen(); toast(`${it.name} moved to the fridge to thaw. Thaw in the fridge, never on the counter, and use it soon after.`); } break; }
     case "cook-pins": S.ui.focus = S.ui.pins.slice(); S.ui.pins = []; S.ui.mode = "most"; S.ui.currentId = null; setTab("cook"); break;
     case "focus-clear": S.ui.focus = []; renderCook(); break;
     case "mode": S.ui.mode = t.dataset.mode; S.ui.currentId = null; renderCook(); break;
-    case "serv": { const cur = S.prefs.servings || 0; let n = cur + +t.dataset.d; if (n < 1) n = null; if (n > 12) n = 12; S.prefs.servings = n; S.ui.servingsOverride = {}; persist(); renderCook(); break; }
+    case "kind": S.prefs.kind = t.dataset.k; S.ui.currentId = null; persist(); renderCook(); break;
+    case "serv": { let n; if (!S.prefs.servings) n = +t.dataset.d > 0 ? 2 : 1; else { n = S.prefs.servings + +t.dataset.d; if (n < 1) n = null; if (n > 12) n = 12; } S.prefs.servings = n; S.ui.servingsOverride = {}; persist(); renderCook(); break; }
     case "rserv": { const r = getRecipe(S.ui.currentId); const cur = match(r).servings; const n = Math.max(1, Math.min(12, cur + +t.dataset.d)); const test = E.matchRecipe(r, S.pantry, S.staples, opts({ servings: n }));
       if (!test.ok) { toast(`You don't have enough for ${n} servings.`); break; } S.ui.servingsOverride[r.id] = n; renderDetail(); break; }
     case "prefs": openPrefs(); break;
