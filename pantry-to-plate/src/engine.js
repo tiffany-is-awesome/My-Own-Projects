@@ -127,13 +127,19 @@ const ING = {
   kimchi:         {n:"Kimchi", s:["kimchi"], c:"condiment", r:"low", u:"cup", cup:150, f:90, z:null, p:null, loc:"fridge"},
   condensed_milk: {n:"Condensed milk", s:["condensed milk","sweetened condensed milk","condensada"], c:"dairy", r:"med", u:"tbsp", cup:300, f:7, z:null, p:365, loc:"pantry", d:true, o:7, opensTo:"fridge"},
   ice:            {n:"Ice", s:["ice","ice cubes","crushed ice"], c:"condiment", r:"low", u:"cup", cup:140, z:99999, loc:"freezer"},
+  tamarind_mix:   {n:"Tamarind / sinigang mix", s:["sinigang mix","sinigang sa sampalok","tamarind","sampalok","tamarind soup base","tamarind mix"], c:"condiment", r:"low", u:"pack", w:40, p:365, loc:"pantry", st:true},
+  mung_beans:     {n:"Mung beans (monggo)", s:["mung beans","monggo","munggo","mongo beans","green mung beans"], c:"grain", r:"low", u:"cup", cup:200, p:365, loc:"pantry"},
+  bagoong:        {n:"Bagoong (shrimp paste)", s:["bagoong","shrimp paste","bagoong alamang","bagoong isda"], c:"condiment", r:"low", u:"tbsp", cup:280, f:180, p:365, o:180, loc:"fridge", st:true, m2:"seafood"},
+  okra:           {n:"Okra", s:["okra"], c:"produce", r:"low", u:"pcs", w:12, cup:100, f:3, z:240, p:null, loc:"fridge"},
+  radish:         {n:"Radish (labanos)", s:["radish","labanos","daikon","white radish"], c:"produce", r:"low", u:"pcs", w:300, cup:115, f:10, z:null, p:null, loc:"fridge"},
+  cumin:          {n:"Cumin", s:["cumin","ground cumin","cumin seeds"], c:"condiment", r:"low", u:"tsp", p:730, loc:"pantry", st:true},
   coconut_milk:   {n:"Coconut milk", s:["coconut milk","gata","coconut cream","kakang gata"], c:"grain", r:"med", u:"ml", cup:240, f:4, z:60, p:540, loc:"pantry", o:4, opensTo:"fridge"},
   peanut_butter:  {n:"Peanut butter", s:["peanut butter"], c:"condiment", r:"low", u:"tbsp", p:90, loc:"pantry"},
   water:          {n:"Water", s:["water"], c:"condiment", r:"low", u:"cup", p:99999, loc:"pantry", free:true}
 };
 const LOCS = { fridge: "Fridge", freezer: "Freezer", pantry: "Cupboard" };
 const DEFAULT_STAPLES = ["salt","pepper","oil","garlic","soy_sauce","sugar","vinegar","chili_flakes","butter"];
-const OPTIONAL_STAPLES = ["onion","fish_sauce","oyster_sauce","flour","cornstarch","stock_cube","sesame_oil","ketchup","mayonnaise","bay_leaf","curry_powder","paprika","cinnamon","baking_powder","honey","ginger","gochujang"];
+const OPTIONAL_STAPLES = ["tamarind_mix","bagoong","cumin","onion","fish_sauce","oyster_sauce","flour","cornstarch","stock_cube","sesame_oil","ketchup","mayonnaise","bay_leaf","curry_powder","paprika","cinnamon","baking_powder","honey","ginger","gochujang"];
 
 /* Synonym index, longest phrase first so "leftover rice" beats "rice". */
 const SYN = [];
@@ -174,7 +180,7 @@ function toGrams(k, qty, unit) {
     case "tbsp": return qty * ((v.cup || 240) / 16);
     case "tsp": return qty * ((v.cup || 240) / 48);
     case "pcs": case "clove": case "stalk": case "bunch": return v.w ? qty * v.w : null;
-    case "can": case "pack": return v.w ? qty * v.w : (k === "coconut_milk" ? qty * 400 : null);
+    case "can": case "pack": return v.pk ? qty * v.pk : v.w ? qty * v.w : (k === "coconut_milk" ? qty * 400 : null);
     default: return null;
   }
 }
@@ -212,10 +218,34 @@ function parseNumber(t) {
   return null;
 }
 /* "3 eggs, half a cabbage, 2 cups of rice, and one leftover chicken breast" → items */
+/* Names that contain "and" but are one food. ("salt and pepper" is deliberately split: they're two basics.) */
+const COMPOUNDS = ["macaroni and cheese", "mac and cheese", "pork and beans", "sweet and sour sauce", "bread and butter pickles", "peanut butter and jelly"];
+const VAGUE = /^(a little|a bit of|a bit|some|a few|a handful of|a handful|a bunch of|lots of|a lot of|plenty of|leftover bits of)\s+/i;
+function splitParts(text) {
+  let t = String(text || "").replace(/\b(one|two|three|four|five|six|\d+)\s+and\s+(?:a\s+)?half\b/gi, (m, n) => String((NUMWORDS[n.toLowerCase()] ?? +n) + 0.5));
+  const out = [];
+  for (let part of t.split(/\s*(?:,|;|\n|\+)\s*/)) {
+    part = part.replace(/^and\s+/i, "").trim(); if (!part) continue;
+    if (COMPOUNDS.some(c => norm(part).includes(c))) { out.push(part); continue; }
+    const pieces = part.split(/\s+and\s+/i);
+    let cur = pieces[0];
+    for (const pc of pieces.slice(1)) {
+      const startsQty = /^(\d|½|¼|¾|⅓|half|quarter|an?\b|one|two|three|four|five|six|seven|eight|nine|ten|some|a little|a few)/i.test(pc);
+      if (startsQty || resolveKey(pc)) {
+        out.push(cur);
+        // "leftover rice and chicken": the chicken is leftover too
+        cur = !startsQty && COOKED_WORDS.test(norm(cur)) && !COOKED_WORDS.test(norm(pc)) ? "leftover " + pc : pc;
+      } else cur += " and " + pc;
+    }
+    out.push(cur);
+  }
+  return out.map(s => s.trim()).filter(Boolean);
+}
 function parseIngredientText(text) {
-  const parts = String(text || "").split(/\s*(?:,|;|\n|\band\b|\+)\s*/i).map(s => s.trim()).filter(Boolean);
+  const parts = splitParts(text);
   return parts.map(part => {
-    let rest = part.replace(/^(about|around|roughly|some)\s+/i, "");
+    let vague = VAGUE.test(part);
+    let rest = part.replace(VAGUE, "").replace(/^(about|around|roughly)\s+/i, "");
     let qty = null, unit = null;
     // "half a cabbage", "a dozen eggs", "1 1/2 cups"
     let m = rest.match(/^(half|quarter)\s+(?:a|an|of\s+a|of)?\s*(.*)$/i);
@@ -231,7 +261,8 @@ function parseIngredientText(text) {
     const glued = part.match(/^(\d+(?:\.\d+)?)(g|kg|ml|l)\s+(?:of\s+)?(.*)$/i);
     if (glued) { qty = +glued[1]; unit = glued[2].toLowerCase(); rest = glued[3]; }
     rest = rest.replace(/^(of|the)\s+/i, "").trim();
-    const key = resolveKey(rest);
+    const isCompound = COMPOUNDS.some(c => norm(rest).includes(c));
+    const key = isCompound ? null : resolveKey(rest); // a prepared dish, not its ingredients
     const v = key ? ING[key] : null;
     if (!unit) unit = qty == null ? null : (v ? (v.w && !["tsp","tbsp"].includes(v.u) ? "pcs" : v.u) : "pcs");
     // "half a cabbage" → 0.5 pcs; "2 cups of rice" → 2 cup
@@ -240,7 +271,9 @@ function parseIngredientText(text) {
     const cooked = v ? !!v.isCooked : COOKED_WORDS.test(norm(part));
     let name = rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : part;
     if (v && norm(rest) === norm(v.n)) name = v.n;
-    return { name, key, qty, unit, loc: frozen ? "freezer" : (cooked ? "fridge" : (v ? v.loc : "fridge")), cooked };
+    if (vague) { qty = null; unit = null; }
+    // uncertain = worth a quick look before adding: unknown food, vague amount, or cooked food (needs its cooking date)
+    return { name, key, qty, unit, loc: frozen ? "freezer" : (cooked ? "fridge" : (v ? v.loc : "fridge")), cooked, vague, needsDate: cooked && !frozen, uncertain: !key || vague || cooked };
   }).filter(x => x.name && x.name.length < 80);
 }
 
@@ -262,7 +295,11 @@ function freshness(item, now) {
   const v = ING[item.key] || {};
   const highRisk = (v.r || "med") !== "low" || item.cooked;
   const today = todayISO(now);
-  // 1) Unknown history of a cooked or high-risk food: don't guess.
+  // 1) Unknown history of a cooked or high-risk food: don't guess. Cooked food with no cooking date counts as unknown.
+  const cookedNoDate = (item.cooked || v.isCooked) && !item.cookedOn && item.loc !== "freezer";
+  if (cookedNoDate && !item.unknownAge) {
+    return { group: "check", daysLeft: null, basis: "unknown", safe: false, note: "When was this cooked? Add the date. If you're not sure, it's safest to throw it out." };
+  }
   if (item.unknownAge && highRisk && item.loc !== "freezer") {
     return { group: "check", daysLeft: null, basis: "unknown", safe: false, note: "Unknown age. When in doubt, throw it out. Smell and looks can't tell you it's safe." };
   }
@@ -276,13 +313,13 @@ function freshness(item, now) {
     return { group: groupFor(d, v), daysLeft: d, dateISO: item.label.date, basis: "useby", safe: true, note: "Use by " + prettyDate(item.label.date) + " (printed date)" };
   }
   const est = estimate(item, now);
-  // 3) Best-before = quality date.
+  // 3) Best-before = QUALITY date, not a safety cut-off. Safety still comes from storage time (the estimate).
   if (item.label && item.label.type === "bestbefore" && parseISO(item.label.date)) {
     const d = daysUntil(item.label.date, now);
-    if (est && est.daysLeft != null && est.daysLeft < d) return est;
+    if (est && (est.group === "check" || (est.daysLeft != null && est.daysLeft < d))) return est;
     if (d < 0) {
-      if (highRisk) return { group: "check", daysLeft: d, dateISO: item.label.date, basis: "bestbefore", safe: false, note: "Past its best-before date, and it's a perishable food. Don't eat it." };
-      return { group: "first", daysLeft: d, dateISO: item.label.date, basis: "bestbefore", safe: true, note: "Past best-before (a quality date). Quality may have dropped. Check the packaging is intact." };
+      return { group: "first", daysLeft: d, dateISO: item.label.date, basis: "bestbefore", safe: true, pastBestBefore: true,
+        note: "Past its best-before date (a quality date, not a safety date). It isn't automatically unsafe, but only use it if it's been stored as the label says" + (highRisk ? " and opened or bought recently" : " and the package is intact") + ". Quality may have dropped." };
     }
     return { group: groupFor(d, v), daysLeft: d, dateISO: item.label.date, basis: "bestbefore", safe: true, note: "Best before " + prettyDate(item.label.date) + " (printed quality date)" };
   }
@@ -293,7 +330,8 @@ function estimate(item, now) {
   const highRisk = (v.r || "med") !== "low" || item.cooked;
   const sl = shelfLife(item);
   // the clock starts at the latest of: bought/cooked, opened, thawed (moved out of the freezer)
-  const starts = [item.added || todayISO(now)];
+  const cookedFood = item.cooked || v.isCooked;
+  const starts = [cookedFood && item.cookedOn ? item.cookedOn : (item.added || todayISO(now))];
   if (item.opened && item.openedOn) starts.push(item.openedOn);
   if (item.loc !== "freezer" && item.thawedOn) starts.push(item.thawedOn);
   const start = starts.sort().slice(-1)[0];
@@ -351,6 +389,7 @@ function newItem(src, now) {
     unknownAge: !!src.unknownAge,
     riceDish: !!src.riceDish,
     thawedOn: src.thawedOn || null,
+    cookedOn: src.cookedOn || null, // when cooked food was actually cooked (never assumed to be today)
     notes: String(src.notes || "").slice(0, 200)
   };
 }
@@ -360,18 +399,25 @@ function addToPantry(pantry, items, now) {
   const added = [], merged = [];
   for (const src of items) {
     const it = newItem(src, now);
-    const nm = x => norm(x).replace(/(es|s)\b/g, "");
-    const same = pantry.find(p => p.key === it.key && nm(p.name) === nm(it.name) && p.loc === it.loc && p.cooked === it.cooked && p.opened === it.opened && !p.unknownAge && !it.unknownAge && !p.riceDish && !it.riceDish);
+    const same = pantry.find(p => sameBatch(p, it));
     if (same) {
       if (same.qty != null && it.qty != null) {
         if (same.unit === it.unit) same.qty += it.qty;
         else { const g1 = toGrams(same.key, same.qty, same.unit), g2 = toGrams(it.key, it.qty, it.unit); if (g1 != null && g2 != null) { same.qty = round2(fromGrams(same.key, g1 + g2, same.unit)); } else { pantry.push(it); added.push(it); continue; } }
       } else if (same.qty == null && it.qty != null) { same.qty = it.qty; same.unit = it.unit; }
-      if (it.added < same.added) same.added = it.added;
       merged.push(same);
     } else { pantry.push(it); added.push(it); }
   }
   return { added, merged };
+}
+/* Two entries are the same batch only if nothing about their history differs; otherwise they stay separate
+   so no date (bought, cooked, opened, thawed, printed, your own) is ever lost by merging. */
+function sameBatch(a, b) {
+  const nm = x => norm(x).replace(/(es|s)\b/g, "");
+  const lab = x => x.label ? x.label.type + ":" + x.label.date : "";
+  return a.key === b.key && nm(a.name) === nm(b.name) && a.loc === b.loc && a.cooked === b.cooked && a.opened === b.opened &&
+    !a.unknownAge && !b.unknownAge && !a.riceDish && !b.riceDish && a.added === b.added && (a.openedOn || "") === (b.openedOn || "") &&
+    (a.cookedOn || "") === (b.cookedOn || "") && (a.thawedOn || "") === (b.thawedOn || "") && lab(a) === lab(b) && (a.est || "") === (b.est || "");
 }
 function round2(x) { return Math.round(x * 100) / 100; }
 function roundU(x, unit) { return unit === "kg" || unit === "l" ? Math.round(x * 1000) / 1000 : round2(x); } // keep gram-level precision
@@ -384,6 +430,8 @@ function validateItem(it, now) {
   if (it.opened && it.openedOn && (!parseISO(it.openedOn) || it.openedOn > today)) errs.push("The opened date can't be in the future.");
   if (it.opened && it.openedOn && it.added && it.openedOn < it.added) errs.push("It can't be opened before it was bought or made.");
   if (it.label && it.label.date && !parseISO(it.label.date)) errs.push("Check the printed date.");
+  if (it.cooked && !it.unknownAge && it.loc !== "freezer" && !it.cookedOn) errs.push("When was it cooked? Add the date, or tick “I'm not sure”.");
+  if (it.cookedOn && (!parseISO(it.cookedOn) || it.cookedOn > today)) errs.push("The cooked date can't be in the future.");
   return errs;
 }
 
@@ -391,18 +439,23 @@ function validateItem(it, now) {
    A recipe ingredient is { k, q, u, opt?, any?, subs? }.
    any: [keys] lets several foods fill one slot (e.g. "any vegetables").
    subs: [{ k, q, u, f: flavor change, t: texture change, w: how to use it }]. */
-const ENOUGH = 0.75; // need at least 75% of the amount for essentials
+/* Essentials need the FULL amount. A recipe can allow less for a specific ingredient (tol, with a
+   reason in tolNote) where that genuinely works, e.g. vegetables in a soup. Otherwise the recipe is
+   offered as a smaller batch, or not at all. Foods with no recorded amount are never assumed to be
+   enough: they're marked "unconfirmed" and the person is asked to check the amount. */
 function usableItems(pantry, now) { return pantry.map(p => ({ p, fr: freshness(p, now) })).filter(x => x.fr.safe && x.fr.group !== "check"); }
 function stapleOn(staples, k) { return staples.includes(k) || (ING[k] && ING[k].free); }
-function findSupply(k, usable, staples, needG) {
+function findSupply(k, usable, staples, needG, tol = 1) {
   const items = usable.filter(x => x.p.key === k).sort((a, b) => (GROUP_RANK[a.fr.group] - GROUP_RANK[b.fr.group]) || ((a.fr.daysLeft ?? 999) - (b.fr.daysLeft ?? 999)));
   if (items.length) {
     let haveG = 0, unknown = false;
     for (const x of items) { const g = toGrams(k, x.p.qty, x.p.unit); if (g == null) unknown = true; else haveG += g; }
-    let enough = unknown || needG == null || haveG >= needG * ENOUGH;
-    const topUp = !enough && stapleOn(staples, k);
-    if (topUp) enough = true; // e.g. 1 clove left, but garlic is ticked as always-in-the-kitchen
-    return { src: "pantry", items, haveG, unknown, enough, topUp, short: !unknown && !topUp && needG != null && haveG < needG };
+    const full = needG == null || haveG >= needG - 1e-6;
+    const tolOk = needG != null && haveG >= needG * tol - 1e-6;
+    if (full || tolOk) return { src: "pantry", items, haveG, unknown: false, enough: true, short: !full, tolUsed: !full };
+    if (stapleOn(staples, k)) return { src: "pantry", items, haveG, enough: true, topUp: true }; // e.g. 1 clove left, garlic ticked as always-in-the-kitchen
+    if (unknown) return { src: "pantry", items, haveG, unknown: true, enough: true, unconfirmed: true }; // ask, don't assume
+    return { src: "pantry", items, haveG, enough: false, ratio: needG ? haveG / needG : 0 };
   }
   if (stapleOn(staples, k)) return { src: "staple", items: [], enough: true };
   return null;
@@ -422,29 +475,34 @@ function matchRecipe(r, pantry, staples, opts = {}, now) {
       let got = 0, picks = [];
       const cands = usable.filter(x => keys.includes(x.p.key)).sort((a, b) => GROUP_RANK[a.fr.group] - GROUP_RANK[b.fr.group]);
       const minK = ing.minKinds || 1, maxK = Math.max(minK, ing.maxKinds || 4);
+      let unknownPicks = 0;
       for (const x of cands) {
         const kinds = new Set(picks.map(y => y.p.key)).size;
         if (needG != null && got >= needG && kinds >= minK && (minK < 2 || kinds >= maxK)) break;
         if (kinds >= maxK && !picks.some(y => y.p.key === x.p.key)) continue;
-        const g = toGrams(x.p.key, x.p.qty, x.p.unit); picks.push(x); got += g ?? (needG || 0);
+        const g = toGrams(x.p.key, x.p.qty, x.p.unit); picks.push(x);
+        if (g == null) unknownPicks++; else got += g; // unknown amounts count as nothing, not as everything
       }
-      const kinds = new Set(picks.map(x => x.p.key)).size;
-      if (picks.length && (needG == null || got >= needG * 0.6) && kinds >= (ing.minKinds || 1)) {
-        line = { ing, q, src: "pantry", items: picks, name: ing.label || "Vegetables", haveG: got, needG, short: needG != null && got < needG };
-      } else if (picks.length && needG && kinds >= (ing.minKinds || 1)) ratio = got / needG;
+      const kinds = new Set(picks.map(x => x.p.key)).size, tol = ing.tol || 1;
+      const kindsOk = kinds >= (ing.minKinds || 1);
+      if (picks.length && kindsOk && (needG == null || got >= needG * tol - 1e-6)) {
+        line = { ing, q, src: "pantry", items: picks, name: ing.label || "Vegetables", haveG: got, needG, short: needG != null && got < needG, tolUsed: needG != null && got < needG };
+      } else if (picks.length && kindsOk && unknownPicks) {
+        line = { ing, q, src: "pantry", items: picks, name: ing.label || "Vegetables", haveG: got, needG, unconfirmed: true };
+      } else if (picks.length && needG && kindsOk) ratio = got / needG;
     } else {
       const needG = ing.k ? toGrams(ing.k, q, ing.u) : null;
       let sup;
-      if (ing.k) sup = findSupply(ing.k, usable, staples, needG);
+      if (ing.k) sup = findSupply(ing.k, usable, staples, needG, ing.tol || 1);
       else if (ing.n) { const n = norm(ing.n); const items = usable.filter(x => { const pn = norm(x.p.name); return pn === n || pn.includes(n) || n.includes(pn); }); sup = items.length ? { src: "pantry", items, enough: true, unknown: true } : null; }
-      if (sup && (sup.enough || ing.opt)) line = { ing, q, src: sup.src, items: sup.items, name: ing.k ? ingName(ing.k) : ing.n, haveG: sup.haveG, needG, short: sup.short, unknown: sup.unknown };
+      if (sup && (sup.enough || ing.opt)) line = { ing, q, src: sup.src, items: sup.items, name: ing.k ? ingName(ing.k) : ing.n, haveG: sup.haveG, needG, short: sup.short || (ing.opt && !sup.enough), tolUsed: sup.tolUsed, topUp: sup.topUp, unconfirmed: sup.unconfirmed };
       else if (sup && needG) ratio = sup.haveG / needG;
     }
     if (!line && ing.subs) {
       for (const s of ing.subs) {
         const sq = scaleQ(s.q, f), needG = toGrams(s.k, sq, s.u);
-        const sup = findSupply(s.k, usable, staples, needG);
-        if (sup && sup.enough) { line = { ing, q: sq, unit: s.u, src: sup.src, items: sup.items, name: ingName(s.k), sub: s, subFor: ing.any ? (ing.label || "the vegetables") : ingName(ing.k), needG, haveG: sup.haveG, short: sup.short, unknown: sup.unknown }; res.swaps.push(line); break; }
+        const sup = findSupply(s.k, usable, staples, needG, 1);
+        if (sup && sup.enough) { line = { ing, q: sq, unit: s.u, src: sup.src, items: sup.items, name: ingName(s.k), sub: s, subFor: ing.any ? (ing.label || "the vegetables") : ingName(ing.k), needG, haveG: sup.haveG, short: sup.short, topUp: sup.topUp, unconfirmed: sup.unconfirmed }; res.swaps.push(line); break; }
       }
     }
     if (!line) {
@@ -474,6 +532,7 @@ function matchRecipe(r, pantry, staples, opts = {}, now) {
   if (opts.cuisine && opts.cuisine !== "any" && r.cuisine !== opts.cuisine) { res.ok = false; res.blocked = "cuisine"; }
   if ((opts.kind === "meals" && r.kind === "drink") || (opts.kind === "drinks" && r.kind !== "drink")) { res.ok = false; res.blocked = "kind"; }
   res.usedCount = res.usedItems.size;
+  res.unconfirmed = res.lines.filter(l => l.unconfirmed);
   res.urgentUsed = [...new Map(res.urgentUsed.map(p => [p.id, p])).values()];
   return res;
 }
@@ -499,7 +558,7 @@ function scoreMatch(m, mode, now) {
   urgency = Math.min(urgency, 35);
   const use = Math.min(m.usedCount * 3, 18);
   const time = (r.prep + r.cook) <= 20 ? 4 : (r.prep + r.cook) <= 35 ? 2 : 0;
-  const short = m.lines.filter(l => l.short && !l.ing.opt).length * 3;
+  const short = m.lines.filter(l => l.short && !l.ing.opt).length * 3 + (m.unconfirmed || []).length * 4;
   const w = { most: [1, 0.7, 1.8], urgent: [1, 1.3, 0.6], one: [1, 1, 0.8], everything: [1, 1, 1.4] }[mode] || [1, 1, 1];
   const total = quality * w[0] + urgency * w[1] + use * w[2] + time - short;
   return { total, quality, urgency, use, time };
@@ -580,7 +639,7 @@ function planDeductions(m) {
       const p = x.p, k = p.key;
       const haveG = toGrams(k, p.qty, p.unit);
       let take = null, all = false;
-      if (p.qty == null || haveG == null) { all = l.items.length === 1 ? false : false; take = null; }
+      if (p.qty == null || haveG == null) { take = null; all = false; } // unknown amount: the person says how much they used
       else if (needG == null) { take = p.qty; all = true; }
       else { const g = Math.min(haveG, needG); take = roundU(fromGrams(k, g, p.unit), p.unit); needG -= g; all = take >= p.qty - 1e-6; }
       rows.push({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, take, all, unknown: p.qty == null || haveG == null });
@@ -608,7 +667,7 @@ function applyDeductions(pantry, rows) {
 }
 function leftoverItem(recipe, servings, now) {
   const rice = recipe.ingredients.some(i => i.k === "rice_cooked" || i.k === "rice_raw");
-  return newItem({ name: "Leftover " + recipe.title, key: "leftover", riceDish: rice, qty: servings, unit: "servings", loc: "fridge", cooked: true, added: todayISO(now),
+  return newItem({ name: "Leftover " + recipe.title, key: "leftover", riceDish: rice, qty: servings, unit: "servings", loc: "fridge", cooked: true, added: todayISO(now), cookedOn: todayISO(now),
     notes: rice ? "Contains rice: eat within 24 hours, reheat only once until steaming hot." : "Cooked leftovers: eat within 3 days, reheat until steaming hot (74°C / 165°F)." }, now);
 }
 /* General safety notes that always apply to certain ingredients. */
@@ -631,5 +690,5 @@ function safetyNotes(m) {
 
 const Engine = { ING, LOCS, GROUPS, GROUP_RANK, UNITS, UNIT_LABEL, DEFAULT_STAPLES, OPTIONAL_STAPLES, todayISO, addDays, daysUntil, prettyDate, parseISO,
   resolveKey, ingName, norm, toGrams, fromGrams, fmtQty, fmtAmount, parseIngredientText, freshness, newItem, addToPantry, validateItem,
-  usableItems, matchRecipe, fitMatch, rankRecipes, planEverything, planDeductions, applyDeductions, leftoverItem, safetyNotes, scoreMatch };
+  usableItems, sameBatch, splitParts, matchRecipe, fitMatch, rankRecipes, planEverything, planDeductions, applyDeductions, leftoverItem, safetyNotes, scoreMatch };
 if (typeof module !== "undefined") module.exports = Engine;

@@ -446,6 +446,17 @@ footer{font-size:12.5px;line-height:1.5}
 .pantry-layout{grid-template-columns:minmax(0,1fr) 330px}
 @media (max-width:860px){.pantry-layout{grid-template-columns:1fr}.side{display:flex}.pantry-main{order:0}}
 @media (max-width:860px){.studio-body{grid-template-columns:1fr}.ideas{position:static;max-height:none;overflow:visible;padding-right:0}}
+/* review-before-adding, amount prompts, notes */
+.rv{border:1px solid var(--line);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.rv-head{display:flex;gap:8px;align-items:center}.rv-head input{flex:1;font-weight:500}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.row3 label{font-size:12.5px}
+#reviewForm{gap:10px}
+.setqty{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.setqty input{width:90px;padding:5px 8px}.setqty select{padding:5px}
+.warn-line{display:block;color:#B45309;font-size:13px;margin-bottom:6px;line-height:1.4}
+.photo-credit{font-size:11.5px;color:var(--muted);margin-top:4px}
+.detail .frame img,.pick img,.rcard img,.pick-hero img{width:100%;height:100%;object-fit:cover;display:block}
 
 </style>
 </head>
@@ -706,13 +717,19 @@ const ING = {
   kimchi:         {n:"Kimchi", s:["kimchi"], c:"condiment", r:"low", u:"cup", cup:150, f:90, z:null, p:null, loc:"fridge"},
   condensed_milk: {n:"Condensed milk", s:["condensed milk","sweetened condensed milk","condensada"], c:"dairy", r:"med", u:"tbsp", cup:300, f:7, z:null, p:365, loc:"pantry", d:true, o:7, opensTo:"fridge"},
   ice:            {n:"Ice", s:["ice","ice cubes","crushed ice"], c:"condiment", r:"low", u:"cup", cup:140, z:99999, loc:"freezer"},
+  tamarind_mix:   {n:"Tamarind / sinigang mix", s:["sinigang mix","sinigang sa sampalok","tamarind","sampalok","tamarind soup base","tamarind mix"], c:"condiment", r:"low", u:"pack", w:40, p:365, loc:"pantry", st:true},
+  mung_beans:     {n:"Mung beans (monggo)", s:["mung beans","monggo","munggo","mongo beans","green mung beans"], c:"grain", r:"low", u:"cup", cup:200, p:365, loc:"pantry"},
+  bagoong:        {n:"Bagoong (shrimp paste)", s:["bagoong","shrimp paste","bagoong alamang","bagoong isda"], c:"condiment", r:"low", u:"tbsp", cup:280, f:180, p:365, o:180, loc:"fridge", st:true, m2:"seafood"},
+  okra:           {n:"Okra", s:["okra"], c:"produce", r:"low", u:"pcs", w:12, cup:100, f:3, z:240, p:null, loc:"fridge"},
+  radish:         {n:"Radish (labanos)", s:["radish","labanos","daikon","white radish"], c:"produce", r:"low", u:"pcs", w:300, cup:115, f:10, z:null, p:null, loc:"fridge"},
+  cumin:          {n:"Cumin", s:["cumin","ground cumin","cumin seeds"], c:"condiment", r:"low", u:"tsp", p:730, loc:"pantry", st:true},
   coconut_milk:   {n:"Coconut milk", s:["coconut milk","gata","coconut cream","kakang gata"], c:"grain", r:"med", u:"ml", cup:240, f:4, z:60, p:540, loc:"pantry", o:4, opensTo:"fridge"},
   peanut_butter:  {n:"Peanut butter", s:["peanut butter"], c:"condiment", r:"low", u:"tbsp", p:90, loc:"pantry"},
   water:          {n:"Water", s:["water"], c:"condiment", r:"low", u:"cup", p:99999, loc:"pantry", free:true}
 };
 const LOCS = { fridge: "Fridge", freezer: "Freezer", pantry: "Cupboard" };
 const DEFAULT_STAPLES = ["salt","pepper","oil","garlic","soy_sauce","sugar","vinegar","chili_flakes","butter"];
-const OPTIONAL_STAPLES = ["onion","fish_sauce","oyster_sauce","flour","cornstarch","stock_cube","sesame_oil","ketchup","mayonnaise","bay_leaf","curry_powder","paprika","cinnamon","baking_powder","honey","ginger","gochujang"];
+const OPTIONAL_STAPLES = ["tamarind_mix","bagoong","cumin","onion","fish_sauce","oyster_sauce","flour","cornstarch","stock_cube","sesame_oil","ketchup","mayonnaise","bay_leaf","curry_powder","paprika","cinnamon","baking_powder","honey","ginger","gochujang"];
 
 /* Synonym index, longest phrase first so "leftover rice" beats "rice". */
 const SYN = [];
@@ -753,7 +770,7 @@ function toGrams(k, qty, unit) {
     case "tbsp": return qty * ((v.cup || 240) / 16);
     case "tsp": return qty * ((v.cup || 240) / 48);
     case "pcs": case "clove": case "stalk": case "bunch": return v.w ? qty * v.w : null;
-    case "can": case "pack": return v.w ? qty * v.w : (k === "coconut_milk" ? qty * 400 : null);
+    case "can": case "pack": return v.pk ? qty * v.pk : v.w ? qty * v.w : (k === "coconut_milk" ? qty * 400 : null);
     default: return null;
   }
 }
@@ -791,10 +808,34 @@ function parseNumber(t) {
   return null;
 }
 /* "3 eggs, half a cabbage, 2 cups of rice, and one leftover chicken breast" → items */
+/* Names that contain "and" but are one food. ("salt and pepper" is deliberately split: they're two basics.) */
+const COMPOUNDS = ["macaroni and cheese", "mac and cheese", "pork and beans", "sweet and sour sauce", "bread and butter pickles", "peanut butter and jelly"];
+const VAGUE = /^(a little|a bit of|a bit|some|a few|a handful of|a handful|a bunch of|lots of|a lot of|plenty of|leftover bits of)\s+/i;
+function splitParts(text) {
+  let t = String(text || "").replace(/\b(one|two|three|four|five|six|\d+)\s+and\s+(?:a\s+)?half\b/gi, (m, n) => String((NUMWORDS[n.toLowerCase()] ?? +n) + 0.5));
+  const out = [];
+  for (let part of t.split(/\s*(?:,|;|\n|\+)\s*/)) {
+    part = part.replace(/^and\s+/i, "").trim(); if (!part) continue;
+    if (COMPOUNDS.some(c => norm(part).includes(c))) { out.push(part); continue; }
+    const pieces = part.split(/\s+and\s+/i);
+    let cur = pieces[0];
+    for (const pc of pieces.slice(1)) {
+      const startsQty = /^(\d|½|¼|¾|⅓|half|quarter|an?\b|one|two|three|four|five|six|seven|eight|nine|ten|some|a little|a few)/i.test(pc);
+      if (startsQty || resolveKey(pc)) {
+        out.push(cur);
+        // "leftover rice and chicken": the chicken is leftover too
+        cur = !startsQty && COOKED_WORDS.test(norm(cur)) && !COOKED_WORDS.test(norm(pc)) ? "leftover " + pc : pc;
+      } else cur += " and " + pc;
+    }
+    out.push(cur);
+  }
+  return out.map(s => s.trim()).filter(Boolean);
+}
 function parseIngredientText(text) {
-  const parts = String(text || "").split(/\s*(?:,|;|\n|\band\b|\+)\s*/i).map(s => s.trim()).filter(Boolean);
+  const parts = splitParts(text);
   return parts.map(part => {
-    let rest = part.replace(/^(about|around|roughly|some)\s+/i, "");
+    let vague = VAGUE.test(part);
+    let rest = part.replace(VAGUE, "").replace(/^(about|around|roughly)\s+/i, "");
     let qty = null, unit = null;
     // "half a cabbage", "a dozen eggs", "1 1/2 cups"
     let m = rest.match(/^(half|quarter)\s+(?:a|an|of\s+a|of)?\s*(.*)$/i);
@@ -810,7 +851,8 @@ function parseIngredientText(text) {
     const glued = part.match(/^(\d+(?:\.\d+)?)(g|kg|ml|l)\s+(?:of\s+)?(.*)$/i);
     if (glued) { qty = +glued[1]; unit = glued[2].toLowerCase(); rest = glued[3]; }
     rest = rest.replace(/^(of|the)\s+/i, "").trim();
-    const key = resolveKey(rest);
+    const isCompound = COMPOUNDS.some(c => norm(rest).includes(c));
+    const key = isCompound ? null : resolveKey(rest); // a prepared dish, not its ingredients
     const v = key ? ING[key] : null;
     if (!unit) unit = qty == null ? null : (v ? (v.w && !["tsp","tbsp"].includes(v.u) ? "pcs" : v.u) : "pcs");
     // "half a cabbage" → 0.5 pcs; "2 cups of rice" → 2 cup
@@ -819,7 +861,9 @@ function parseIngredientText(text) {
     const cooked = v ? !!v.isCooked : COOKED_WORDS.test(norm(part));
     let name = rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : part;
     if (v && norm(rest) === norm(v.n)) name = v.n;
-    return { name, key, qty, unit, loc: frozen ? "freezer" : (cooked ? "fridge" : (v ? v.loc : "fridge")), cooked };
+    if (vague) { qty = null; unit = null; }
+    // uncertain = worth a quick look before adding: unknown food, vague amount, or cooked food (needs its cooking date)
+    return { name, key, qty, unit, loc: frozen ? "freezer" : (cooked ? "fridge" : (v ? v.loc : "fridge")), cooked, vague, needsDate: cooked && !frozen, uncertain: !key || vague || cooked };
   }).filter(x => x.name && x.name.length < 80);
 }
 
@@ -841,7 +885,11 @@ function freshness(item, now) {
   const v = ING[item.key] || {};
   const highRisk = (v.r || "med") !== "low" || item.cooked;
   const today = todayISO(now);
-  // 1) Unknown history of a cooked or high-risk food: don't guess.
+  // 1) Unknown history of a cooked or high-risk food: don't guess. Cooked food with no cooking date counts as unknown.
+  const cookedNoDate = (item.cooked || v.isCooked) && !item.cookedOn && item.loc !== "freezer";
+  if (cookedNoDate && !item.unknownAge) {
+    return { group: "check", daysLeft: null, basis: "unknown", safe: false, note: "When was this cooked? Add the date. If you're not sure, it's safest to throw it out." };
+  }
   if (item.unknownAge && highRisk && item.loc !== "freezer") {
     return { group: "check", daysLeft: null, basis: "unknown", safe: false, note: "Unknown age. When in doubt, throw it out. Smell and looks can't tell you it's safe." };
   }
@@ -855,13 +903,13 @@ function freshness(item, now) {
     return { group: groupFor(d, v), daysLeft: d, dateISO: item.label.date, basis: "useby", safe: true, note: "Use by " + prettyDate(item.label.date) + " (printed date)" };
   }
   const est = estimate(item, now);
-  // 3) Best-before = quality date.
+  // 3) Best-before = QUALITY date, not a safety cut-off. Safety still comes from storage time (the estimate).
   if (item.label && item.label.type === "bestbefore" && parseISO(item.label.date)) {
     const d = daysUntil(item.label.date, now);
-    if (est && est.daysLeft != null && est.daysLeft < d) return est;
+    if (est && (est.group === "check" || (est.daysLeft != null && est.daysLeft < d))) return est;
     if (d < 0) {
-      if (highRisk) return { group: "check", daysLeft: d, dateISO: item.label.date, basis: "bestbefore", safe: false, note: "Past its best-before date, and it's a perishable food. Don't eat it." };
-      return { group: "first", daysLeft: d, dateISO: item.label.date, basis: "bestbefore", safe: true, note: "Past best-before (a quality date). Quality may have dropped. Check the packaging is intact." };
+      return { group: "first", daysLeft: d, dateISO: item.label.date, basis: "bestbefore", safe: true, pastBestBefore: true,
+        note: "Past its best-before date (a quality date, not a safety date). It isn't automatically unsafe, but only use it if it's been stored as the label says" + (highRisk ? " and opened or bought recently" : " and the package is intact") + ". Quality may have dropped." };
     }
     return { group: groupFor(d, v), daysLeft: d, dateISO: item.label.date, basis: "bestbefore", safe: true, note: "Best before " + prettyDate(item.label.date) + " (printed quality date)" };
   }
@@ -872,7 +920,8 @@ function estimate(item, now) {
   const highRisk = (v.r || "med") !== "low" || item.cooked;
   const sl = shelfLife(item);
   // the clock starts at the latest of: bought/cooked, opened, thawed (moved out of the freezer)
-  const starts = [item.added || todayISO(now)];
+  const cookedFood = item.cooked || v.isCooked;
+  const starts = [cookedFood && item.cookedOn ? item.cookedOn : (item.added || todayISO(now))];
   if (item.opened && item.openedOn) starts.push(item.openedOn);
   if (item.loc !== "freezer" && item.thawedOn) starts.push(item.thawedOn);
   const start = starts.sort().slice(-1)[0];
@@ -930,6 +979,7 @@ function newItem(src, now) {
     unknownAge: !!src.unknownAge,
     riceDish: !!src.riceDish,
     thawedOn: src.thawedOn || null,
+    cookedOn: src.cookedOn || null, // when cooked food was actually cooked (never assumed to be today)
     notes: String(src.notes || "").slice(0, 200)
   };
 }
@@ -939,18 +989,25 @@ function addToPantry(pantry, items, now) {
   const added = [], merged = [];
   for (const src of items) {
     const it = newItem(src, now);
-    const nm = x => norm(x).replace(/(es|s)\b/g, "");
-    const same = pantry.find(p => p.key === it.key && nm(p.name) === nm(it.name) && p.loc === it.loc && p.cooked === it.cooked && p.opened === it.opened && !p.unknownAge && !it.unknownAge && !p.riceDish && !it.riceDish);
+    const same = pantry.find(p => sameBatch(p, it));
     if (same) {
       if (same.qty != null && it.qty != null) {
         if (same.unit === it.unit) same.qty += it.qty;
         else { const g1 = toGrams(same.key, same.qty, same.unit), g2 = toGrams(it.key, it.qty, it.unit); if (g1 != null && g2 != null) { same.qty = round2(fromGrams(same.key, g1 + g2, same.unit)); } else { pantry.push(it); added.push(it); continue; } }
       } else if (same.qty == null && it.qty != null) { same.qty = it.qty; same.unit = it.unit; }
-      if (it.added < same.added) same.added = it.added;
       merged.push(same);
     } else { pantry.push(it); added.push(it); }
   }
   return { added, merged };
+}
+/* Two entries are the same batch only if nothing about their history differs; otherwise they stay separate
+   so no date (bought, cooked, opened, thawed, printed, your own) is ever lost by merging. */
+function sameBatch(a, b) {
+  const nm = x => norm(x).replace(/(es|s)\b/g, "");
+  const lab = x => x.label ? x.label.type + ":" + x.label.date : "";
+  return a.key === b.key && nm(a.name) === nm(b.name) && a.loc === b.loc && a.cooked === b.cooked && a.opened === b.opened &&
+    !a.unknownAge && !b.unknownAge && !a.riceDish && !b.riceDish && a.added === b.added && (a.openedOn || "") === (b.openedOn || "") &&
+    (a.cookedOn || "") === (b.cookedOn || "") && (a.thawedOn || "") === (b.thawedOn || "") && lab(a) === lab(b) && (a.est || "") === (b.est || "");
 }
 function round2(x) { return Math.round(x * 100) / 100; }
 function roundU(x, unit) { return unit === "kg" || unit === "l" ? Math.round(x * 1000) / 1000 : round2(x); } // keep gram-level precision
@@ -963,6 +1020,8 @@ function validateItem(it, now) {
   if (it.opened && it.openedOn && (!parseISO(it.openedOn) || it.openedOn > today)) errs.push("The opened date can't be in the future.");
   if (it.opened && it.openedOn && it.added && it.openedOn < it.added) errs.push("It can't be opened before it was bought or made.");
   if (it.label && it.label.date && !parseISO(it.label.date)) errs.push("Check the printed date.");
+  if (it.cooked && !it.unknownAge && it.loc !== "freezer" && !it.cookedOn) errs.push("When was it cooked? Add the date, or tick “I'm not sure”.");
+  if (it.cookedOn && (!parseISO(it.cookedOn) || it.cookedOn > today)) errs.push("The cooked date can't be in the future.");
   return errs;
 }
 
@@ -970,18 +1029,23 @@ function validateItem(it, now) {
    A recipe ingredient is { k, q, u, opt?, any?, subs? }.
    any: [keys] lets several foods fill one slot (e.g. "any vegetables").
    subs: [{ k, q, u, f: flavor change, t: texture change, w: how to use it }]. */
-const ENOUGH = 0.75; // need at least 75% of the amount for essentials
+/* Essentials need the FULL amount. A recipe can allow less for a specific ingredient (tol, with a
+   reason in tolNote) where that genuinely works, e.g. vegetables in a soup. Otherwise the recipe is
+   offered as a smaller batch, or not at all. Foods with no recorded amount are never assumed to be
+   enough: they're marked "unconfirmed" and the person is asked to check the amount. */
 function usableItems(pantry, now) { return pantry.map(p => ({ p, fr: freshness(p, now) })).filter(x => x.fr.safe && x.fr.group !== "check"); }
 function stapleOn(staples, k) { return staples.includes(k) || (ING[k] && ING[k].free); }
-function findSupply(k, usable, staples, needG) {
+function findSupply(k, usable, staples, needG, tol = 1) {
   const items = usable.filter(x => x.p.key === k).sort((a, b) => (GROUP_RANK[a.fr.group] - GROUP_RANK[b.fr.group]) || ((a.fr.daysLeft ?? 999) - (b.fr.daysLeft ?? 999)));
   if (items.length) {
     let haveG = 0, unknown = false;
     for (const x of items) { const g = toGrams(k, x.p.qty, x.p.unit); if (g == null) unknown = true; else haveG += g; }
-    let enough = unknown || needG == null || haveG >= needG * ENOUGH;
-    const topUp = !enough && stapleOn(staples, k);
-    if (topUp) enough = true; // e.g. 1 clove left, but garlic is ticked as always-in-the-kitchen
-    return { src: "pantry", items, haveG, unknown, enough, topUp, short: !unknown && !topUp && needG != null && haveG < needG };
+    const full = needG == null || haveG >= needG - 1e-6;
+    const tolOk = needG != null && haveG >= needG * tol - 1e-6;
+    if (full || tolOk) return { src: "pantry", items, haveG, unknown: false, enough: true, short: !full, tolUsed: !full };
+    if (stapleOn(staples, k)) return { src: "pantry", items, haveG, enough: true, topUp: true }; // e.g. 1 clove left, garlic ticked as always-in-the-kitchen
+    if (unknown) return { src: "pantry", items, haveG, unknown: true, enough: true, unconfirmed: true }; // ask, don't assume
+    return { src: "pantry", items, haveG, enough: false, ratio: needG ? haveG / needG : 0 };
   }
   if (stapleOn(staples, k)) return { src: "staple", items: [], enough: true };
   return null;
@@ -1001,29 +1065,34 @@ function matchRecipe(r, pantry, staples, opts = {}, now) {
       let got = 0, picks = [];
       const cands = usable.filter(x => keys.includes(x.p.key)).sort((a, b) => GROUP_RANK[a.fr.group] - GROUP_RANK[b.fr.group]);
       const minK = ing.minKinds || 1, maxK = Math.max(minK, ing.maxKinds || 4);
+      let unknownPicks = 0;
       for (const x of cands) {
         const kinds = new Set(picks.map(y => y.p.key)).size;
         if (needG != null && got >= needG && kinds >= minK && (minK < 2 || kinds >= maxK)) break;
         if (kinds >= maxK && !picks.some(y => y.p.key === x.p.key)) continue;
-        const g = toGrams(x.p.key, x.p.qty, x.p.unit); picks.push(x); got += g ?? (needG || 0);
+        const g = toGrams(x.p.key, x.p.qty, x.p.unit); picks.push(x);
+        if (g == null) unknownPicks++; else got += g; // unknown amounts count as nothing, not as everything
       }
-      const kinds = new Set(picks.map(x => x.p.key)).size;
-      if (picks.length && (needG == null || got >= needG * 0.6) && kinds >= (ing.minKinds || 1)) {
-        line = { ing, q, src: "pantry", items: picks, name: ing.label || "Vegetables", haveG: got, needG, short: needG != null && got < needG };
-      } else if (picks.length && needG && kinds >= (ing.minKinds || 1)) ratio = got / needG;
+      const kinds = new Set(picks.map(x => x.p.key)).size, tol = ing.tol || 1;
+      const kindsOk = kinds >= (ing.minKinds || 1);
+      if (picks.length && kindsOk && (needG == null || got >= needG * tol - 1e-6)) {
+        line = { ing, q, src: "pantry", items: picks, name: ing.label || "Vegetables", haveG: got, needG, short: needG != null && got < needG, tolUsed: needG != null && got < needG };
+      } else if (picks.length && kindsOk && unknownPicks) {
+        line = { ing, q, src: "pantry", items: picks, name: ing.label || "Vegetables", haveG: got, needG, unconfirmed: true };
+      } else if (picks.length && needG && kindsOk) ratio = got / needG;
     } else {
       const needG = ing.k ? toGrams(ing.k, q, ing.u) : null;
       let sup;
-      if (ing.k) sup = findSupply(ing.k, usable, staples, needG);
+      if (ing.k) sup = findSupply(ing.k, usable, staples, needG, ing.tol || 1);
       else if (ing.n) { const n = norm(ing.n); const items = usable.filter(x => { const pn = norm(x.p.name); return pn === n || pn.includes(n) || n.includes(pn); }); sup = items.length ? { src: "pantry", items, enough: true, unknown: true } : null; }
-      if (sup && (sup.enough || ing.opt)) line = { ing, q, src: sup.src, items: sup.items, name: ing.k ? ingName(ing.k) : ing.n, haveG: sup.haveG, needG, short: sup.short, unknown: sup.unknown };
+      if (sup && (sup.enough || ing.opt)) line = { ing, q, src: sup.src, items: sup.items, name: ing.k ? ingName(ing.k) : ing.n, haveG: sup.haveG, needG, short: sup.short || (ing.opt && !sup.enough), tolUsed: sup.tolUsed, topUp: sup.topUp, unconfirmed: sup.unconfirmed };
       else if (sup && needG) ratio = sup.haveG / needG;
     }
     if (!line && ing.subs) {
       for (const s of ing.subs) {
         const sq = scaleQ(s.q, f), needG = toGrams(s.k, sq, s.u);
-        const sup = findSupply(s.k, usable, staples, needG);
-        if (sup && sup.enough) { line = { ing, q: sq, unit: s.u, src: sup.src, items: sup.items, name: ingName(s.k), sub: s, subFor: ing.any ? (ing.label || "the vegetables") : ingName(ing.k), needG, haveG: sup.haveG, short: sup.short, unknown: sup.unknown }; res.swaps.push(line); break; }
+        const sup = findSupply(s.k, usable, staples, needG, 1);
+        if (sup && sup.enough) { line = { ing, q: sq, unit: s.u, src: sup.src, items: sup.items, name: ingName(s.k), sub: s, subFor: ing.any ? (ing.label || "the vegetables") : ingName(ing.k), needG, haveG: sup.haveG, short: sup.short, topUp: sup.topUp, unconfirmed: sup.unconfirmed }; res.swaps.push(line); break; }
       }
     }
     if (!line) {
@@ -1053,6 +1122,7 @@ function matchRecipe(r, pantry, staples, opts = {}, now) {
   if (opts.cuisine && opts.cuisine !== "any" && r.cuisine !== opts.cuisine) { res.ok = false; res.blocked = "cuisine"; }
   if ((opts.kind === "meals" && r.kind === "drink") || (opts.kind === "drinks" && r.kind !== "drink")) { res.ok = false; res.blocked = "kind"; }
   res.usedCount = res.usedItems.size;
+  res.unconfirmed = res.lines.filter(l => l.unconfirmed);
   res.urgentUsed = [...new Map(res.urgentUsed.map(p => [p.id, p])).values()];
   return res;
 }
@@ -1078,7 +1148,7 @@ function scoreMatch(m, mode, now) {
   urgency = Math.min(urgency, 35);
   const use = Math.min(m.usedCount * 3, 18);
   const time = (r.prep + r.cook) <= 20 ? 4 : (r.prep + r.cook) <= 35 ? 2 : 0;
-  const short = m.lines.filter(l => l.short && !l.ing.opt).length * 3;
+  const short = m.lines.filter(l => l.short && !l.ing.opt).length * 3 + (m.unconfirmed || []).length * 4;
   const w = { most: [1, 0.7, 1.8], urgent: [1, 1.3, 0.6], one: [1, 1, 0.8], everything: [1, 1, 1.4] }[mode] || [1, 1, 1];
   const total = quality * w[0] + urgency * w[1] + use * w[2] + time - short;
   return { total, quality, urgency, use, time };
@@ -1159,7 +1229,7 @@ function planDeductions(m) {
       const p = x.p, k = p.key;
       const haveG = toGrams(k, p.qty, p.unit);
       let take = null, all = false;
-      if (p.qty == null || haveG == null) { all = l.items.length === 1 ? false : false; take = null; }
+      if (p.qty == null || haveG == null) { take = null; all = false; } // unknown amount: the person says how much they used
       else if (needG == null) { take = p.qty; all = true; }
       else { const g = Math.min(haveG, needG); take = roundU(fromGrams(k, g, p.unit), p.unit); needG -= g; all = take >= p.qty - 1e-6; }
       rows.push({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, take, all, unknown: p.qty == null || haveG == null });
@@ -1187,7 +1257,7 @@ function applyDeductions(pantry, rows) {
 }
 function leftoverItem(recipe, servings, now) {
   const rice = recipe.ingredients.some(i => i.k === "rice_cooked" || i.k === "rice_raw");
-  return newItem({ name: "Leftover " + recipe.title, key: "leftover", riceDish: rice, qty: servings, unit: "servings", loc: "fridge", cooked: true, added: todayISO(now),
+  return newItem({ name: "Leftover " + recipe.title, key: "leftover", riceDish: rice, qty: servings, unit: "servings", loc: "fridge", cooked: true, added: todayISO(now), cookedOn: todayISO(now),
     notes: rice ? "Contains rice: eat within 24 hours, reheat only once until steaming hot." : "Cooked leftovers: eat within 3 days, reheat until steaming hot (74°C / 165°F)." }, now);
 }
 /* General safety notes that always apply to certain ingredients. */
@@ -1210,7 +1280,7 @@ function safetyNotes(m) {
 
 const Engine = { ING, LOCS, GROUPS, GROUP_RANK, UNITS, UNIT_LABEL, DEFAULT_STAPLES, OPTIONAL_STAPLES, todayISO, addDays, daysUntil, prettyDate, parseISO,
   resolveKey, ingName, norm, toGrams, fromGrams, fmtQty, fmtAmount, parseIngredientText, freshness, newItem, addToPantry, validateItem,
-  usableItems, matchRecipe, fitMatch, rankRecipes, planEverything, planDeductions, applyDeductions, leftoverItem, safetyNotes, scoreMatch };
+  usableItems, sameBatch, splitParts, matchRecipe, fitMatch, rankRecipes, planEverything, planDeductions, applyDeductions, leftoverItem, safetyNotes, scoreMatch };
 
 
 /* =====================================================================
@@ -1240,7 +1310,7 @@ const RECIPES = [
     {k:"carrot", q:0.5, u:"pcs", note:"finely diced", opt:true},
     {k:"peas", q:0.5, u:"cup", opt:true},
     {k:"pepper", q:0.25, u:"tsp", opt:true}],
-  steps:["Heat 1 tbsp oil in a wok or large pan over high heat. Pour in the eggs, stir gently until just set, then tip them onto a plate.","Add the rest of the oil. Fry the garlic (and carrot or peas, if using) for 1 minute.","Add the rice and press it flat. Leave it for 1 minute, then toss. Repeat for 3 to 4 minutes until every grain is hot and some are lightly crisp.","Drizzle the soy sauce around the edge of the pan so it sizzles, then toss through.","Return the egg, add spring onion and pepper, toss for 30 seconds and taste for salt."],
+  steps:["Heat about a third of the oil in a wok or large pan over high heat. Pour in the eggs, stir gently until just set, then tip them onto a plate.","Add the rest of the oil. Fry the garlic (and carrot or peas, if using) for 1 minute.","Add the rice and press it flat. Leave it for 1 minute, then toss. Repeat for 3 to 4 minutes until every grain is hot and some are lightly crisp.","Drizzle the soy sauce around the edge of the pan so it sizzles, then toss through.","Return the egg, add spring onion and pepper, toss for 30 seconds and taste for salt."],
   season:"Taste at the end: if it's flat, add a few drops of soy sauce; if it's heavy, a squeeze of calamansi or lime wakes it up.",
   store:"Best eaten right away. Leftovers: cool within an hour, refrigerate, eat within 24 hours and reheat only once until steaming hot." },
 
@@ -1258,7 +1328,7 @@ const RECIPES = [
     {k:"soy_sauce", q:2, u:"tbsp", subs:[{k:"fish_sauce", q:1, u:"tbsp", f:"Saltier and funkier.", t:"No change.", w:"Start with less and taste."}]},
     {k:"oil", q:3, u:"tbsp"},
     {k:"pepper", q:0.5, u:"tsp", opt:true}],
-  steps:["Scramble the eggs in 1 tbsp oil over high heat until just set. Set aside.","Add the remaining oil, then the garlic, onion and carrot. Stir-fry 2 minutes.","Add the cabbage and stir-fry 2 minutes until it wilts but still has some crunch.","Add the chicken and rice. Press, leave for a minute, then toss. Keep going for 4 minutes until everything is steaming hot.","Add soy sauce around the edge of the pan, return the egg, season with pepper and toss."],
+  steps:["Scramble the eggs in about a third of the oil over high heat until just set. Set aside.","Add the remaining oil, then the garlic, onion and carrot. Stir-fry 2 minutes.","Add the cabbage and stir-fry 2 minutes until it wilts but still has some crunch.","Add the chicken and rice. Press, leave for a minute, then toss. Keep going for 4 minutes until everything is steaming hot.","Add soy sauce around the edge of the pan, return the egg, season with pepper and toss."],
   season:"Cabbage releases water, so keep the heat high. A little extra pepper and a squeeze of calamansi suits the chicken.",
   store:"Cool within an hour, refrigerate and eat within 24 hours. Reheat only once, until steaming hot." },
 
@@ -1331,7 +1401,7 @@ const RECIPES = [
     {k:"ketchup", q:1, u:"tbsp", note:"if your tomatoes are pale", opt:true},
     {k:"spring_onion", q:1, u:"stalk", opt:true},
     {k:"water", q:3, u:"tbsp"}],
-  steps:["Heat 1 tbsp oil over medium-high heat. Add the eggs, stir in big soft folds and remove while still a little wet.","Add the remaining oil and the tomatoes. Cook 3 minutes, pressing them so they release juice.","Add water, sugar, salt and ketchup; simmer 1 minute into a glossy sauce.","Return the eggs and fold gently for 30 seconds until the eggs are cooked through. Top with spring onion."],
+  steps:["Heat half the oil over medium-high heat. Add the eggs, stir in big soft folds and remove while still a little wet.","Add the remaining oil and the tomatoes. Cook 3 minutes, pressing them so they release juice.","Add water, sugar, salt and ketchup; simmer 1 minute into a glossy sauce.","Return the eggs and fold gently for 30 seconds until the eggs are cooked through. Top with spring onion."],
   season:"It should taste both sweet and tangy. Under-ripe tomatoes need the ketchup or a bit more sugar.",
   store:"Best fresh. Leftovers keep 1 day in the fridge (it's an egg dish); reheat until steaming." },
 
@@ -1339,7 +1409,7 @@ const RECIPES = [
   desc:"Cabbage and carrots sautéed with garlic, onion and a little meat. Uses half a cabbage in one go.",
   serves:4, prep:10, cook:12, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#B9D58C","#F3EBD2","#E8792B","#A0522D"], flavor:"Savory, sweet, garlicky",
   ingredients:[
-    {k:"cabbage", q:0.5, u:"pcs", note:"sliced"},
+    {k:"cabbage", q:0.5, u:"pcs", note:"sliced", tol:0.8, tolNote:"A little less cabbage is fine in a sauté."},
     {k:"carrot", q:1, u:"pcs", note:"julienned", opt:true},
     {any:["ground_pork","chicken_cooked","hotdog","corned_beef","shrimp","pork","spam"], label:"A little meat (ground pork, chicken, hotdog, corned beef or shrimp)", k:"ground_pork", q:150, u:"g", opt:true},
     {k:"onion", q:1, u:"pcs", note:"sliced", subs:[{k:"spring_onion", q:3, u:"stalk", f:"Milder, greener.", t:"Softer.", w:"Add the white parts first, greens at the end."}]},
@@ -1372,7 +1442,7 @@ const RECIPES = [
   desc:"A flexible, freezer-friendly soup for a lot of vegetables at once. Season well and it's a meal.",
   serves:6, prep:15, cook:30, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#D96B2B","#E8C15E","#5E8C3A","#F3E6C4"], flavor:"Savory, warming",
   ingredients:[
-    {any:VEG_ANY, label:"Vegetables (any mix)", k:"carrot", q:800, u:"g", minKinds:2},
+    {any:VEG_ANY, label:"Vegetables (any mix)", k:"carrot", q:800, u:"g", minKinds:2, tol:0.75, tolNote:"Soup is forgiving: with fewer vegetables it's just a little brothier."},
     {k:"onion", q:1, u:"pcs", note:"chopped"},
     {k:"garlic", q:3, u:"clove", note:"minced"},
     {k:"stock_cube", q:2, u:"pcs", opt:true},
@@ -1391,7 +1461,7 @@ const RECIPES = [
   serves:4, prep:10, cook:15, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#F2C14E","#E8A33D","#5E8C3A","#D9372B"], flavor:"Rich, savory",
   ingredients:[
     {k:"egg", q:6, u:"pcs"},
-    {any:["spinach","leafy_greens","bell_pepper","mushroom","potato_cooked","tomato","broccoli","sayote","onion","corn","peas"], label:"Vegetables (any mix)", k:"spinach", q:300, u:"g"},
+    {any:["spinach","leafy_greens","bell_pepper","mushroom","potato_cooked","tomato","broccoli","sayote","onion","corn","peas"], label:"Vegetables (any mix)", k:"spinach", q:300, u:"g", tol:0.7, tolNote:"Fewer vegetables is fine: the frittata will just be eggier."},
     {k:"cheese", q:0.5, u:"cup", note:"grated", opt:true},
     {k:"milk", q:3, u:"tbsp", opt:true},
     {k:"onion", q:0.5, u:"pcs", opt:true},
@@ -1429,7 +1499,7 @@ const RECIPES = [
     {k:"salt", q:1, u:"tbsp", note:"for the pasta water"},
     {k:"herbs", q:0.5, u:"bunch", note:"parsley, chopped", opt:true, subs:[{k:"spring_onion", q:2, u:"stalk", f:"Milder, oniony.", t:"Same.", w:"Slice finely and add off the heat."}]},
     {k:"cheese", q:0.25, u:"cup", note:"grated", opt:true}],
-  steps:["Boil the pasta in well-salted water until just al dente. Keep 1 cup of the pasta water.","Meanwhile warm the oil and garlic over low heat until the garlic is pale gold, about 4 minutes. Don't let it brown dark or it turns bitter. Add chili flakes.","Add the drained pasta and ½ cup pasta water. Toss hard over medium heat for 1 minute until glossy; add more water if dry.","Off the heat, add herbs and cheese. Taste for salt."],
+  steps:["Boil the pasta in well-salted water until just al dente. Keep a mugful of the pasta water.","Meanwhile warm the oil and garlic over low heat until the garlic is pale gold, about 4 minutes. Don't let it brown dark or it turns bitter. Add chili flakes.","Add the drained pasta and a splash of pasta water (about ¼ cup for every 100 g of pasta). Toss hard over medium heat for 1 minute until glossy; add more water if dry.","Off the heat, add herbs and cheese. Taste for salt."],
   season:"The pasta water seasons the dish: it should taste pleasantly salty. Finish with black pepper.",
   store:"Best fresh. Leftovers: fridge up to 2 days; reheat in a pan with a splash of water." },
 
@@ -1504,7 +1574,7 @@ const RECIPES = [
   serves:4, prep:15, cook:25, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#E8B04B","#F3E6C4","#5E8C3A","#D96B2B"], flavor:"Creamy, warm spice, mild heat",
   ingredients:[
     {k:"coconut_milk", q:400, u:"ml"},
-    {any:["potato","carrot","squash","sweet_potato","eggplant","bell_pepper","green_beans","sayote","cabbage","broccoli","spinach","leafy_greens","peas","corn"], label:"Vegetables (any mix)", k:"potato", q:600, u:"g", minKinds:2},
+    {any:["potato","carrot","squash","sweet_potato","eggplant","bell_pepper","green_beans","sayote","cabbage","broccoli","spinach","leafy_greens","peas","corn"], label:"Vegetables (any mix)", k:"potato", q:600, u:"g", minKinds:2, tol:0.75, tolNote:"A little less is fine: the curry will just be saucier."},
     {any:["chicken","chicken_cooked","tofu","shrimp","beans_canned","egg"], label:"Protein (chicken, tofu, shrimp, beans or boiled eggs)", k:"chicken", q:300, u:"g", opt:true},
     {k:"curry_powder", q:1.5, u:"tbsp"},
     {k:"onion", q:1, u:"pcs", note:"chopped"},
@@ -1573,7 +1643,7 @@ const RECIPES = [
   desc:"Bright greens seared with lots of garlic and a savory glaze, in under ten minutes.",
   serves:2, prep:5, cook:5, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#3E7A3A","#5E8C3A","#F1E4C3","#8A5A2B"], flavor:"Garlicky, savory, fresh",
   ingredients:[
-    {any:GREENS, label:"Greens (spinach, kangkong, pechay, bok choy, cabbage, broccoli or beans)", k:"spinach", q:300, u:"g"},
+    {any:GREENS, label:"Greens (spinach, kangkong, pechay, bok choy, cabbage, broccoli or beans)", k:"spinach", q:300, u:"g", tol:0.7, tolNote:"With less greens it's simply a smaller side dish; use a little less sauce."},
     {k:"garlic", q:4, u:"clove", note:"sliced"},
     {k:"oil", q:1.5, u:"tbsp"},
     {k:"oyster_sauce", q:1, u:"tbsp", subs:[{k:"soy_sauce", q:2, u:"tsp", f:"Saltier, less sweet-savory.", t:"Thinner glaze.", w:"Add with ½ tsp sugar."}]},
@@ -1696,7 +1766,7 @@ const DRINKS = [
   desc:"Whatever fruit is going soft, blended with yogurt into a thick, tangy smoothie.",
   serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#E8738A","#F7C9D2","#FFF1F3","#7DAA4F"], flavor:"Fruity, tangy, creamy",
   ingredients:[
-    {any:FRUIT, label:"Fruit (any mix: banana, mango, pineapple, papaya, berries, apple…)", k:"banana", q:300, u:"g", minKinds:2, maxKinds:3},
+    {any:FRUIT, label:"Fruit (any mix: banana, mango, pineapple, papaya, berries, apple…)", k:"banana", q:300, u:"g", minKinds:2, maxKinds:3, tol:0.8, tolNote:"Slightly less fruit just makes a smaller, slightly thinner glass."},
     {k:"yogurt", q:0.5, u:"cup", subs:[{k:"milk", q:0.5, u:"cup", f:"Less tangy.", t:"Thinner.", w:"Add a squeeze of calamansi for tang."}]},
     {k:"milk", q:0.5, u:"cup", subs:[{k:"water", q:0.5, u:"cup", f:"Lighter.", t:"Thinner.", w:"Use the same amount.", cost:1}]},
     {k:"honey", q:1, u:"tbsp", opt:true, subs:[{k:"sugar", q:1, u:"tbsp", f:"Cleaner.", t:"Same.", w:"Use the same amount."}]},
@@ -1740,7 +1810,7 @@ const DRINKS = [
     {k:"sugar", q:4, u:"tbsp", subs:[{k:"honey", q:3, u:"tbsp", f:"Floral.", t:"Same.", w:"Stir into a little warm water first so it dissolves."}]},
     {k:"water", q:4, u:"cup", note:"cold"},
     {k:"ice", q:2, u:"cup", opt:true}],
-  steps:["Stir the sugar into ½ cup of warm water until dissolved.","Squeeze the citrus and strain out the seeds.","Mix juice, sugar water and the remaining cold water. Taste: it should be pleasantly tart. Pour over ice."],
+  steps:["Stir the sugar into a little of the water, warmed, until dissolved.","Squeeze the citrus and strain out the seeds.","Mix juice, sugar water and the remaining cold water. Taste: it should be pleasantly tart. Pour over ice."],
   season:"Adjust to taste: more sugar for kids, more citrus for a sharper drink. A pinch of salt brightens it.",
   store:"Keep covered in the fridge and drink within 2 days." },
 
@@ -1803,7 +1873,7 @@ const DRINKS = [
     {k:"sugar", q:2, u:"tbsp", subs:[{k:"honey", q:2, u:"tbsp", f:"Floral.", t:"Same.", w:"Same amount."}]},
     {k:"water", q:3, u:"cup", note:"cold"},
     {k:"ice", q:1, u:"cup", opt:true}],
-  steps:["Blend the cucumber with 1 cup water until smooth.","Strain into a jug, pressing on the pulp.","Stir in the citrus juice, sugar and remaining water. Taste, then serve over ice."],
+  steps:["Blend the cucumber with about a third of the water until smooth.","Strain into a jug, pressing on the pulp.","Stir in the citrus juice, sugar and remaining water. Taste, then serve over ice."],
   season:"It should taste lightly sweet and sour. Mint leaves are a great addition.",
   store:"Fridge, covered, up to 24 hours." },
 
@@ -1822,6 +1892,197 @@ const DRINKS = [
 ];
 RECIPES.push(...DRINKS);
 
+/* ---------- More everyday Filipino and international meals ---------- */
+RECIPES.push(
+{ id:"chicken-afritada", title:"Chicken Afritada", cuisine:"Filipino", style:"Classic",
+  desc:"Chicken braised in tomato sauce with potatoes, carrots and bell pepper. A weeknight family favorite.",
+  serves:4, prep:15, cook:45, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#C8452B","#E8B04B","#E8792B","#5E8C3A"], flavor:"Savory, tangy-sweet tomato",
+  ingredients:[
+    {k:"chicken", q:600, u:"g", note:"bone-in pieces", subs:[{k:"pork", q:600, u:"g", f:"Richer.", t:"Firmer.", w:"Cut into chunks and simmer 15 minutes longer before adding the vegetables."}]},
+    {k:"canned_tomato", q:1, u:"cup", note:"tomato sauce", subs:[{k:"tomato", q:4, u:"pcs", f:"Fresher, less concentrated.", t:"Chunkier sauce.", w:"Chop finely and cook down with the onion for 5 minutes first."}]},
+    {k:"potato", q:2, u:"pcs", note:"quartered"},
+    {k:"carrot", q:1, u:"pcs", note:"chunks"},
+    {k:"bell_pepper", q:1, u:"pcs", note:"strips", opt:true},
+    {k:"onion", q:1, u:"pcs", note:"chopped"},
+    {k:"garlic", q:4, u:"clove", note:"minced"},
+    {k:"fish_sauce", q:1, u:"tbsp", subs:[{k:"salt", q:0.75, u:"tsp", f:"Less savory depth.", t:"No change.", w:"Season to taste at the end.", cost:4}]},
+    {k:"water", q:1, u:"cup"},
+    {k:"peas", q:0.5, u:"cup", opt:true},
+    {k:"bay_leaf", q:1, u:"pcs", opt:true},
+    {k:"sugar", q:1, u:"tsp", opt:true},
+    {k:"oil", q:2, u:"tbsp"}],
+  steps:["Brown the chicken in the oil over medium-high heat, about 6 minutes. Set aside.","In the same pan, sauté garlic and onion until soft.","Return the chicken; add tomato sauce, water, fish sauce and bay leaf. Simmer covered for 20 minutes.","Add potatoes and carrot; simmer 15 minutes until tender and the chicken is cooked through (74°C / 165°F).","Add bell pepper and peas for the last 3 minutes. Taste: add sugar if the sauce is sharp."],
+  season:"Tomato sauce needs balance: a little fish sauce for depth and a pinch of sugar if it tastes sour.",
+  store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months frozen. Reheat until bubbling." },
+
+{ id:"pork-menudo", title:"Pork Menudo", cuisine:"Filipino", style:"Home-style", styleNote:"Made without pork liver, which many home cooks skip.",
+  desc:"Small cubes of pork, potato and carrot in a savory tomato sauce. Great with rice and even better the next day.",
+  serves:4, prep:20, cook:50, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#B5442A","#E8B04B","#E8792B","#F2E3B8"], flavor:"Savory, tomato-rich",
+  ingredients:[
+    {k:"pork", q:500, u:"g", note:"1 cm cubes", subs:[{k:"chicken", q:500, u:"g", f:"Lighter.", t:"Softer.", w:"Use thigh; simmer 20 minutes instead of 30."}]},
+    {k:"canned_tomato", q:1, u:"cup", note:"tomato sauce"},
+    {k:"potato", q:2, u:"pcs", note:"1 cm cubes"},
+    {k:"carrot", q:1, u:"pcs", note:"1 cm cubes"},
+    {k:"bell_pepper", q:1, u:"pcs", note:"diced", opt:true},
+    {k:"hotdog", q:2, u:"pcs", note:"sliced", opt:true},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"soy_sauce", q:2, u:"tbsp"},
+    {k:"lemon", q:1, u:"pcs", note:"juice of 4 calamansi or ½ lemon", opt:true},
+    {k:"water", q:1, u:"cup"},
+    {k:"oil", q:2, u:"tbsp"}],
+  steps:["Optional: marinate the pork in the soy sauce and citrus juice for 15 minutes.","Sauté garlic and onion in the oil, then add the pork and cook until it's no longer pink outside, 5 minutes.","Add tomato sauce and water. Cover and simmer 30 minutes until the pork is tender.","Add potato, carrot and hotdog; simmer 12–15 minutes until the vegetables are soft.","Add bell pepper for 2 minutes. Taste for salt."],
+  season:"Cut everything the same small size so it cooks evenly. A squeeze of calamansi at the end brightens it.",
+  store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months frozen. Reheat until bubbling." },
+
+{ id:"bistek-tagalog", title:"Bistek Tagalog", cuisine:"Filipino", style:"Classic",
+  desc:"Thin beef in a tangy soy-calamansi sauce, topped with soft onion rings.",
+  serves:4, prep:25, cook:20, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#5A2E1A","#8A4A2A","#F3E6C4","#7DAA4F"], flavor:"Salty, tangy, oniony",
+  ingredients:[
+    {k:"beef", q:500, u:"g", note:"sliced very thin", subs:[{k:"pork", q:500, u:"g", f:"Sweeter, milder.", t:"Softer.", w:"Slice thin and cook until no pink remains."}]},
+    {k:"soy_sauce", q:4, u:"tbsp"},
+    {k:"lemon", q:2, u:"pcs", note:"juice of 2 lemons or 10–12 calamansi"},
+    {k:"onion", q:2, u:"pcs", note:"thick rings"},
+    {k:"garlic", q:4, u:"clove", note:"minced"},
+    {k:"pepper", q:1, u:"tsp"},
+    {k:"water", q:0.5, u:"cup"},
+    {k:"oil", q:3, u:"tbsp"}],
+  steps:["Marinate the beef with soy sauce, citrus juice, garlic and pepper for 20 minutes.","Fry the onion rings in the oil until just soft; set aside.","Lift the beef from the marinade and sear in batches over high heat, 1–2 minutes per side.","Return all the beef with the marinade and water; simmer 10–15 minutes until tender and the sauce reduces.","Top with the onion rings."],
+  season:"It should taste salty and sour in balance; add a splash of water if too strong.",
+  store:"Refrigerate within 2 hours; eat within 3 days. Reheat until steaming." },
+
+{ id:"ginisang-monggo", title:"Ginisang Monggo (Mung Bean Stew)", cuisine:"Filipino", style:"Classic",
+  desc:"Creamy mung beans with garlic, tomato and greens, the Friday classic. Cheap, filling and freezer-friendly.",
+  serves:5, prep:10, cook:50, difficulty:"Easy", equip:["stove"], q:5, plating:"bowl", palette:["#8A9A4B","#C9B27A","#3E7A3A","#D9372B"], flavor:"Savory, earthy, comforting",
+  ingredients:[
+    {k:"mung_beans", q:1, u:"cup", note:"rinsed"},
+    {k:"water", q:6, u:"cup"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"tomato", q:2, u:"pcs", note:"chopped"},
+    {any:["pork","ground_pork","shrimp","tuna","fish_cooked","chicken_cooked"], label:"Protein (pork, shrimp, tuna or leftover fish/chicken)", k:"pork", q:150, u:"g", opt:true},
+    {any:["leafy_greens","spinach"], label:"Greens (malunggay, ampalaya leaves, spinach or pechay)", k:"spinach", q:100, u:"g", opt:true},
+    {k:"fish_sauce", q:2, u:"tbsp", subs:[{k:"salt", q:1, u:"tsp", f:"Less savory.", t:"No change.", w:"Season to taste at the end.", cost:4}]},
+    {k:"oil", q:2, u:"tbsp"}],
+  steps:["Boil the mung beans in the water, then simmer 35–40 minutes until soft and starting to split. Add water if it gets too thick.","In another pan, sauté garlic, onion and tomato in the oil until soft. Add raw pork or shrimp and cook through (pork no longer pink; shrimp pink and opaque).","Stir the sauté into the beans with the fish sauce; simmer 5 minutes.","Turn off the heat and stir in the greens. Taste for salt."],
+  season:"Mung beans need good seasoning: add fish sauce gradually until it tastes savory.",
+  store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months frozen. It thickens: add water when reheating until bubbling." },
+
+{ id:"sinigang-na-baboy", title:"Sinigang na Baboy (Pork Sour Soup)", cuisine:"Filipino", style:"Classic",
+  desc:"Tender pork in a sour tamarind broth with vegetables. Warming, bright and a great way to use leftover vegetables.",
+  serves:5, prep:15, cook:70, difficulty:"Easy", equip:["stove"], q:5, plating:"bowl", palette:["#E8D9A8","#3E7A3A","#D9372B","#F3E6C4"], flavor:"Sour, savory, fresh",
+  ingredients:[
+    {k:"pork", q:600, u:"g", note:"belly or ribs, chunks", subs:[{k:"shrimp", q:500, u:"g", f:"Sweeter, lighter (sinigang na hipon).", t:"Delicate.", w:"Skip the long simmer: add shrimp for the last 3 minutes."},{k:"fish", q:500, u:"g", f:"Lighter (sinigang na isda).", t:"Flaky.", w:"Add fish for the last 8 minutes only."}]},
+    {k:"tamarind_mix", q:1, u:"pack", note:"or fresh tamarind boiled and strained", subs:[{k:"lemon", q:4, u:"pcs", f:"Sour but sharper, less fruity: not true sinigang.", t:"No change.", w:"Add the juice at the end, a little at a time.", cost:8}]},
+    {k:"tomato", q:2, u:"pcs", note:"quartered"},
+    {k:"onion", q:1, u:"pcs", note:"quartered"},
+    {k:"water", q:8, u:"cup"},
+    {k:"radish", q:1, u:"pcs", note:"sliced", opt:true},
+    {k:"eggplant", q:1, u:"pcs", note:"sliced", opt:true},
+    {k:"green_beans", q:150, u:"g", note:"cut", opt:true},
+    {k:"okra", q:6, u:"pcs", opt:true},
+    {any:["leafy_greens","spinach"], label:"Greens (kangkong, pechay or spinach)", k:"spinach", q:150, u:"g", opt:true},
+    {k:"fish_sauce", q:2, u:"tbsp", subs:[{k:"salt", q:1, u:"tsp", f:"Less savory.", t:"No change.", w:"Season to taste.", cost:4}]}],
+  steps:["Bring the pork, water, tomato and onion to a boil; skim off any foam.","Simmer covered 45–60 minutes until the pork is tender.","Add the radish; simmer 5 minutes. Add eggplant, beans and okra; simmer 5 minutes more.","Stir in the tamarind mix and fish sauce. Taste: it should be clearly sour and savory.","Turn off the heat and add the greens; they wilt in a minute."],
+  season:"Sour first, then salt: add tamarind until it's pleasantly sour, then fish sauce to taste.",
+  store:"Refrigerate within 2 hours; eat within 3 days. Bring back to a boil when reheating." },
+
+{ id:"ginataang-kalabasa", title:"Ginataang Kalabasa at Sitaw", cuisine:"Filipino", style:"Classic",
+  desc:"Squash and string beans simmered in coconut milk: creamy, sweet and savory.",
+  serves:4, prep:15, cook:20, difficulty:"Easy", equip:["stove"], q:5, plating:"bowl", palette:["#E8A33D","#F6E7C8","#4E8A3E","#C98B4A"], flavor:"Creamy, sweet, savory",
+  ingredients:[
+    {k:"squash", q:500, u:"g", note:"peeled, cubed"},
+    {k:"green_beans", q:200, u:"g", note:"5 cm pieces", opt:true},
+    {k:"coconut_milk", q:400, u:"ml"},
+    {any:["shrimp","pork","ground_pork","chicken_cooked"], label:"Protein (shrimp or pork)", k:"shrimp", q:200, u:"g", opt:true},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"ginger", q:10, u:"g", opt:true},
+    {k:"bagoong", q:1, u:"tbsp", subs:[{k:"fish_sauce", q:1, u:"tbsp", f:"Less funky.", t:"Smoother.", w:"Add with the coconut milk."}]},
+    {k:"oil", q:1, u:"tbsp"}],
+  steps:["Sauté garlic, onion and ginger in the oil until soft. Add raw pork (until no longer pink) or shrimp (until pink).","Add the bagoong and stir 1 minute.","Add squash and coconut milk; simmer 10–12 minutes until the squash is tender but holds its shape.","Add the string beans; simmer 4 minutes until bright green. Taste for salt."],
+  season:"Bagoong brings the savory depth; add it gradually since brands vary in saltiness.",
+  store:"Refrigerate within 2 hours; eat within 3 days. Reheat gently until bubbling." },
+
+{ id:"filipino-spaghetti", title:"Filipino-style Sweet Spaghetti", cuisine:"Filipino", style:"Classic",
+  desc:"The party favorite: sweet tomato-banana ketchup sauce with ground meat, hotdogs and cheese.",
+  serves:5, prep:15, cook:30, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#C8341F","#F2C14E","#EAD7A6","#A0522D"], flavor:"Sweet, savory, cheesy",
+  ingredients:[
+    {k:"pasta_dry", q:400, u:"g", note:"spaghetti"},
+    {any:["ground_pork","ground_beef"], label:"Ground pork or beef", k:"ground_pork", q:300, u:"g"},
+    {k:"hotdog", q:4, u:"pcs", note:"sliced", opt:true},
+    {k:"canned_tomato", q:2, u:"cup", note:"tomato sauce"},
+    {k:"ketchup", q:0.5, u:"cup", note:"banana ketchup"},
+    {k:"sugar", q:2, u:"tbsp"},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"cheese", q:0.75, u:"cup", note:"grated, to top"},
+    {k:"fish_sauce", q:1, u:"tbsp", subs:[{k:"salt", q:0.5, u:"tsp", f:"Plainer.", t:"No change.", w:"Season to taste.", cost:3}]},
+    {k:"oil", q:2, u:"tbsp"},
+    {k:"salt", q:1, u:"tbsp", note:"for the pasta water"}],
+  steps:["Boil the spaghetti in salted water until just tender; drain.","Sauté garlic and onion in the oil, then brown the ground meat until no pink remains (71°C / 160°F).","Add hotdogs, tomato sauce, banana ketchup, sugar and fish sauce. Simmer 15 minutes, stirring.","Taste: it should be sweet and savory. Spoon over the spaghetti and top with cheese."],
+  season:"It's meant to be sweet, but balance it with fish sauce or salt so it doesn't taste like dessert.",
+  store:"Keep sauce and pasta separately if you can. Refrigerate within 2 hours; eat within 3 days." },
+
+{ id:"pinakbet", title:"Pinakbet (Vegetable Stew with Bagoong)", cuisine:"Filipino", style:"Classic",
+  desc:"The Ilocano vegetable stew: squash, eggplant, beans and okra cooked down with bagoong.",
+  serves:4, prep:20, cook:20, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#E8A33D","#6B3A5A","#4E8A3E","#D9372B"], flavor:"Savory, funky, vegetable-sweet",
+  ingredients:[
+    {any:["squash","eggplant","green_beans","okra","sayote","bell_pepper"], label:"Vegetables (squash, eggplant, string beans, okra…)", k:"squash", q:700, u:"g", minKinds:3, tol:0.8, tolNote:"With a bit less it's just a smaller pot."},
+    {k:"tomato", q:2, u:"pcs", note:"chopped"},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"ginger", q:10, u:"g", opt:true},
+    {k:"bagoong", q:2, u:"tbsp", subs:[{k:"fish_sauce", q:2, u:"tbsp", f:"Less funky; lacks bagoong's depth.", t:"Thinner.", w:"Add with the water.", cost:4}]},
+    {k:"pork", q:150, u:"g", note:"small pieces", opt:true},
+    {k:"water", q:0.5, u:"cup"},
+    {k:"oil", q:2, u:"tbsp"}],
+  steps:["Sauté garlic, onion, ginger and tomato in the oil. Add pork, if using, and cook until no longer pink and lightly browned.","Stir in the bagoong for 1 minute.","Add the squash and water; cover and cook 5 minutes.","Add the remaining vegetables; cover and cook 8–10 minutes, shaking the pan rather than stirring, until just tender."],
+  season:"Don't stir too much: the vegetables should stay whole. Taste before adding any salt; bagoong is salty.",
+  store:"Refrigerate within 2 hours; eat within 3 days. Reheat gently." },
+
+{ id:"shakshuka", title:"Shakshuka (Eggs in Spiced Tomato Sauce)", cuisine:"Middle Eastern", style:"Classic",
+  desc:"Eggs gently cooked in a spiced tomato and pepper sauce. One pan, great with bread.",
+  serves:2, prep:10, cook:20, difficulty:"Easy", equip:["stove"], q:5, plating:"skillet", palette:["#C8341F","#F2C14E","#F7F3EA","#5E8C3A"], flavor:"Spiced, tangy, rich",
+  ingredients:[
+    {k:"egg", q:4, u:"pcs"},
+    {k:"canned_tomato", q:400, u:"g", subs:[{k:"tomato", q:5, u:"pcs", f:"Fresher, lighter.", t:"Chunkier.", w:"Chop and simmer 10 minutes longer until saucy."}]},
+    {k:"onion", q:1, u:"pcs", note:"diced"},
+    {k:"bell_pepper", q:1, u:"pcs", note:"diced", opt:true},
+    {k:"garlic", q:3, u:"clove"},
+    {k:"cumin", q:1, u:"tsp", subs:[{k:"curry_powder", q:1, u:"tsp", f:"Warmer, more complex.", t:"No change.", w:"Use the same amount."}]},
+    {k:"paprika", q:1, u:"tsp", opt:true},
+    {k:"chili_flakes", q:0.25, u:"tsp", opt:true},
+    {k:"salt", q:0.5, u:"tsp"},
+    {k:"oil", q:2, u:"tbsp"},
+    {k:"bread", q:4, u:"pcs", note:"to serve", opt:true}],
+  steps:["Soften onion and bell pepper in the oil over medium heat, 6 minutes. Add garlic and spices for 1 minute.","Add tomatoes and salt; simmer 8–10 minutes until thick.","Make 4 hollows and crack in the eggs. Cover and cook on low 6–8 minutes until the whites are set (cook the yolks firm for children, older adults or pregnant people).","Serve straight from the pan with bread."],
+  season:"Taste the sauce before adding eggs: it should be well salted and slightly spicy.",
+  store:"Best fresh. The sauce alone keeps 3 days refrigerated; add fresh eggs when reheating." },
+
+{ id:"carbonara", title:"Spaghetti Carbonara", cuisine:"Italian", style:"Home-style", styleNote:"Made with bacon instead of guanciale, and any hard cheese instead of Pecorino.",
+  desc:"Silky egg-and-cheese sauce with crisp bacon and black pepper. No cream needed.",
+  serves:2, prep:10, cook:15, difficulty:"Medium", equip:["stove"], q:5, plating:"plate", palette:["#F2E3B8","#E8C15E","#A0522D","#5E5E5E"], flavor:"Rich, peppery, savory",
+  ingredients:[
+    {k:"pasta_dry", q:200, u:"g", note:"spaghetti"},
+    {k:"egg", q:2, u:"pcs", note:"plus 1 extra yolk if you have it"},
+    {k:"bacon", q:6, u:"pcs", note:"strips, chopped", subs:[{k:"ham", q:120, u:"g", f:"Less smoky.", t:"Softer.", w:"Dice and fry until golden in a little oil."}]},
+    {k:"cheese", q:0.5, u:"cup", note:"finely grated hard cheese"},
+    {k:"pepper", q:1, u:"tsp", note:"freshly cracked"},
+    {k:"salt", q:1, u:"tbsp", note:"for the pasta water"}],
+  steps:["Boil the pasta in salted water. Keep a mugful of the pasta water.","Fry the bacon slowly until crisp. Turn off the heat.","Whisk eggs, cheese and pepper together.","Add the drained hot pasta to the bacon pan (heat off), pour in the egg mixture and toss fast, adding splashes of pasta water, until creamy. The pan's heat thickens the sauce.","For young children, older adults, pregnant people or anyone with weak immunity: keep tossing over low heat until the sauce reaches 71°C (160°F); it'll be a little thicker."],
+  season:"Bacon and cheese are salty: taste before adding any salt. Lots of black pepper is the point.",
+  store:"Best fresh; the sauce doesn't reheat well. Refrigerate leftovers and eat within 1 day." }
+);
+
+/* ---------- Dish photos ----------
+   Add a real photo for a recipe by putting the file in the img/ folder and listing it here.
+   Rules: the photo must show THIS dish; licensed for reuse (your own, Unsplash/Pexels licence,
+   or an AI image you generated, marked ai:true); about 800×1000 px, WebP or JPG, under ~120 KB.
+   Without a photo (or if it fails to load), the drawn plate is shown instead. Example:
+     "chicken-adobo": { file: "chicken-adobo.webp", credit: "Photo: Tiffany", ai: false } */
+const PHOTOS = {};
+if (typeof module !== "undefined") module.exports = { RECIPES, PHOTOS };
 
 /* ================= ACCOUNTS (Supabase) =================
    Sign-in and syncing use the same Supabase project as Tiffo.
@@ -1927,8 +2188,18 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const E = Engine;
 const LIB = RECIPES;
+/* Draw the illustrated plate, then swap in a real photo if one exists and loads. */
+const PHOTO_BASE = "img/";
+function paint(cv, r) {
+  if (!cv || !r) return;
+  drawPlate(cv, r, null);
+  const ph = PHOTOS[r.id]; if (!ph) return;
+  const img = new Image(); img.alt = r.title + (ph.ai ? " (AI-generated image)" : ""); img.decoding = "async"; img.loading = "lazy";
+  img.onload = () => { if (cv.isConnected) cv.replaceWith(img); };
+  img.src = PHOTO_BASE + ph.file;
+}
 const GROUP_COLORS = { check: "var(--urgent)", first: "#C2410C", soon: "#B7791F", fresh: "var(--accent)", long: "#7A8A9A" };
-const CUISINES = ["Filipino","Chinese","Japanese","Korean","Italian","American","Mexican","Southeast Asian","French","Any"];
+const CUISINES = ["Filipino","Chinese","Japanese","Korean","Italian","American","Mexican","Southeast Asian","Middle Eastern","French","Any"];
 
 /* ---------- State ---------- */
 const S = {
@@ -1939,14 +2210,15 @@ const S = {
   aiChecking: true
 };
 const STORE_KEY = "p2p.v3";
-function snapshot() { return { v: 3, owner: S.owner || null, pantry: S.pantry, staples: S.staples, saved: S.saved, collections: S.collections, week: S.week, history: S.history, prefs: S.prefs, sample: S.sample, savedAt: S.savedAt || 0 }; }
+function snapshot() { return { v: 3, owner: S.owner || null, feedback: S.feedback || {}, pantry: S.pantry, staples: S.staples, saved: S.saved, collections: S.collections, week: S.week, history: S.history, prefs: S.prefs, sample: S.sample, savedAt: S.savedAt || 0 }; }
 function saveLocal() { try { localStorage.setItem(STORE_KEY, JSON.stringify(snapshot())); } catch (e) {} }
 // Each save is always newer than anything this device has already seen, even if another device's clock runs ahead.
 function persist() { S.savedAt = Math.max(Date.now(), (S.savedAt || 0) + 1); saveLocal(); if (typeof Cloud !== "undefined") Cloud.schedule(); }
 function applySnapshot(d) {
   if (!d) return;
   if (d.v !== 3) d = migrateV2(d);
-  S.pantry = (d.pantry || []).map(p => E.newItem(p));
+  S.pantry = (d.pantry || []).map(p => E.newItem((p.cooked || (E.ING[p.key] || {}).isCooked) && !p.cookedOn && !p.unknownAge && p.loc !== "freezer" ? { ...p, cookedOn: p.added } : p));
+  S.feedback = d.feedback || {};
   S.staples = Array.isArray(d.staples) ? d.staples : E.DEFAULT_STAPLES.slice();
   S.saved = d.saved || []; S.collections = d.collections || []; S.week = d.week || [];
   S.history = d.history || []; S.prefs = Object.assign({ servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals" }, d.prefs || {});
@@ -1979,8 +2251,8 @@ function seedKitchen() {
   const t = E.todayISO(), ago = n => E.addDays(t, -n);
   S.pantry = [];
   E.addToPantry(S.pantry, [
-    { name: "Leftover rice", key: "rice_cooked", qty: 2, unit: "cup", loc: "fridge", added: t },
-    { name: "Leftover chicken", key: "chicken_cooked", qty: 1, unit: "cup", loc: "fridge", added: ago(1) },
+    { name: "Leftover rice", key: "rice_cooked", qty: 2, unit: "cup", loc: "fridge", added: t, cookedOn: t },
+    { name: "Leftover chicken", key: "chicken_cooked", qty: 1, unit: "cup", loc: "fridge", added: ago(1), cookedOn: ago(1) },
     { name: "Spinach", key: "spinach", qty: 150, unit: "g", loc: "fridge", added: ago(1) },
     { name: "Eggs", key: "egg", qty: 6, unit: "pcs", loc: "fridge", added: ago(5) },
     { name: "Cabbage", key: "cabbage", qty: 0.5, unit: "pcs", loc: "fridge", added: ago(4) },
@@ -2070,14 +2342,14 @@ function renderHome() {
       <p class="why">${whyLine(pick)}</p>
       <button class="btn primary" data-act="open-recipe" data-id="${esc(pick.recipe.id)}">Cook this</button></div></div>`
     : `<p class="muted">Add a few foods and I'll suggest something.</p>`;
-  if (pick) drawPlate($("#homePickCanvas"), pick.recipe, null);
+  if (pick) paint($("#homePickCanvas"), pick.recipe);
   const row = (m, pre = "") => `<li><button class="rowbtn" data-act="open-recipe" data-id="${esc(m.recipe.id)}"><b>${pre}${esc(m.recipe.title)}</b><span>${m.recipe.prep + m.recipe.cook} min · uses ${m.usedCount} of your foods${m.urgentUsed.length ? " · saves " + m.urgentUsed.length + " that need using" : ""}</span></button></li>`;
   $("#homeQuick").innerHTML = ranked.length > 1 || drink ? `<ul class="quicklist">${ranked.slice(1, 4).map(m => row(m)).join("")}${drink ? row(drink, "Drink: ") : ""}</ul>` : `<p class="muted">More ideas appear as you add food.</p>`;
   const meals = S.history.length, used = S.history.reduce((n, h) => n + (h.used || []).length, 0);
   const grams = S.history.reduce((g, h) => g + (h.used || []).reduce((s, u) => s + (u.g || 0), 0), 0);
   const unknown = S.history.some(h => (h.used || []).some(u => u.g == null));
   $("#homeProgress").innerHTML = meals ? `<div class="stats"><div><b>${meals}</b><span>meal${meals > 1 ? "s" : ""} cooked</span></div><div><b>${used}</b><span>foods used up</span></div><div><b>${grams >= 1000 ? (grams / 1000).toFixed(1) + " kg" : Math.round(grams) + " g"}</b><span>food cooked from your kitchen${unknown ? "*" : ""}</span></div></div>
-     <p class="muted small">Weights come from the amounts you recorded${unknown ? ". *Foods without a recorded amount aren't counted" : ""}. Money saved is coming with My Impact.</p>`
+     <p class="muted small">Weights come from the amounts you recorded${unknown ? ". *Foods without a recorded amount aren't counted" : ""}.</p>`
     : `<p class="muted">After you cook a recipe and tap "I made this", you'll see what you've used up here. Every meal counts.</p>`;
 }
 function whyLine(m) {
@@ -2110,7 +2382,9 @@ function renderKitchen() {
   S.ui.pins = S.ui.pins.filter(id => S.pantry.some(p => p.id === id));
   const card = ({ p, f }) => {
     const pinned = S.ui.pins.includes(p.id);
-    const tags = [E.LOCS[p.loc], p.cooked ? "Cooked" : "", p.opened ? "Opened" : "", p.label ? (p.label.type === "useby" ? "Use-by date" : "Best-before date") : ""].filter(Boolean);
+    const twin = S.pantry.some(q => q !== p && q.key === p.key && E.norm(q.name) === E.norm(p.name));
+    const tags = [E.LOCS[p.loc], p.cooked ? (p.cookedOn ? "Cooked " + E.prettyDate(p.cookedOn) : "Cooked") : "", p.opened ? "Opened" : "", p.label ? (p.label.type === "useby" ? "Use-by date" : "Best-before date") : "",
+      twin && !p.cooked ? "Bought " + E.prettyDate(p.added) : "", p.qty == null ? "Amount not recorded" : ""].filter(Boolean);
     return `<div class="item g-${f.group}${pinned ? " pinned" : ""}">
       <button class="item-main" data-act="item-edit" data-id="${p.id}" aria-label="Edit ${esc(p.name)}">
         <span class="name">${esc(p.name)}</span>
@@ -2150,13 +2424,58 @@ function renderZones() {
 function addFromText(text, where) {
   const items = E.parseIngredientText(text);
   if (!items.length) { toast("Type at least one food, like “3 eggs”."); return; }
+  if (items.some(x => x.uncertain)) { openReview(items); return; }
+  commitItems(items);
+}
+/* A quick look before adding when something's unclear: cooked food (when was it cooked?),
+   vague amounts ("a little"), or foods the app doesn't know. Nothing is added until you confirm. */
+function openReview(items) {
+  S.ui.review = items;
+  const unitOpts = u => E.UNITS.map(x => `<option value="${x}"${(u || "pcs") === x ? " selected" : ""}>${x === "pcs" ? "pieces" : x}</option>`).join("");
+  const why = x => [x.cooked ? "When was it cooked?" : "", x.vague || x.qty == null ? "How much is there?" : "", !x.key ? "I don't know this food yet: I'll use a cautious estimate." : ""].filter(Boolean).join(" ");
+  openModal(`<h2 id="authTitle">Check before adding</h2><p>A few details make the freshness and recipes accurate.</p>
+    <form id="reviewForm">${items.map((x, i) => `<div class="rv" data-i="${i}">
+      <div class="rv-head"><input type="text" id="rvName${i}" value="${esc(x.name)}" aria-label="Food name"><button type="button" class="linkbtn" data-act="rv-remove" data-i="${i}" aria-label="Don't add ${esc(x.name)}">Remove</button></div>
+      <small class="muted">${esc(why(x))}</small>
+      <div class="row3"><label>Amount<input type="number" id="rvQty${i}" min="0" step="any" value="${x.qty ?? ""}" placeholder="Not sure"></label>
+        <label>Unit<select id="rvUnit${i}">${unitOpts(x.unit || (E.ING[x.key] || {}).u)}</select></label>
+        <label>Where<select id="rvLoc${i}">${Object.entries(E.LOCS).map(([k, l]) => `<option value="${k}"${x.loc === k ? " selected" : ""}>${l}</option>`).join("")}</select></label></div>
+      ${x.cooked ? `<label>Cooked<select id="rvCooked${i}" data-rvcooked="${i}"><option value="">Choose…</option><option value="0">Today</option><option value="1">Yesterday</option><option value="2">2 days ago</option><option value="3">3 days ago</option><option value="pick">Pick a date</option><option value="unknown">I'm not sure</option></select></label>
+        <input type="date" id="rvDate${i}" max="${E.todayISO()}" hidden aria-label="Date it was cooked">` : ""}
+    </div>`).join("")}
+    <div id="formErr"></div>
+    <div class="form-actions"><button class="btn primary" type="submit">Add to my kitchen</button><button class="linkbtn" type="button" data-act="auth-close">Cancel</button></div></form>`, "#reviewForm input");
+}
+function submitReview() {
+  const items = [], errs = [];
+  (S.ui.review || []).forEach((x, i) => {
+    const row = document.querySelector(`.rv[data-i="${i}"]`); if (!row || row.hidden) return;
+    const name = $("#rvName" + i).value.trim(); if (!name) return;
+    const qv = $("#rvQty" + i).value, qty = qv === "" ? null : Number(qv);
+    if (qty != null && !(qty > 0)) errs.push(`${name}: the amount must be a positive number.`);
+    const it = { ...x, name, qty, unit: qty == null ? null : $("#rvUnit" + i).value, loc: $("#rvLoc" + i).value, added: E.todayISO() };
+    if (E.norm(name) !== E.norm(x.name)) it.key = E.resolveKey(name);
+    if (x.cooked) {
+      const c = $("#rvCooked" + i).value;
+      if (!c) errs.push(`${name}: choose when it was cooked (or “I'm not sure”).`);
+      else if (c === "unknown") it.unknownAge = true;
+      else if (c === "pick") { const d = $("#rvDate" + i).value; if (!d || d > E.todayISO()) errs.push(`${name}: pick the date it was cooked.`); else it.cookedOn = d; }
+      else it.cookedOn = E.addDays(E.todayISO(), -Number(c));
+    }
+    items.push(it);
+  });
+  if (errs.length) { $("#formErr").innerHTML = `<div class="msg err" role="alert">${errs.map(esc).join("<br>")}</div>`; return; }
+  closeAuth(); if (items.length) commitItems(items);
+}
+function commitItems(items) {
   const before = S.pantry.length;
-  const r = E.addToPantry(S.pantry, items.map(x => ({ ...x, added: E.todayISO() })));
+  const r = E.addToPantry(S.pantry, items.map(x => ({ ...x, added: x.added || E.todayISO() })));
   S.sample = false; persist();
   const unknown = r.added.filter(p => !p.key).map(p => p.name);
   let msg = r.added.length ? "Added " + r.added.map(p => p.name).join(", ") : "";
   if (r.merged.length) msg += (msg ? ". " : "") + "Updated " + r.merged.map(p => p.name + " (now " + amountLabel(p) + ")").join(", ");
-  if (unknown.length) msg += ". I don't know " + unknown.join(", ") + " yet, so freshness is a cautious guess: tap it to set a date.";
+  if (unknown.length) msg += ". I don't know " + unknown.join(", ") + " yet, so freshness is a cautious estimate: tap it to set a date";
+  if (r.added.some(p => S.pantry.some(q => q !== p && q.key === p.key && E.norm(q.name) === E.norm(p.name)))) msg += ". Kept as a separate batch because its dates differ";
   toast(msg + ".");
   if (S.tab === "kitchen") renderKitchen(); else if (S.tab === "home") renderHome();
   renderNavCounts();
@@ -2174,7 +2493,8 @@ function itemForm(p) {
       <label for="fUnit">Unit<select id="fUnit">${unitOpts}</select></label></div>
     <fieldset><legend>Where is it kept?</legend><div class="radios">${Object.entries(E.LOCS).map(([k, l]) => `<label><input type="radio" name="fLoc" value="${k}"${p.loc === k ? " checked" : ""}> ${l}</label>`).join("")}</div></fieldset>
     <label class="check"><input type="checkbox" id="fCooked"${p.cooked ? " checked" : ""}> It's cooked food or leftovers</label>
-    <label for="fAdded"><span id="fAddedLabel">${p.cooked ? "Cooked on" : "Bought on"}</span><input type="date" id="fAdded" value="${esc(p.added || "")}" max="${E.todayISO()}"></label>
+    <label for="fAdded" id="fAddedWrap"${p.cooked ? " hidden" : ""}>Bought on<input type="date" id="fAdded" value="${esc(p.added || "")}" max="${E.todayISO()}"></label>
+    <label for="fCookedOn" id="fCookedWrap"${p.cooked ? "" : " hidden"}>Cooked on<input type="date" id="fCookedOn" value="${esc(p.cookedOn || "")}" max="${E.todayISO()}"></label>
     <label class="check"><input type="checkbox" id="fUnknown"${p.unknownAge ? " checked" : ""}> I'm not sure when it was made or bought</label>
     <label class="check"><input type="checkbox" id="fOpened"${p.opened ? " checked" : ""}> The package is open</label>
     <label for="fOpenedOn" id="fOpenedWrap"${p.opened ? "" : " hidden"}>Opened on<input type="date" id="fOpenedOn" value="${esc(p.openedOn || "")}" max="${E.todayISO()}"></label>
@@ -2194,7 +2514,7 @@ function readItemForm() {
   const qty = v("fQty").value === "" ? null : Number(v("fQty").value);
   const lt = v("fLabelType").value, ld = v("fLabelDate").value;
   return { name: v("fName").value.trim(), qty, unit: v("fUnit").value, loc: (document.querySelector('input[name="fLoc"]:checked') || {}).value || "fridge",
-    cooked: v("fCooked").checked, added: v("fAdded").value || E.todayISO(), unknownAge: v("fUnknown").checked, opened: v("fOpened").checked,
+    cooked: v("fCooked").checked, added: v("fAdded").value || E.todayISO(), cookedOn: v("fCooked").checked ? (v("fCookedOn").value || null) : null, unknownAge: v("fUnknown").checked, opened: v("fOpened").checked,
     openedOn: v("fOpened").checked ? (v("fOpenedOn").value || E.todayISO()) : null,
     label: lt && lt !== "own" && ld ? { type: lt, date: ld } : null, est: lt === "own" && ld ? ld : null, notes: v("fNotes").value.trim() };
 }
@@ -2252,17 +2572,18 @@ function renderCook() {
     <button class="btn small" data-act="prefs">Diet & equipment${P.diet.length ? " (" + P.diet.length + ")" : ""}</button>`;
   renderIdeas();
 }
+function feedbackPenalty(list) { const fb = S.feedback || {}; list.forEach(m => { if (fb[m.recipe.id]) m.score.total -= 30; }); return list.sort((a, b) => b.score.total - a.score.total); }
 function currentList() {
   const focus = S.ui.mode === "one" ? (S.ui.oneId ? [S.ui.oneId] : []) : S.ui.focus;
   if (S.ui.mode === "everything") return { plan: E.planEverything(allRecipes(), S.pantry, S.staples, opts({ focus }), undefined) };
-  return { list: E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ focus })) };
+  return { list: feedbackPenalty(E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ focus }))) };
 }
 function ideaCard(m, extra = "") {
   const r = m.recipe;
   return `<button class="pick" data-act="pick" data-id="${esc(r.id)}" aria-pressed="${S.ui.currentId === r.id}">
     <canvas width="128" height="160" data-pthumb="${esc(r.id)}" aria-hidden="true"></canvas>
     <span class="pt"><span class="label">${esc(r.cuisine)} · ${styleLabel(r)}${isSaved(r) ? ' · <span class="savedmark">Saved</span>' : ""}</span><strong>${esc(r.title)}</strong>
-    <span class="meta">${r.prep + r.cook} min · ${esc(r.difficulty || "Easy")} · uses ${m.usedCount} of yours${m.urgentUsed.length ? ` · <span class="urg">saves ${m.urgentUsed.length} that need using</span>` : ""}${m.swaps.length ? " · " + m.swaps.length + " swap" + (m.swaps.length > 1 ? "s" : "") : ""}${m.scaledDown ? " · smaller batch" : ""}</span>${extra}</span></button>`;
+    <span class="meta">${r.prep + r.cook} min · ${esc(r.difficulty || "Easy")} · uses ${m.usedCount} of yours${m.urgentUsed.length ? ` · <span class="urg">saves ${m.urgentUsed.length} that need using</span>` : ""}${m.swaps.length ? " · " + m.swaps.length + " swap" + (m.swaps.length > 1 ? "s" : "") : ""}${m.scaledDown ? " · smaller batch" : ""}${m.unconfirmed && m.unconfirmed.length ? ` · <span class="urg">check ${m.unconfirmed.length} amount${m.unconfirmed.length > 1 ? "s" : ""}</span>` : ""}</span>${extra}</span></button>`;
 }
 function styleLabel(r) { return r.ai ? "AI recipe" : esc(r.style || "Classic"); }
 function renderIdeas() {
@@ -2281,9 +2602,9 @@ function renderIdeas() {
     html += `<p class="count"><b>${list.length}</b> recipe${list.length === 1 ? "" : "s"} you can make now${S.ui.mode === "urgent" ? ", most urgent first" : ""}</p>`;
     html += list.slice(0, 30).map(m => ideaCard(m)).join("") || `<div class="empty">${S.pantry.length ? "Nothing fits these filters. Try “Any time”, another cuisine, or fewer diet limits." : "Add some food in My kitchen first."}</div>`;
   }
-  html += `<div class="ai-more">${AI.ready ? `<button class="btn" data-act="ai-more"${S.ui.aiBusy ? " disabled" : ""}>${S.ui.aiBusy ? "Asking the AI…" : "Ask the AI for more ideas"}</button><small>AI recipes are checked against your kitchen before they're shown.</small>` : `<small>Recipes come from a tested library, so they work even without AI.</small>`}</div>`;
+  html += `<div class="ai-more">${AI.ready ? `<button class="btn" data-act="ai-more"${S.ui.aiBusy ? " disabled" : ""}>${S.ui.aiBusy ? "Asking the AI…" : "Ask the AI for more ideas"}</button><small>AI recipes are checked against your kitchen before they're shown.</small>` : `<small>Recipes come from a curated library of well-known dishes, so they work even without AI.</small>`}</div>`;
   $("#ideas").innerHTML = html;
-  document.querySelectorAll("canvas[data-pthumb]").forEach(cv => { const r = getRecipe(cv.dataset.pthumb); if (r) drawPlate(cv, r, null); });
+  document.querySelectorAll("canvas[data-pthumb]").forEach(cv => paint(cv, getRecipe(cv.dataset.pthumb)));
   const shown = (S.ui.lastList || []).map(m => m.recipe.id);
   if (!S.ui.currentId || !shown.includes(S.ui.currentId)) S.ui.currentId = shown[0] || null;
   document.querySelectorAll(".pick[data-act=pick]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === S.ui.currentId)));
@@ -2302,27 +2623,35 @@ function renderDetail() {
     const have = l.src === "pantry" ? l.items.map(x => x.p.name + (x.p.qty != null ? " (" + amountLabel(x.p) + ")" : "")).join(", ") : "";
     const tag = l.src === "pantry" ? `<span class="st have">Yours</span>` : `<span class="st">Staple</span>`;
     const sw = l.sub ? `<div class="swapbox"><b>Swap: ${esc(E.fmtAmount(l.q, u))} ${esc(l.name.toLowerCase())} instead of ${esc(l.subFor.toLowerCase())}</b><span><i>Flavor:</i> ${esc(l.sub.f)}</span><span><i>Texture:</i> ${esc(l.sub.t)}</span><span><i>How:</i> ${esc(l.sub.w)}</span></div>` : "";
-    const short = l.short && !l.unknown ? `<span class="inote warn">You have a little less than this; it'll still work.</span>` : "";
+    const need = E.fmtAmount(l.q, u);
+    const haveTxt = l.haveG != null && l.needG ? Math.round(l.haveG / l.needG * 100) : null;
+    let short = "";
+    if (l.unconfirmed) short = `<span class="inote warn">Amount not recorded. You need ${esc(need)}; how much do you have?</span>${l.items.filter(x => x.p.qty == null).map(x => `<span class="setqty"><label class="sr" for="sq-${x.p.id}">Amount of ${esc(x.p.name)}</label><input type="number" min="0" step="any" id="sq-${x.p.id}" placeholder="Amount"><select id="squ-${x.p.id}" aria-label="Unit">${E.UNITS.map(un => `<option${un === u ? " selected" : ""}>${un}</option>`).join("")}</select><button class="btn small" data-act="set-qty" data-id="${x.p.id}">Save amount</button></span>`).join("")}`;
+    else if (l.tolUsed) short = `<span class="inote warn">You have about ${haveTxt}% of this. ${esc(l.ing.tolNote || "A little less is fine here.")}</span>`;
+    else if (l.short && l.ing.opt) short = `<span class="inote">You have a little less than this; just use what you have.</span>`;
+    else if (l.topUp) short = `<span class="inote">Uses what's left in your kitchen, topped up from your basics.</span>`;
     return `<li><div><span class="iname">${esc(l.sub ? l.name : (l.ing.any ? l.ing.label || l.name : l.name))}</span> <span class="amt">${amount}</span>${l.ing.note ? `<span class="inote">${esc(l.ing.note)}</span>` : ""}${have ? `<span class="inote">From: ${esc(have)}</span>` : ""}${short}${sw}</div>${tag}</li>`;
   };
   const safety = E.safetyNotes(m);
   box.innerHTML = `
     <div class="detail-top">
-      <div class="frame"><canvas id="plate" width="480" height="600" aria-label="Illustration of ${esc(r.title)}"></canvas></div>
+      <div><div class="frame"><canvas id="plate" width="480" height="600" aria-label="Illustration of ${esc(r.title)}"></canvas></div>${PHOTOS[r.id] ? `<p class="photo-credit">${esc(PHOTOS[r.id].credit || "")}${PHOTOS[r.id].ai ? " · AI-generated image" : ""}</p>` : `<p class="photo-credit">Illustration</p>`}</div>
       <div class="detail-head">
         <span class="label">${esc(r.cuisine)} · <span class="style-${(r.style || "").toLowerCase()}">${styleLabel(r)}</span></span>
         <h2>${esc(r.title)}</h2>
         <p>${esc(r.desc)}</p>
         ${r.styleNote ? `<p class="small muted">${esc(r.styleNote)}</p>` : ""}
-        ${r.ai ? `<p class="small warnbox">Written by AI${r.reviewed ? ", reviewed for taste and safety," : ""} and checked against your kitchen and sensible amounts. It hasn't been test-cooked like the library recipes, so read it through before cooking and follow the safety notes.</p>` : ""}
+        ${r.ai ? `<p class="small warnbox">Written by AI${r.reviewed ? ", reviewed for taste and safety," : ""} and checked against your kitchen and sensible amounts. AI recipes aren't test-cooked or guaranteed, so read it through before cooking and follow the safety notes.</p>` : ""}
         <dl class="spec">
-          <div><dt>${r.kind === "drink" ? "Makes" : "Serves"}</dt><dd><div class="stepper"><button data-act="rserv" data-d="-1" aria-label="Fewer servings">−</button><b>${sv}${r.kind === "drink" ? " glass" + (sv > 1 ? "es" : "") : ""}</b><button data-act="rserv" data-d="1" aria-label="More servings">+</button></div>${m.scaledDown ? `<small class="muted">Smaller batch to fit what you have</small>` : ""}</dd></div>
+          <div><dt>${r.kind === "drink" ? "Makes" : "Serves"}</dt><dd>${m.scaledDown ? `<small class="warn-line">The full recipe makes ${r.serves}. You have enough of ${esc((E.matchRecipe(r, S.pantry, S.staples, opts({ servings: r.serves })).amountShort || []).map(a => a.name.toLowerCase()).join(", ") || "everything")} for ${m.servings}, so every amount below is scaled to ${m.servings}.</small>` : ""}<div class="stepper"><button data-act="rserv" data-d="-1" aria-label="Fewer servings">−</button><b>${sv}${r.kind === "drink" ? " glass" + (sv > 1 ? "es" : "") : ""}</b><button data-act="rserv" data-d="1" aria-label="More servings">+</button></div></dd></div>
           <div><dt>Time</dt><dd>${r.prep} min prep · ${r.cook} min cooking</dd></div>
           <div><dt>Difficulty</dt><dd>${esc(r.difficulty || "Easy")}</dd></div>
           <div><dt>From your kitchen</dt><dd>${m.usedCount} of your foods + staples · <b class="ok">nothing to buy</b>${m.urgentUsed.length ? `<br><span class="urg">Uses up: ${esc(m.urgentUsed.map(p => p.name).join(", "))}</span>` : ""}</dd></div>
         </dl>
+        ${S.feedback && S.feedback[r.id] ? `<p class="small warnbox">You reported: “${esc(S.feedback[r.id].reason)}${S.feedback[r.id].note ? " · " + esc(S.feedback[r.id].note) : ""}”. It's ranked lower for you now.</p>` : ""}
         <div class="actions-row">
           <button class="btn primary" data-act="cooked">I made this</button>
+          <button class="btn" data-act="feedback">This didn't work</button>
           <div class="save-wrap">${isSaved(r) ? `<button class="btn saved" data-act="save-open">✓ Saved</button>` : `<button class="btn" data-act="save-quick">Save recipe</button>`}
             <div class="pop" id="savePop" hidden><span class="label">Put it in a collection</span>
               ${S.collections.map(cn => `<button class="opt" data-act="save-to" data-col="${esc(cn)}">${esc(cn)}</button>`).join("")}
@@ -2339,7 +2668,7 @@ function renderDetail() {
     <section><div class="sec-title"><h3>Rescue my dish</h3><span class="label">Mid-cook fixes</span></div>
       <div class="rescue">${["Too salty", "Too watery", "Needs brightness", "Needs more depth", "Too spicy", "Too bland"].map(p => `<button class="btn small" data-act="rescue" data-p="${p}">${p}</button>`).join("")}</div>
       <div class="fixes" id="fixes"></div></section>`;
-  drawPlate($("#plate"), r, null);
+  paint($("#plate"), r);
 }
 
 /* ----- "I made this" ----- */
@@ -2377,6 +2706,24 @@ function submitCooked() {
   S.sample = false; persist(); closeAuth();
   toast(`Kitchen updated: ${res.used.length} food${res.used.length === 1 ? "" : "s"} used${left ? ", " + left + " serving" + (left > 1 ? "s" : "") + " of leftovers saved" : ""}. Enjoy!`);
   rerender();
+}
+
+/* ----- "This didn't work": recipe feedback ----- */
+function openFeedback() {
+  const r = getRecipe(S.ui.currentId); if (!r) return;
+  const R = ["Too salty", "Too bland", "Amounts seemed wrong", "Took much longer than it says", "Steps were unclear", "Didn't taste good together", "Something else"];
+  openModal(`<h2 id="authTitle">What went wrong with ${esc(r.title)}?</h2><p>Your report helps fix the recipe. It's also ranked lower for you from now on.</p>
+    <form id="feedbackForm"><div class="radios">${R.map((x, i) => `<label><input type="radio" name="fbReason" value="${esc(x)}"${i === 0 ? " checked" : ""}> ${esc(x)}</label>`).join("")}</div>
+    <label for="fbNote">Anything else? (optional)<input type="text" id="fbNote" maxlength="300" placeholder="e.g. needed 10 more minutes"></label>
+    <div class="form-actions"><button class="btn primary" type="submit">Send report</button><button class="linkbtn" type="button" data-act="auth-close">Cancel</button></div></form>`);
+}
+async function submitFeedback() {
+  const r = getRecipe(S.ui.currentId); if (!r) return;
+  const reason = (document.querySelector('input[name="fbReason"]:checked') || {}).value || "Something else", note = $("#fbNote").value.trim().slice(0, 300);
+  S.feedback = S.feedback || {}; S.feedback[r.id] = { reason, note, at: Date.now() }; persist(); closeAuth(); renderIdeas();
+  let sent = false;
+  if (Cloud.user) { try { const sb = await Cloud.client(); const { error } = await sb.from("pantry_feedback").insert({ user_id: Cloud.user.id, recipe_id: r.id, recipe_title: r.title, reason, note, ai: !!r.ai }); sent = !error; } catch (e) {} }
+  toast(sent ? "Thanks! Report sent, and the recipe is ranked lower for you." : "Thanks! Saved on this device, and the recipe is ranked lower for you." + (Cloud.user ? "" : " Sign in to send reports to the site owner."));
 }
 
 /* ----- Diet & equipment ----- */
@@ -2433,7 +2780,7 @@ JSON only: {"reviews":[{"index":0,"taste":4,"practical":4,"unsafe":false,"proble
       } catch (e) { kept = []; dropped += cands.length; }
     }
     kept.forEach(r => S.ui.aiRecipes.push(r));
-    toast(kept.length ? `Added ${kept.length} AI recipe${kept.length > 1 ? "s" : ""}${dropped ? `; left out ${dropped} that didn't pass the taste, safety or ingredient checks` : ""}.` : "None of the AI's ideas passed the taste, safety and ingredient checks, so I left them out. The tested recipes are still here.");
+    toast(kept.length ? `Added ${kept.length} AI recipe${kept.length > 1 ? "s" : ""}${dropped ? `; left out ${dropped} that didn't pass the taste, safety or ingredient checks` : ""}.` : "None of the AI's ideas passed the taste, safety and ingredient checks, so I left them out. The curated recipes are still here.");
   } catch (e) {
     if (e && e.code === "puter_sign_in") openPuterConnect(() => askAIMore());
     else if (e && e.code === "sign_in") { toast("Sign in to use the AI."); openAuth("signin"); }
@@ -2512,7 +2859,7 @@ function renderSaved() {
       <div class="actions"><label class="wk"><input type="checkbox" data-week="${z.id}" ${S.week.includes(z.id) ? "checked" : ""}>This week</label>
       <span style="flex:1"></span>${m.ok ? `<button class="btn small primary" data-act="open-saved" data-id="${z.id}">Cook</button>` : ""}<button class="btn small" data-act="unsave" data-id="${z.id}" aria-label="Remove ${esc(r.title)} from saved">Remove</button></div></div></div>`).join("")
     : `<div class="empty" style="grid-column:1/-1">${S.saved.length ? "No saved recipes match. Try another search or collection." : "Nothing saved yet. Tap “Save recipe” on any dish in Cook something."}</div>`;
-  document.querySelectorAll("canvas[data-thumb]").forEach(cv => { const z = S.saved.find(x => x.id === cv.dataset.thumb); if (z && savedRecipe(z)) drawPlate(cv, savedRecipe(z), null); });
+  document.querySelectorAll("canvas[data-thumb]").forEach(cv => { const z = S.saved.find(x => x.id === cv.dataset.thumb); if (z) paint(cv, savedRecipe(z)); });
   renderWeek(); renderNavCounts();
 }
 function renderWeek() {
@@ -2541,7 +2888,7 @@ document.addEventListener("click", e => {
   if (act === "tab") { e.preventDefault(); setTab(t.dataset.tab); return; }
   if (act === "ai-info") { openAiInfo(); return; }
   if (act === "puter-connect") { t.disabled = true; t.textContent = "Waiting for Puter…";
-    AI.puterSignIn().then(() => { closeAuth(); toast("Free AI is on. Enjoy!"); renderAiStatus(); const f = S.afterPuter; S.afterPuter = null; if (f) f(); })
+    AI.puterSignIn().then(async () => { S.puterConnected = await AI.puterSignedIn(); closeAuth(); toast(S.puterConnected ? "Free AI is connected. Enjoy!" : "Puter didn't confirm the sign-in. Try again."); renderAiStatus(); const f = S.afterPuter; S.afterPuter = null; if (f) f(); })
       .catch(() => { t.disabled = false; t.textContent = "Connect free AI"; toast("Sign-in didn't finish. If nothing opened, allow pop-ups for this site and try again."); });
     return; }
   if (act === "account") { Cloud.user ? openAuth("account") : openAuth("signin"); return; }
@@ -2572,6 +2919,7 @@ document.addEventListener("click", e => {
     case "zone-add": { const n = t.dataset.n, k = E.resolveKey(n); const ex = S.pantry.find(p => (k && p.key === k) || E.norm(p.name) === E.norm(n));
       if (ex) { openModal(itemForm(ex), "#fQty"); break; }
       const parsed = E.parseIngredientText(n)[0] || { name: n };
+      if (parsed.cooked) { openReview([{ ...parsed, name: n, loc: "fridge" }]); break; }
       E.addToPantry(S.pantry, [{ ...parsed, name: n, loc: ZONE_LOC[t.dataset.z] || (["Back of the fridge", "Fridge shelves", "Fridge door", "Crisper drawers"].includes(t.dataset.z) ? "fridge" : parsed.loc), added: E.todayISO() }]);
       S.sample = false; persist(); renderKitchen(); toast(`Added ${n}. Tap it to add the amount or dates.`); break; }
     case "pin": { const id = t.dataset.id; if (S.ui.pins.includes(id)) S.ui.pins = S.ui.pins.filter(x => x !== id); else if (S.ui.pins.length >= 3) toast("Pick up to 3 foods to build a meal around."); else S.ui.pins.push(id); renderKitchen(); break; }
@@ -2582,12 +2930,16 @@ document.addEventListener("click", e => {
     case "mode": S.ui.mode = t.dataset.mode; S.ui.currentId = null; renderCook(); break;
     case "kind": S.prefs.kind = t.dataset.k; S.ui.currentId = null; persist(); renderCook(); break;
     case "serv": { let n; if (!S.prefs.servings) n = +t.dataset.d > 0 ? 2 : 1; else { n = S.prefs.servings + +t.dataset.d; if (n < 1) n = null; if (n > 12) n = 12; } S.prefs.servings = n; S.ui.servingsOverride = {}; persist(); renderCook(); break; }
+    case "set-qty": { const it = S.pantry.find(x => x.id === t.dataset.id); const q = Number($("#sq-" + t.dataset.id).value);
+      if (!it || !(q > 0)) { toast("Enter how much you have, as a number."); break; } it.qty = q; it.unit = $("#squ-" + t.dataset.id).value; persist(); renderIdeas(); toast(`Saved: ${it.name}, ${E.fmtAmount(q, it.unit)}.`); break; }
     case "rserv": { const r = getRecipe(S.ui.currentId); const cur = match(r).servings; const n = Math.max(1, Math.min(12, cur + +t.dataset.d)); const test = E.matchRecipe(r, S.pantry, S.staples, opts({ servings: n }));
       if (!test.ok) { toast(`You don't have enough for ${n} servings.`); break; } S.ui.servingsOverride[r.id] = n; renderDetail(); break; }
     case "prefs": openPrefs(); break;
     case "pick": S.ui.currentId = t.dataset.id; document.querySelectorAll(".pick[data-act=pick]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === S.ui.currentId))); renderDetail();
       if (window.innerWidth < 860) $("#detail").scrollIntoView({ behavior: "smooth", block: "start" }); break;
     case "cooked": openCooked(); break;
+    case "feedback": openFeedback(); break;
+    case "rv-remove": { const row = document.querySelector(`.rv[data-i="${t.dataset.i}"]`); if (row) row.hidden = true; break; }
     case "ai-more": askAIMore(); break;
     case "rescue": rescue(t.dataset.p); break;
     case "save-quick": saveCurrent(""); break;
@@ -2608,6 +2960,8 @@ document.addEventListener("submit", e => {
   if (id === "quickAdd" || id === "homeAdd") { const inp = id === "quickAdd" ? $("#qaText") : $("#homeAddText"); if (inp.value.trim()) { addFromText(inp.value); inp.value = ""; inp.focus(); } return; }
   if (id === "itemForm") { submitItemForm(e.target); return; }
   if (id === "cookedForm") { submitCooked(); return; }
+  if (id === "reviewForm") { submitReview(); return; }
+  if (id === "feedbackForm") { submitFeedback(); return; }
   if (id === "prefsForm") { S.prefs.diet = [...document.querySelectorAll('input[name="diet"]:checked')].map(x => x.value); S.prefs.equipment = [...document.querySelectorAll('input[name="equip"]:checked')].map(x => x.value); persist(); closeAuth(); renderCook(); return; }
   if (id === "newCol") { const n = $("#newColName").value.trim(); if (n && !S.collections.includes(n)) { S.collections.push(n); persist(); } S.ui.addingCol = false; if (n) S.ui.savedCol = n; renderSaved(); return; }
   if (id === "popNew") { const n = $("#popNewName").value.trim(); if (n) { if (!S.collections.includes(n)) S.collections.push(n); saveCurrent(n); } return; }
@@ -2619,7 +2973,8 @@ document.addEventListener("change", e => {
   if (t.id === "oneSel") { S.ui.oneId = t.value; S.ui.currentId = null; renderIdeas(); return; }
   if (t.id === "timeSel") { S.prefs.maxTime = +t.value; persist(); renderIdeas(); return; }
   if (t.id === "cuisineSel") { S.prefs.cuisine = t.value; persist(); renderIdeas(); return; }
-  if (t.id === "fCooked") { $("#fAddedLabel").textContent = t.checked ? "Cooked on" : "Bought on"; return; }
+  if (t.id === "fCooked") { $("#fAddedWrap").hidden = t.checked; $("#fCookedWrap").hidden = !t.checked; return; }
+  if (t.dataset.rvcooked !== undefined) { const i = t.dataset.rvcooked; $("#rvDate" + i).hidden = t.value !== "pick"; return; }
   if (t.id === "fOpened") { $("#fOpenedWrap").hidden = !t.checked; return; }
   if (t.dataset.move) { const z = S.saved.find(x => x.id === t.dataset.move); if (z) { z.col = t.value; persist(); renderSaved(); toast(t.value ? `Moved to ${t.value}.` : "Moved to Unsorted."); } return; }
   if (t.id === "savedSort") { S.ui.savedSort = t.value; renderSaved(); return; }
@@ -2781,22 +3136,30 @@ async function submitAuth(){
 
 
 /* ---------- AI status badge: live / demo / offline ---------- */
-function aiState(){ if(!navigator.onLine) return "off"; if(AI.ready) return "live"; return S.aiChecking?"checking":"demo"; }
+function aiState(){
+  if(!navigator.onLine) return "off";
+  if(S.aiChecking) return "checking";
+  if(!AI.ready) return "none";
+  if(AI.mode==="puter"&&!S.puterConnected) return "signin";
+  if(AI.mode==="server"&&!Cloud.user) return "signin";
+  return "live";
+}
 function renderAiStatus(){
   const b=$("#aiStatus"), st=aiState();
-  b.className="status"+(st==="live"?" live":st==="demo"?" demo":st==="off"?" off":"");
-  b.textContent={live:"AI · "+AI.name,demo:"Demo mode",off:"Offline",checking:"AI · connecting"}[st];
+  b.className="status"+(st==="live"?" live":st==="off"?" off":(st==="signin"||st==="none")?" demo":"");
+  b.textContent={live:"AI · "+AI.name+" connected",signin:"AI · connect",none:"No AI",off:"Offline",checking:"AI · checking"}[st];
   b.title="What does this mean?";
 }
 function openAiInfo(){
   const st=aiState();
   const T={
-    live:`<h2 id="authTitle">Live AI is on</h2><p>${esc(AI.name)} adds extra recipe ideas (checked against your kitchen before they're shown) and suggests fixes in Rescue My Dish. The main recipes come from a tested library either way.</p>${AI.mode==="server"&&!Cloud.user?`<p>Sign in to use it.</p><button class="btn" data-act="account">Sign in</button>`:""}${AI.mode==="puter"?`<p>It runs through Puter: no key needed. The first time, you sign in to a free Puter account.</p>`:""}`,
-    demo:`<h2 id="authTitle">AI isn't connected right now</h2><p>Everything important still works: your kitchen, freshness tracking, the tested recipe library, swaps and saved recipes.</p><p>Only the extra AI recipe ideas and AI dish fixes are off; you'll get ready-made fixes instead.</p>`,
+    live:`<h2 id="authTitle">AI is connected</h2><p>${esc(AI.name)} adds extra recipe ideas (checked against your kitchen and reviewed before they're shown) and suggests fixes in Rescue My Dish. AI recipes aren't test-cooked or guaranteed. The main recipes come from the curated library either way.</p>`,
+    signin:`<h2 id="authTitle">Connect the free AI</h2><p>Extra AI recipe ideas use ${esc(AI.name)}${AI.mode==="puter"?" through Puter. Connect once with a free Puter account; your use comes out of its free allowance":". Sign in to your Pantry → Plate account to use it"}.</p><p>Everything else works without it: your kitchen, freshness, the curated recipes, swaps and saved recipes.</p>${AI.mode==="puter"?`<button class="btn primary" data-act="puter-connect">Connect free AI</button>`:`<button class="btn primary" data-act="account">Sign in</button>`}`,
+    none:`<h2 id="authTitle">AI isn't available right now</h2><p>Everything important still works: your kitchen, freshness tracking, the curated recipe library, swaps and saved recipes.</p><p>Only the extra AI recipe ideas and AI dish fixes are off; you'll get ready-made fixes instead.</p>`,
     off:`<h2 id="authTitle">You're offline</h2><p>Your pantry and cookbooks still work on this device. AI and account syncing pick up again as soon as you're back online.</p>`,
     checking:`<h2 id="authTitle">Connecting to the AI…</h2><p>This takes a few seconds. If it can't connect, the app switches to demo mode with sample recipes.</p>`
   };
-  $("#authBox").innerHTML=T[st]+`<button class="btn primary" data-act="auth-close">Got it</button>`;
+  $("#authBox").innerHTML=T[st]+`<button class="${st==="signin"?"linkbtn":"btn primary"}" data-act="auth-close">${st==="signin"?"Not now":"Got it"}</button>`;
   $("#authModal").hidden=false; $("#authBox").querySelector("button").focus();
 }
 
@@ -2912,7 +3275,7 @@ const h0 = location.hash.slice(1);
 setTab(h0 === "cookbooks" ? "saved" : (h0 === "studio" ? "cook" : (h0 === "pantry" ? "kitchen" : h0)));
 renderAccount(); if (CLOUD_OK) Cloud.restore();
 renderAiStatus();
-const aiDone = () => { S.aiChecking = false; renderAiStatus(); if (S.tab === "cook") renderIdeas(); };
+const aiDone = async () => { if (AI.mode === "puter") S.puterConnected = await AI.puterSignedIn(); S.aiChecking = false; renderAiStatus(); if (S.tab === "cook") renderIdeas(); };
 AI.init().then(aiDone, aiDone);
 setTimeout(aiDone, 10000);
 window.addEventListener("online", renderAiStatus); window.addEventListener("offline", renderAiStatus);

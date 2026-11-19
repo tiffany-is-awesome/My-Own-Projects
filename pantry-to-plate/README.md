@@ -34,7 +34,7 @@ Also optional: **nicer email links.** In Supabase, go to **Authentication → UR
 | File | What it does |
 |---|---|
 | `src/engine.js` | The "brain", no AI needed: ingredients, units, freshness and food-safety rules, recipe matching, ranking, swaps, and updating the kitchen after cooking. |
-| `src/recipes.js` | The curated library: 26 meals and 12 drinks (smoothies, shakes, fresh juices), with exact amounts, essential vs optional ingredients, explained swaps, storage and reheating. |
+| `src/recipes.js` | The curated library: 36 meals (17 Filipino) and 12 drinks (smoothies, shakes, fresh juices), with exact amounts, essential vs optional ingredients, explained swaps, storage and reheating. |
 | `src/app.js` | The screens: Home, My kitchen, Cook something, "I made this", Saved. |
 | `src/ai.js` | Settings and the AI connection (Claude in claude.ai, free Gemini through Puter, or your own key via the `pantry-ai` Supabase function). |
 | `src/cloud.js` | Sign-in and syncing with Supabase. |
@@ -42,8 +42,24 @@ Also optional: **nicer email links.** In Supabase, go to **Authentication → UR
 | `src/base.css`, `src/extra.css`, `src/body.html` | Look and page structure. |
 | `src/test-engine.js` | The brief's acceptance tests: `node src/test-engine.js` |
 | `src/test-audit.js` | The Phase 1 completion audit (modes, maths, deductions, leftovers, freshness, ranking): `node src/test-audit.js` |
+| `src/test-scenarios.js` | The main-branch review's test scenarios (leftover dates, batches, missing amounts, scaling, best-before vs use-by): `node src/test-scenarios.js` |
+| `src/test-browser-scenarios.py` | The same scenarios clicked through in a real browser with Playwright, on desktop and phone sizes (uses stand-ins for Supabase and Puter) |
 
 After changing anything in `src/`, run `python3 src/build.py` to rebuild `index.html`.
 
 ### Food-safety rules
 Freshness times are deliberately at the short end of public guidance: the USDA / FoodSafety.gov cold-storage chart (fridge at 4°C / 40°F or colder; freezer times are for quality, since frozen food stays safe), and the UK Food Standards Agency for cooked rice (eat within 24 hours, reheat once). Printed use-by dates always win. Cooked or perishable food with an unknown history is never called safe, and it's left out of recipes.
+
+## Recipe photos
+
+Dishes show a drawn illustration until a real photo is added. To add one:
+1. Put the image in `img/` (about 800×1000, WebP or JPG, under 120 KB). It must show **this exact dish**.
+2. Use your own photo, a free-licence photo (Unsplash, Pexels) with credit, or an AI image marked as AI.
+3. Add a line to `PHOTOS` in `src/recipes.js`, for example
+   `"chicken-adobo": { src: "img/chicken-adobo.webp", credit: "Photo: Jane Doe / Unsplash" }`
+   or `{ src: "img/x.webp", ai: true }`, then run `python3 src/build.py`.
+If a photo fails to load, the illustration stays.
+
+## Recipe feedback
+
+The **This didn't work** button on a recipe saves the reason on the device and, when signed in, to the `pantry_feedback` table in Supabase (people can add reports but can't read anyone's). Recipes reported as not working are ranked lower for that person.

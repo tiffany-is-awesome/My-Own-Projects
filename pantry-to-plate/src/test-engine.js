@@ -5,7 +5,8 @@ const now = new Date("2026-11-19T10:00:00");
 const staples = E.DEFAULT_STAPLES.concat(["onion","fish_sauce","flour"]);
 let fails = 0;
 const ok = (c, msg) => { console.log((c ? "  ✓ " : "  ✗ ") + msg); if (!c) fails++; };
-const kitchen = (text, extra = {}) => { const p = []; E.addToPantry(p, E.parseIngredientText(text).map(x => ({ ...x, ...extra[x.key] })), now); return p; };
+const withCook = x => (x.cooked || (E.ING[x.key] || {}).isCooked) && !x.cookedOn && !x.unknownAge ? { ...x, cookedOn: x.added || "2026-11-19" } : x;
+const kitchen = (text, extra = {}) => { const p = []; E.addToPantry(p, E.parseIngredientText(text).map(x => withCook({ ...x, ...extra[x.key] })), now); return p; };
 const show = (m) => `${m.recipe.title} [${m.servings} servings${m.scaledDown ? ", smaller batch" : ""}] score ${m.score.total.toFixed(0)} (taste ${m.score.quality}, urgency ${m.score.urgency.toFixed(0)}) uses ${m.usedCount}${m.swaps.length ? " swaps: " + m.swaps.map(s => s.name + "→" + s.subFor).join(", ") : ""}`;
 
 console.log("\nTEST 1: random leftovers (rice, eggs, half cabbage, carrot, cooked chicken)");
@@ -58,7 +59,7 @@ const lo = E.leftoverItem(m5.recipe, 1, now);
 ok(lo.cooked && lo.key === "leftover" && E.freshness(lo, now).daysLeft === 1, "leftover fried rice is tracked as a dish, with a 24-hour window");
 
 console.log("\nTEST 6: cooked food with an unknown history");
-p = []; E.addToPantry(p, [{ name: "Leftover stew", key: "leftover", unknownAge: true }, { name: "Leftover rice", key: "rice_cooked", added: "2026-11-16" }, { name: "Chicken", key: "chicken", added: "2026-11-15" }], now);
+p = []; E.addToPantry(p, [{ name: "Leftover stew", key: "leftover", unknownAge: true }, { name: "Leftover rice", key: "rice_cooked", cookedOn: "2026-11-16" }, { name: "Chicken", key: "chicken", added: "2026-11-15" }], now);
 p.forEach(x => console.log("   " + x.name + ": " + E.freshness(x, now).note));
 ok(p.every(x => !E.freshness(x, now).safe), "none is called safe");
 ok(E.usableItems(p, now).length === 0, "none is used in recipes");
