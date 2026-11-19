@@ -183,7 +183,7 @@
     <!-- Live parse preview -->
     <div id="parsePreview" class="mt-3 text-sm text-stone-500 dark:text-stone-400 min-h-[1.25rem]"></div>
     <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
-      <span>💸 Log money · ⏰ set reminders · 🎯 make budgets, all by typing</span>
+      <span>💸 Log money · 👛 fill pockets · ⏰ set reminders · 🎯 make budgets, all by typing</span>
       <button type="button" id="newHereLink" class="open-tutorial font-semibold text-violet-700 dark:text-violet-300 hover:underline">📖 New here? See how Tiffo works →</button>
     </div>
   </section>
@@ -208,6 +208,31 @@
           <div class="flex items-center gap-1.5 text-xs font-semibold text-sky-800 dark:text-sky-300"><span class="h-5 w-5 rounded-md bg-sky-500 text-white grid place-items-center text-[11px]">=</span>Net · this month</div>
           <div id="statNet" class="text-xl sm:text-2xl font-bold tabular mt-1">$0</div>
         </div>
+      </section>
+
+      <!-- Pockets (mini accounts) -->
+      <section data-tool="pockets" data-tool-name="👛 Pockets" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-fuchsia-100 dark:bg-fuchsia-900/50" aria-hidden="true">👛</span>
+            <div><h2 class="font-bold text-lg leading-tight">Pockets</h2>
+            <p class="text-xs text-stone-500 dark:text-stone-400">Set money aside for different things</p></div>
+          </div>
+          <button type="button" id="newPocketBtn" class="rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:brightness-110 text-white text-sm font-semibold px-3 py-1.5">+ New pocket</button>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div class="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-900/60 px-3 py-2">
+            <div class="text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">💵 Free to use</div>
+            <div id="pocketFree" class="text-lg font-bold tabular">₱0</div>
+          </div>
+          <div class="rounded-xl bg-fuchsia-50 dark:bg-fuchsia-950/30 border border-fuchsia-200/70 dark:border-fuchsia-900/60 px-3 py-2">
+            <div class="text-[11px] font-semibold text-fuchsia-800 dark:text-fuchsia-300">👛 In pockets</div>
+            <div id="pocketTotal" class="text-lg font-bold tabular">₱0</div>
+          </div>
+        </div>
+        <div id="pocketEmpty" class="rounded-xl border-2 border-dashed border-fuchsia-200 dark:border-fuchsia-900/60 p-4 text-sm text-stone-500 dark:text-stone-400"></div>
+        <div id="pocketGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+        <p id="pocketHint" class="hidden mt-3 text-[11px] text-stone-400">Type things like “send 500 to toys”, “move 200 from toys to necessities” or “take 100 out of toys”. Spending that mentions a pocket comes out of it.</p>
       </section>
 
       <!-- Ledger -->
@@ -592,6 +617,36 @@
   </div>
 </div>
 
+<!-- ============================ MODAL: Pocket form ============================ -->
+<div id="pocketModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="pocketModalTitle">
+  <form id="pocketForm" class="w-full max-w-sm rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xl p-6 animate-in space-y-3" autocomplete="off" novalidate>
+    <h3 id="pocketModalTitle" class="text-lg font-bold"></h3>
+    <p id="pocketModalSub" class="text-sm text-stone-500 dark:text-stone-400"></p>
+    <div id="pfNameRow" class="flex gap-2">
+      <label class="w-16"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Icon</span>
+        <input id="pfEmoji" maxlength="4" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-2 py-2.5 text-center text-lg focus:outline-none focus:ring-2 focus:ring-fuchsia-500" /></label>
+      <label class="flex-1"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Pocket name</span>
+        <input id="pfName" maxlength="30" placeholder="e.g. Toys" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" /></label>
+    </div>
+    <label id="pfFromRow" class="block"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">From</span>
+      <select id="pfFrom" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2.5"></select></label>
+    <label id="pfToRow" class="block"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">To</span>
+      <select id="pfTo" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2.5"></select></label>
+    <label id="pfAmountRow" class="block"><span id="pfAmountLabel" class="text-xs font-semibold text-stone-600 dark:text-stone-300">Amount</span>
+      <div class="relative mt-1"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 currency-symbol">₱</span>
+      <input id="pfAmount" type="number" step="0.01" min="0" inputmode="decimal" class="w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 pl-8 pr-3 py-2.5 tabular focus:outline-none focus:ring-2 focus:ring-fuchsia-500" /></div></label>
+    <label id="pfGoalRow" class="block"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Goal (optional)</span>
+      <div class="relative mt-1"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 currency-symbol">₱</span>
+      <input id="pfGoal" type="number" step="1" min="0" inputmode="decimal" placeholder="e.g. 5000" class="w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 pl-8 pr-3 py-2.5 tabular focus:outline-none focus:ring-2 focus:ring-fuchsia-500" /></div></label>
+    <p id="pfError" class="hidden text-sm rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 px-3 py-2" role="alert"></p>
+    <div class="flex items-center gap-2 pt-1">
+      <button type="button" id="pfDelete" class="hidden mr-auto text-sm font-semibold text-rose-600 dark:text-rose-400 hover:underline">Delete pocket</button>
+      <button type="button" id="pfCancel" class="ml-auto rounded-lg px-4 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Cancel</button>
+      <button type="button" id="pfSave" class="rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:brightness-110 text-white px-4 py-2 text-sm font-semibold">Save</button>
+    </div>
+  </form>
+</div>
+
 <!-- ============================ MODAL: Confirm ============================ -->
 <div id="confirmModal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/50 p-4" role="alertdialog" aria-modal="true" aria-labelledby="confirmText">
   <div class="w-full max-w-sm rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xl p-6 animate-in">
@@ -950,6 +1005,13 @@ const Auth = {
     return { user: this.user };
   },
 
+  /** Send the "confirm your email" message again. */
+  async resendConfirmation(email) {
+    const sb = await this.supabase();
+    const { error } = await sb.auth.resend({ type: 'signup', email: email.trim().toLowerCase(), options: { emailRedirectTo: location.href.split('#')[0] } });
+    if (error) throw new Error(error.message);
+  },
+
   async resetPassword(email) {
     if (!this.useSupabase()) throw new Error('Device-only accounts can\'t send reset emails. Switch AUTH_PROVIDER to \'supabase\' for that.');
     const sb = await this.supabase();
@@ -984,7 +1046,7 @@ const Store = {
   /** Each account gets its own storage slot; guests use the base key. */
   keyFor(user) { return CONFIG.STORAGE_KEY + (user ? ':' + user.id : ''); },
   key() { return this.keyFor(Auth.user); },
-  blank() { return { initialBalance: 0, currency: detectCurrency(), transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], createdAt: Date.now(), savedAt: 0 }; },
+  blank() { return { initialBalance: 0, currency: detectCurrency(), transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], createdAt: Date.now(), savedAt: 0 }; },
 
   load() {
     this.state = this.blank();
@@ -1524,6 +1586,132 @@ const Budgets = {
   },
 
   describe(b) { return b.percent != null ? `${+b.percent.toFixed(2)}% of ${b.basis === 'income' ? 'income' : 'money'}` : 'fixed'; },
+};
+
+/* =========================================================================
+   5d. POCKETS — mini accounts inside your cash ("send 500 to toys").
+   Your total cash doesn't change; pockets set part of it aside.
+   pocket balance = money moved in − moved out + income into it − spending from it
+   free to use    = total cash balance − everything in pockets
+   ========================================================================= */
+const Pockets = {
+  EMOJI: [[/toy/, '🧸'], [/necess|need|essential|basic/, '🧺'], [/sav|piggy/, '🐷'], [/emergenc|rainy/, '🚨'], [/rent|house|home/, '🏠'],
+    [/food|grocer|meal|rice/, '🍚'], [/tax|bir/, '🏛️'], [/bill|util|electric|water|internet/, '💡'], [/school|tuition|educ/, '🎒'],
+    [/travel|trip|vacation/, '✈️'], [/gift|birthday|christmas|pasko/, '🎁'], [/fun|treat|leisure|shop/, '🎉'], [/stock|inventor|suppl/, '📦'],
+    [/salar|staff|payroll|wage/, '👥'], [/car|gas|fuel|transpo/, '🚗'], [/health|medic|doctor/, '💊'], [/business|capital/, '💼'],
+    [/invest/, '📈'], [/pet|dog|cat/, '🐾'], [/baby|kid|child/, '🍼'], [/church|tithe|donat|charity/, '🙏'], [/phone|gadget|laptop/, '📱']],
+  COLORS: ['#a855f7', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#ef4444', '#14b8a6', '#6366f1', '#84cc16', '#f97316'],
+  VERBS_IN: 'send|move|put|add|transfer|deposit|save|stash|allocate|set aside|place|load|top up|fund',
+  VERBS_OUT: 'take|withdraw|pull|get|remove|move',
+  WORDS: '(?:pocket|account|wallet|fund|envelope|jar|ipon)',
+
+  list() { return (Store.state.pockets ||= []); },
+  moves() { return (Store.state.pocketMoves ||= []); },
+  get(id) { return this.list().find((p) => p.id === id); },
+  norm(x) { return String(x || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().replace(/ies$/, 'y').replace(/(?<!s)s$/, ''); },
+  emojiFor(name) { const n = name.toLowerCase(); return (this.EMOJI.find(([re]) => re.test(n)) || [0, '👛'])[1]; },
+
+  balance(p) {
+    let b = 0;
+    for (const m of this.moves()) if (m.pocketId === p.id) b += m.amount;
+    for (const t of Store.state.transactions) if (t.pocketId === p.id) b += t.type === 'income' ? t.amount : -t.amount;
+    return round2(b);
+  },
+  total() { return round2(this.list().reduce((a, p) => a + this.balance(p), 0)); },
+  free() { return round2(Store.balance() - this.total()); },
+
+  /** Find a pocket by name ("toys", "my toys account", "Toy"). */
+  find(name) {
+    const exactHit = this.list().find((p) => this.norm(p.name) === this.norm(name));
+    if (exactHit) return exactHit;
+    const n = this.norm(String(name || '').replace(new RegExp(`\\b(?:my|the|our)\\b|\\b${this.WORDS}s?\\b`, 'gi'), ''));
+    if (!n) return null;
+    const list = this.list();
+    return list.find((p) => this.norm(p.name) === n)
+        || list.find((p) => n.split(' ').includes(this.norm(p.name)) || this.norm(p.name).split(' ').includes(n))
+        || null;
+  },
+
+  /** Which pocket does a money note mention? ("from toys", "toys pocket", or just the pocket's name). */
+  mentioned(text) {
+    const t = text.toLowerCase();
+    let best = null, len = 0;
+    for (const p of this.list()) {
+      const words = [this.norm(p.name), p.name.toLowerCase()].filter(Boolean);
+      for (const w of words) {
+        const re = new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}s?\\b`, 'i');
+        if (re.test(t) && w.length > len) { best = p; len = w.length; }
+      }
+    }
+    return best;
+  },
+
+  create(name, { emoji, goal = null, exact = false } = {}) {
+    const clean = (exact ? name : name.replace(new RegExp(`\\b${this.WORDS}s?\\b`, 'gi'), '')).replace(/\s+/g, ' ').trim().slice(0, 30);
+    const title = clean.replace(/\b\w/g, (c) => c.toUpperCase());
+    const p = { id: uid(), name: title, emoji: emoji || this.emojiFor(title), color: this.COLORS[this.list().length % this.COLORS.length], goal, createdAt: Date.now() };
+    this.list().push(p);
+    return p;
+  },
+
+  /** Move money: from/to are pocket ids or null (= free money). Returns an error message or null. */
+  move(amount, fromId, toId, note = '') {
+    amount = round2(Math.abs(amount));
+    if (!amount) return 'Enter an amount.';
+    if (fromId === toId) return 'Pick two different places.';
+    const avail = fromId ? this.balance(this.get(fromId)) : this.free();
+    if (amount > avail + 0.001) {
+      const where = fromId ? `${this.get(fromId).emoji} ${this.get(fromId).name}` : 'free money';
+      return `Only ${fmt(Math.max(0, avail))} is in ${where}.`;
+    }
+    const date = toISODate(new Date()), group = uid();
+    if (fromId) this.moves().push({ id: uid(), group, pocketId: fromId, amount: -amount, date, note, createdAt: Date.now() });
+    if (toId) this.moves().push({ id: uid(), group, pocketId: toId, amount, date, note, createdAt: Date.now() });
+    Store.save();
+    return null;
+  },
+  undoGroup(group) { Store.state.pocketMoves = this.moves().filter((m) => m.group !== group); Store.save(); },
+  lastGroup() { const m = this.moves(); return m.length ? m[m.length - 1].group : null; },
+
+  remove(id) {
+    Store.state.pockets = this.list().filter((p) => p.id !== id);
+    Store.state.pocketMoves = this.moves().filter((m) => m.pocketId !== id);
+    Store.state.transactions.forEach((t) => { if (t.pocketId === id) delete t.pocketId; });
+    Store.save();
+  },
+
+  /* ---------- typed notes ---------- */
+  isPocketNote(text) {
+    const t = text.toLowerCase();
+    if (/\bbudget/.test(t) || Budgets.percent(t) != null) return false;
+    if (/^how much\b/.test(t)) return new RegExp(`\\b${this.WORDS}\\b`).test(t) || !!this.mentioned(t);
+    if (new RegExp(`\\b(?:new|create|make|add|open|start)\\b.*\\b${this.WORDS}\\b|\\b${this.WORDS}\\b.*\\b(?:called|named)\\b`).test(t) && !Parser.extractAmount(t)) return true;
+    if (new RegExp(`\\b(?:delete|remove|close)\\b.*\\b${this.WORDS}\\b`).test(t) && !Parser.extractAmount(t)) return true;
+    if (!Parser.extractAmount(t)) return false;
+    if (new RegExp(`\\b(?:${this.VERBS_IN})\\b.*\\b(?:to|into|in|for)\\b`).test(t) && !/\b(spent|paid|bought|purchased|received|earned|sold)\b/.test(t)) return true;
+    if (new RegExp(`\\b(?:${this.VERBS_OUT})\\b.*\\b(?:out of|from)\\b`).test(t)) return true;
+    return false;
+  },
+
+  parse(text) {
+    const raw = text.trim(), t = raw.toLowerCase().replace(/[.!?]+$/, '');
+    const amt = Parser.extractAmount(t);
+    const stripName = (x) => (x || '').replace(new RegExp(`\\b(?:my|the|our|a|an)\\b|\\b${this.WORDS}s?\\b|\\b(?:pesos?|php|dollars?|bucks)\\b|[₱$€£]`, 'gi'), '').replace(/\d[\d,.]*k?/g, '').replace(/\s+/g, ' ').trim();
+    if (/^how much\b/.test(t)) return { action: 'ask', name: stripName(t.replace(/^how much\s+(?:money\s+)?(?:is\s+|do i have\s+|left\s+)?(?:in|on|for)?/, '')) };
+    if (new RegExp(`\\b(?:delete|remove|close)\\b`).test(t) && !amt) return { action: 'delete', name: stripName(t.replace(/\b(?:delete|remove|close)\b/, '')) };
+    if (!amt) {
+      const named = t.match(/\b(?:called|named)\s+(.+)$/);
+      if (named) return { action: 'create', name: named[1].replace(/^(?:my|the|a|an)\s+/, '').trim(), exact: true };
+      const m = t.match(new RegExp(`\\b${this.WORDS}\\s+(?:for)\\s+(.+)$`)) || t.match(new RegExp(`\\b(?:new|create|make|add|open|start)\\s+(?:a\\s+|an\\s+|new\\s+)*(.+?)\\s+${this.WORDS}\\b`));
+      return { action: 'create', name: stripName(m ? m[1] : t.replace(/\b(?:new|create|make|add|open|start)\b/g, '')) };
+    }
+    let m = t.match(/\bfrom\s+(.+?)\s+(?:to|into)\s+(.+)$/);
+    if (m) return { action: 'move', amount: amt.value, from: stripName(m[1]), to: stripName(m[2]) };
+    m = t.match(new RegExp(`\\b(?:${this.VERBS_OUT})\\b.*?\\b(?:out of|from)\\s+(.+)$`));
+    if (m && !/\b(?:to|into)\b/.test(m[1])) return { action: 'move', amount: amt.value, from: stripName(m[1]), to: null };
+    m = t.match(/\b(?:to|into|in|for)\s+(.+)$/);
+    return { action: 'move', amount: amt.value, from: null, to: stripName(m ? m[1] : '') };
+  },
 };
 
 /* ---------- Alarm sound (Web Audio — no file needed) ---------- */
@@ -2491,11 +2679,11 @@ const Exporter = {
 
     push('TIFFO LEDGER EXPORT'); push('Generated', new Date().toLocaleString()); push('Currency', CURRENCY);
     push('Starting balance', Store.state.initialBalance.toFixed(2)); push('');
-    push('Date', 'Description', 'Category', 'Type', 'Amount', 'Signed Amount', 'Running Balance', 'Schedule C Line (hint)');
+    push('Date', 'Description', 'Category', 'Type', 'Amount', 'Signed Amount', 'Running Balance', 'Schedule C Line (hint)', 'Pocket');
     for (const t of txs) {
       const signed = t.type === 'income' ? t.amount : -t.amount;
       bal = round2(bal + signed);
-      push(t.date, t.description, t.category, t.type, t.amount.toFixed(2), signed.toFixed(2), bal.toFixed(2), CATEGORIES[t.category]?.schedC || '');
+      push(t.date, t.description, t.category, t.type, t.amount.toFixed(2), signed.toFixed(2), bal.toFixed(2), CATEGORIES[t.category]?.schedC || '', (t.pocketId && Pockets.get(t.pocketId)?.name) || '');
     }
 
     // ---- CPA summary, by year ----
@@ -2516,6 +2704,11 @@ const Exporter = {
       push('Total expenses', '', '', exp.toFixed(2));
       push('Net profit (before adjustments)', '', '', (inc - exp).toFixed(2));
       if (meals) push('Meals — typically 50% deductible', '', '', (meals / 2).toFixed(2));
+    }
+    if (Pockets.list().length) {
+      push(''); push('POCKETS (money set aside)'); push('Pocket', 'Balance', 'Goal');
+      for (const p of Pockets.list()) push(p.name, Pockets.balance(p).toFixed(2), p.goal ? p.goal.toFixed(2) : '');
+      push('Free to use', Pockets.free().toFixed(2));
     }
     push(''); push('Note: Schedule C lines are hints for US filers. Confirm deductibility with your tax professional.');
     return '﻿' + rows.join('\r\n'); // BOM so Excel reads UTF-8
@@ -2692,7 +2885,7 @@ const UI = {
     ['from-rose-600', 'via-rose-500', 'to-orange-500'].forEach((c) => card.classList.toggle(c, b < 0));
     if (this.lastBalance !== null && this.lastBalance !== b) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
     this.lastBalance = b;
-    $('#balanceSub').textContent = `Started at ${fmt(Store.state.initialBalance)}`;
+    $('#balanceSub').textContent = Pockets.list().length ? `${fmt0(Pockets.free())} free · ${fmt0(Pockets.total())} in pockets` : `Started at ${fmt(Store.state.initialBalance)}`;
 
     const ym = toISODate(new Date()).slice(0, 7);
     const m = Store.totals((t) => t.date.startsWith(ym));
@@ -2746,6 +2939,7 @@ const UI = {
               ${catOptions(t.category, t.type)}
             </select><span class="text-[9px] opacity-60 pr-1" aria-hidden="true">▾</span></span>
             ${t.source === 'scan' ? '<span class="text-[10px] font-semibold text-stone-400">📷 from scan</span>' : ''}
+            ${t.pocketId && Pockets.get(t.pocketId) ? `<span class="text-[10px] font-semibold rounded-full px-1.5 py-0.5" style="background:${Pockets.get(t.pocketId).color}26">${escapeHTML(Pockets.get(t.pocketId).emoji + ' ' + Pockets.get(t.pocketId).name)}</span>` : ''}
           </div>
         </div>
         <div class="text-right">
@@ -2757,7 +2951,7 @@ const UI = {
     Store.state.transactions.forEach((t) => delete t.fresh);
   },
 
-  renderAll() { this.renderBalance(); this.renderLedger(); Charts.render(); this.renderDocHistory(); this.renderReminders(); this.renderBudgets(); },
+  renderAll() { this.renderBalance(); this.renderLedger(); Charts.render(); this.renderDocHistory(); this.renderReminders(); this.renderBudgets(); this.renderPockets(); },
 
   /* ---------- document card ---------- */
   docStatus(text, progress) {
@@ -2949,6 +3143,13 @@ const UI = {
       this.afterReminderCreated(r, r.remindAt < Date.now() ? ' (that time has passed, so it rings now)' : '');
       return;
     }
+    if (Pockets.isPocketNote(text)) {
+      const msg = this.applyPocketNote(text);
+      if (!/^(🤔|⚠️)/.test(msg)) { $('#noteInput').value = ''; $('#parsePreview').innerHTML = ''; }
+      const g = Pockets.lastGroup();
+      toast(escapeHTML(msg), { duration: 6500, ...(msg.startsWith('👛') && msg.includes('→') ? { action: { label: 'Undo', fn: () => { Pockets.undoGroup(g); UI.renderAll(); } } } : {}) });
+      return;
+    }
     if (Budgets.isBudget(text)) {
       const msg = this.applyBudgetNote(text);
       if (!msg.startsWith('🤔')) { $('#noteInput').value = ''; $('#parsePreview').innerHTML = ''; }
@@ -2965,14 +3166,18 @@ const UI = {
       $('#noteInput').focus();
       return;
     }
-    const t = Store.addTransaction({ ...parsed, source: 'note' });
+    const pk = Pockets.mentioned(text);
+    const t = Store.addTransaction({ ...parsed, source: 'note', ...(pk ? { pocketId: pk.id } : {}) });
     t.fresh = true;
     $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
     this.renderAll();
     const bud = t.type === 'expense' && (Store.state.budgets || []).find((b) => b.category === t.category);
     const bs = bud && Budgets.stats(bud);
     const budMsg = bs ? (bs.left >= 0 ? ` · 🎯 ${fmt0(bs.left)} left for ${escapeHTML(bud.name)}` : ` · ⚠️ ${escapeHTML(bud.name)} is ${fmt0(-bs.left)} over budget`) : '';
-    toast(`${t.type === 'income' ? '💰 +' : '💸 −'}${fmt(t.amount)} · ${escapeHTML(t.category)}${budMsg}`, {
+    const pkMsg = pk ? ` · ${t.type === 'income' ? 'into' : 'from'} ${escapeHTML(pk.emoji + ' ' + pk.name)} (${fmt0(Pockets.balance(pk))} left)` : '';
+    toast(`${t.type === 'income' ? '💰 +' : '💸 −'}${fmt(t.amount)} · ${escapeHTML(t.category)}${pkMsg}${budMsg}`, {
+      duration: pk ? 7000 : 4500,
+      actions: pk ? [{ label: 'Not from pocket', fn: () => { delete t.pocketId; Store.save(); UI.renderAll(); } }] : [],
       action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id); UI.renderAll(); } },
     });
   },
@@ -2984,14 +3189,152 @@ const UI = {
         <span class="text-stone-400">(${Reminders.countdown(r.remindAt)})</span>`;
       return;
     }
+    if (text.trim() && Pockets.isPocketNote(text)) { $('#parsePreview').innerHTML = this.pocketPreview(text); return; }
     if (text.trim() && Budgets.isBudget(text)) { $('#parsePreview').innerHTML = this.budgetPreview(text); return; }
     const p = Parser.parse(text);
     if (!p) { $('#parsePreview').innerHTML = ''; return; }
     if (!p.amount) { $('#parsePreview').innerHTML = `<span class="text-amber-600">Add an amount, e.g. ${exampleMoney(25)}</span>`; return; }
     const isIn = p.type === 'income';
     $('#parsePreview').innerHTML = `Will log: <span class="font-semibold ${isIn ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}">${isIn ? 'Income +' : 'Expense −'}${fmt(p.amount)}</span>
-      · ${CATEGORIES[p.category].icon} ${escapeHTML(p.category)} · ${prettyDate(p.date)}
+      · ${CATEGORIES[p.category].icon} ${escapeHTML(p.category)} · ${prettyDate(p.date)}${(() => { const k = Pockets.mentioned(text); return k ? ` · ${isIn ? 'into' : 'from'} ${escapeHTML(k.emoji + ' ' + k.name)}` : ''; })()}
       <span class="text-stone-400">(new balance ${fmt(Store.balance() + (isIn ? p.amount : -p.amount))})</span>`;
+  },
+
+  /* ---------- pockets ---------- */
+  renderPockets() {
+    const list = Pockets.list(), free = Pockets.free(), total = Pockets.total();
+    $('#pocketFree').textContent = fmt(free);
+    $('#pocketFree').classList.toggle('text-rose-600', free < 0);
+    $('#pocketTotal').textContent = fmt(total);
+    $('#pocketEmpty').classList.toggle('hidden', !!list.length);
+    $('#pocketHint').classList.toggle('hidden', !list.length);
+    $('#pocketEmpty').innerHTML = `No pockets yet. Tap <b>+ New pocket</b>, or type something like
+      <button type="button" class="try-pocket font-semibold text-fuchsia-700 dark:text-fuchsia-300 underline">Send ${escapeHTML(exampleMoney(10))} to my toys account</button> or
+      <button type="button" class="try-pocket font-semibold text-fuchsia-700 dark:text-fuchsia-300 underline">Put ${escapeHTML(exampleMoney(20))} in necessities</button>.`;
+    $('#pocketGrid').innerHTML = list.map((p) => {
+      const bal = Pockets.balance(p);
+      const pct = p.goal ? Math.min(100, Math.max(0, (bal / p.goal) * 100)) : null;
+      return `<div data-pid="${p.id}" class="rounded-xl border border-stone-200 dark:border-stone-800 p-3 relative overflow-hidden" style="background:linear-gradient(180deg, ${p.color}1f, transparent 70%)">
+        <div class="absolute inset-x-0 top-0 h-1" style="background:${p.color}"></div>
+        <div class="flex items-start justify-between gap-1">
+          <span class="text-2xl" aria-hidden="true">${escapeHTML(p.emoji)}</span>
+          <button type="button" class="pk-edit h-6 w-6 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-white/70 dark:hover:bg-stone-800" title="Edit pocket" aria-label="Edit ${escapeHTML(p.name)}">⋯</button>
+        </div>
+        <div class="text-sm font-semibold truncate mt-1">${escapeHTML(p.name)}</div>
+        <div class="text-lg font-extrabold tabular ${bal < 0 ? 'text-rose-600 dark:text-rose-400' : ''}">${fmt(bal)}</div>
+        ${pct != null ? `<div class="mt-1 h-1.5 rounded-full bg-stone-200/70 dark:bg-stone-700 overflow-hidden"><div class="h-full rounded-full" style="width:${pct}%;background:${p.color}"></div></div>
+          <div class="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5 tabular">${Math.round(pct)}% of ${fmt0(p.goal)} goal</div>` : ''}
+        <div class="mt-2 grid grid-cols-2 gap-1.5">
+          <button type="button" class="pk-add rounded-lg text-xs font-semibold py-1.5 text-white hover:brightness-110" style="background:${p.color}">+ Add</button>
+          <button type="button" class="pk-take rounded-lg text-xs font-semibold py-1.5 border border-stone-300 dark:border-stone-700 hover:bg-white/70 dark:hover:bg-stone-800">− Take out</button>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  /** kind: 'new' | 'edit' | 'add' | 'take' | 'move' */
+  openPocketForm(kind, pocket = null) {
+    this.pocketForm = { kind, pocket };
+    const show = (id, on) => $(id).classList.toggle('hidden', !on);
+    const list = Pockets.list();
+    const opt = (sel) => `<option value="">💵 Free money (${fmt(Pockets.free())})</option>` + list.map((p) => `<option value="${p.id}" ${sel === p.id ? 'selected' : ''}>${escapeHTML(p.emoji + ' ' + p.name)} (${fmt(Pockets.balance(p))})</option>`).join('');
+    $('#pfFrom').innerHTML = opt(kind === 'take' && pocket ? pocket.id : '');
+    $('#pfTo').innerHTML = opt(kind === 'add' && pocket ? pocket.id : (kind === 'move' && list[0] ? list[0].id : ''));
+    const titles = { new: 'New pocket', edit: 'Edit pocket', add: `Add money to ${pocket?.emoji || ''} ${pocket?.name || ''}`, take: `Take money out of ${pocket?.emoji || ''} ${pocket?.name || ''}`, move: 'Move money' };
+    const subs = { new: 'Name it, and optionally put some money in right away.', edit: '', add: `It comes from your free money (${fmt(Pockets.free())} available).`, take: `It goes back to your free money. ${pocket ? fmt(Pockets.balance(pocket)) + ' is in this pocket.' : ''}`, move: 'Move money between pockets or free money.' };
+    $('#pocketModalTitle').textContent = titles[kind].replace(/\s+/g, ' ');
+    $('#pocketModalSub').textContent = subs[kind];
+    show('#pfNameRow', kind === 'new' || kind === 'edit');
+    show('#pfGoalRow', kind === 'new' || kind === 'edit');
+    show('#pfFromRow', kind === 'move'); show('#pfToRow', kind === 'move');
+    show('#pfAmountRow', kind !== 'edit');
+    show('#pfDelete', kind === 'edit');
+    $('#pfAmountLabel').textContent = kind === 'new' ? 'Put in now (optional)' : 'Amount';
+    $('#pfName').value = pocket && kind === 'edit' ? pocket.name : '';
+    $('#pfEmoji').value = pocket && kind === 'edit' ? pocket.emoji : '';
+    $('#pfGoal').value = pocket && kind === 'edit' && pocket.goal ? pocket.goal : '';
+    $('#pfAmount').value = '';
+    $('#pfError').classList.add('hidden');
+    $('#pocketModal').classList.remove('hidden'); $('#pocketModal').classList.add('flex');
+    setTimeout(() => ((kind === 'new' || kind === 'edit') ? $('#pfName') : $('#pfAmount')).focus(), 40);
+  },
+  closePocketForm() { $('#pocketModal').classList.add('hidden'); $('#pocketModal').classList.remove('flex'); },
+
+  savePocketForm() {
+    const { kind, pocket } = this.pocketForm || {};
+    const err = (m) => { $('#pfError').textContent = m; $('#pfError').classList.remove('hidden'); };
+    const amount = parseFloat($('#pfAmount').value) || 0;
+    if (kind === 'new' || kind === 'edit') {
+      const name = $('#pfName').value.trim();
+      if (!name) return err('Give the pocket a name.');
+      const dupe = Pockets.find(name);
+      if (dupe && dupe !== pocket) return err(`You already have a “${dupe.name}” pocket.`);
+      const goal = parseFloat($('#pfGoal').value) || null;
+      if (kind === 'new') {
+        if (amount > Pockets.free() + 0.001) return err(`Only ${fmt(Math.max(0, Pockets.free()))} is free to put in.`);
+        const p = Pockets.create(name, { emoji: $('#pfEmoji').value.trim() || null, goal });
+        Store.save();
+        if (amount) Pockets.move(amount, null, p.id, 'Opening amount');
+        toast(`👛 New pocket: ${escapeHTML(p.emoji + ' ' + p.name)}${amount ? ` with ${fmt(amount)}` : ''}`);
+      } else {
+        pocket.name = name.slice(0, 30); pocket.emoji = $('#pfEmoji').value.trim() || Pockets.emojiFor(name); pocket.goal = goal;
+        Store.save(); toast('Pocket updated.');
+      }
+    } else {
+      const from = kind === 'add' ? null : kind === 'take' ? pocket.id : ($('#pfFrom').value || null);
+      const to = kind === 'add' ? pocket.id : kind === 'take' ? null : ($('#pfTo').value || null);
+      const e = Pockets.move(amount, from, to);
+      if (e) return err(e);
+      const g = Pockets.lastGroup();
+      toast(`👛 Moved ${fmt(amount)}${to ? ` to ${escapeHTML(Pockets.get(to).name)}` : ' to free money'}.`, { action: { label: 'Undo', fn: () => { Pockets.undoGroup(g); UI.renderAll(); } } });
+    }
+    this.closePocketForm(); this.renderAll();
+  },
+
+  /** Typed pocket notes. Returns a toast message. */
+  applyPocketNote(text) {
+    const p = Pockets.parse(text);
+    const label = (x) => x ? `${x.emoji} ${x.name}` : '💵 free money';
+    if (p.action === 'ask') {
+      const k = Pockets.find(p.name) || Pockets.mentioned(text);
+      return k ? `${k.emoji} ${k.name} has ${fmt(Pockets.balance(k))}.` : `💵 Free to use: ${fmt(Pockets.free())} · 👛 In pockets: ${fmt(Pockets.total())}`;
+    }
+    if (p.action === 'create') {
+      if (!p.name) return '🤔 What should the pocket be called? Try “new pocket called savings”.';
+      const ex = Pockets.find(p.name);
+      if (ex) return `You already have ${ex.emoji} ${ex.name}.`;
+      const k = Pockets.create(p.name, { exact: p.exact }); Store.save(); this.renderAll();
+      return `👛 New pocket: ${k.emoji} ${k.name}. Send money to it with “send 500 to ${k.name.toLowerCase()}”.`;
+    }
+    if (p.action === 'delete') {
+      const k = Pockets.find(p.name);
+      if (!k) return `🤔 I couldn't find a “${p.name}” pocket.`;
+      const bal = Pockets.balance(k);
+      Pockets.remove(k.id); this.renderAll();
+      return `🗑️ Deleted ${k.emoji} ${k.name}.${bal ? ` Its ${fmt(bal)} went back to your free money.` : ''}`;
+    }
+    // move
+    let from = p.from ? Pockets.find(p.from) : null, to = p.to ? Pockets.find(p.to) : null, created = null;
+    if (p.from && !from) return `🤔 I couldn't find a “${p.from}” pocket.`;
+    if (p.to && !to) {
+      if (!p.to.trim()) return '🤔 Which pocket? Try “send 500 to toys”.';
+      created = to = Pockets.create(p.to);
+    }
+    if (!from && !to) return '🤔 Which pocket? Try “send 500 to toys”.';
+    const e = Pockets.move(p.amount, from?.id || null, to?.id || null, text);
+    if (e) { if (created) { Store.state.pockets = Pockets.list().filter((x) => x !== created); } return `⚠️ ${e}`; }
+    this.renderAll();
+    return `👛 ${fmt(p.amount)} from ${label(from)} → ${label(to)}${created ? ' (new pocket!)' : ''}. ${to ? `${to.emoji} ${to.name} now has ${fmt(Pockets.balance(to))}.` : `Free money: ${fmt(Pockets.free())}.`}`;
+  },
+
+  pocketPreview(text) {
+    const p = Pockets.parse(text);
+    if (p.action === 'ask') return 'Will show how much is in your pockets';
+    if (p.action === 'create') return p.name ? `Will create pocket: <b>${escapeHTML(Pockets.emojiFor(p.name))} ${escapeHTML(p.name)}</b>` : '<span class="text-amber-600">Add a name, e.g. “new pocket called savings”</span>';
+    if (p.action === 'delete') { const k = Pockets.find(p.name); return k ? `Will delete <b>${escapeHTML(k.emoji + ' ' + k.name)}</b> (its money goes back to free money)` : `<span class="text-amber-600">No “${escapeHTML(p.name)}” pocket</span>`; }
+    const from = p.from ? Pockets.find(p.from) : null, to = p.to ? Pockets.find(p.to) : null;
+    const name = (x, raw) => x ? `${escapeHTML(x.emoji + ' ' + x.name)}` : raw ? `👛 ${escapeHTML(raw)} <span class="text-stone-400">(new pocket)</span>` : '💵 free money';
+    return `Will move <b class="text-fuchsia-700 dark:text-fuchsia-300">${fmt(p.amount)}</b>: ${name(from, p.from)} → ${name(to, p.to)}`;
   },
 
   /* ---------- budgets ---------- */
@@ -3266,6 +3609,7 @@ const UI = {
           <li>💸 <b>Log money</b> by typing what happened</li>
           <li>⏰ <b>Set alarms</b> for deadlines the same way</li>
           <li>🎯 <b>Make budgets</b> like “15% goes to toys” and see what's left</li>
+          <li>👛 <b>Pockets</b>: send money to mini accounts like “toys” or “necessities”</li>
           <li>📷 <b>Scan</b> receipts & contracts into plain English</li>
           <li>📊 <b>See</b> where your money goes, then <b>export</b> it for taxes</li>
         </ul>
@@ -3294,6 +3638,12 @@ const UI = {
         ${ex('20% for toys and 10% for snacks')}
         ${ex('How much is left for toys?')}
         <p class="text-stone-500 dark:text-stone-400">Change one with “change toys to 20%” and remove one with “remove toys budget”. Spending like “Bought toys ${exampleMoney(20)}” counts automatically. “% of the money” means what you had this month (start-of-month balance + money in); say “% of income” to use only what you earned.</p>` },
+      { emoji: '👛', title: 'Pockets: set money aside', hero: 'from-fuchsia-500 to-violet-600', body: `
+        <p>Split your cash into <b>mini accounts</b>, like a pocket for toys and one for necessities. Your total stays the same; pockets just keep track of what each part is for.</p>
+        ${ex(`Send ${exampleMoney(10)} to my toys account`)}
+        ${ex(`Move ${exampleMoney(5)} from toys to necessities`)}
+        ${ex(`Take ${exampleMoney(2)} out of toys`)}
+        <p class="text-stone-500 dark:text-stone-400">Spending that mentions a pocket, like “Bought toys ${exampleMoney(3)}”, comes out of it automatically. The <b>👛 Pockets</b> card shows what's free to use and what's in each pocket.</p>` },
       { emoji: '📷', title: 'Scan receipts & contracts', hero: 'from-violet-600 to-fuchsia-600', body: `
         <p>Tap <b>📷 Scan Receipt / Contract</b> (or drag a photo onto the page). You'll get:</p>
         <ul class="space-y-1.5">
@@ -3417,7 +3767,19 @@ const UI = {
     });
   },
 
-  authError(msg) { const el = $('#authError'); el.textContent = msg; el.classList.remove('hidden'); },
+  authError(msg, offerResend = false) {
+    const el = $('#authError'); el.textContent = msg; el.classList.remove('hidden');
+    if (offerResend) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'mt-2 block font-semibold underline'; b.textContent = '📨 Resend confirmation email';
+      b.onclick = async () => {
+        b.disabled = true; b.textContent = 'Sending…';
+        try { await Auth.resendConfirmation($('#authEmail').value); b.textContent = '✅ Sent! Check your inbox (and Spam).'; }
+        catch (err) { b.disabled = false; b.textContent = '📨 Resend confirmation email'; toast(escapeHTML(/rate limit|too many/i.test(err.message) ? 'Too many emails for now. Try again in a few minutes.' : err.message)); }
+      };
+      el.appendChild(b);
+    }
+  },
 
   updatePwMeter(pw) {
     let score = 0;
@@ -3443,7 +3805,7 @@ const UI = {
       const migrate = this.authMode === 'signup' && $('#authMigrate').checked && !$('#migrateField').classList.contains('hidden');
       const res = this.authMode === 'signup' ? await Auth.signUp(creds) : await Auth.signIn(creds);
       if (res.pendingConfirmation) {
-        this.closeAuth(); toast('📧 Check your inbox to confirm your email, then sign in.', { duration: 8000 }); return;
+        this.closeAuth(); toast('📧 Almost done! We emailed you a link. Click it to confirm your account (check Spam too), then sign in.', { duration: 12000 }); return;
       }
       let hadData = Store.load();
       // Same email used for an older "this device only" account here? Bring those books along.
@@ -3456,7 +3818,12 @@ const UI = {
       await this.onUserChanged();
       toast(this.authMode === 'signup' ? `🎉 Welcome, ${escapeHTML(Auth.user.name)}! Your account is ready.` : `👋 Welcome back, ${escapeHTML(Auth.user.name)}.`);
     } catch (e) {
-      this.authError(e.message || 'Something went wrong. Please try again.');
+      const msg = e.message || 'Something went wrong. Please try again.';
+      if (/email not confirmed|not confirmed/i.test(msg)) this.authError('📧 Please confirm your email first: open the email from Supabase and click the link inside. Can\'t find it? Check Spam, or send a new one below.', true);
+      else if (/invalid login credentials/i.test(msg)) this.authError('Email or password is incorrect. (New here? Use the Sign up tab.)');
+      else if (/already registered|already exists/i.test(msg)) this.authError('This email already has an account. Use the Sign in tab instead.');
+      else if (/rate limit|too many/i.test(msg)) this.authError('Too many emails sent for now. Please wait a few minutes and try again.');
+      else this.authError(msg);
     } finally { btn.disabled = false; btn.textContent = label; }
   },
 
@@ -3552,6 +3919,26 @@ const UI = {
     });
 
     // Reminders
+    // Pockets
+    $('#newPocketBtn').addEventListener('click', () => this.openPocketForm('new'));
+    $('#pocketGrid').addEventListener('click', (e) => {
+      const card = e.target.closest('[data-pid]'); if (!card) return;
+      const p = Pockets.get(card.dataset.pid); if (!p) return;
+      if (e.target.closest('.pk-add')) this.openPocketForm('add', p);
+      else if (e.target.closest('.pk-take')) this.openPocketForm('take', p);
+      else if (e.target.closest('.pk-edit')) this.openPocketForm('edit', p);
+    });
+    $('#pocketEmpty').addEventListener('click', (e) => { const b = e.target.closest('.try-pocket'); if (b) tryNote(b.textContent.trim()); });
+    onSubmit($('#pocketForm'), $('#pfSave'), () => this.savePocketForm());
+    $('#pfCancel').addEventListener('click', () => this.closePocketForm());
+    $('#pocketModal').addEventListener('click', (e) => { if (e.target.id === 'pocketModal') this.closePocketForm(); });
+    $('#pfDelete').addEventListener('click', async () => {
+      const p = this.pocketForm?.pocket; if (!p) return;
+      const bal = Pockets.balance(p);
+      this.closePocketForm();
+      if (!(await askConfirm(`Delete ${p.emoji} ${p.name}?${bal ? ` Its ${fmt(bal)} goes back to your free money.` : ''}`, 'Delete pocket'))) return;
+      Pockets.remove(p.id); this.renderAll(); toast(`Deleted ${escapeHTML(p.name)}.`);
+    });
     $('#addBudgetBtn').addEventListener('click', () => {
       const v = '10% for ';
       $('#noteInput').value = v; $('#noteInput').focus(); $('#noteInput').setSelectionRange(v.length, v.length);
@@ -3705,6 +4092,7 @@ const UI = {
     $('#balanceModal').addEventListener('click', (e) => { if (e.target.id === 'balanceModal') this.closeBalanceModal(); });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
+      this.closePocketForm?.();
       if (!$('#remDrawer').classList.contains('hidden')) this.closeRemDrawer();
       if (!$('#tutorialModal').classList.contains('hidden')) this.closeTutorial();
       $('#confirmNo').click?.();
