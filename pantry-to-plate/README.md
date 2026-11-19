@@ -1,28 +1,35 @@
 # Pantry to Plate
 
-Snap your fridge, get recipes from every cuisine made **only** from what's in your kitchen.
+Recipes from every cuisine, made **only** from what's already in your kitchen. Nothing to buy: when a dish needs something you don't have, it swaps in what you do have.
 
 Live site: https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/
 
-## Turning on accounts (Supabase, about 5 minutes, free)
+## What's already set up
 
-Pantry to Plate uses the **same Supabase project as Tiffo**, with its own private table.
+- **Accounts and syncing:** sign in, create an account, reset a password. Your kitchen, staples and saved recipes follow you to every device. They're stored in the `pantry_data` table in the Supabase project you share with Tiffo, and each person can only see their own data.
+- **The AI helper:** a Supabase Edge Function called `pantry-ai` is deployed and waiting for a key. It keeps the key secret, and only signed-in users can use it.
+- **Demo mode:** until the AI is switched on, the site shows built-in sample recipes and ready-made dish fixes, so everything can be clicked through.
 
-1. **Create the table.** In Supabase, open **SQL Editor → New query**, paste everything from
-   [`supabase/pantry-setup.sql`](../supabase/pantry-setup.sql) and click **Run**.
-   You should see "Success. No rows returned".
-2. **Allow the sign-in links to come back here.** Go to **Authentication → URL Configuration → Redirect URLs → Add URL** and add:
-   `https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/`
-   Don't change the **Site URL**; that one stays pointed at Tiffo.
-3. That's it. Open the live site, click **Sign in → Create an account**, confirm the email, and sign in.
-   Your pantry, staples and cookbooks now follow you to every device.
+## The one thing left: add an AI
 
-The connection settings live in the `CONFIG` block near the top of the script in `index.html`.
-The key there is the **publishable** key, which is safe to be public. Never put the secret / service_role key in this file.
+Pick one and add its key in Supabase: **Edge Functions → Secrets → Add new secret**.
 
-> Sign-in only works on the published site. The claude.ai preview blocks connections to other servers, so the Sign in button is hidden there.
+| Secret name | AI | Where to get the key |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Claude | https://console.anthropic.com (pay per use) |
+| `GEMINI_API_KEY` | Google Gemini | https://aistudio.google.com (free tier) |
 
-## The AI
+That's it. Reload the site: the badge at the top changes from **Demo mode** to **AI · Claude** or **AI · Gemini**.
 
-Every AI request goes through the `AI PROVIDER` block in `index.html`. Right now it uses Claude, which works in the claude.ai version.
-On the published site the app runs in demo mode (sample recipes) until you plug your own AI into that block.
+Keep the key only in Supabase. Never put it in `index.html`, GitHub or a chat.
+
+Optional extras:
+- If both keys are set, Claude is used. Add `AI_PROVIDER` = `gemini` to switch.
+- `PANTRY_ALLOWED_ORIGIN` = `https://tiffany-is-awesome.github.io` lets only your site call the helper.
+- **Nicer email links:** in Supabase, go to **Authentication → URL Configuration → Redirect URLs** and add `https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/`. Without it, account confirmation still works, but the email link lands on Tiffo instead of here.
+
+## How it's built
+
+- One file: `index.html`. The settings are in the `CONFIG` block near the top of the script. The key there is Supabase's **publishable** key, which is safe to be public.
+- Every AI request goes through the `AI PROVIDER` block. Inside claude.ai it uses Claude directly. On this site it calls the `pantry-ai` function.
+- The AI helper's code is in [`supabase/functions/pantry-ai/index.ts`](../supabase/functions/pantry-ai/index.ts), and the table setup is in [`supabase/pantry-setup.sql`](../supabase/pantry-setup.sql).
