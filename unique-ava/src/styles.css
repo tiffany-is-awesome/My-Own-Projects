@@ -260,3 +260,6 @@ img { max-width: 100%; }
 .footer button { background: none; border: 0; text-decoration: underline; color: var(--ink-3); font-size: 12px; }
 .empty { padding: 60px 20px; text-align: center; background: var(--stage); color: var(--ink-2); }
 .stage-photo-piece { position: absolute; object-fit: contain; filter: drop-shadow(0 6px 10px rgba(0,0,0,.15)); }
+
+.ai-status.as-button { background: none; border: 1px solid var(--line); padding: 6px 10px; cursor: pointer; }
+.ai-status.as-button:hover { border-color: var(--ink-3); }

@@ -90,7 +90,7 @@ export default function UploadModal({ onClose, onSaved }) {
           <div className="loading-bar"><i /></div>
           <ul className="steps">{STEPS.map((s, i) => <li key={s} className={i < step ? 'done' : i === step ? 'now' : ''}>{s}</li>)}</ul>
           {aiLine && <p className="small" style={{ fontWeight: 600 }}>{aiLine}</p>}
-          <p className="tiny">Background removal and color reading run on your device. Only the cut-out piece is sent to the AI (Google Gemini's free tier, which may use it to improve Google's products), never the original photo.</p>
+          <p className="tiny">Background removal and color reading run on your device. Only the cut-out piece is sent to the AI (Google Gemini, through your Puter account), never the original photo.</p>
         </>
       )}
 

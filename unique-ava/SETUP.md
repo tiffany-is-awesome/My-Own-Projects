@@ -1,7 +1,7 @@
 # Setting up Unique Ava online
 
 Unique Ava works right away: your closet is saved in the browser and the built-in rules engine styles you.
-These one-time steps switch on **accounts** and the **AI stylist**.
+Accounts are switched on, and the AI stylist needs no setup.
 
 ## 1. Accounts & cloud sync ✅ done
 Unique Ava uses **the same free Supabase project as Tiffo**, so it's already connected.
@@ -20,22 +20,17 @@ The account menu (top right) shows **☁️ Synced just now**.
 
 > If the menu says **"Cloud not set up"**, step 2 hasn't been run yet.
 
-## 2. The AI stylist: Google Gemini (2 minutes, free)
-Users never need a key: they just **sign in**, and the `unique-ava-ai` function (already deployed)
-calls Gemini for them. You add **one free key, once**, and it also switches on AI in Tiffo and Pantry to Plate.
+## 2. The AI stylist: Google Gemini ✅ nothing to set up
+There's **no API key anywhere**. Unique Ava uses Gemini through **Puter.js** (the "user-pays" model):
 
-1. Go to **https://aistudio.google.com** → sign in with Google → **Get API key** → **Create API key**.
-   It's free and needs no credit card.
-2. Supabase → **Edge Functions → Secrets** → **Add new secret**:
-   Name `GEMINI_API_KEY`, Value = the key you just copied → **Save**.
-3. Open Unique Ava and sign in. The header badge turns green: **Gemini on**.
+- The first time someone uses an AI feature (or clicks **Gemini · Sign in** in the header), Puter shows a
+  sign-in pop-up. She signs in or creates a free Puter account, and that's it.
+- Her AI use runs on her own Puter allowance (free monthly allowance; she can top up on puter.com if she
+  ever needs more). **You pay nothing**, and there's no key to leak.
+- Until she signs in, the built-in rules engine keeps styling, so nothing breaks.
 
-Optional secrets: `UNIQUE_AVA_DAILY_LIMIT` (AI calls per user per day, default 60) and
-`UNIQUE_AVA_ALLOWED_ORIGIN` = `https://tiffany-is-awesome.github.io` (only your site may call the function).
-
-> **Privacy:** on Google's free tier, what's sent may be used to improve Google's products.
-> Unique Ava only sends cut-out clothing photos and outfit details, never the original photo, and says so in the app.
-> (To use Claude instead, add `ANTHROPIC_API_KEY` and `AI_PROVIDER` = `claude`, which is paid per use.)
+*(Optional backup, off by default:* `supabase/functions/unique-ava-ai` *can run Gemini with a server-side
+`GEMINI_API_KEY` instead. Only needed if you ever want AI without the Puter sign-in.)*
 
 ## 3. Photos (optional, any time)
 Real photos (for example from Gemini) replace the built-in renders without a rebuild.

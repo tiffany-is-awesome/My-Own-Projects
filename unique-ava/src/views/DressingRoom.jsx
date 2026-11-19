@@ -240,7 +240,7 @@ export default function DressingRoom({ go }) {
             <button className="btn accent" style={{ flex: 1 }} onClick={() => setSaving(true)}>Save to lookbook</button>
             <button className="btn" onClick={() => go('#/mix')}>Mix & match</button>
           </div>
-          <p className="tiny" style={{ marginTop: 12 }}>The AI stylist's critique is grounded in Unique Ava’s measured facts (warmth, water resistance, formality), so it can add taste and nuance but not contradict the weather math. The swap tip and live score come from the rules engine. AI requests go to Google Gemini's free tier, which may use them to improve Google's products.</p>
+          <p className="tiny" style={{ marginTop: 12 }}>The AI stylist's critique is grounded in Unique Ava’s measured facts (warmth, water resistance, formality), so it can add taste and nuance but not contradict the weather math. The swap tip and live score come from the rules engine. AI requests go to Google Gemini through Puter; the first time, Puter asks you to sign in (free, no key).</p>
         </div>
       </div>
       {saving && <SaveModal defaultName={draft.name} onClose={() => setSaving(false)} onDone={(t) => { setSaving(false); toast(`Saved to “${t}”`); }} />}

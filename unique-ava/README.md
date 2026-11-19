@@ -30,10 +30,10 @@ https://tiffany-is-awesome.github.io/My-Own-Projects/unique-ava.html)
 | Inspiration Bridge: upload a screenshot → **the AI lists the pieces** → "You own 75% of this look" | ✅ |
 
 Your closet saves in the browser, and **syncs to your account when you sign in** (Supabase, shared with Tiffo).
-The **AI stylist (Google Gemini, free tier)** powers tagging, critiques, Mix & Match and inspiration matching. Users just sign in, no key needed. The rules engine is the fallback.
+The **AI stylist (Google Gemini via Puter.js)** powers tagging, critiques, Mix & Match and inspiration matching. **No API key**: each user signs in to a free Puter account the first time. The rules engine is the fallback.
 Real photos (e.g. from Gemini) can replace the built-in renders at any time.
 
-**One-time setup:** [`SETUP.md`](SETUP.md) (accounts, switching on Gemini, photos).
+**One-time setup:** [`SETUP.md`](SETUP.md) (accounts, the AI stylist, photos).
 
 ## Develop
 

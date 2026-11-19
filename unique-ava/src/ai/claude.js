@@ -45,7 +45,106 @@ async function fromClaudeAi() {
   };
 }
 
-// The Supabase function (Gemini). Users never need a key: they just sign in.
+// ── Gemini through Puter.js: no API key anywhere. The user signs in to a free Puter
+// account (a popup the first time) and her AI use runs on her own Puter allowance.
+const PUTER_SRC = 'https://js.puter.com/v2/';
+const PUTER_MODELS = {
+  default: ['google/gemini-3.5-flash', 'google/gemini-2.5-flash'],
+  quick: ['google/gemini-3.5-flash-lite', 'google/gemini-3.5-flash', 'google/gemini-2.5-flash'],
+};
+let puterPromise = null;
+export function loadPuter() {
+  if (typeof window === 'undefined') return Promise.resolve(null);
+  if (window.puter) return Promise.resolve(window.puter);
+  if (!puterPromise) {
+    puterPromise = new Promise((resolve) => {
+      const s = document.createElement('script');
+      s.src = PUTER_SRC;
+      s.async = true;
+      s.onload = () => resolve(window.puter || null);
+      s.onerror = () => resolve(null);
+      document.head.appendChild(s);
+      setTimeout(() => resolve(window.puter || null), 15000);
+    }).then((p) => { if (!p) puterPromise = null; return p; });
+  }
+  return puterPromise;
+}
+
+const blobToDataUrl = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+
+function textOf(r) {
+  if (r == null) return '';
+  if (typeof r === 'string') return r;
+  const c = r.message?.content ?? r.content ?? r.text;
+  if (typeof c === 'string') return c;
+  if (Array.isArray(c)) return c.map((p) => (typeof p === 'string' ? p : p?.text || '')).join('');
+  return String(r);
+}
+
+function puterError(e) {
+  const msg = String(e?.error?.message || e?.message || e?.error || e || '');
+  const code = String(e?.error?.code || e?.code || '');
+  if (/insufficient|funds|credit|allowance|quota|limit/i.test(msg + code)) return Object.assign(new Error(msg), { code: 'rate_limited', serverMessage: 'Your free AI allowance on Puter is used up for now. It refreshes monthly, or you can top up on puter.com.' });
+  if (/auth|sign.?in|log.?in|cancel|closed|denied|401/i.test(msg + code)) return Object.assign(new Error(msg), { code: 'not_signed_in' });
+  if (/model/i.test(msg) && /not|unknown|unsupported|invalid/i.test(msg)) return Object.assign(new Error(msg), { code: 'bad_model' });
+  return Object.assign(new Error(msg || 'Puter error'), { code: 'upstream_error' });
+}
+
+function fromPuter() {
+  if (typeof window === 'undefined') return null;
+  return {
+    name: 'Gemini',
+    via: 'puter',
+    images: true,
+    async json(prompt, { images, tier = 'default' } = {}) {
+      const puter = await loadPuter();
+      if (!puter) throw Object.assign(new Error('Could not load Puter'), { code: 'upstream_error', serverMessage: 'The AI service (Puter) could not be reached.' });
+      const img = images?.[0] || null;
+      const dataUrl = img ? await blobToDataUrl(img) : null;
+      let lastErr = null;
+      for (const model of PUTER_MODELS[tier] || PUTER_MODELS.default) {
+        try {
+          let r;
+          if (!img) r = await puter.ai.chat(prompt, { model });
+          else {
+            try { r = await puter.ai.chat(prompt, dataUrl, { model }); }
+            catch (e) {
+              const pe = puterError(e);
+              if (pe.code === 'not_signed_in' || pe.code === 'rate_limited' || pe.code === 'bad_model') throw e;
+              // Fallback: put the cut-out in the user's own Puter storage and send it from there.
+              const ext = (img.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+              const file = await puter.fs.write(`unique-ava/ai-${Date.now()}.${ext}`, img, { createMissingParents: true });
+              r = await puter.ai.chat([{ role: 'user', content: [{ type: 'file', puter_path: file.path }, { type: 'text', text: prompt }] }], { model });
+              puter.fs.delete(file.path).catch(() => {});
+            }
+          }
+          if (r && r.success === false) throw r;
+          const text = textOf(r);
+          if (!text.trim()) throw Object.assign(new Error('Empty answer'), { code: 'upstream_error' });
+          return parseJsonLoose(text);
+        } catch (e) {
+          lastErr = e?.code === 'invalid_json' ? e : puterError(e);
+          if (lastErr.code !== 'bad_model') throw lastErr; // only a missing model is worth trying the next one
+        }
+      }
+      throw lastErr;
+    },
+  };
+}
+
+/** Puter sign-in state, for the header badge. */
+export async function puterUser() {
+  if (!window.puter) return null;
+  try { return (await window.puter.auth.isSignedIn()) ? await window.puter.auth.getUser() : null; } catch { return null; }
+}
+/** Must be called straight from a click (it opens Puter's sign-in pop-up). */
+export function puterSignIn() {
+  if (!window.puter?.auth?.signIn) return Promise.reject(new Error('Puter is still loading'));
+  return window.puter.auth.signIn();
+}
+export function puterSignOut() { try { window.puter?.auth?.signOut(); } catch { /* ignore */ } }
+
+// Optional backup: the unique-ava-ai Supabase function (needs a key on the server; off by default).
 async function fromProxy() {
   if (!CONFIG.AI_PROXY_URL) return null;
   let status = null;
@@ -84,8 +183,10 @@ async function fromProxy() {
 /** Resolves the best available provider, or null (→ rules engine). */
 export function getClaude() {
   if (disabledReason) return Promise.resolve(null);
-  // Live site: Gemini through Supabase. Inside the claude.ai preview (which can't reach Supabase): Claude.
-  if (!providerPromise) providerPromise = (async () => (await fromProxy()) || (await fromClaudeAi()))();
+  // Live site: Gemini through Puter (no key). Inside the claude.ai preview, which blocks outside
+  // scripts, Claude stands in.
+  const inClaudeFrame = typeof window !== 'undefined' && !!window.claude && window.top !== window;
+  if (!providerPromise) providerPromise = (async () => (inClaudeFrame ? await fromClaudeAi() : null) || (await fromProxy()) || fromPuter())();
   return providerPromise;
 }
 
@@ -104,7 +205,7 @@ export function friendlyError(e) {
     case 'image_rejected': return 'The AI could not read that image. Try another photo.';
     case 'invalid_json': return 'The AI answered in an unexpected format. Try again.';
     case 'cancelled': return '';
-    case 'not_signed_in': return 'Sign in (top right) to use the AI stylist. Until then, the built-in rules engine answers.';
+    case 'not_signed_in': return 'Sign in to Puter (the pop-up) to use the AI stylist. It\'s free. Until then, the built-in rules engine answers.';
     default: return (e?.serverMessage ? e.serverMessage + ' ' : '') + 'Showing the built-in rules engine instead.';
   }
 }
@@ -122,7 +223,8 @@ export function useClaudeStatus() {
     const check = () => getClaude().then((p) => {
       if (!alive) return;
       if (p && p.needsLogin && !getAccessToken()) setS({ status: 'signin', name: p.name });
-      else setS(p ? { status: 'ready', name: p.name, images: p.images } : { status: notSetUp ? 'notsetup' : 'offline', name: disabledReason ? 'declined' : '' });
+      else setS(p ? { status: 'ready', name: p.name, images: p.images, via: p.via } : { status: notSetUp ? 'notsetup' : 'offline', name: disabledReason ? 'declined' : '' });
+      if (p?.via === 'puter') loadPuter(); // warm up in the background so sign-in is instant
     });
     check();
     listeners.add(check);

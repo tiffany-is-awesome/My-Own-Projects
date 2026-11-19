@@ -14,10 +14,10 @@ small adapter. You can swap a provider without touching the app.
 
 ## 1. Guiding principles
 
-1. **Gemini is the stylist (free tier, no key for users).** All language and vision work (tagging, critique, outfit
-   picks, reading inspiration photos) goes through the `unique-ava-ai` function, which uses Google Gemini. Users just sign in;
-   the site owner adds one free `GEMINI_API_KEY` (shared with Tiffo and Pantry to Plate). Claude can be switched in with
-   `AI_PROVIDER=claude`. Image *generation* (scenes, try-on) needs a dedicated image model, since the stylist model reads images but doesn't create them.
+1. **Gemini is the stylist, with no API key anywhere.** All language and vision work (tagging, critique, outfit
+   picks, reading inspiration photos) runs on Google Gemini through **Puter.js** ("user-pays"): each user signs in to a
+   free Puter account once and her usage runs on her own allowance. The site owner pays nothing and holds no key.
+   (A key-based Supabase function, `unique-ava-ai`, remains as an optional backup.) Image *generation* (scenes, try-on) needs a dedicated image model, since the stylist model reads images but doesn't create them.
 2. **Same stack as Tiffo.** This repo already runs Tiffo on GitHub Pages + Supabase + an Edge
    Function. Unique Ava reuses that setup, so you learn one stack and stay on free tiers for as long as possible.
 3. **Rules first, LLM second.** Weather, fabric and color logic is deterministic code. It is fast, free,
@@ -73,7 +73,7 @@ lives in Edge Functions, and Postgres RLS means even a bug in the client can't l
 | Background removal | **`@imgly/background-removal`** (ONNX in-browser, WebGPU when available) | Free, private, no upload needed. ⚠️ Check its license (AGPL / commercial) before charging money. Fallback: a server-side model (e.g. BiRefNet/RMBG on a GPU host) |
 | Auth / DB / Storage | **Supabase** (Postgres 15, RLS, Storage, Edge Functions) | Already used by Tiffo; free tier is generous |
 | Vector search | **pgvector** in the same Postgres | No extra service for closet ↔ inspiration matching |
-| LLM (text + vision) | **Google Gemini** free tier (Flash / Flash-Lite) via the `unique-ava-ai` Edge Function | Free, good vision, JSON mode. Users just sign in; Claude is an optional switch |
+| LLM (text + vision) | **Google Gemini** (Flash / Flash-Lite) via **Puter.js** | No key, no backend: each user signs in to Puter and covers her own usage |
 | Image editing / scenes (Phase 2) | A dedicated image model (e.g. Gemini image or FLUX) | The stylist model doesn't generate images, so scene backgrounds and flat-lay clean-up use an image model behind the same adapter |
 | Virtual try-on | **FASHN API** or **Google Vertex AI Virtual Try-On** | Purpose-built garment → person models, about $0.06–0.08 per image (see §7) |
 | Weather | **Open-Meteo** | Free, no API key, global |
@@ -316,8 +316,8 @@ All functions require a signed-in user (same pattern as `supabase/functions/tiff
 | Action | Provider | Est. cost | Notes |
 |---|---|---|---|
 | Background removal | In-browser ONNX | $0 | First run downloads model (~40–80 MB), then cached |
-| Auto-tag | Gemini Flash (vision) | $0 on the free tier | One-time per garment |
-| Critique / Mix & Match | Gemini Flash | $0 on the free tier | On request; per-user daily limit protects the quota |
+| Auto-tag | Gemini Flash via Puter (vision) | $0 to you, user's Puter allowance | One-time per garment |
+| Critique / Mix & Match | Gemini Flash via Puter | $0 to you, user's Puter allowance | On request |
 | Flat-lay clean-up / scene | Image model (Phase 2) | ~$0.03–0.04 per 1K image | Cache aggressively |
 | Virtual try-on | FASHN v1.6 / Vertex VTO | ~$0.06–0.08 per image | Premium-only feature |
 | Storage | Supabase | free up to 1 GB | ~150 KB per WebP cut-out → ~6,000 garments |
