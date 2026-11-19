@@ -11,6 +11,7 @@ import { DEMO_CLOSET, DEMO_OUTFITS, DEMO_CATALOGS, BAG_ARTS } from './data/close
 import { DEMO_FAMILY } from './data/family.js';
 import { SAMPLE_INSPIRATION } from './ai/inspiration.js';
 import { parseContext, DEFAULT_CONTEXT } from './ai/context.js';
+import { preferenceProfile } from './ai/insights.js';
 import { critique } from './ai/critic.js';
 
 const KEY = 'unique-ava.v1';
@@ -30,6 +31,8 @@ export function initialState() {
     catalogs: [],
     ensembles: [],
     inspirations: [],
+    locations: [],   // where clothes are kept: [{ id, name }] (shared by the household)
+    history: [],     // outfits actually worn: [{ id, profileId, date, slots, context, outfitId?, rating?, tags? }]
     draft: { name: '', slots: emptySlots(), context: DEFAULT_CONTEXT, stage: { mode: 'flatlay', scene: 'tokyo-rain', customBg: null } },
   };
 }
@@ -110,6 +113,7 @@ function reducer(state, a) {
         catalogs: state.catalogs.filter((c) => c.profileId !== a.id),
         ensembles: state.ensembles.map((e) => ({ ...e, members: e.members.filter((m) => m.profileId !== a.id) })).filter((e) => e.members.length),
         activeProfile: state.activeProfile === a.id ? ME : state.activeProfile,
+        history: state.history.filter((h) => h.profileId !== a.id),
       };
     }
     case 'SWITCH_PROFILE':
@@ -117,8 +121,8 @@ function reducer(state, a) {
       return { ...state, activeProfile: a.id, draft: { ...state.draft, name: '', slots: emptySlots() } };
 
     // ── closet
-    case 'ADD_GARMENTS': return { ...state, garments: [...a.garments.map((g) => ({ ...g, ownerId: g.ownerId || me, demo: false })), ...state.garments] };
-    case 'ADD_GARMENT': return { ...state, garments: [{ ...a.garment, ownerId: a.garment.ownerId || me, demo: false }, ...state.garments] };
+    case 'ADD_GARMENTS': return { ...state, garments: [...a.garments.map((g) => ({ ...g, ownerId: g.ownerId || me, demo: false, addedAt: g.addedAt || new Date().toISOString().slice(0, 10) })), ...state.garments] };
+    case 'ADD_GARMENT': return { ...state, garments: [{ ...a.garment, ownerId: a.garment.ownerId || me, demo: false, addedAt: a.garment.addedAt || new Date().toISOString().slice(0, 10) }, ...state.garments] };
     case 'UPDATE_GARMENT': return { ...state, garments: state.garments.map((g) => (g.id === a.garment.id ? { ...g, ...a.garment } : g)) };
     case 'DELETE_GARMENT': {
       const clear = (slots) => Object.fromEntries(Object.entries(slots).map(([k, v]) => [k, v === a.id ? null : v]));
@@ -153,6 +157,7 @@ function reducer(state, a) {
         catalogs: state.catalogs.filter((c) => !c.demo).map((c) => ({ ...c, outfitIds: c.outfitIds.filter((x) => outfitIds.has(x)) })),
         ensembles: state.ensembles.filter((e) => !e.demo).map((e) => ({ ...e, members: e.members.filter((m) => !demoProfiles.has(m.profileId)) })).filter((e) => e.members.length),
         inspirations: state.inspirations.filter((i) => !i.demo),
+        history: state.history.filter((h) => !demoProfiles.has(h.profileId) && Object.values(h.slots || {}).every((v) => !v || keep.has(v))),
         draft: { ...state.draft, slots: clean(state.draft.slots) },
       };
     }
@@ -206,6 +211,17 @@ function reducer(state, a) {
     }
     case 'ADD_INSPIRATION': return { ...state, inspirations: [{ profileId: me, ...a.inspiration }, ...state.inspirations] };
     case 'DELETE_INSPIRATION': return { ...state, inspirations: state.inspirations.filter((i) => i.id !== a.id) };
+    // ── where clothes are kept
+    case 'ADD_LOCATION': return state.locations.some((l) => l.name.toLowerCase() === a.location.name.toLowerCase()) ? state : { ...state, locations: [...state.locations, a.location] };
+    case 'RENAME_LOCATION': return { ...state, locations: state.locations.map((l) => (l.id === a.id ? { ...l, name: a.name } : l)) };
+    case 'DELETE_LOCATION': return { ...state, locations: state.locations.filter((l) => l.id !== a.id), garments: state.garments.map((g) => (g.location === a.id ? { ...g, location: null } : g)) };
+
+    // ── outfit history & feedback
+    case 'LOG_WEAR': return { ...state, history: [{ id: uid('w'), profileId: a.entry.profileId || me, date: a.entry.date || new Date().toISOString().slice(0, 10), slots: { ...emptySlots(), ...a.entry.slots }, context: a.entry.context || null, outfitId: a.entry.outfitId || null, createdAt: Date.now() }, ...state.history] };
+    case 'RATE_WEAR': return { ...state, history: state.history.map((h) => (h.id === a.id ? { ...h, rating: a.rating ?? h.rating, tags: a.tags ?? h.tags, note: a.note ?? h.note } : h)) };
+    case 'UPDATE_WEAR_DATE': return { ...state, history: state.history.map((h) => (h.id === a.id ? { ...h, date: a.date } : h)).sort((x, y) => (y.date || '').localeCompare(x.date || '')) };
+    case 'DELETE_WEAR': return { ...state, history: state.history.filter((h) => h.id !== a.id) };
+
     case 'DELETE_ALL': return { ...initialState(), onboarded: true };
     case 'RESET': return { ...initialState(), onboarded: true };
     case 'HYDRATE': return { ...migrate(a.state), onboarded: true };
@@ -232,7 +248,9 @@ export function StoreProvider({ children }) {
     const outfitsOf = (pid) => state.outfits.filter((o) => o.profileId === pid);
     const scoreOf = (outfit) => critique(resolve(outfit.slots), outfit.context).overall;
     const hasDemo = state.garments.some((g) => g.demo) || state.profiles.some((p) => p.demo);
-    return { state, dispatch, get, resolve, owned, pool, profile, closetOf, outfitsOf, scoreOf, hasDemo };
+    const historyOf = (pid) => state.history.filter((h) => h.profileId === pid);
+    const personal = preferenceProfile(historyOf(profile.id), get);
+    return { state, dispatch, get, resolve, owned, pool, profile, closetOf, outfitsOf, scoreOf, hasDemo, historyOf, personal };
   }, [state]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

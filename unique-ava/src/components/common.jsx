@@ -5,7 +5,7 @@ import { CATEGORY_LABEL } from '../data/closet.js';
 
 const STATUS_FLAG = { laundry: 'In laundry', repair: 'Needs repair', stored: 'Stored' };
 
-export function ProductCard({ item, onClick, action, flag }) {
+export function ProductCard({ item, onClick, action, flag, place }) {
   const meta = [item.material, item.weight && `${item.weight[0].toUpperCase()}${item.weight.slice(1)} weight`].filter(Boolean).join(' · ');
   return (
     <div className="card">
@@ -20,6 +20,7 @@ export function ProductCard({ item, onClick, action, flag }) {
           <div className="tiny">{(CATEGORY_LABEL[item.category] || item.category).toUpperCase()}</div>
           <div className="card-name">{item.name}</div>
           <div className="card-meta">{meta}</div>
+          {place && <div className="card-place">⌂ {place}</div>}
           <div className="swatches">{item.colors.map((c) => <span key={c.name} className="swatch" style={{ background: c.hex }} title={c.name} />)}</div>
         </div>
       </button>

@@ -55,6 +55,7 @@ export default function Saved({ go }) {
                   {o.why && <p className="tiny" style={{ marginTop: 6 }}>{o.why}</p>}
                   <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                     <button className="btn sm" aria-pressed={!!o.favorite} onClick={() => dispatch({ type: 'TOGGLE_FAVORITE', id: o.id })}>{o.favorite ? '♥ Favorite' : '♡ Favorite'}</button>
+                    <button className="btn sm" onClick={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: o.slots, context: o.context, outfitId: o.id } }); toast('Added to Outfit History'); }}>I wore this</button>
                     <ConfirmButton label="Delete" confirmLabel="Click to delete" onConfirm={() => { dispatch({ type: 'DELETE_OUTFIT', id: o.id }); toast('Outfit deleted'); }} />
                   </div>
                 </div>

@@ -8,11 +8,11 @@ import { styleWithThis, describe } from '../ai/generator.js';
 import { MissingNotice } from './Create.jsx';
 
 export default function StyleMe({ id, go }) {
-  const { state, dispatch, owned, get, profile } = useStore();
+  const { state, dispatch, owned, get, profile, personal } = useStore();
   const toast = useToast();
   const item = get(id);
   const [choice, setChoice] = useState(() => ({ ...(state.draft.choice || DEFAULT_CHOICE), style: null }));
-  const ctx = useMemo(() => contextOf(choice), [choice]);
+  const ctx = useMemo(() => ({ ...contextOf(choice), personal: personal.rated ? personal : null }), [choice, personal]);
   const mine = item && owned.some((g) => g.id === item.id);
   const res = useMemo(() => (mine ? styleWithThis(owned, item, ctx) : null), [mine, owned, item, ctx]);
   const [edits, setEdits] = useState({});
@@ -62,6 +62,7 @@ export default function StyleMe({ id, go }) {
                 <OutfitCard key={i} index={i} result={r} ctx={r.ctx || ctx} pool={owned} child={child} saved={!!saved[i]}
                   onReplace={(n) => { if (Object.values(n.outfit).some((g) => g?.id === item.id)) setEdits((e) => ({ ...e, [i]: n })); else toast('That change would drop this piece, so it was skipped.'); }}
                   onSave={() => save(i)}
+                  onWore={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: toSlots(r.outfit), context: r.ctx || ctx } }); toast('Added to Outfit History'); }}
                   onOpen={() => { dispatch({ type: 'LOAD_DRAFT', draft: { slots: toSlots(r.outfit), name: `${item.name} · ${r.label}`, context: r.ctx || ctx, choice } }); go('#/builder'); }} />
               ))}
             </div>

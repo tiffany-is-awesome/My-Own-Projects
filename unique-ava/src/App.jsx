@@ -8,6 +8,8 @@ import StyleMe from './views/StyleMe.jsx';
 import Saved from './views/Saved.jsx';
 import Family from './views/Family.jsx';
 import Settings from './views/Settings.jsx';
+import History from './views/History.jsx';
+import Insights from './views/Insights.jsx';
 import Inspiration from './views/Inspiration.jsx';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut, loadPuter } from './ai/claude.js';
 import { useToast } from './components/common.jsx';
@@ -20,6 +22,7 @@ const NAV = [
   ['#/create', 'Create an Outfit', true],
   ['#/builder', 'Builder'],
   ['#/saved', 'Saved Outfits'],
+  ['#/history', 'History'],
   ['#/family', 'Family'],
   ['#/settings', 'Settings'],
 ];
@@ -79,6 +82,8 @@ export default function App() {
   else if (route === 'create' || route === 'mix') view = <Create go={go} />;
   else if (route === 'style' && param) view = <StyleMe key={param} id={decodeURIComponent(param)} go={go} />;
   else if (route === 'saved') view = <Saved go={go} />;
+  else if (route === 'history') view = <History go={go} />;
+  else if (route === 'insights') view = <Insights go={go} />;
   else if (route === 'family') view = <Family go={go} />;
   else if (route === 'settings') view = <Settings go={go} />;
   else if (route === 'lookbooks' && param) view = <LookbookDetail id={param} go={go} />;
@@ -86,7 +91,7 @@ export default function App() {
   else if (route === 'inspiration') view = <Inspiration go={go} />;
   else view = <Welcome go={go} />;
 
-  const ALIAS = { dressing: 'builder', mix: 'create', welcome: 'home', style: 'closet', lookbooks: 'saved', inspiration: 'saved' };
+  const ALIAS = { dressing: 'builder', mix: 'create', welcome: 'home', style: 'closet', lookbooks: 'saved', inspiration: 'saved', insights: 'history' };
   const active = route === 'share' ? '' : '#/' + (ALIAS[route] || route || 'home');
 
   return (

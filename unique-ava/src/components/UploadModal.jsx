@@ -134,6 +134,7 @@ export default function UploadModal({ onClose, onSaved, ownerName }) {
                     : current.taggedBy ? <span className="ai-badge">Details drafted by {current.taggedBy}</span>
                     : <span className="tiny">The AI wasn't available, so these details are a rough on-device guess. Please check them.</span>}
                 </p>
+                {current.item.cutout === 'kept-original' && <p className="small" style={{ color: 'var(--warn)' }}>The piece couldn't be separated from the background, so your photo is kept exactly as taken. Please check the color. A plain, contrasting background gives a clean cut-out.</p>}
                 {current.item.aiNote && <p className="small muted">“{current.item.aiNote}”</p>}
                 {!current.manual && current.item.confidence < 0.6 && <p className="small" style={{ color: 'var(--warn)' }}>Some details are uncertain. Please check them.</p>}
                 {current.error && <p className="tiny" style={{ color: 'var(--warn)' }}>{current.error}</p>}

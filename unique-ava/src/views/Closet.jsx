@@ -3,7 +3,7 @@ import { useStore } from '../store.jsx';
 import { ProductCard, Modal, Meter, OutfitThumb, ConfirmButton, useToast } from '../components/common.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
 import UploadModal from '../components/UploadModal.jsx';
-import ItemForm, { STATUSES } from '../components/ItemForm.jsx';
+import ItemForm, { STATUSES, LocationPicker } from '../components/ItemForm.jsx';
 import { CATEGORIES, STYLES, OCCASIONS, slotOf } from '../data/closet.js';
 import { NAMED_COLORS } from '../ai/color.js';
 
@@ -47,6 +47,7 @@ function ItemDetail({ item, onClose, go }) {
             <div className="row"><span className="label">Rain-ready</span><span><Meter value={item.water || 1} /></span></div>
             <div className="row"><span className="label">Formality</span><span><Meter value={item.formality} /></span></div>
             <div className="row"><span className="label">Seasons</span><span>{(item.seasons || []).map(cap).join(' / ')}</span></div>
+            <div className="row"><span className="label">Kept in</span><span className="loc-row"><LocationPicker value={item.location} onChange={(v) => { dispatch({ type: 'UPDATE_GARMENT', garment: { id: item.id, location: v } }); toast(v ? `Kept in ${state.locations.find((l) => l.id === v)?.name || 'the new place'}` : 'Location cleared'); }} /></span></div>
             {item.pattern && item.pattern !== 'solid' && <div className="row"><span className="label">Pattern</span><span>{cap(item.pattern)}</span></div>}
             {item.style && <div className="row"><span className="label">Style</span><span>{STYLES.find((s) => s.id === item.style)?.label || item.style}</span></div>}
             {item.occasions?.length > 0 && <div className="row"><span className="label">Good for</span><span>{item.occasions.map((o) => OCCASIONS.find((x) => x.id === o)?.label || o).join(', ')}</span></div>}
@@ -74,7 +75,7 @@ function ItemDetail({ item, onClose, go }) {
 }
 
 export default function Closet({ go }) {
-  const { dispatch, owned, profile, hasDemo } = useStore();
+  const { state, dispatch, owned, profile, hasDemo } = useStore();
   const toast = useToast();
   const [cat, setCat] = useState('all');
   const [season, setSeason] = useState(null);
@@ -82,6 +83,7 @@ export default function Closet({ go }) {
   const [style, setStyle] = useState('');
   const [occasion, setOccasion] = useState('');
   const [status, setStatus] = useState('');
+  const [place, setPlace] = useState('');
   const [detail, setDetail] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [justAdded, setJustAdded] = useState([]);
@@ -93,11 +95,12 @@ export default function Closet({ go }) {
     && (!color || g.colors.some((c) => c.name === color))
     && (!style || g.style === style)
     && (!occasion || (g.occasions || []).includes(occasion))
-    && (!status || (g.status || 'available') === status)), [owned, cat, season, color, style, occasion, status]);
+    && (!status || (g.status || 'available') === status)
+    && (!place || (place === 'none' ? !g.location : g.location === place))), [owned, cat, season, color, style, occasion, status, place]);
 
   const counts = Object.fromEntries(CATEGORIES.map((c) => [c.id, owned.filter((g) => g.category === c.id).length]));
   const colorsHere = NAMED_COLORS.filter((c) => owned.some((g) => g.colors.some((x) => x.name === c.name)));
-  const filtered = season || color || style || occasion || status;
+  const filtered = season || color || style || occasion || status || place;
 
   function saved(items) {
     dispatch({ type: 'ADD_GARMENTS', garments: items });
@@ -114,6 +117,7 @@ export default function Closet({ go }) {
           <h1 className="h1">{who} Closet <span className="muted" style={{ fontWeight: 400 }}>· {owned.length} pieces</span></h1>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          {owned.length > 0 && <button className="btn ghost" onClick={() => go('#/insights')}>Insights</button>}
           {owned.length > 0 && <button className="btn" onClick={() => go('#/create')}>Create an Outfit</button>}
           <button className="btn accent" onClick={() => setUploading(true)}>+ Add clothes</button>
         </div>
@@ -138,7 +142,8 @@ export default function Closet({ go }) {
             <select className="select sm" value={occasion} onChange={(e) => setOccasion(e.target.value)} aria-label="Occasion"><option value="">Any occasion</option>{OCCASIONS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select>
             <select className="select sm" value={season || ''} onChange={(e) => setSeason(e.target.value || null)} aria-label="Season"><option value="">Any season</option>{SEASONS.map((x) => <option key={x} value={x}>{cap(x)}</option>)}</select>
             <select className="select sm" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status"><option value="">Any status</option>{STATUSES.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
-            {filtered && <button className="btn ghost sm" onClick={() => { setSeason(null); setColor(''); setStyle(''); setOccasion(''); setStatus(''); }}>Clear</button>}
+            {state.locations.length > 0 && <select className="select sm" value={place} onChange={(e) => setPlace(e.target.value)} aria-label="Where it's kept"><option value="">Anywhere</option>{state.locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}<option value="none">No place set</option></select>}
+            {filtered && <button className="btn ghost sm" onClick={() => { setSeason(null); setColor(''); setStyle(''); setOccasion(''); setStatus(''); setPlace(''); }}>Clear</button>}
           </div>
         </div>
       )}
@@ -157,7 +162,7 @@ export default function Closet({ go }) {
       ) : (
         <div className="grid">
           {list.map((g) => (
-            <ProductCard key={g.id} item={g} flag={justAdded.includes(g.id) ? 'New' : null} onClick={() => setDetail(g)}
+            <ProductCard key={g.id} item={g} place={state.locations.find((l) => l.id === g.location)?.name} flag={justAdded.includes(g.id) ? 'New' : null} onClick={() => setDetail(g)}
               action={<button className="btn primary sm block" onClick={() => go('#/style/' + encodeURIComponent(g.id))}>Style me with this</button>} />
           ))}
         </div>
