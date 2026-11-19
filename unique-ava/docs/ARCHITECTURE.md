@@ -14,8 +14,10 @@ small adapter. You can swap a provider without touching the app.
 
 ## 1. Guiding principles
 
-1. **Claude is the stylist.** All language and vision work (tagging, critique, outfit picks, reading inspiration
-   photos) uses Claude. Image *generation* (scenes, try-on) needs a dedicated image model, since Claude reads images but doesn't create them.
+1. **Gemini is the stylist (free tier, no key for users).** All language and vision work (tagging, critique, outfit
+   picks, reading inspiration photos) goes through the `unique-ava-ai` function, which uses Google Gemini. Users just sign in;
+   the site owner adds one free `GEMINI_API_KEY` (shared with Tiffo and Pantry to Plate). Claude can be switched in with
+   `AI_PROVIDER=claude`. Image *generation* (scenes, try-on) needs a dedicated image model, since the stylist model reads images but doesn't create them.
 2. **Same stack as Tiffo.** This repo already runs Tiffo on GitHub Pages + Supabase + an Edge
    Function. Unique Ava reuses that setup, so you learn one stack and stay on free tiers for as long as possible.
 3. **Rules first, LLM second.** Weather, fabric and color logic is deterministic code. It is fast, free,
@@ -50,7 +52,7 @@ small adapter. You can swap a provider without touching the app.
 └───────────────┬─────────────────────────────────────────────────────────────────────────┘
                 │ server-side keys only
      ┌──────────▼──────────┐   ┌───────────────────┐   ┌──────────────────────┐
-     │ Claude (text+vision)│   │ Try-on API        │   │ Affiliate feeds      │
+     │ Gemini (text+vision)│   │ Try-on API        │   │ Affiliate feeds      │
      │ + image model (P2)  │   │ (FASHN / Vertex)  │   │ (Phase 3)            │
      └─────────────────────┘   └───────────────────┘   └──────────────────────┘
 ```
@@ -71,8 +73,8 @@ lives in Edge Functions, and Postgres RLS means even a bug in the client can't l
 | Background removal | **`@imgly/background-removal`** (ONNX in-browser, WebGPU when available) | Free, private, no upload needed. ⚠️ Check its license (AGPL / commercial) before charging money. Fallback: a server-side model (e.g. BiRefNet/RMBG on a GPU host) |
 | Auth / DB / Storage | **Supabase** (Postgres 15, RLS, Storage, Edge Functions) | Already used by Tiffo; free tier is generous |
 | Vector search | **pgvector** in the same Postgres | No extra service for closet ↔ inspiration matching |
-| LLM (text + vision) | **Claude** (Haiku for quick tasks, Sonnet by default) | Strong vision and reliable JSON. Inside claude.ai it runs on the viewer's own account; on GitHub Pages it goes through the `unique-ava-ai` Edge Function |
-| Image editing / scenes (Phase 2) | A dedicated image model (e.g. Gemini image or FLUX) | Claude doesn't generate images, so scene backgrounds and flat-lay clean-up use an image model behind the same adapter |
+| LLM (text + vision) | **Google Gemini** free tier (Flash / Flash-Lite) via the `unique-ava-ai` Edge Function | Free, good vision, JSON mode. Users just sign in; Claude is an optional switch |
+| Image editing / scenes (Phase 2) | A dedicated image model (e.g. Gemini image or FLUX) | The stylist model doesn't generate images, so scene backgrounds and flat-lay clean-up use an image model behind the same adapter |
 | Virtual try-on | **FASHN API** or **Google Vertex AI Virtual Try-On** | Purpose-built garment → person models, about $0.06–0.08 per image (see §7) |
 | Weather | **Open-Meteo** | Free, no API key, global |
 | Hosting | **GitHub Pages** (`unique-ava.html`) | Same as Tiffo |
@@ -90,7 +92,7 @@ photo ──► resize to 1600px, strip EXIF/GPS (privacy) ──► background 
       ──► dominant colors (k-means on opaque pixels, browser)
       ──► [optional, Phase 1.5] flat-lay clean-up (image-model edit: "straighten, de-wrinkle,
           even studio light, pure #F4F4F4 background, keep exact color & texture")
-      ──► auto-tag (Claude vision → strict JSON schema, below)  ✅ built
+      ──► auto-tag (Gemini vision → strict JSON schema, below)  ✅ built
       ──► user confirms or edits tags (1 tap) ──► save
 ```
 
@@ -125,7 +127,7 @@ same time and stored.
 ```
 outfit + context ──► rules engine (deterministic)   ──► scores + structured findings
                                                          │
-                                         Claude (grounded critique) ──► pros / cons / tip  ✅ built
+                                         Gemini (grounded critique) ──► pros / cons / tip  ✅ built
 ```
 
 | Pillar | Rules engine checks (examples) |
@@ -176,7 +178,7 @@ and copyright. The safe design:
   Unique Ava stores the URL + a small thumbnail with attribution, not a re-hosted copy.
 * Optional licensed sources: brand/retailer affiliate feeds (Phase 3), or partner creators.
 
-**Matching:** Claude vision decomposes (✅ built) the look into items (`{category, color, material, fit}`). Each is
+**Matching:** Gemini vision decomposes (✅ built) the look into items (`{category, color, material, fit}`). Each is
 embedded and compared with the user's garments (pgvector cosine + hard filters on category). Coverage =
 matched slots / total slots → *"You own 80% of this look. Missing: a crossbody bag."*
 
@@ -314,8 +316,8 @@ All functions require a signed-in user (same pattern as `supabase/functions/tiff
 | Action | Provider | Est. cost | Notes |
 |---|---|---|---|
 | Background removal | In-browser ONNX | $0 | First run downloads model (~40–80 MB), then cached |
-| Auto-tag | Claude Sonnet (vision) | about a cent | One-time per garment; $0 inside claude.ai (viewer's plan) |
-| Critique / Mix & Match | Claude Sonnet | about 1–3 cents | On request; rules engine is the free fallback |
+| Auto-tag | Gemini Flash (vision) | $0 on the free tier | One-time per garment |
+| Critique / Mix & Match | Gemini Flash | $0 on the free tier | On request; per-user daily limit protects the quota |
 | Flat-lay clean-up / scene | Image model (Phase 2) | ~$0.03–0.04 per 1K image | Cache aggressively |
 | Virtual try-on | FASHN v1.6 / Vertex VTO | ~$0.06–0.08 per image | Premium-only feature |
 | Storage | Supabase | free up to 1 GB | ~150 KB per WebP cut-out → ~6,000 garments |
@@ -330,10 +332,10 @@ about **$0.60**. With try-on (10/month) about **$1.30**. A $4–6/month premium 
 * EXIF (incl. GPS) stripped on device **before** upload.
 * Photos may contain faces/rooms: originals stay in a private bucket and are never sent to AI if the
   cut-out is enough (the tagger receives the cut-out, not the original).
-* AI consent on first use (claude.ai asks the viewer before the page may use Claude; on GitHub Pages, show a notice since
+* AI notice (Gemini's free tier may use what's sent to improve Google's products; the app says so where AI is used, since
   training). Paid tier → paid API with no-training terms.
 * Share links are unguessable slugs, revocable, and serve sanitized copies only.
-* Keys: Anthropic / image-model / try-on / affiliate keys are only ever Edge Function secrets.
+* Keys: Gemini / Anthropic / image-model / try-on / affiliate keys are only ever Edge Function secrets.
 * Account deletion cascades through every table and bucket folder.
 
 ---

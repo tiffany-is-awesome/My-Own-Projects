@@ -7,6 +7,7 @@ import { getAccessToken, onAuthChange } from '../auth.jsx';
 
 let providerPromise = null;
 let disabledReason = null; // set when the viewer declines, so we stop asking
+let notSetUp = false;      // the Supabase function answered "no AI key yet"
 
 /** Tolerant JSON parse: whole text, a ```fence```, or first {/[ … last }/]. */
 export function parseJsonLoose(text) {
@@ -44,15 +45,23 @@ async function fromClaudeAi() {
   };
 }
 
-function fromProxy() {
+// The Supabase function (Gemini). Users never need a key: they just sign in.
+async function fromProxy() {
   if (!CONFIG.AI_PROXY_URL) return null;
+  let status = null;
+  try {
+    const r = await fetch(CONFIG.AI_PROXY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: CONFIG.SUPABASE_ANON_KEY }, body: JSON.stringify({ task: 'status' }) });
+    status = r.ok ? await r.json() : null;
+  } catch { status = null; }
+  if (!status) return null;                       // unreachable (e.g. inside the claude.ai preview)
+  if (!status.ready) { notSetUp = true; return null; } // reachable, but no AI key added yet
   return {
-    name: 'Claude (Anthropic API)',
+    name: status.provider || 'Gemini',
     images: true,
     needsLogin: true,
     async json(prompt, { images, tier = 'default', signal } = {}) {
       const token = getAccessToken();
-      if (!token) throw Object.assign(new Error('Sign in to use Claude'), { code: 'not_signed_in' });
+      if (!token) throw Object.assign(new Error('Sign in to use the AI stylist'), { code: 'not_signed_in' });
       const imgs = [];
       for (const b of images || []) imgs.push({ media_type: b.type || 'image/png', data: await blobToBase64(b) });
       const res = await fetch(CONFIG.AI_PROXY_URL, {
@@ -66,7 +75,7 @@ function fromProxy() {
         body: JSON.stringify({ prompt, images: imgs, tier }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw Object.assign(new Error(body.error || `AI error ${res.status}`), { code: res.status === 429 ? 'rate_limited' : 'upstream_error' });
+      if (!res.ok) throw Object.assign(new Error(body.error || `AI error ${res.status}`), { code: res.status === 429 ? 'rate_limited' : res.status === 401 ? 'not_signed_in' : 'upstream_error', serverMessage: body.error });
       return parseJsonLoose(body.text);
     },
   };
@@ -75,7 +84,8 @@ function fromProxy() {
 /** Resolves the best available provider, or null (→ rules engine). */
 export function getClaude() {
   if (disabledReason) return Promise.resolve(null);
-  if (!providerPromise) providerPromise = (async () => (await fromClaudeAi()) || fromProxy())();
+  // Live site: Gemini through Supabase. Inside the claude.ai preview (which can't reach Supabase): Claude.
+  if (!providerPromise) providerPromise = (async () => (await fromProxy()) || (await fromClaudeAi()))();
   return providerPromise;
 }
 
@@ -88,14 +98,14 @@ export function noteFailure(e) {
 
 export function friendlyError(e) {
   switch (e?.code) {
-    case 'not_granted': return 'Claude access was declined, so Unique Ava is using its built-in rules engine.';
-    case 'rate_limited': return 'Claude is busy or your usage limit was reached. Try again in a moment.';
-    case 'session_expired': return 'Please sign in to Claude again.';
-    case 'image_rejected': return 'Claude could not read that image. Try another photo.';
-    case 'invalid_json': return 'Claude answered in an unexpected format. Try again.';
+    case 'not_granted': return 'AI access was declined, so Unique Ava is using its built-in rules engine.';
+    case 'rate_limited': return e.serverMessage || 'The AI is busy or the daily limit was reached. Try again later.';
+    case 'session_expired': return 'Please sign in again.';
+    case 'image_rejected': return 'The AI could not read that image. Try another photo.';
+    case 'invalid_json': return 'The AI answered in an unexpected format. Try again.';
     case 'cancelled': return '';
-    case 'not_signed_in': return 'Sign in (top right) to use Claude. Until then, the built-in rules engine answers.';
-    default: return 'Claude could not be reached. Showing the built-in rules engine instead.';
+    case 'not_signed_in': return 'Sign in (top right) to use the AI stylist. Until then, the built-in rules engine answers.';
+    default: return (e?.serverMessage ? e.serverMessage + ' ' : '') + 'Showing the built-in rules engine instead.';
   }
 }
 
@@ -112,7 +122,7 @@ export function useClaudeStatus() {
     const check = () => getClaude().then((p) => {
       if (!alive) return;
       if (p && p.needsLogin && !getAccessToken()) setS({ status: 'signin', name: p.name });
-      else setS(p ? { status: 'ready', name: p.name, images: p.images } : { status: 'offline', name: disabledReason ? 'declined' : '' });
+      else setS(p ? { status: 'ready', name: p.name, images: p.images } : { status: notSetUp ? 'notsetup' : 'offline', name: disabledReason ? 'declined' : '' });
     });
     check();
     listeners.add(check);

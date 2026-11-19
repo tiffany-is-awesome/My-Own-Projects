@@ -6,16 +6,15 @@
 //    The publishable key below is SAFE to be public: Row Level Security keeps
 //    every user's closet private.
 //
-//  AI: Claude, tried in this order:
-//   1. Inside claude.ai (the published preview): the viewer's own Claude account.
-//   2. On GitHub Pages: the unique-ava-ai Supabase Edge Function (holds your
-//      Anthropic key, signed-in users only). Set AI_PROXY_URL after deploying it
-//      (see unique-ava/SETUP.md).
-//  If neither is available, the built-in rules engine answers instead.
+//  AI: Google Gemini (free tier) through the unique-ava-ai Supabase Edge Function.
+//    Users never need a key: they just sign in. The site owner adds ONE free
+//    GEMINI_API_KEY secret in Supabase (shared with Tiffo and Pantry to Plate).
+//    Inside the claude.ai preview (which can't reach Supabase), Claude stands in.
+//  If no AI is available, the built-in rules engine answers instead.
 // ───────────────────────────────────────────────────────────────────────────
 export const CONFIG = {
   SUPABASE_URL: 'https://hvhbygkgvxdpvwvclyns.supabase.co',
   SUPABASE_ANON_KEY: 'sb_publishable_t8Zf_XjZPrRZB9piISZOhQ_FXdNja7h',
-  // e.g. 'https://hvhbygkgvxdpvwvclyns.supabase.co/functions/v1/unique-ava-ai' once deployed
-  AI_PROXY_URL: '',
+  // The unique-ava-ai function (Gemini free tier). Users just sign in; no key needed on their side.
+  AI_PROXY_URL: 'https://hvhbygkgvxdpvwvclyns.supabase.co/functions/v1/unique-ava-ai',
 };

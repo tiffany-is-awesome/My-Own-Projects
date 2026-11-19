@@ -78,7 +78,7 @@ export default function MixMatch({ go }) {
             <option value="">No anchor: surprise me</option>
             {owned.map((g) => <option key={g.id} value={g.id}>Build around: {g.name}</option>)}
           </select>
-          <button className="btn primary" onClick={() => run()} disabled={busy}>{busy ? (ai.status === 'ready' ? 'Claude is styling…' : 'Styling…') : ai.status === 'ready' ? '✦ Style me with Claude' : 'Style me'}</button>
+          <button className="btn primary" onClick={() => run()} disabled={busy}>{busy ? (ai.status === 'ready' ? 'The AI stylist is thinking…' : 'Styling…') : ai.status === 'ready' ? '✦ Style me with AI' : 'Style me'}</button>
         </div>
         <div className="chips" style={{ marginTop: 12 }}>
           {EXAMPLE_PROMPTS.map((p) => <button key={p} className="chip" onClick={() => run(p)}>{p}</button>)}
@@ -98,7 +98,7 @@ export default function MixMatch({ go }) {
       <div className="page-head" style={{ marginBottom: 16 }}>
         <div>
           <h2 className="h2">Three ways to wear it</h2>
-          <span className={by === 'claude' ? 'ai-badge' : 'tiny'}>{by === 'claude' ? 'Styled by Claude from your closet · scored by the rules engine' : ai.status === 'ready' ? 'Instant picks from the rules engine. Press “Style me with Claude” for AI picks.' : 'Picks from the built-in rules engine (Claude not connected here)'}</span>
+          <span className={by === 'claude' ? 'ai-badge' : 'tiny'}>{by === 'claude' ? `Styled by the AI stylist (${ai.name || 'AI'}) from your closet · scored by the rules engine` : ai.status === 'ready' ? 'Instant picks from the rules engine. Press “Style me with AI” for the stylist’s picks.' : (ai.status === 'signin' ? 'Picks from the built-in rules engine. Sign in to get the AI stylist\'s picks.' : 'Picks from the built-in rules engine (AI stylist not connected)')}</span>
           {note && <div className="small" style={{ color: 'var(--warn)' }}>{note}</div>}
         </div>
         <div className="seg">
@@ -108,7 +108,7 @@ export default function MixMatch({ go }) {
       </div>
 
       {busy && <div className="loading-bar"><i /></div>}
-      {busy && ai.status === 'ready' && <p className="small muted">Claude is reading your closet and the forecast. This usually takes 10–40 seconds.</p>}
+      {busy && ai.status === 'ready' && <p className="small muted">The AI stylist is reading your closet and the forecast. This usually takes 10–40 seconds.</p>}
       {results && (
         <div className="grid three" style={{ opacity: busy ? 0.4 : 1, transition: 'opacity .2s' }}>
           {results.map((r) => {

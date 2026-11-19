@@ -56,15 +56,15 @@ export default function App() {
           <nav className="nav" aria-label="Main">
             {NAV.map(([h, l]) => <a key={h} href={h} className={active === h ? 'active' : ''} onClick={() => !state.onboarded && dispatch({ type: 'ONBOARDED' })}>{l}</a>)}
           </nav>
-          <span className={'ai-status ' + ai.status} title={ai.status === 'ready' ? `AI: ${ai.name}` : 'Claude is not connected here, so the built-in rules engine is used'}>
-            <i />{ai.status === 'ready' ? 'Claude on' : ai.status === 'checking' ? 'Connecting…' : ai.status === 'signin' ? 'Sign in for Claude' : 'Rules engine'}
+          <span className={'ai-status ' + ai.status} title={ai.status === 'ready' ? `AI stylist: ${ai.name}` : ai.status === 'notsetup' ? 'The AI isn\'t switched on yet, so the built-in rules engine is used' : 'The AI stylist is not connected here, so the built-in rules engine is used'}>
+            <i />{ai.status === 'ready' ? `${ai.name} on` : ai.status === 'checking' ? 'Connecting…' : ai.status === 'signin' ? 'Sign in for AI' : 'Rules engine'}
           </span>
           <Account />
         </div>
       </header>
       <main>{view}</main>
       <footer className="footer">
-        Unique Ava prototype · AI by Claude, with a built-in rules engine as backup · saved in this browser, or to your account when you sign in ·{' '}
+        Unique Ava prototype · AI stylist by Google Gemini, with a built-in rules engine as backup · saved in this browser, or to your account when you sign in ·{' '}
         <ConfirmButton className="" label="Reset demo" confirmLabel="Click again to reset everything" onConfirm={() => { dispatch({ type: 'RESET' }); window.location.hash = '#/closet'; }} />
       </footer>
     </>

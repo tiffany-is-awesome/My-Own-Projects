@@ -45,7 +45,7 @@ export default function UploadModal({ onClose, onSaved }) {
     try {
       const g = await processUpload(file, (label) => setStep(STEPS.indexOf(label)));
       // Real AI: send the cut-out to Claude for tagging. Falls back to the on-device guess.
-      setAiLine('Claude is looking at the piece…');
+      setAiLine('The AI stylist is looking at the piece…');
       const blob = await (await fetch(g.image)).blob();
       const ai = await tagGarment(blob, g);
       setAiLine('');
@@ -90,7 +90,7 @@ export default function UploadModal({ onClose, onSaved }) {
           <div className="loading-bar"><i /></div>
           <ul className="steps">{STEPS.map((s, i) => <li key={s} className={i < step ? 'done' : i === step ? 'now' : ''}>{s}</li>)}</ul>
           {aiLine && <p className="small" style={{ fontWeight: 600 }}>{aiLine}</p>}
-          <p className="tiny">Background removal and color reading run on your device. Only the cut-out piece is sent to Claude for tagging, never the original photo.</p>
+          <p className="tiny">Background removal and color reading run on your device. Only the cut-out piece is sent to the AI (Google Gemini's free tier, which may use it to improve Google's products), never the original photo.</p>
         </>
       )}
 
@@ -99,7 +99,7 @@ export default function UploadModal({ onClose, onSaved }) {
           <div>
             <div className="card-stage"><GarmentArt item={draft} /></div>
             <div className="swatches" style={{ marginTop: 10 }}><span className="swatch" style={{ background: draft.colors[0].hex }} /> <span className="small">{draft.colors[0].name} · read from pixels</span></div>
-            <p style={{ marginTop: 10 }}>{taggedBy ? <span className="ai-badge">Tagged by {taggedBy}</span> : <span className="tiny">Tagged by the on-device guesser (Claude unavailable)</span>}</p>
+            <p style={{ marginTop: 10 }}>{taggedBy ? <span className="ai-badge">Tagged by {taggedBy}</span> : <span className="tiny">Tagged by the on-device guesser (AI unavailable)</span>}</p>
             {draft.aiNote && <p className="small muted">“{draft.aiNote}”</p>}
             {draft.confidence < 0.6 && <p className="small" style={{ color: 'var(--warn)' }}>We're not sure about some details, so please check them.</p>}
             {error && <p className="tiny" style={{ color: 'var(--warn)' }}>{error}</p>}
