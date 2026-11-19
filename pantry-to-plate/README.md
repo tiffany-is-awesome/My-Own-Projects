@@ -4,6 +4,13 @@ Recipes from every cuisine, made **only** from what's already in your kitchen. N
 
 Live site: https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/
 
+## ⚠️ Needed for sign-in to work for everyone
+
+Supabase's built-in email service only sends emails to **members of your Supabase team**. Anyone else who signs up gets "Email address not authorized" and never receives the confirmation email. Fix it in one of two ways:
+
+- **Quick (5 minutes):** Supabase → **Authentication → Sign In / Providers → Email** → turn **off "Confirm email"**. People can sign up and sign in straight away. Password-reset emails still won't reach non-team addresses.
+- **Proper (about 20 minutes, free):** set up a free email-sending service such as Resend or Brevo, and enter its details under **Authentication → Emails → SMTP Settings**. Then confirmation and password-reset emails reach everyone.
+
 ## What's already set up (nothing left to do)
 
 - **Free AI with no API key:** recipes and dish fixes come from Google's Gemini through [Puter](https://docs.puter.com). Nobody needs a key, not you and not your users. The first time someone asks for recipes, they tap **Connect free AI** and sign in to a free Puter account. Their AI use comes out of that account's free allowance, and you're never charged.
@@ -27,13 +34,14 @@ Also optional: **nicer email links.** In Supabase, go to **Authentication → UR
 | File | What it does |
 |---|---|
 | `src/engine.js` | The "brain", no AI needed: ingredients, units, freshness and food-safety rules, recipe matching, ranking, swaps, and updating the kitchen after cooking. |
-| `src/recipes.js` | The curated library of 26 dependable recipes with exact amounts, essential vs optional ingredients, explained swaps, storage and reheating. |
+| `src/recipes.js` | The curated library: 26 meals and 12 drinks (smoothies, shakes, fresh juices), with exact amounts, essential vs optional ingredients, explained swaps, storage and reheating. |
 | `src/app.js` | The screens: Home, My kitchen, Cook something, "I made this", Saved. |
 | `src/ai.js` | Settings and the AI connection (Claude in claude.ai, free Gemini through Puter, or your own key via the `pantry-ai` Supabase function). |
 | `src/cloud.js` | Sign-in and syncing with Supabase. |
 | `src/plate.js`, `src/fix.js`, `src/status.js`, `src/boot.js` | Dish drawings, Rescue My Dish fixes, the AI badge, and startup. |
 | `src/base.css`, `src/extra.css`, `src/body.html` | Look and page structure. |
-| `src/test-engine.js` | The brief's acceptance tests, run in code: `node src/test-engine.js` |
+| `src/test-engine.js` | The brief's acceptance tests: `node src/test-engine.js` |
+| `src/test-audit.js` | The Phase 1 completion audit (modes, maths, deductions, leftovers, freshness, ranking): `node src/test-audit.js` |
 
 After changing anything in `src/`, run `python3 src/build.py` to rebuild `index.html`.
 

@@ -36,17 +36,27 @@ const Cloud={
     this.user=null;this.status="";resetToSample();renderAccount();rerender();
   },
   setStatus(t){this.status=t;const el=document.getElementById("syncState");if(el)el.textContent=t;const b=$("#acctBtn");if(b&&this.user)b.title="Account · "+t;},
+  /* Sync rules: never overwrite newer data.
+     - First sign-in on a device: the account's data wins, and if this device had its own kitchen,
+       you're asked whether to add it to the account (nothing is merged silently).
+     - Afterwards: whichever side was changed most recently wins. */
   async pull(){
     if(!this.user||this.busy) return; this.busy=true; this.setStatus("Syncing…");
     try{
       const sb=await this.client();
       const {data,error}=await sb.from(CONFIG.TABLE).select("data, updated_at").eq("user_id",this.user.id).maybeSingle();
       if(error) throw error;
-      const remoteAt=data&&data.data?(data.data.savedAt||Date.parse(data.updated_at)||1):0;
-      if(data&&data.data&&remoteAt>(S.savedAt||0)){
-        applySnapshot({...data.data,savedAt:remoteAt});
-        saveLocal(); rerender(); this.setStatus("Synced");
-      }else{ this.busy=false; await this.push(); }
+      const remote=data&&data.data, remoteAt=remote?(remote.savedAt||Date.parse(data.updated_at)||1):0;
+      const mine=S.owner===this.user.id;
+      const localOwn=!S.sample&&(S.pantry.length||S.saved.length);
+      if(remote&&!mine){
+        const local=snapshot();
+        applySnapshot({...remote,savedAt:remoteAt}); S.owner=this.user.id; saveLocal(); rerender();
+        if(localOwn) offerMerge(local);
+        this.setStatus("Synced");
+      }else if(remote&&remoteAt>(S.savedAt||0)){
+        applySnapshot({...remote,savedAt:remoteAt}); S.owner=this.user.id; saveLocal(); rerender(); this.setStatus("Synced");
+      }else{ S.owner=this.user.id; this.busy=false; await this.push(); }
     }catch(e){console.warn("Cloud pull failed",e);this.setStatus(tableMissing(e)?"Cloud table not set up yet":"Not synced");}
     finally{this.busy=false;}
   },
@@ -56,6 +66,13 @@ const Cloud={
     try{
       const sb=await this.client();
       if(!S.savedAt) S.savedAt=Date.now();
+      // Don't overwrite a newer copy saved from another device: take that one instead.
+      const cur=await sb.from(CONFIG.TABLE).select("data, updated_at").eq("user_id",this.user.id).maybeSingle();
+      if(!cur.error&&cur.data&&cur.data.data){
+        const at=cur.data.data.savedAt||Date.parse(cur.data.updated_at)||0;
+        if(at>S.savedAt){ applySnapshot({...cur.data.data,savedAt:at}); S.owner=this.user.id; saveLocal(); rerender(); this.setStatus("Synced"); toast("Updated with newer changes from your other device."); return; }
+      }
+      S.owner=this.user.id;
       const {error}=await sb.from(CONFIG.TABLE).upsert({user_id:this.user.id,data:snapshot(),updated_at:new Date(S.savedAt).toISOString()});
       if(error) throw error; saveLocal(); this.setStatus("Synced");
     }catch(e){console.warn("Cloud push failed",e);this.setStatus(tableMissing(e)?"Cloud table not set up yet":"Not synced");}
@@ -65,6 +82,8 @@ const tableMissing=e=>!!e&&(e.code==="42P01"||e.code==="PGRST205"||/does not exi
 function friendly(e){
   const m=(e&&e.message)||"";
   if(/fetch|network|load/i.test(m)) return "Couldn't reach the account server. Check your connection and try again.";
+  if(/not authorized|error sending|sending (confirmation|recovery|magic)|smtp/i.test(m)) return "We couldn't send the email to that address yet: the site's email service is still being set up. Please try again later.";
+  if(/signups? not allowed|signup is disabled/i.test(m)) return "New accounts aren't open yet. Please try again later.";
   if(/invalid login credentials/i.test(m)) return "Email or password is incorrect.";
   if(/email not confirmed/i.test(m)) return "Please confirm your email first. The link is in your inbox.";
   if(/already registered|already exists/i.test(m)) return "That email already has an account. Try signing in instead.";

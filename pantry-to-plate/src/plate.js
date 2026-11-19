@@ -14,7 +14,17 @@ function drawPlate(cv,r,bg){
   const specks=(n,rad,col,sz)=>{x.fillStyle=col;for(let i=0;i<n;i++){const a=R()*Math.PI*2,d=Math.sqrt(R())*rad;x.beginPath();x.ellipse(cx+Math.cos(a)*d,cy+Math.sin(a)*d,sz*(.6+R()*.8),sz*.5,R()*3,0,Math.PI*2);x.fill()}};
   const egg=(ex,ey,s)=>{x.fillStyle="#FBF8F1";x.beginPath();x.ellipse(ex,ey,38*s,28*s,R(),0,Math.PI*2);x.fill();x.fillStyle="#F2AE2E";x.beginPath();x.arc(ex+2,ey,15*s,0,Math.PI*2);x.fill();x.fillStyle="rgba(255,255,255,.35)";x.beginPath();x.arc(ex-3,ey-4,5*s,0,Math.PI*2);x.fill()};
   const hasEgg=r.ingredients.some(i=>i.k==="egg"||/egg/i.test(i.n||i.name||""));
-  if(r.plating==="skillet"){
+  if(r.plating==="glass"){
+    // a tall glass of smoothie or juice, top-down 3/4 view
+    shadow(30,14);x.fillStyle="rgba(255,255,255,.55)";x.beginPath();x.moveTo(250,250);x.lineTo(550,250);x.lineTo(515,860);x.quadraticCurveTo(400,890,285,860);x.closePath();x.fill();noShadow();
+    const lg=x.createLinearGradient(0,330,0,860);lg.addColorStop(0,pal[1]);lg.addColorStop(1,pal[0]);
+    x.fillStyle=lg;x.beginPath();x.moveTo(262,330);x.lineTo(538,330);x.lineTo(512,845);x.quadraticCurveTo(400,872,288,845);x.closePath();x.fill();
+    x.fillStyle=pal[2];x.globalAlpha=.85;x.beginPath();x.ellipse(400,332,138,22,0,0,Math.PI*2);x.fill();x.globalAlpha=1;
+    for(let i=0;i<5;i++){x.save();x.translate(320+R()*160,345+R()*30);x.rotate(R()*.8-.4);x.fillStyle="rgba(255,255,255,.55)";x.beginPath();x.roundRect(-22,-16,44,32,6);x.fill();x.restore();}
+    x.strokeStyle="rgba(255,255,255,.7)";x.lineWidth=10;x.beginPath();x.moveTo(275,300);x.lineTo(298,830);x.stroke();
+    x.strokeStyle=pal[3]||"#5E8C3A";x.lineWidth=16;x.lineCap="round";x.beginPath();x.moveTo(470,120);x.lineTo(430,560);x.stroke();
+    x.fillStyle=pal[0];x.beginPath();x.arc(530,268,46,Math.PI*.95,Math.PI*2.05);x.fill();x.fillStyle=pal[2];x.beginPath();x.arc(530,268,34,Math.PI*.95,Math.PI*2.05);x.fill();
+  }else if(r.plating==="skillet"){
     shadow(40,18); x.save();x.translate(cx,cy);x.rotate(.75);x.fillStyle="#1A1A1A";x.beginPath();x.roundRect(250,-28,260,56,26);x.fill();x.restore();
     x.fillStyle="#232323";x.beginPath();x.arc(cx,cy,300,0,Math.PI*2);x.fill();noShadow();
     x.fillStyle="#303030";x.beginPath();x.arc(cx,cy,272,0,Math.PI*2);x.fill();

@@ -93,6 +93,12 @@ const ING = {
   peas:           {n:"Peas", s:["peas","green peas","frozen peas","mixed vegetables","frozen mixed vegetables"], c:"produce", r:"low", u:"g", cup:145, f:3, z:240, p:null, loc:"freezer"},
   banana:         {n:"Bananas", s:["banana","bananas","saging","overripe bananas","ripe bananas"], c:"produce", r:"low", u:"pcs", w:120, cup:225, f:5, z:90, p:4, loc:"pantry", fz:"Peel, slice and freeze for pancakes, banana bread or smoothies."},
   lemon:          {n:"Lemons / limes", s:["lemon","lemons","lime","limes","calamansi","kalamansi","lemon juice"], c:"produce", r:"low", u:"pcs", w:60, f:21, z:120, p:7, loc:"fridge"},
+  watermelon:     {n:"Watermelon", s:["watermelon","pakwan"], c:"produce", r:"low", u:"g", w:2000, cup:150, f:3, z:240, p:7, loc:"fridge", fz:"Cube and freeze for slushies and smoothies."},
+  pineapple:      {n:"Pineapple", s:["pineapple","pinya","canned pineapple","pineapple chunks"], c:"produce", r:"low", u:"g", w:1000, cup:165, f:4, z:240, p:3, loc:"pantry", fz:"Cut into chunks and freeze flat for smoothies."},
+  papaya:         {n:"Ripe papaya", s:["ripe papaya","papaya"], c:"produce", r:"low", u:"g", w:600, cup:145, f:4, z:240, p:3, loc:"pantry"},
+  orange:         {n:"Oranges", s:["orange","oranges","dalandan","ponkan","mandarin","mandarins","tangerine"], c:"produce", r:"low", u:"pcs", w:150, cup:180, f:14, z:null, p:7, loc:"pantry"},
+  berries:        {n:"Berries", s:["strawberries","strawberry","blueberries","berries","mixed berries","frozen berries"], c:"produce", r:"low", u:"g", w:15, cup:150, f:3, z:240, p:null, loc:"fridge", fz:"Freeze on a tray, then bag them: perfect for smoothies."},
+  avocado:        {n:"Avocados", s:["avocado","avocados","abukado"], c:"produce", r:"low", u:"pcs", w:200, cup:150, f:4, z:120, p:3, loc:"pantry"},
   apple:          {n:"Apples", s:["apple","apples"], c:"produce", r:"low", u:"pcs", w:180, f:30, p:7, loc:"fridge"},
   mango:          {n:"Mangoes", s:["mango","mangoes","ripe mango"], c:"produce", r:"low", u:"pcs", w:250, f:5, z:180, p:4, loc:"pantry"},
   herbs:          {n:"Fresh herbs", s:["cilantro","coriander","parsley","basil","wansoy","kinchay","celery","dill","mint"], c:"produce", r:"low", u:"bunch", w:30, f:5, z:null, p:null, loc:"fridge", fz:"Chop and freeze in oil in an ice-cube tray."},
@@ -119,6 +125,8 @@ const ING = {
   honey:          {n:"Honey", s:["honey"], c:"condiment", r:"low", u:"tbsp", p:730, loc:"pantry", st:true},
   gochujang:      {n:"Gochujang", s:["gochujang","korean chili paste"], c:"condiment", r:"low", u:"tbsp", f:365, p:null, loc:"fridge", st:true},
   kimchi:         {n:"Kimchi", s:["kimchi"], c:"condiment", r:"low", u:"cup", cup:150, f:90, z:null, p:null, loc:"fridge"},
+  condensed_milk: {n:"Condensed milk", s:["condensed milk","sweetened condensed milk","condensada"], c:"dairy", r:"med", u:"tbsp", cup:300, f:7, z:null, p:365, loc:"pantry", d:true, o:7, opensTo:"fridge"},
+  ice:            {n:"Ice", s:["ice","ice cubes","crushed ice"], c:"condiment", r:"low", u:"cup", cup:140, z:99999, loc:"freezer"},
   coconut_milk:   {n:"Coconut milk", s:["coconut milk","gata","coconut cream","kakang gata"], c:"grain", r:"med", u:"ml", cup:240, f:4, z:60, p:540, loc:"pantry", o:4, opensTo:"fridge"},
   peanut_butter:  {n:"Peanut butter", s:["peanut butter"], c:"condiment", r:"low", u:"tbsp", p:90, loc:"pantry"},
   water:          {n:"Water", s:["water"], c:"condiment", r:"low", u:"cup", p:99999, loc:"pantry", free:true}
@@ -243,6 +251,7 @@ function shelfLife(item) {
   const v = ING[item.key] || {};
   const cooked = item.cooked || v.isCooked;
   if (item.loc === "freezer") return { days: v.z === null ? null : (v.z || 90), quality: true };
+  if (item.riceDish) return { days: 1, quality: false }; // FSA: rice dishes within 24 hours
   if (cooked && !v.isCooked) return { days: (item.key === "rice_raw" || /rice/.test(norm(item.name))) ? 1 : 3, quality: false };
   let days = item.loc === "pantry" ? v.p : v.f;
   if (item.opened && v.o) days = Math.min(days ?? v.o, v.o);
@@ -283,17 +292,22 @@ function estimate(item, now) {
   const v = ING[item.key] || {};
   const highRisk = (v.r || "med") !== "low" || item.cooked;
   const sl = shelfLife(item);
-  const start = item.opened && item.openedOn ? item.openedOn : (item.added || todayISO(now));
+  // the clock starts at the latest of: bought/cooked, opened, thawed (moved out of the freezer)
+  const starts = [item.added || todayISO(now)];
+  if (item.opened && item.openedOn) starts.push(item.openedOn);
+  if (item.loc !== "freezer" && item.thawedOn) starts.push(item.thawedOn);
+  const start = starts.sort().slice(-1)[0];
   if (item.est) { // a date the person set themselves
     const d = daysUntil(item.est, now);
     if (d < 0 && highRisk) return { group: "check", daysLeft: d, dateISO: item.est, basis: "own", safe: false, note: "Past the date you set. Don't eat it." };
-    return { group: d < 0 ? "first" : groupFor(d, v), daysLeft: d, dateISO: item.est, basis: "own", safe: true, note: (d < 0 ? "Past the date you set: check it's still good" : "Use by " + prettyDate(item.est) + " (your date)") };
+    return { group: d < 0 ? "first" : groupFor(d, v), daysLeft: d, dateISO: item.est, basis: "own", safe: true, note: (d < 0 ? "Past the date you set: check it carefully; if in doubt, throw it out" : "Use by " + prettyDate(item.est) + " (your date)") };
   }
+  if (item.loc === "freezer" && item.unknownAge) return { group: "long", daysLeft: null, basis: "unknown", safe: true, note: "Kept frozen, so it stays safe while frozen. Its age is unknown, so quality may have dropped: use it soon after thawing." };
   if (item.loc === "freezer") {
     if (sl.days === null) return { group: "check", daysLeft: null, basis: "estimate", safe: true, note: "Not a food that freezes well. Thaw in the fridge and use soon." };
     const d = daysUntil(addDays(start, sl.days), now);
     return { group: "long", daysLeft: d, dateISO: addDays(start, sl.days), basis: "estimate", safe: true,
-      note: d < 0 ? "Frozen food stays safe, but it's past its best quality. Use it soon." : "Frozen: safe while frozen; best quality until about " + prettyDate(addDays(start, sl.days)) };
+      note: d < 0 ? "Frozen food stays safe while frozen, but it's past its best quality. Use it soon." : "Frozen: stays safe while frozen. Best quality until about " + prettyDate(addDays(start, sl.days)) + " (estimate)" };
   }
   if (sl.days === null) {
     return { group: highRisk ? "check" : "soon", daysLeft: null, basis: "estimate", safe: !highRisk,
@@ -301,17 +315,17 @@ function estimate(item, now) {
   }
   const date = addDays(start, sl.days), d = daysUntil(date, now);
   if (d < 0) {
-    if (highRisk) return { group: "check", daysLeft: d, dateISO: date, basis: "estimate", safe: false, note: "Past the safe storage time for this food. Don't eat it." };
-    return { group: "first", daysLeft: d, dateISO: date, basis: "estimate", safe: true, note: "Past its usual freshness. Check it before using." };
+    if (highRisk) return { group: "check", daysLeft: d, dateISO: date, basis: "estimate", safe: false, note: "Past the recommended storage time for this food. Don't eat it." };
+    return { group: "first", daysLeft: d, dateISO: date, basis: "estimate", safe: true, note: "Past its usual freshness. Check it carefully before using; if in doubt, throw it out." };
   }
   return { group: groupFor(d, v), daysLeft: d, dateISO: date, basis: "estimate", safe: true,
-    note: (d === 0 ? "Use today" : "Use within " + d + " day" + (d === 1 ? "" : "s")) + " (estimate)" };
+    note: (d === 0 ? "Best used today" : "Best used within " + d + " day" + (d === 1 ? "" : "s")) + " (estimate)" };
 }
 function groupFor(d, v) { if (d <= 1) return "first"; if (d <= 4) return "soon"; if (d <= 30) return "fresh"; return "long"; }
 const GROUPS = [
   ["check", "Check these first", "Food that may not be safe. When in doubt, throw it out."],
-  ["first", "Use first", "Needs using today or tomorrow."],
-  ["soon", "Use soon", "Best within the next few days."],
+  ["first", "Use first", "Best used today or tomorrow."],
+  ["soon", "Use soon", "Best used in the next few days."],
   ["fresh", "Still fresh", "Good for a while yet."],
   ["long", "Long-lasting", "Cupboard and freezer food."]
 ];
@@ -335,6 +349,8 @@ function newItem(src, now) {
     label: src.label && src.label.date ? { type: src.label.type === "bestbefore" ? "bestbefore" : "useby", date: src.label.date } : null,
     est: src.est || null,
     unknownAge: !!src.unknownAge,
+    riceDish: !!src.riceDish,
+    thawedOn: src.thawedOn || null,
     notes: String(src.notes || "").slice(0, 200)
   };
 }
@@ -344,7 +360,8 @@ function addToPantry(pantry, items, now) {
   const added = [], merged = [];
   for (const src of items) {
     const it = newItem(src, now);
-    const same = pantry.find(p => (p.key && p.key === it.key || !p.key && norm(p.name) === norm(it.name)) && p.loc === it.loc && p.cooked === it.cooked && p.opened === it.opened && !p.unknownAge && !it.unknownAge);
+    const nm = x => norm(x).replace(/(es|s)\b/g, "");
+    const same = pantry.find(p => p.key === it.key && nm(p.name) === nm(it.name) && p.loc === it.loc && p.cooked === it.cooked && p.opened === it.opened && !p.unknownAge && !it.unknownAge && !p.riceDish && !it.riceDish);
     if (same) {
       if (same.qty != null && it.qty != null) {
         if (same.unit === it.unit) same.qty += it.qty;
@@ -357,6 +374,7 @@ function addToPantry(pantry, items, now) {
   return { added, merged };
 }
 function round2(x) { return Math.round(x * 100) / 100; }
+function roundU(x, unit) { return unit === "kg" || unit === "l" ? Math.round(x * 1000) / 1000 : round2(x); } // keep gram-level precision
 function validateItem(it, now) {
   const errs = [];
   if (!it.name || !it.name.trim()) errs.push("Add a name.");
@@ -381,8 +399,10 @@ function findSupply(k, usable, staples, needG) {
   if (items.length) {
     let haveG = 0, unknown = false;
     for (const x of items) { const g = toGrams(k, x.p.qty, x.p.unit); if (g == null) unknown = true; else haveG += g; }
-    const enough = unknown || needG == null || haveG >= needG * ENOUGH;
-    return { src: "pantry", items, haveG, unknown, enough, short: !unknown && needG != null && haveG < needG };
+    let enough = unknown || needG == null || haveG >= needG * ENOUGH;
+    const topUp = !enough && stapleOn(staples, k);
+    if (topUp) enough = true; // e.g. 1 clove left, but garlic is ticked as always-in-the-kitchen
+    return { src: "pantry", items, haveG, unknown, enough, topUp, short: !unknown && !topUp && needG != null && haveG < needG };
   }
   if (stapleOn(staples, k)) return { src: "staple", items: [], enough: true };
   return null;
@@ -452,6 +472,7 @@ function matchRecipe(r, pantry, staples, opts = {}, now) {
     if (res.blocked === "diet") res.ok = false;
   }
   if (opts.cuisine && opts.cuisine !== "any" && r.cuisine !== opts.cuisine) { res.ok = false; res.blocked = "cuisine"; }
+  if ((opts.kind === "meals" && r.kind === "drink") || (opts.kind === "drinks" && r.kind !== "drink")) { res.ok = false; res.blocked = "kind"; }
   res.usedCount = res.usedItems.size;
   res.urgentUsed = [...new Map(res.urgentUsed.map(p => [p.id, p])).values()];
   return res;
@@ -472,14 +493,14 @@ function dietOf(m) {
 const URG_POINTS = { first: 14, soon: 7, fresh: 1.5, long: 0.3 };
 function scoreMatch(m, mode, now) {
   const r = m.recipe;
-  const quality = (r.q || 3) * 12 - m.swaps.reduce((s, l) => s + (l.sub.cost ?? 4), 0) - (r.ai ? 10 : 0);
+  const quality = 40 + ((r.q || 3) - 3) * 20 - m.swaps.reduce((s, l) => s + (l.sub.cost ?? 4), 0) - (r.ai ? 10 : 0) - (m.scaledDown ? 3 : 0);
   let urgency = 0;
   for (const l of m.lines) for (const x of (l.items || [])) urgency += URG_POINTS[x.fr.group] || 0;
-  urgency = Math.min(urgency, 45);
+  urgency = Math.min(urgency, 35);
   const use = Math.min(m.usedCount * 3, 18);
   const time = (r.prep + r.cook) <= 20 ? 4 : (r.prep + r.cook) <= 35 ? 2 : 0;
   const short = m.lines.filter(l => l.short && !l.ing.opt).length * 3;
-  const w = { most: [1, 0.7, 2.2], urgent: [1, 1.8, 0.6], one: [1.1, 1, 0.8], everything: [1, 1, 1.5] }[mode] || [1, 1, 1];
+  const w = { most: [1, 0.7, 1.8], urgent: [1, 1.3, 0.6], one: [1, 1, 0.8], everything: [1, 1, 1.4] }[mode] || [1, 1, 1];
   const total = quality * w[0] + urgency * w[1] + use * w[2] + time - short;
   return { total, quality, urgency, use, time };
 }
@@ -517,7 +538,7 @@ function planEverything(recipes, pantry, staples, opts = {}, now) {
   for (let round = 0; round < 3; round++) {
     const ranked = rankRecipes(recipes.filter(r => !dishes.some(d => d.recipe.id === r.id)), kitchen, staples, { ...opts, mode: "everything", focus: null }, now)
       .map(m => ({ m, gain: [...m.usedItems].filter(id => targets.has(id) && !covered.has(id)).length }))
-      .filter(x => x.gain > 0 && x.m.score.quality >= 40)
+      .filter(x => x.gain > 0 && x.m.score.quality >= 52)
       .sort((a, b) => (b.gain * 10 + b.m.score.total) - (a.gain * 10 + a.m.score.total));
     if (!ranked.length) break;
     const best = ranked[0].m;
@@ -550,7 +571,7 @@ function planDeductions(m) {
         const p = x.p;
         if (have[i] == null) { rows.push({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, take: null, all: false, unknown: true }); return; }
         if (share[i] <= 0) return;
-        const take = round2(fromGrams(p.key, share[i], p.unit));
+        const take = roundU(fromGrams(p.key, share[i], p.unit), p.unit);
         rows.push({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, take, all: take >= p.qty - 1e-6, unknown: false });
       });
       continue;
@@ -561,7 +582,7 @@ function planDeductions(m) {
       let take = null, all = false;
       if (p.qty == null || haveG == null) { all = l.items.length === 1 ? false : false; take = null; }
       else if (needG == null) { take = p.qty; all = true; }
-      else { const g = Math.min(haveG, needG); take = round2(fromGrams(k, g, p.unit)); needG -= g; all = take >= p.qty - 1e-6; }
+      else { const g = Math.min(haveG, needG); take = roundU(fromGrams(k, g, p.unit), p.unit); needG -= g; all = take >= p.qty - 1e-6; }
       rows.push({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, take, all, unknown: p.qty == null || haveG == null });
       if (needG != null && needG <= 0) break;
     }
@@ -587,7 +608,7 @@ function applyDeductions(pantry, rows) {
 }
 function leftoverItem(recipe, servings, now) {
   const rice = recipe.ingredients.some(i => i.k === "rice_cooked" || i.k === "rice_raw");
-  return newItem({ name: "Leftover " + recipe.title, key: rice ? "rice_cooked" : "leftover", qty: servings, unit: "servings", loc: "fridge", cooked: true, added: todayISO(now),
+  return newItem({ name: "Leftover " + recipe.title, key: "leftover", riceDish: rice, qty: servings, unit: "servings", loc: "fridge", cooked: true, added: todayISO(now),
     notes: rice ? "Contains rice: eat within 24 hours, reheat only once until steaming hot." : "Cooked leftovers: eat within 3 days, reheat until steaming hot (74°C / 165°F)." }, now);
 }
 /* General safety notes that always apply to certain ingredients. */
@@ -600,7 +621,11 @@ function safetyNotes(m) {
   if (keys.has("rice_cooked") || keys.has("rice_raw")) n.push("Rice: cool leftovers within an hour, keep in the fridge, eat within 24 hours, and reheat only once until steaming hot.");
   if (keys.has("chicken_cooked") || keys.has("leftover") || keys.has("fish_cooked") || keys.has("pasta_cooked") || keys.has("potato_cooked")) n.push("Reheat cooked leftovers until steaming hot all the way through (74°C / 165°F). Reheat only once.");
   if (keys.has("egg")) n.push("Cook eggs until whites are set. For young children, older adults, pregnant people or anyone with weak immunity, cook yolks firm too.");
-  n.push("Wash hands, boards and knives after handling raw meat or seafood, and keep raw meat away from food that won't be cooked.");
+  if (["chicken","ground_pork","pork","ground_beef","beef","fish","shrimp","bacon","longganisa","tocino"].some(k => keys.has(k))) n.push("Wash hands, boards and knives after handling raw meat or seafood, and keep raw meat away from food that won't be cooked.");
+  if (m.recipe.kind === "drink") {
+    n.push("Wash fruit and vegetables well before cutting, even if you'll peel them.");
+    n.push("Fresh, unpasteurized juices and smoothies are best drunk right away. Keep any extra in the fridge and finish it within 24 hours. Young children, older adults, pregnant people and anyone with weak immunity should drink them fresh, from well-washed fruit.");
+  }
   return n;
 }
 

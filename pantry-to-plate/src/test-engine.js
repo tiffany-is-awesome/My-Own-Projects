@@ -41,7 +41,7 @@ const plan = E.planEverything(RECIPES, p, staples, {}, now);
 plan.dishes.forEach(m => console.log("   dish: " + show(m)));
 console.log("   still left:", plan.left.map(x => x.name).join(", ") || "none");
 ok(plan.dishes.length >= 2, "suggests more than one dish (" + plan.dishes.length + ")");
-ok(plan.dishes.every(m => m.score.quality >= 40), "every dish is a good recipe, not a forced mix");
+ok(plan.dishes.every(m => m.score.quality >= 52), "every dish is a good recipe, not a forced mix");
 
 console.log("\nTEST 5: cooking deducts the right amounts");
 p = kitchen("6 eggs, 3 cups leftover rice, 1 cup leftover chicken, half a cabbage, 1 carrot");
@@ -55,7 +55,7 @@ ok(!after.some(x => x.key === "rice_cooked"), "all 3 cups of rice used up");
 const cab = after.find(x => x.key === "cabbage");
 ok(cab && Math.abs(cab.qty - 0.32) < 0.02, "cabbage ½ head → about ⅓ head left (" + (cab && cab.qty) + ")");
 const lo = E.leftoverItem(m5.recipe, 1, now);
-ok(lo.cooked && E.freshness(lo, now).daysLeft === 1, "leftover fried rice is tracked with a 24-hour window");
+ok(lo.cooked && lo.key === "leftover" && E.freshness(lo, now).daysLeft === 1, "leftover fried rice is tracked as a dish, with a 24-hour window");
 
 console.log("\nTEST 6: cooked food with an unknown history");
 p = []; E.addToPantry(p, [{ name: "Leftover stew", key: "leftover", unknownAge: true }, { name: "Leftover rice", key: "rice_cooked", added: "2026-11-16" }, { name: "Chicken", key: "chicken", added: "2026-11-15" }], now);
