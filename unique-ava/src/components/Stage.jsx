@@ -74,10 +74,12 @@ export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', cu
       : <PhotoFinish>{scene.render()}</PhotoFinish>)
     : null;
 
+  const photoOnBody = onBody && KEYS.some((k) => o[k] && (o[k].image || photos.garments[o[k].id]));
   return (
     <div className={`stage ${compact ? 'compact' : ''} mode-${mode}`}>
       {bg}
       {layers}
+      {photoOnBody && !compact && <div className="stage-note">Your photos are placed as taken, not reshaped to the body</div>}
       {empty && !compact && <div className="stage-empty">Pick pieces from the slots below to start a look.</div>}
       {caption && <div className="stage-caption">{caption}</div>}
     </div>

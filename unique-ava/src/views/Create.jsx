@@ -24,7 +24,7 @@ export function MissingNotice({ missing, go, name }) {
 }
 
 export default function Create({ go }) {
-  const { state, dispatch, owned, profile } = useStore();
+  const { state, dispatch, owned, profile, personal } = useStore();
   const toast = useToast();
   const ai = useClaudeStatus();
   const [choice, setChoice] = useState(() => state.draft.choice || DEFAULT_CHOICE);
@@ -39,7 +39,7 @@ export default function Create({ go }) {
   const anchor = anchorChoices.find((g) => g.id === anchorId) || null;
 
   async function run() {
-    const ctx = contextOf(choice);
+    const ctx = { ...contextOf(choice), personal: personal.rated ? personal : null };
     setBusy(true); setRes(null); setComparing(false); setSaved({});
     try {
       const r = await styleWithAI({ ctx, pool: owned, anchor });
@@ -103,6 +103,7 @@ export default function Create({ go }) {
           {res.unavailable && <div className="notice">The {res.unavailable.name} isn't available right now (marked as {res.unavailable.status}). Pick another piece, or mark it available in the closet.</div>}
           {res.error && <div className="notice warn">{res.error}</div>}
           {res.note && <div className="notice">{res.note}</div>}
+          {res.ctx.personal && <p className="tiny">Personalized with {res.ctx.personal.rated} rated outfit{res.ctx.personal.rated > 1 ? 's' : ''} from your history.</p>}
           {res.outfits.length > 0 && (
             <>
               <div className="results-head">
@@ -117,7 +118,8 @@ export default function Create({ go }) {
                   {res.outfits.map((r, i) => (
                     <OutfitCard key={i} index={i} result={r} ctx={res.ctx} pool={owned} child={child} saved={!!saved[i]}
                       onReplace={(n) => { replace(i, n); setSaved((s) => { const x = { ...s }; delete x[i]; return x; }); }}
-                      onSave={() => save(i)} onOpen={() => open(i)} />
+                      onSave={() => save(i)} onOpen={() => open(i)}
+                      onWore={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: toSlots(r.outfit), context: res.ctx } }); toast('Added to Outfit History. Rate it there later.'); }} />
                   ))}
                 </div>
               )}

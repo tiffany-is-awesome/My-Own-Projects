@@ -234,6 +234,7 @@ export default function DressingRoom({ go }) {
           <div style={{ display: 'flex', gap: 10, marginTop: 24, flexWrap: 'wrap' }}>
             <button className="btn accent" style={{ flex: 1 }} onClick={saveOutfit} disabled={!complete}>♡ Save outfit</button>
             <button className="btn" onClick={() => setSaving(true)} disabled={!complete}>Add to lookbook</button>
+            <button className="btn" disabled={!complete} onClick={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: draft.slots, context: ctx } }); toast('Added to Outfit History'); }}>I wore this</button>
             <button className="btn ghost" onClick={() => go('#/create')}>Create an Outfit</button>
           </div>
           <p className="tiny" style={{ marginTop: 12 }}>The AI stylist's critique is grounded in Unique Ava’s measured facts (warmth, water resistance, formality), so it can add taste and nuance but not contradict the weather math. The alternatives and live score come from the rules engine. AI requests go to Google Gemini through Puter; the first time, Puter asks you to sign in (free, no key).</p>

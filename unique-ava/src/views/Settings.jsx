@@ -37,6 +37,31 @@ export function ProfileManager() {
   );
 }
 
+function LocationManager() {
+  const { state, dispatch } = useStore();
+  const [name, setName] = useState('');
+  const count = (id) => state.garments.filter((g) => g.location === id).length;
+  return (
+    <div>
+      <h2 className="h2">Where clothes are kept</h2>
+      <p className="small">Name the places you keep clothes (a closet, a storage box, Lola's house…). Set each piece's place in My Closet, then filter by it to find things fast.</p>
+      <ul className="profile-rows">
+        {state.locations.map((l) => (
+          <li key={l.id} style={{ gridTemplateColumns: '1fr 110px auto' }}>
+            <input className="input" value={l.name} aria-label={`Rename ${l.name}`} onChange={(e) => dispatch({ type: 'RENAME_LOCATION', id: l.id, name: e.target.value })} />
+            <span className="tiny">{count(l.id)} pieces</span>
+            <ConfirmButton label="Remove" confirmLabel="Click to remove" onConfirm={() => dispatch({ type: 'DELETE_LOCATION', id: l.id })} />
+          </li>
+        ))}
+      </ul>
+      <form className="profile-add" style={{ gridTemplateColumns: '1fr auto' }} onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; dispatch({ type: 'ADD_LOCATION', location: { id: 'loc-' + Date.now().toString(36), name: name.trim() } }); setName(''); }}>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Bedroom closet" aria-label="New place" />
+        <button className="btn primary" type="submit">Add place</button>
+      </form>
+    </div>
+  );
+}
+
 export default function Settings({ go }) {
   const { state, dispatch, hasDemo } = useStore();
   const { user } = useAuth() || {};
@@ -79,6 +104,8 @@ export default function Settings({ go }) {
       </section>
 
       <section className="settings-sec"><ProfileManager /></section>
+
+      <section className="settings-sec"><LocationManager /></section>
 
       <section className="settings-sec">
         <h2 className="h2">Demo closet</h2>

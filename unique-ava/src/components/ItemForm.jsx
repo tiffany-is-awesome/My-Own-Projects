@@ -1,5 +1,7 @@
 // One form for every way an item is described: after an upload, when adding by hand, and when editing later.
+import { useState } from 'react';
 import { NAMED_COLORS } from '../ai/color.js';
+import { useStore } from '../store.jsx';
 import { CATEGORIES, ARTS, STYLES, SLEEVES, OCCASIONS } from '../data/closet.js';
 
 export const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
@@ -21,6 +23,42 @@ export function blankItem(category = 'top') {
     material: '', weight: 'mid', fit: 'regular', warmth: 2, water: 1, formality: 2, style: 'casual', sleeve: null,
     seasons: [...SEASONS], occasions: [], status: 'available', manual: true,
   };
+}
+
+export const LOCATION_IDEAS = ['Bedroom closet', 'Dresser', 'Under-bed box', 'Shoe rack', 'Storage room'];
+
+/** Pick where a piece is kept, or add a new place on the spot. */
+export function LocationPicker({ value, onChange }) {
+  const { state, dispatch } = useStore();
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  function add(n) {
+    const clean = (n || '').trim();
+    if (!clean) return;
+    const existing = state.locations.find((l) => l.name.toLowerCase() === clean.toLowerCase());
+    const id = existing?.id || 'loc-' + Date.now().toString(36);
+    if (!existing) dispatch({ type: 'ADD_LOCATION', location: { id, name: clean } });
+    onChange(id); setAdding(false); setName('');
+  }
+  if (adding) {
+    return (
+      <div>
+        <div className="anchor-row">
+          <input className="input" autoFocus value={name} placeholder="e.g. Hallway cabinet" aria-label="New place" onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(name); } }} />
+          <button type="button" className="btn sm primary" onClick={() => add(name)}>Add</button>
+          <button type="button" className="btn sm ghost" onClick={() => setAdding(false)}>Cancel</button>
+        </div>
+        {state.locations.length === 0 && <div className="chips" style={{ marginTop: 6 }}>{LOCATION_IDEAS.map((l) => <button type="button" key={l} className="chip" onClick={() => add(l)}>{l}</button>)}</div>}
+      </div>
+    );
+  }
+  return (
+    <select className="select" value={value || ''} aria-label="Where it's kept" onChange={(e) => (e.target.value === '__new' ? setAdding(true) : onChange(e.target.value || null))}>
+      <option value="">Not set</option>
+      {state.locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+      <option value="__new">+ Add a place…</option>
+    </select>
+  );
 }
 
 export default function ItemForm({ item, onChange }) {
@@ -88,6 +126,8 @@ export default function ItemForm({ item, onChange }) {
         <div className="chips">{SEASONS.map((s) => <button type="button" key={s} className={'chip' + ((item.seasons || []).includes(s) ? ' on' : '')} onClick={() => set('seasons', toggle(item.seasons, s))}>{s}</button>)}</div></div>
       <div className="field"><label className="label">Good for</label>
         <div className="chips">{OCCASIONS.map((o) => <button type="button" key={o.id} className={'chip' + ((item.occasions || []).includes(o.id) ? ' on' : '')} onClick={() => set('occasions', toggle(item.occasions, o.id))}>{o.label}</button>)}</div></div>
+      <div className="field"><label className="label">Where it's kept</label>
+        <LocationPicker value={item.location} onChange={(v) => set('location', v)} /></div>
       <div className="field"><label className="label">Status</label>
         <div className="chips">{STATUSES.map((s) => <button type="button" key={s.id} className={'chip' + ((item.status || 'available') === s.id ? ' on' : '')} onClick={() => set('status', s.id)}>{s.label}</button>)}</div>
         <span className="tiny">Only available pieces are used in outfit suggestions.</span></div>
