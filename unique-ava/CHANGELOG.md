@@ -32,13 +32,18 @@
 | `src/ai/insights.js` | Phase 2: versatility, Rediscover My Closet, wear stats, learned preferences from ratings |
 | `src/ai/quality.fixture.js` | Test-only closets (bold/patterned, tiny) used by the outfit-quality tests |
 | `src/ai/planner.js` | Trip planner: one strong, different outfit per day, re-using pieces; packing list |
-| `src/components/ClosetDonut.jsx` | "Closet at a glance" donut (category · colors · what you wear) |
 | `src/views/Calendar.jsx` | Outfit calendar, day planning, trips |
 | `src/components/Choose.jsx` | Context picker chips, outfit card, side-by-side comparison |
 | `src/components/Worn.jsx` | Outfit drawn fitted on a front-facing mannequin |
 | `src/components/GarmentArt.jsx` | Realistic flat-lay product renders |
 | `src/auth.jsx`, `src/components/Account.jsx` | Sign-in and cloud sync |
 | `supabase/unique-ava.sql` | Table + Row Level Security |
+
+---
+
+## 2026-11-20 · Donut chart removed
+- The closet donut chart (a misreading of the owner's "donut", which meant a tip jar) is **removed completely**: `components/ClosetDonut.jsx`, its place in Closet insights and its styles are gone. The 🍩 tip jar stays.
+- Tests: `npm test` 49/49; headless Chrome: calendar/wardrobes flow 23/23 (incl. no chart on Home or Insights), 21/21, 25/25, 12/12, 4/4; tip jar still hidden while unconfigured 1/1.
 
 ---
 
