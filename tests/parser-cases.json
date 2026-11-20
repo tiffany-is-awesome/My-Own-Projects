@@ -1,0 +1,1198 @@
+[
+{
+"t": "Spent ₱450 on groceries.",
+"kind": "expense",
+"amount": 450,
+"category": "Groceries",
+"fast": true
+},
+{
+"t": "Received ₱15,000 from work.",
+"kind": "income",
+"amount": 15000,
+"category": "Salary",
+"fast": true
+},
+{
+"t": "Paid ₱1,200 for electricity yesterday.",
+"kind": "expense",
+"amount": 1200,
+"category": "Utilities",
+"days": -1,
+"fast": true
+},
+{
+"t": "Bought medicine for ₱250.",
+"kind": "expense",
+"amount": 250,
+"category": "Health & Medicine",
+"fast": true
+},
+{
+"t": "Refunded ₱500 from an online purchase.",
+"kind": "refund",
+"amount": 500,
+"fast": true
+},
+{
+"t": "I spent ₱500 on groceries.",
+"kind": "expense",
+"amount": 500,
+"category": "Groceries",
+"fast": true
+},
+{
+"t": "I lent Maria ₱2,000.",
+"kind": "lend",
+"amount": 2000,
+"person": "Maria",
+"fast": true
+},
+{
+"t": "My credit card balance is ₱15,000.",
+"kind": "statement"
+},
+{
+"t": "I received ₱5,000 salary.",
+"kind": "income",
+"amount": 5000,
+"category": "Salary",
+"fast": true
+},
+{
+"t": "I bought ₱3,000 worth of mutual funds.",
+"kind": "invest",
+"amount": 3000,
+"fast": true
+},
+{
+"t": "John borrowed ₱500.",
+"kind": "lend",
+"amount": 500,
+"person": "John",
+"fast": true
+},
+{
+"t": "Maria returned ₱500.",
+"kind": "repay_in",
+"amount": 500,
+"person": "Maria",
+"fast": true
+},
+{
+"t": "I paid back ₱1,000 to John.",
+"kind": "repay_out",
+"amount": 1000,
+"person": "John",
+"fast": true
+},
+{
+"t": "Lola gave me ₱1,000 as a gift",
+"kind": "gift_in",
+"amount": 1000,
+"person": "Lola",
+"fast": true
+},
+{
+"t": "Netflix ₱549 every month",
+"kind": "expense",
+"amount": 549,
+"category": "Entertainment",
+"repeat": "month",
+"fast": true
+},
+{
+"t": "Paid internet 1,699 on Nov 3",
+"kind": "expense",
+"amount": 1699,
+"category": "Utilities",
+"fast": true
+},
+{
+"t": "Mom lent me ₱10,000",
+"kind": "borrow",
+"amount": 10000,
+"person": "Mom",
+"fast": true
+},
+{
+"t": "I borrowed ₱500 from Ben",
+"kind": "borrow",
+"amount": 500,
+"person": "Ben",
+"fast": true
+},
+{
+"t": "John paid me back ₱1,000",
+"kind": "repay_in",
+"amount": 1000,
+"person": "John",
+"fast": true
+},
+{
+"t": "I forgave Pedro's remaining debt",
+"kind": "forgive",
+"person": "Pedro"
+},
+{
+"t": "Spent $15 on gas",
+"kind": "expense",
+"amount": 15,
+"category": "Gas & Auto",
+"fast": true
+},
+{
+"t": "Client paid ₱2,000",
+"kind": "income",
+"amount": 2000,
+"category": "Client Revenue",
+"fast": true
+},
+{
+"t": "Jollibee 350",
+"kind": "expense",
+"amount": 350,
+"category": "Meals",
+"fast": true
+},
+{
+"t": "Grab 180",
+"kind": "expense",
+"amount": 180,
+"category": "Transport",
+"fast": true
+},
+{
+"t": "jeep 13",
+"kind": "expense",
+"amount": 13,
+"category": "Transport",
+"fast": true
+},
+{
+"t": "tricycle 20 pesos",
+"kind": "expense",
+"amount": 20,
+"category": "Transport",
+"fast": true
+},
+{
+"t": "MRT fare 28",
+"kind": "expense",
+"amount": 28,
+"category": "Transport",
+"fast": true
+},
+{
+"t": "Angkas to work 150",
+"kind": "expense",
+"amount": 150,
+"category": "Transport",
+"fast": true
+},
+{
+"t": "palengke 620",
+"kind": "expense",
+"amount": 620,
+"category": "Groceries",
+"fast": true
+},
+{
+"t": "Puregold 2,345.50",
+"kind": "expense",
+"amount": 2345.5,
+"category": "Groceries",
+"fast": true
+},
+{
+"t": "bigas 5kg 285",
+"kind": "expense",
+"amount": 285,
+"category": "Groceries",
+"fast": true
+},
+{
+"t": "Meralco bill 3,210",
+"kind": "expense",
+"amount": 3210,
+"category": "Utilities",
+"fast": true
+},
+{
+"t": "Maynilad 450",
+"kind": "expense",
+"amount": 450,
+"category": "Utilities",
+"fast": true
+},
+{
+"t": "PLDT 1,699",
+"kind": "expense",
+"amount": 1699,
+"category": "Utilities",
+"fast": true
+},
+{
+"t": "load 100",
+"kind": "expense",
+"amount": 100,
+"category": "Load & Data",
+"fast": true
+},
+{
+"t": "Globe load 50",
+"kind": "expense",
+"amount": 50,
+"category": "Load & Data",
+"fast": true
+},
+{
+"t": "GoSURF 99",
+"kind": "expense",
+"amount": 99
+},
+{
+"t": "Mercury Drug 560",
+"kind": "expense",
+"amount": 560,
+"category": "Health & Medicine",
+"fast": true
+},
+{
+"t": "gamot ni lola 340",
+"kind": "expense",
+"amount": 340,
+"category": "Health & Medicine",
+"fast": true
+},
+{
+"t": "checkup 800",
+"kind": "expense",
+"amount": 800,
+"category": "Health & Medicine",
+"fast": true
+},
+{
+"t": "tuition 15,000",
+"kind": "expense",
+"amount": 15000,
+"category": "Education",
+"fast": true
+},
+{
+"t": "school supplies 1,250",
+"kind": "expense",
+"amount": 1250,
+"category": "Education",
+"fast": true
+},
+{
+"t": "Sahod 18,000",
+"kind": "income",
+"amount": 18000,
+"category": "Salary",
+"fast": true
+},
+{
+"t": "got my salary 25k",
+"kind": "income",
+"amount": 25000,
+"category": "Salary",
+"fast": true
+},
+{
+"t": "13th month pay 20,000",
+"kind": "income",
+"amount": 20000,
+"category": "Salary",
+"fast": true
+},
+{
+"t": "baon from mom 500",
+"kind": "income",
+"amount": 500,
+"category": "Allowance",
+"fast": true
+},
+{
+"t": "received allowance 2000",
+"kind": "income",
+"amount": 2000,
+"category": "Allowance",
+"fast": true
+},
+{
+"t": "Sold 3 cakes for 900",
+"kind": "income",
+"amount": 900,
+"category": "Sales",
+"fast": true
+},
+{
+"t": "benta today 3,400",
+"kind": "income",
+"amount": 3400,
+"category": "Sales",
+"fast": true
+},
+{
+"t": "Shopee 799 for shoes",
+"kind": "expense",
+"amount": 799,
+"category": "Shopping",
+"fast": true
+},
+{
+"t": "Lazada order 1,299",
+"kind": "expense",
+"amount": 1299,
+"category": "Shopping",
+"fast": true
+},
+{
+"t": "haircut 150",
+"kind": "expense",
+"amount": 150,
+"category": "Personal Care",
+"fast": true
+},
+{
+"t": "Spotify 149 monthly",
+"kind": "expense",
+"amount": 149,
+"category": "Entertainment",
+"repeat": "month",
+"fast": true
+},
+{
+"t": "church offering 100",
+"kind": "expense",
+"amount": 100,
+"category": "Gifts & Donations",
+"fast": true
+},
+{
+"t": "birthday gift for Ana 500",
+"kind": "expense",
+"amount": 500,
+"category": "Gifts & Donations",
+"fast": true
+},
+{
+"t": "padala to mom 3000",
+"kind": "expense",
+"amount": 3000,
+"category": "Family Support",
+"fast": true
+},
+{
+"t": "SSS contribution 1,350",
+"kind": "expense",
+"amount": 1350,
+"category": "Gov't Contributions",
+"fast": true
+},
+{
+"t": "PhilHealth 500",
+"kind": "expense",
+"amount": 500,
+"category": "Gov't Contributions",
+"fast": true
+},
+{
+"t": "Pag-IBIG 200",
+"kind": "expense",
+"amount": 200,
+"category": "Gov't Contributions",
+"fast": true
+},
+{
+"t": "rent 8,000",
+"kind": "expense",
+"amount": 8000,
+"category": "Rent",
+"fast": true
+},
+{
+"t": "upa sa bahay 6500",
+"kind": "expense",
+"amount": 6500,
+"category": "Rent",
+"fast": true
+},
+{
+"t": "laundry 180",
+"kind": "expense",
+"amount": 180,
+"category": "Household",
+"fast": true
+},
+{
+"t": "LPG refill 1,050",
+"kind": "expense",
+"amount": 1050,
+"category": "Utilities",
+"fast": true
+},
+{
+"t": "milk tea 120",
+"kind": "expense",
+"amount": 120,
+"category": "Meals",
+"fast": true
+},
+{
+"t": "merienda 85",
+"kind": "expense",
+"amount": 85,
+"category": "Meals",
+"fast": true
+},
+{
+"t": "samgyup with friends 650",
+"kind": "expense",
+"amount": 650,
+"category": "Meals",
+"fast": true
+},
+{
+"t": "coffee 165 yesterday",
+"kind": "expense",
+"amount": 165,
+"category": "Meals",
+"days": -1,
+"fast": true
+},
+{
+"t": "P500 groceries",
+"kind": "expense",
+"amount": 500,
+"category": "Groceries",
+"fast": true
+},
+{
+"t": "php 1,200 electric bill",
+"kind": "expense",
+"amount": 1200,
+"category": "Utilities",
+"fast": true
+},
+{
+"t": "Php250 lunch",
+"kind": "expense",
+"amount": 250,
+"category": "Meals",
+"fast": true
+},
+{
+"t": "₱1.5k groceries",
+"kind": "expense",
+"amount": 1500,
+"category": "Groceries",
+"fast": true
+},
+{
+"t": "five hundred pesos for gas",
+"kind": "expense",
+"amount": 500,
+"category": "Gas & Auto",
+"fast": true
+},
+{
+"t": "lunch 200 on Nov 10",
+"kind": "expense",
+"amount": 200,
+"category": "Meals",
+"date": "2026-11-10",
+"fast": true
+},
+{
+"t": "dinner 450 on 11/12",
+"kind": "expense",
+"amount": 450,
+"category": "Meals",
+"date": "2026-11-12",
+"fast": true
+},
+{
+"t": "spent 300 on groceries 3 days ago",
+"kind": "expense",
+"amount": 300,
+"category": "Groceries",
+"days": -3,
+"fast": true
+},
+{
+"t": "spent 300 on groceries last Monday",
+"kind": "expense",
+"amount": 300,
+"category": "Groceries",
+"date": "2026-11-16",
+"fast": true
+},
+{
+"t": "kahapon grab 220",
+"kind": "expense",
+"amount": 220,
+"category": "Transport",
+"days": -1,
+"fast": true
+},
+{
+"t": "Paid rent on the 1st 8000",
+"kind": "expense",
+"amount": 8000,
+"category": "Rent",
+"date": "2026-11-01",
+"fast": true
+},
+{
+"t": "Spent 500 on December 25",
+"kind": "expense",
+"amount": 500,
+"date": "2025-12-25"
+},
+{
+"t": "I lent 300 to Carlo",
+"kind": "lend",
+"amount": 300,
+"person": "Carlo",
+"fast": true
+},
+{
+"t": "pinahiram ko si Ana ng 1000",
+"kind": "lend",
+"amount": 1000,
+"person": "Ana",
+"fast": true
+},
+{
+"t": "Kuya borrowed 2,000",
+"kind": "lend",
+"amount": 2000,
+"person": "Kuya",
+"fast": true
+},
+{
+"t": "my tita lent me 5000",
+"kind": "borrow",
+"amount": 5000,
+"person": "Tita",
+"fast": true
+},
+{
+"t": "borrowed 1000 from dad",
+"kind": "borrow",
+"amount": 1000,
+"person": "Dad",
+"fast": true
+},
+{
+"t": "utang ko kay Ben 200",
+"kind": "borrow",
+"amount": 200,
+"person": "Ben",
+"fast": true
+},
+{
+"t": "Ana paid back 200",
+"kind": "repay_in",
+"amount": 200,
+"person": "Ana",
+"fast": true
+},
+{
+"t": "got 500 back from Carlo",
+"kind": "repay_in",
+"amount": 500,
+"person": "Carlo",
+"fast": true
+},
+{
+"t": "nagbayad si Ben 300",
+"kind": "repay_in",
+"amount": 300,
+"person": "Ben",
+"fast": true
+},
+{
+"t": "returned 500 to Mom",
+"kind": "repay_out",
+"amount": 500,
+"person": "Mom",
+"fast": true
+},
+{
+"t": "paid Dad back 2000",
+"kind": "repay_out",
+"amount": 2000,
+"person": "Dad",
+"fast": true
+},
+{
+"t": "I forgave John's 500",
+"kind": "forgive",
+"amount": 500,
+"person": "John"
+},
+{
+"t": "forgive Carlo's debt",
+"kind": "forgive",
+"person": "Carlo"
+},
+{
+"t": "Tita gave me 1000 for my birthday",
+"kind": "gift_in",
+"amount": 1000,
+"person": "Tita",
+"fast": true
+},
+{
+"t": "pamasko from ninang 500",
+"kind": "gift_in",
+"amount": 500,
+"fast": true
+},
+{
+"t": "got 2000 aguinaldo",
+"kind": "gift_in",
+"amount": 2000,
+"fast": true
+},
+{
+"t": "Ana gave me 300",
+"kind": "gift_in",
+"amount": 300,
+"person": "Ana",
+"fast": false
+},
+{
+"t": "Maria paid me ₱3,000.",
+"kind": "income",
+"amount": 3000
+},
+{
+"t": "office reimbursed 800 for taxi",
+"kind": "refund",
+"amount": 800,
+"fast": true
+},
+{
+"t": "got a refund of 1,299 from Lazada",
+"kind": "refund",
+"amount": 1299,
+"category": "Shopping",
+"fast": true
+},
+{
+"t": "cashback 50",
+"kind": "refund",
+"amount": 50,
+"fast": true
+},
+{
+"t": "invested 5000 in MP2",
+"kind": "invest",
+"amount": 5000,
+"fast": true
+},
+{
+"t": "bought stocks 10k",
+"kind": "invest",
+"amount": 10000,
+"fast": true
+},
+{
+"t": "put 2000 in UITF",
+"kind": "invest",
+"amount": 2000,
+"fast": true
+},
+{
+"t": "time deposit 50,000",
+"kind": "invest",
+"amount": 50000,
+"fast": true
+},
+{
+"t": "sold my stocks for 12000",
+"kind": "income",
+"amount": 12000,
+"fast": false
+},
+{
+"t": "paid credit card 5000",
+"kind": "expense",
+"amount": 5000,
+"category": "Debt Payments",
+"fast": false
+},
+{
+"t": "Home Credit installment 1,890",
+"kind": "expense",
+"amount": 1890,
+"category": "Debt Payments",
+"fast": true
+},
+{
+"t": "SPayLater 650",
+"kind": "expense",
+"amount": 650,
+"category": "Debt Payments",
+"fast": true
+},
+{
+"t": "My electricity bill is due next week",
+"route": "reminder"
+},
+{
+"t": "Remind me to pay rent on the 30th",
+"route": "reminder"
+},
+{
+"t": "send 500 pesos to my toys account",
+"route": "pocket"
+},
+{
+"t": "15% of the money should go to toys",
+"route": "budget"
+},
+{
+"t": "I have 5000 in my wallet",
+"kind": "statement"
+},
+{
+"t": "GCash balance is 2,300",
+"kind": "statement"
+},
+{
+"t": "Spent 200 at Jollibee via GCash",
+"kind": "expense",
+"amount": 200,
+"category": "Meals",
+"account": "GCash"
+},
+{
+"t": "paid Meralco 2,800 using Maya",
+"kind": "expense",
+"amount": 2800,
+"category": "Utilities",
+"account": "Maya"
+},
+{
+"t": "cash in 1000 to GCash",
+"kind": "transfer",
+"amount": 1000
+},
+{
+"t": "withdrew 3000 from BDO",
+"kind": "transfer",
+"amount": 3000
+},
+{
+"t": "transferred 2,000 from BPI to GCash",
+"kind": "transfer",
+"amount": 2000
+},
+{
+"t": "moved 500 from cash to GCash",
+"kind": "transfer",
+"amount": 500
+},
+{
+"t": "deposited 5000 to BDO",
+"kind": "transfer",
+"amount": 5000
+},
+{
+"t": "Client deposited 5000",
+"kind": "income",
+"amount": 5000,
+"fast": true
+},
+{
+"t": "Jollibee 350 and Grab 180",
+"multi": [
+{
+"kind": "expense",
+"amount": 350,
+"category": "Meals"
+},
+{
+"kind": "expense",
+"amount": 180,
+"category": "Transport"
+}
+]
+},
+{
+"t": "lunch 200, coffee 150",
+"multi": [
+{
+"kind": "expense",
+"amount": 200,
+"category": "Meals"
+},
+{
+"kind": "expense",
+"amount": 150,
+"category": "Meals"
+}
+]
+},
+{
+"t": "Spent 200 on lunch and 150 on load",
+"multi": [
+{
+"kind": "expense",
+"amount": 200,
+"category": "Meals"
+},
+{
+"kind": "expense",
+"amount": 150,
+"category": "Load & Data"
+}
+]
+},
+{
+"t": "jeep 13 tapos tricycle 20",
+"multi": [
+{
+"kind": "expense",
+"amount": 13,
+"category": "Transport"
+},
+{
+"kind": "expense",
+"amount": 20,
+"category": "Transport"
+}
+]
+},
+{
+"t": "groceries 1200; meralco 2500; water 400",
+"multi": [
+{
+"kind": "expense",
+"amount": 1200
+},
+{
+"kind": "expense",
+"amount": 2500
+},
+{
+"kind": "expense",
+"amount": 400
+}
+]
+},
+{
+"t": "I lent Maria 2000 and she paid back 500",
+"multi": [
+{
+"kind": "lend",
+"amount": 2000,
+"person": "Maria"
+},
+{
+"kind": "repay_in",
+"amount": 500,
+"person": "Maria"
+}
+]
+},
+{
+"t": "Sold 2 cakes for 600 and bought flour for 200",
+"multi": [
+{
+"kind": "income",
+"amount": 600
+},
+{
+"kind": "expense",
+"amount": 200
+}
+]
+},
+{
+"t": "yesterday lunch 180 and grab 240",
+"multi": [
+{
+"kind": "expense",
+"amount": 180,
+"days": -1
+},
+{
+"kind": "expense",
+"amount": 240,
+"days": -1
+}
+]
+},
+{
+"t": "Lunch with client 380",
+"kind": "expense",
+"amount": 380,
+"category": "Meals",
+"fast": true
+},
+{
+"t": "Bought 2 notebooks for 90",
+"kind": "expense",
+"amount": 90,
+"category": "Education"
+},
+{
+"t": "3 kg chicken 540",
+"kind": "expense",
+"amount": 540,
+"category": "Groceries",
+"fast": true
+},
+{
+"t": "paid 1,500 for 2 hours of tutoring",
+"kind": "expense",
+"amount": 1500
+},
+{
+"t": "bought a 32GB flash drive for 450",
+"kind": "expense",
+"amount": 450
+},
+{
+"t": "20% off sale, paid 800 for shoes",
+"kind": "expense",
+"amount": 800,
+"category": "Shopping"
+},
+{
+"t": "spent money on stuff",
+"needs": "amount"
+},
+{
+"t": "groceries",
+"needs": "amount"
+},
+{
+"t": "Ana 500",
+"fast": false,
+"amount": 500
+},
+{
+"t": "500",
+"fast": false,
+"amount": 500
+},
+{
+"t": "I lent 500",
+"kind": "lend",
+"amount": 500,
+"needs": "person"
+},
+{
+"t": "Spent 2,500,000 on a car",
+"kind": "expense",
+"amount": 2500000,
+"fast": false
+},
+{
+"t": "Grab to the office 210 this morning",
+"kind": "expense",
+"amount": 210,
+"category": "Transport",
+"days": 0,
+"fast": true
+},
+{
+"t": "Adobe subscription $22",
+"kind": "expense",
+"amount": 22,
+"category": "Software",
+"fast": true
+},
+{
+"t": "Facebook ads 1,000",
+"kind": "expense",
+"amount": 1000,
+"category": "Marketing",
+"fast": true
+},
+{
+"t": "Freelance project paid 12,000",
+"kind": "income",
+"amount": 12000,
+"category": "Client Revenue",
+"fast": true
+},
+{
+"t": "Got paid 8,500 for the logo design",
+"kind": "income",
+"amount": 8500,
+"fast": true
+},
+{
+"t": "commission 3,000",
+"kind": "income",
+"amount": 3000,
+"category": "Client Revenue",
+"fast": true
+},
+{
+"t": "interest earned 12.50",
+"kind": "income",
+"amount": 12.5,
+"category": "Refunds & Other Income",
+"fast": true
+},
+{
+"t": "padala from tito in Dubai 10,000",
+"kind": "income",
+"amount": 10000,
+"category": "Remittance Received",
+"fast": true
+},
+{
+"t": "won 1000 in the office raffle",
+"kind": "income",
+"amount": 1000
+},
+{
+"t": "tip from customer 50",
+"kind": "income",
+"amount": 50,
+"fast": true
+},
+{
+"t": "Spent ₱120 on milk tea +",
+"kind": "expense",
+"amount": 120
+},
+{
+"t": "-250 parking",
+"kind": "expense",
+"amount": 250,
+"category": "Gas & Auto",
+"fast": true
+},
+{
+"t": "+1,000 from Ana",
+"kind": "income",
+"amount": 1000
+},
+{
+"t": "Petron 1,000",
+"kind": "expense",
+"amount": 1000,
+"category": "Gas & Auto",
+"fast": true
+},
+{
+"t": "vitamins 450 at Watsons",
+"kind": "expense",
+"amount": 450,
+"category": "Health & Medicine",
+"fast": true
+},
+{
+"t": "diapers 899",
+"kind": "expense",
+"amount": 899,
+"category": "Household",
+"fast": true
+},
+{
+"t": "movie 2 tickets 700",
+"kind": "expense",
+"amount": 700,
+"category": "Entertainment",
+"fast": true
+},
+{
+"t": "7-Eleven 89",
+"kind": "expense",
+"amount": 89,
+"category": "Groceries",
+"fast": true
+},
+{
+"t": "instapay fee 15",
+"kind": "expense",
+"amount": 15,
+"category": "Bank & Transfer Fees",
+"fast": true
+},
+{
+"t": "Spent ₱500 on groceries.",
+"kind": "expense",
+"amount": 500,
+"category": "Groceries",
+"fast": true,
+"src": "blueprint §16"
+},
+{
+"t": "Received ₱15,000 salary.",
+"kind": "income",
+"amount": 15000,
+"category": "Salary",
+"fast": true,
+"src": "blueprint §16"
+},
+{
+"t": "Paid ₱1,200 electricity bill.",
+"kind": "expense",
+"amount": 1200,
+"category": "Utilities",
+"fast": true,
+"src": "blueprint §16"
+},
+{
+"t": "Lent Maria ₱2,000.",
+"kind": "lend",
+"amount": 2000,
+"person": "Maria",
+"fast": true,
+"src": "blueprint §16"
+},
+{
+"t": "Borrowed ₱5,000 from Mom.",
+"kind": "borrow",
+"amount": 5000,
+"person": "Mom",
+"fast": true,
+"src": "blueprint §16"
+},
+{
+"t": "John returned ₱500.",
+"kind": "repay_in",
+"amount": 500,
+"person": "John",
+"fast": true,
+"src": "blueprint §16"
+},
+{
+"t": "Bought a ₱30,000 laptop in three installments.",
+"amount": 30000,
+"needs": "installment",
+"src": "blueprint §16"
+},
+{
+"t": "Paid ₱2,000 toward my credit card.",
+"amount": 2000,
+"category": "Debt Payments",
+"needs": "credit_card",
+"src": "blueprint §16"
+},
+{
+"t": "Received ₱1,000 dividends.",
+"kind": "income",
+"amount": 1000,
+"fast": true,
+"src": "blueprint §16"
+},
+{
+"t": "My insurance is due next month.",
+"route": "reminder",
+"src": "blueprint §16"
+}
+]
