@@ -14,22 +14,23 @@ function paint(cv, r) {
   drawPlate(cv, r, null);
   const ph = PHOTOS[r.id]; if (!ph) return;
   const img = new Image(); img.alt = r.title + (ph.ai ? " (AI-generated image)" : ""); img.decoding = "async"; img.loading = "lazy";
-  img.onload = () => { if (cv.isConnected) cv.replaceWith(img); };
-  img.src = PHOTO_BASE + ph.file;
+  img.className = cv.className + " dish-photo"; img.referrerPolicy = "no-referrer";
+  img.onload = () => { if (cv.isConnected) { cv.replaceWith(img); requestAnimationFrame(() => img.classList.add("in")); } };
+  img.src = ph.url || PHOTO_BASE + ph.file;
 }
 const GROUP_COLORS = { check: "var(--urgent)", first: "#C2410C", soon: "#B7791F", fresh: "var(--accent)", long: "#7A8A9A" };
 const CUISINES = ["Filipino","Chinese","Japanese","Korean","Italian","American","Mexican","Southeast Asian","Middle Eastern","French","Any"];
 
 /* ---------- State ---------- */
 const S = {
-  tab: "home", pantry: [], staples: [], saved: [], collections: [], week: [], history: [],
+  tab: "home", pantry: [], staples: [], saved: [], collections: [], week: [], history: [], plan: { days: {} }, cooking: null,
   prefs: { servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals", v: 2 },
   sample: false, savedAt: 0,
-  ui: { loc: "all", sort: "fresh", mode: "urgent", focus: [], pins: [], currentId: null, oneId: null, aiRecipes: [], aiBusy: false, servingsOverride: {} },
+  ui: { loc: "all", sort: "fresh", mode: "urgent", focus: [], pins: [], currentId: null, oneId: null, aiRecipes: [], aiBusy: false, servingsOverride: {}, planRange: "week", rescueId: null },
   aiChecking: true
 };
 const STORE_KEY = "p2p.v3";
-function snapshot() { return { v: 3, owner: S.owner || null, feedback: S.feedback || {}, pantry: S.pantry, staples: S.staples, saved: S.saved, collections: S.collections, week: S.week, history: S.history, prefs: S.prefs, sample: S.sample, savedAt: S.savedAt || 0 }; }
+function snapshot() { return { v: 3, owner: S.owner || null, feedback: S.feedback || {}, pantry: S.pantry, staples: S.staples, saved: S.saved, collections: S.collections, week: S.week, history: S.history, plan: S.plan, cooking: S.cooking, prefs: S.prefs, sample: S.sample, savedAt: S.savedAt || 0 }; }
 function saveLocal() { try { localStorage.setItem(STORE_KEY, JSON.stringify(snapshot())); } catch (e) {} }
 // Each save is always newer than anything this device has already seen, even if another device's clock runs ahead.
 function persist() { S.savedAt = Math.max(Date.now(), (S.savedAt || 0) + 1); saveLocal(); if (typeof Cloud !== "undefined") Cloud.schedule(); }
@@ -43,6 +44,7 @@ function applySnapshot(d) {
   S.feedback = d.feedback || {};
   S.staples = Array.isArray(d.staples) ? d.staples : E.DEFAULT_STAPLES.slice();
   S.saved = d.saved || []; S.collections = d.collections || []; S.week = d.week || [];
+  S.plan = d.plan && d.plan.days ? d.plan : { days: {} }; S.cooking = d.cooking && d.cooking.rid ? d.cooking : null;
   S.history = d.history || []; S.prefs = Object.assign({ servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals" }, d.prefs || {});
   if ((S.prefs.v || 1) < 2) { if (!S.prefs.equipment.includes("blender")) S.prefs.equipment.push("blender"); S.prefs.kind = S.prefs.kind || "meals"; S.prefs.v = 2; }
   S.owner = d.owner || null;
@@ -129,24 +131,39 @@ function owns(name) {
   if (S.staples.includes(k)) return { item: { name: E.ingName(k) } };
   return null;
 }
+/* Things you can't split nicely (eggs, garlic cloves) show as whole numbers when a recipe is scaled. */
+function niceAmount(q, u, k) {
+  if (q != null && (k === "egg" || u === "clove") && Math.abs(q - Math.round(q)) > 0.01) return E.fmtAmount(Math.max(1, Math.round(q)), u) + (k === "egg" ? "" : "");
+  return E.fmtAmount(q, u);
+}
 function amountLabel(p) { return p.qty == null ? "Amount not recorded" : E.fmtAmount(p.qty, p.unit) + (p.unit === "pcs" || !p.unit ? "" : ""); }
+function celebrate() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const box = document.createElement("div"); box.className = "celebrate"; box.setAttribute("aria-hidden", "true");
+  const cols = ["#2E6B5A", "#4E9A5B", "#F4B400", "#E8833A", "#D9443A", "#9BB8AC"];
+  for (let i = 0; i < 46; i++) { const p = document.createElement("i"); p.style.left = Math.random() * 100 + "%"; p.style.background = cols[i % cols.length];
+    p.style.setProperty("--x", (Math.random() * 160 - 80) + "px"); p.style.setProperty("--r", (Math.random() * 720 - 360) + "deg"); p.style.animationDelay = Math.random() * .35 + "s"; box.appendChild(p); }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 2300);
+}
 let tt; function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 3800); }
 function openModal(html, focusSel) { $("#authBox").innerHTML = html; $("#authModal").hidden = false; const f = focusSel ? $("#authBox " + focusSel) : $("#authBox input, #authBox button"); if (f) f.focus(); }
 function closeAuth() { $("#authModal").hidden = true; }
 
 /* ---------- Tabs ---------- */
 const TABS = ["home", "kitchen", "cook", "saved"];
+const RENDER = { home: () => renderHome(), kitchen: () => renderKitchen(), cook: () => renderCook(), saved: () => renderSaved() };
 function setTab(t, keepScroll) {
   if (!TABS.includes(t)) t = "home";
   S.tab = t;
   document.querySelectorAll(".view").forEach(v => v.hidden = v.id !== "view-" + t);
   document.querySelectorAll("nav button").forEach(b => { if (b.dataset.tab === t) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
   if (location.hash.slice(1) !== t) history.replaceState(null, "", "#" + t);
-  ({ home: renderHome, kitchen: renderKitchen, cook: renderCook, saved: renderSaved })[t]();
+  RENDER[t]();
   renderNavCounts(); renderCookbar();
   if (!keepScroll) window.scrollTo({ top: 0 });
 }
-function renderNavCounts() { $("#navKitchen").textContent = S.pantry.length || ""; $("#navSaved").textContent = S.saved.length || ""; }
+function renderNavCounts() { $("#navKitchen").textContent = S.pantry.length || ""; $("#navSaved").textContent = S.saved.length || "";
+  const n = S.pantry.filter(p => ["check", "first"].includes(fr(p).group)).length; $("#navRescue").textContent = n || ""; }
 
 /* =====================================================================
    HOME
@@ -154,10 +171,15 @@ function renderNavCounts() { $("#navKitchen").textContent = S.pantry.length || "
 function renderHome() {
   const items = S.pantry.map(p => ({ p, f: fr(p) }));
   const check = items.filter(x => x.f.group === "check");
-  $("#homeAlert").innerHTML = check.length ? `<button class="alert" data-act="go-check"><b>${check.length} food${check.length > 1 ? "s" : ""} may not be safe to eat.</b> Review ${check.length > 1 ? "them" : "it"} in My kitchen →</button>` : "";
+  $("#homeAlert").innerHTML = check.length ? `<button class="alert" data-act="tab" data-tab="rescue">${icon("stop")}<b>${check.length} food${check.length > 1 ? "s" : ""} may not be safe to eat.</b> See what to do in Rescue my food →</button>` : "";
   const urgent = items.filter(x => x.f.group === "first" || x.f.group === "soon").sort((a, b) => (a.f.daysLeft ?? 99) - (b.f.daysLeft ?? 99)).slice(0, 6);
-  $("#homeUse").innerHTML = urgent.length ? `<ul class="uselist">${urgent.map(({ p, f }) => `<li><span class="dot" style="background:${GROUP_COLORS[f.group]}"></span><span><b>${esc(p.name)}</b> <span class="muted">${esc(amountLabel(p))}</span><br><small>${esc(f.note)}</small></span></li>`).join("")}</ul>`
-    : `<p class="muted">Nothing urgent. ${S.pantry.length ? "Your kitchen is in good shape." : "Add what you have to get started."}</p>`;
+  $("#homeUse").innerHTML = urgent.length ? `<ul class="uselist">${urgent.map(({ p, f }) => `<li><button class="rowbtn plain" data-act="rescue-item" data-id="${p.id}">${foodArt(p)}<span class="ul-t"><b>${esc(p.name)}</b> <span class="muted">${esc(amountLabel(p))}</span><small>${esc(f.note)}</small></span>${freshBadge(f)}</button></li>`).join("")}</ul>`
+    : S.pantry.length ? emptyState("basket", "Nothing urgent", "Your kitchen is in good shape. Nothing needs using in the next few days.")
+    : emptyState("fridge", "Your kitchen is empty", "Add the food you have and I'll show what to use first.", `<button class="btn primary" data-act="tab" data-tab="kitchen">Add food</button>`);
+  const cooking = S.cooking && getRecipe(S.cooking.rid);
+  const up = upcomingMeals(3);
+  $("#homeResume").innerHTML = (cooking ? `<button class="resume" data-act="gc-resume"><span class="resume-ic">${icon("play")}</span><span><span class="label">Continue cooking</span><b>${esc(cooking.title)}</b><small>Step ${S.cooking.step + 1} of ${cooking.steps.length}</small></span>${icon("right")}</button>` : "")
+    + (up.length ? `<div class="upcoming"><span class="label">${icon("calendar")}Coming up</span>${up.map(u => `<button class="up-item" data-act="tab" data-tab="plan"><b>${esc(u.r.title)}</b><small>${u.d === E.todayISO() ? "Today" : esc(E.prettyDate(u.d))} · ${esc(u.label)}</small></button>`).join("")}</div>` : "");
   const ranked = E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ mode: "urgent", servings: S.prefs.servings || null, kind: "meals" }));
   const drink = E.rankRecipes(allRecipes(), S.pantry, S.staples, opts({ mode: "urgent", servings: null, kind: "drinks" }))[0];
   const pick = ranked[0];
@@ -171,11 +193,16 @@ function renderHome() {
   const row = (m, pre = "") => `<li><button class="rowbtn" data-act="open-recipe" data-id="${esc(m.recipe.id)}"><b>${pre}${esc(m.recipe.title)}</b><span>${m.recipe.prep + m.recipe.cook} min · uses ${m.usedCount} of your foods${m.urgentUsed.length ? " · saves " + m.urgentUsed.length + " that need using" : ""}</span></button></li>`;
   $("#homeQuick").innerHTML = ranked.length > 1 || drink ? `<ul class="quicklist">${ranked.slice(1, 4).map(m => row(m)).join("")}${drink ? row(drink, "Drink: ") : ""}</ul>` : `<p class="muted">More ideas appear as you add food.</p>`;
   const meals = S.history.length, used = S.history.reduce((n, h) => n + (h.used || []).length, 0);
-  const grams = S.history.reduce((g, h) => g + (h.used || []).reduce((s, u) => s + (u.g || 0), 0), 0);
-  const unknown = S.history.some(h => (h.used || []).some(u => u.g == null));
-  $("#homeProgress").innerHTML = meals ? `<div class="stats"><div><b>${meals}</b><span>meal${meals > 1 ? "s" : ""} cooked</span></div><div><b>${used}</b><span>foods used up</span></div><div><b>${grams >= 1000 ? (grams / 1000).toFixed(1) + " kg" : Math.round(grams) + " g"}</b><span>food cooked from your kitchen${unknown ? "*" : ""}</span></div></div>
-     <p class="muted small">Weights come from the amounts you recorded${unknown ? ". *Foods without a recorded amount aren't counted" : ""}.</p>`
-    : `<p class="muted">After you cook a recipe and tap "I made this", you'll see what you've used up here. Every meal counts.</p>`;
+  $("#hProg").textContent = meals ? "Recently cooked" : "How it works";
+  $("#homeProgress").innerHTML = meals
+    ? `<ul class="quicklist">${S.history.slice(-3).reverse().map(h => `<li><button class="rowbtn" data-act="open-recipe" data-id="${esc(h.rid || "")}"${getRecipe(h.rid) ? "" : " disabled"}><b>${esc(h.title)}</b><span>${E.prettyDate(E.todayISO(new Date(h.at)))} · ${h.servings} serving${h.servings > 1 ? "s" : ""} · cook again</span></button></li>`).join("")}</ul>
+       <p class="muted small">${meals} meal${meals > 1 ? "s" : ""} cooked from your kitchen, ${used} food${used === 1 ? "" : "s"} used up.</p>`
+    : `<ol class="steps3">
+         <li><span class="n">1</span><div><b>Add your food</b><span>Type it the way you'd say it: "3 eggs, half a cabbage, leftover adobo".</span></div></li>
+         <li><span class="n">2</span><div><b>See what to use first</b><span>Freshness estimates put food that's about to spoil at the top.</span></div></li>
+         <li><span class="n">3</span><div><b>Cook something delicious</b><span>Recipes use only what you have, with smart swaps. Your kitchen updates when you're done.</span></div></li>
+       </ol>`;
+  $("#homeSample").innerHTML = S.sample ? `<div class="note-bar"><span>You're looking at an <b>example kitchen</b>, so you can try everything right away.</span><button class="btn small" data-act="clear-sample">Start with my own food</button></div>` : "";
 }
 function whyLine(m) {
   const bits = [];
@@ -199,7 +226,7 @@ const ZONES = [
 ];
 const ZONE_LOC = { "Freezer": "freezer", "Cupboard & counter": "pantry", "Fruit bowl & counter": "pantry" };
 function renderKitchen() {
-  $("#sampleNote").innerHTML = S.sample ? `<div class="note-bar"><span>This is a <b>sample kitchen</b> so you can see how it works.</span><button class="btn small" data-act="clear-sample">Start with an empty kitchen</button></div>` : "";
+  $("#sampleNote").innerHTML = S.sample && S.ui.welcomeDone ? `<div class="note-bar"><span>This is a <b>sample kitchen</b> so you can see how it works.</span><button class="btn small" data-act="clear-sample">Start with an empty kitchen</button></div>` : "";
   const counts = { all: S.pantry.length, fridge: 0, freezer: 0, pantry: 0 }; S.pantry.forEach(p => counts[p.loc]++);
   $("#locFilters").innerHTML = [["all", "Everything"], ["fridge", "Fridge"], ["freezer", "Freezer"], ["pantry", "Cupboard"]].map(([k, l]) => `<button data-act="loc" data-v="${k}" aria-pressed="${S.ui.loc === k}">${l} <span class="mono muted">${counts[k]}</span></button>`).join("");
   $("#kitchenSort").value = S.ui.sort;
@@ -210,20 +237,21 @@ function renderKitchen() {
     const twin = S.pantry.some(q => q !== p && q.key === p.key && E.norm(q.name) === E.norm(p.name));
     const tags = [E.LOCS[p.loc], p.cooked ? (p.cookedOn ? "Cooked " + E.prettyDate(p.cookedOn) : "Cooked") : "", p.opened ? "Opened" : "", p.label ? (p.label.type === "useby" ? "Use-by date" : "Best-before date") : "",
       twin && !p.cooked ? "Bought " + E.prettyDate(p.added) : "", p.qty == null ? "Amount not recorded" : ""].filter(Boolean);
-    return `<div class="item g-${f.group}${pinned ? " pinned" : ""}">
+    return `<div class="item g-${f.group}${pinned ? " pinned" : ""}${S.ui.fresh && S.ui.fresh.includes(p.id) ? " just-added" : ""}">
       <button class="item-main" data-act="item-edit" data-id="${p.id}" aria-label="Edit ${esc(p.name)}">
-        <span class="name">${esc(p.name)}</span>
-        <span class="amt">${esc(amountLabel(p))}</span>
-        <span class="fresh" style="color:${GROUP_COLORS[f.group]}">${esc(f.note)}</span>
+        <span class="item-top">${foodArt(p)}<span class="item-id"><span class="name">${esc(p.name)}</span><span class="amt${p.qty == null ? " unknown" : ""}">${esc(amountLabel(p))}</span></span></span>
+        <span class="fresh">${freshBadge(f)} <span class="fnote">${esc(f.note)}</span></span>
         <span class="tags">${tags.map(t => `<i>${esc(t)}</i>`).join("")}</span>
       </button>
       ${f.group === "check" ? `<button class="btn small danger" data-act="item-toss" data-id="${p.id}">Throw out</button>`
+        : f.group === "first" || f.group === "soon" ? `<button class="btn small pinbtn" data-act="rescue-item" data-id="${p.id}">${icon("rescue")}Rescue it</button>`
         : p.loc === "freezer" ? `<button class="btn small pinbtn" data-act="thaw" data-id="${p.id}">Thaw in the fridge</button>`
         : `<button class="btn small pinbtn" data-act="pin" data-id="${p.id}" aria-pressed="${pinned}">${pinned ? "✓ Cook with this" : "Cook with this"}</button>`}
     </div>`;
   };
   let html = "";
-  if (!items.length) html = `<div class="empty">${S.pantry.length ? "Nothing kept here." : "Your kitchen is empty. Type what you have above, or open <b>Check every spot</b>."}</div>`;
+  if (!items.length) html = S.pantry.length ? emptyState(S.ui.loc === "freezer" ? "freezer" : "shelf", "Nothing kept here", S.ui.loc === "freezer" ? "Nothing in the freezer yet. Freezing food that you won't eat in time is one of the easiest ways to waste less." : "Nothing stored here yet.")
+    : emptyState("fridge", "Your kitchen is empty", "Type what you have in the box above, scan a photo or receipt, or walk through <b>Check every spot</b> below.");
   else if (S.ui.sort === "fresh") {
     for (const [g, title, desc] of E.GROUPS) {
       const list = items.filter(x => x.f.group === g).sort((a, b) => (a.f.daysLeft ?? 999) - (b.f.daysLeft ?? 999));
@@ -235,6 +263,15 @@ function renderKitchen() {
     html = `<div class="grid">${items.sort(by).map(card).join("")}</div>`;
   }
   $("#kitchenList").innerHTML = html;
+  S.ui.fresh = null;
+  $("#kitchenWelcome").innerHTML = !S.pantry.length || (S.sample && !S.ui.welcomeDone) ? `<div class="welcome">${ill("basket")}<div><h2>Welcome to your kitchen</h2><p>Add the food you have and Pantry → Plate shows what to use first and what you can cook. Pick any way to start:</p>${S.sample ? `<p class="small">Right now you're looking at an <b>example kitchen</b>. <button class="btn small" data-act="clear-sample">Empty it and add my own food</button></p>` : ""}
+    <div class="ways"><button class="way" data-act="focus-add">${icon("list")}<b>Type several at once</b><small>“2 tomatoes, 1 onion, leftover rice”</small></button>
+    <button class="way" data-act="item-new">${icon("plus")}<b>Add one with details</b><small>Amount, place and dates</small></button>
+    <button class="way" data-act="scan-photo">${icon("camera")}<b>Scan a photo</b><small>${scanAvailable() ? "Uses the free AI; you confirm everything" : "Needs the free AI"}</small></button>
+    <button class="way" data-act="${S.pantry.length ? "welcome-done" : "load-sample"}">${icon("spark")}<b>${S.pantry.length ? "Explore the example kitchen" : "Try an example kitchen"}</b><small>${S.pantry.length ? "It's loaded: look around, then empty it" : "See how everything works first"}</small></button></div></div></div>` : "";
+  $("#nextStep").innerHTML = S.ui.justAdded && S.pantry.length ? `<div class="nextstep"><div><h2>${icon("check", "ok")}Your kitchen is ready. What would you like to make?</h2></div>
+    <div class="ways"><button class="way" data-act="cook-today">${icon("pot")}<b>Find a recipe</b></button><button class="way" data-act="tab" data-tab="rescue">${icon("rescue")}<b>Use food that needs attention</b></button>
+    <button class="way" data-act="one-mode">${icon("spark")}<b>Explore one ingredient</b></button><button class="way" data-act="tab" data-tab="plan">${icon("calendar")}<b>Plan several meals</b></button></div></div>` : "";
   renderZones();
   const st = E.DEFAULT_STAPLES.concat(E.OPTIONAL_STAPLES.filter(k => !E.DEFAULT_STAPLES.includes(k)));
   $("#staples").innerHTML = st.map(k => `<label class="chip"><input type="checkbox" data-staple="${k}" ${S.staples.includes(k) ? "checked" : ""}>${esc(E.ingName(k))}</label>`).join("");
@@ -302,6 +339,7 @@ function commitItems(items) {
   if (unknown.length) msg += ". I don't know " + unknown.join(", ") + " yet, so freshness is a cautious estimate: tap it to set a date";
   if (r.added.some(p => S.pantry.some(q => q !== p && q.key === p.key && E.norm(q.name) === E.norm(p.name)))) msg += ". Kept as a separate batch because its dates differ";
   toast(msg + ".");
+  S.ui.fresh = r.added.concat(r.merged).map(p => p.id); S.ui.justAdded = true;
   if (S.tab === "kitchen") renderKitchen(); else if (S.tab === "home") renderHome();
   renderNavCounts();
   return S.pantry.length - before;
@@ -397,7 +435,10 @@ function renderCook() {
     <button class="btn small" data-act="prefs">Diet & equipment${P.diet.length ? " (" + P.diet.length + ")" : ""}</button>`;
   renderIdeas();
 }
-function feedbackPenalty(list) { const fb = S.feedback || {}; list.forEach(m => { if (fb[m.recipe.id]) m.score.total -= 30; }); return list.sort((a, b) => b.score.total - a.score.total); }
+/* Your ratings shape what's suggested: loved it ranks up, problems rank down, "didn't work" ranks well down. */
+const FB = { good: ["It turned out well", 8], changed: ["I changed an ingredient", 0], improve: ["It needs improvement", -10], amounts: ["The quantities were wrong", -12], unclear: ["The instructions were unclear", -12], bad: ["It didn't work / didn't taste good", -30] };
+function fbKind(f) { return f && (f.kind || (f.reason && Object.keys(FB).find(k => FB[k][0] === f.reason)) || "bad"); }
+function feedbackPenalty(list) { const fb = S.feedback || {}; list.forEach(m => { const f = fb[m.recipe.id]; if (f) m.score.total += (FB[fbKind(f)] || FB.bad)[1]; }); return list.sort((a, b) => b.score.total - a.score.total); }
 function currentList() {
   const focus = S.ui.mode === "one" ? (S.ui.oneId ? [S.ui.oneId] : []) : S.ui.focus;
   if (S.ui.mode === "everything") return { plan: E.planEverything(allRecipes(), S.pantry, S.staples, opts({ focus }), undefined) };
@@ -444,7 +485,7 @@ function renderDetail() {
   const lineHTML = l => {
     if (l.skipped) return `<li class="skip"><div><span class="iname">${esc(l.name)}</span> <span class="amt">${esc(l.ing.q != null ? E.fmtAmount(l.q, l.ing.u) : "")}</span>${l.ing.note ? `<span class="inote">${esc(l.ing.note)}</span>` : ""}</div><span class="st">Optional: skip it</span></li>`;
     const u = l.unit || l.ing.u;
-    const amount = l.ing.q == null ? esc(l.ing.amountText || "") : esc(E.fmtAmount(l.q, u));
+    const amount = l.ing.q == null ? esc(l.ing.amountText || "") : esc(niceAmount(l.q, u, l.ing.k));
     const have = l.src === "pantry" ? l.items.map(x => x.p.name + (x.p.qty != null ? " (" + amountLabel(x.p) + ")" : "")).join(", ") : "";
     const tag = l.src === "pantry" ? `<span class="st have">Yours</span>` : `<span class="st">Staple</span>`;
     const sw = l.sub ? `<div class="swapbox"><b>Swap: ${esc(E.fmtAmount(l.q, u))} ${esc(l.name.toLowerCase())} instead of ${esc(l.subFor.toLowerCase())}</b><span><i>Flavor:</i> ${esc(l.sub.f)}</span><span><i>Texture:</i> ${esc(l.sub.t)}</span><span><i>How:</i> ${esc(l.sub.w)}</span></div>` : "";
@@ -460,7 +501,7 @@ function renderDetail() {
   const safety = E.safetyNotes(m);
   box.innerHTML = `
     <div class="detail-top">
-      <div><div class="frame"><canvas id="plate" width="480" height="600" aria-label="Illustration of ${esc(r.title)}"></canvas></div>${PHOTOS[r.id] ? `<p class="photo-credit">${esc(PHOTOS[r.id].credit || "")}${PHOTOS[r.id].ai ? " · AI-generated image" : ""}</p>` : `<p class="photo-credit">Illustration</p>`}</div>
+      <div><div class="frame"><canvas id="plate" width="480" height="600" aria-label="Illustration of ${esc(r.title)}"></canvas></div>${PHOTOS[r.id] ? `<p class="photo-credit">${PHOTOS[r.id].page ? `<a href="${esc(PHOTOS[r.id].page)}" target="_blank" rel="noopener">${esc(PHOTOS[r.id].credit || "")}</a>` : esc(PHOTOS[r.id].credit || "")}${PHOTOS[r.id].ai ? " · AI-generated image" : ""}</p>` : `<p class="photo-credit">Illustration</p>`}</div>
       <div class="detail-head">
         <span class="label">${esc(r.cuisine)} · <span class="style-${(r.style || "").toLowerCase()}">${styleLabel(r)}</span></span>
         <h2>${esc(r.title)}</h2>
@@ -473,10 +514,11 @@ function renderDetail() {
           <div><dt>Difficulty</dt><dd>${esc(r.difficulty || "Easy")}</dd></div>
           <div><dt>From your kitchen</dt><dd>${m.usedCount} of your foods + staples · <b class="ok">nothing to buy</b>${m.urgentUsed.length ? `<br><span class="urg">Uses up: ${esc(m.urgentUsed.map(p => p.name).join(", "))}</span>` : ""}</dd></div>
         </dl>
-        ${S.feedback && S.feedback[r.id] ? `<p class="small warnbox">You reported: “${esc(S.feedback[r.id].reason)}${S.feedback[r.id].note ? " · " + esc(S.feedback[r.id].note) : ""}”. It's ranked lower for you now.</p>` : ""}
+        ${S.feedback && S.feedback[r.id] ? `<p class="small ${FB[fbKind(S.feedback[r.id])][1] < 0 ? "warnbox" : "okbox"}">You said: “${esc(FB[fbKind(S.feedback[r.id])][0])}${S.feedback[r.id].note ? " · " + esc(S.feedback[r.id].note) : ""}”.</p>` : ""}
         <div class="actions-row">
-          <button class="btn primary" data-act="cooked">I made this</button>
-          <button class="btn" data-act="feedback">This didn't work</button>
+          <button class="btn primary" data-act="gc-start">${icon("play")}Start cooking</button>
+          <button class="btn" data-act="cooked">${icon("check")}I made this</button>
+          <button class="btn" data-act="feedback">${icon("star")}How did it go?</button>
           <div class="save-wrap">${isSaved(r) ? `<button class="btn saved" data-act="save-open">✓ Saved</button>` : `<button class="btn" data-act="save-quick">Save recipe</button>`}
             <div class="pop" id="savePop" hidden><span class="label">Put it in a collection</span>
               ${S.collections.map(cn => `<button class="opt" data-act="save-to" data-col="${esc(cn)}">${esc(cn)}</button>`).join("")}
@@ -528,27 +570,29 @@ function submitCooked() {
   const left = Math.max(0, Math.min(50, parseInt(document.getElementById("leftServ").value, 10) || 0));
   if (left) S.pantry.push(E.leftoverItem(r, left));
   S.history.push({ at: Date.now(), rid: r.id, title: r.title, servings: c.servings, used: res.used.map(u => ({ name: u.name, qty: u.qty, unit: u.unit, all: u.all, g: E.toGrams(u.key, u.qty, u.unit) })), leftovers: left });
+  markPlanCooked(r.id); if (S.cooking && S.cooking.rid === r.id) S.cooking = null;
   S.sample = false; persist(); closeAuth();
-  toast(`Kitchen updated: ${res.used.length} food${res.used.length === 1 ? "" : "s"} used${left ? ", " + left + " serving" + (left > 1 ? "s" : "") + " of leftovers saved" : ""}. Enjoy!`);
+  celebrate(); toast(`Kitchen updated: ${res.used.length} food${res.used.length === 1 ? "" : "s"} used${left ? ", " + left + " serving" + (left > 1 ? "s" : "") + " of leftovers saved" : ""}. Enjoy!`);
   rerender();
+  if (!(S.feedback || {})[r.id]) setTimeout(() => { if ($("#authModal").hidden) { S.ui.currentId = r.id; openFeedback(true); } }, 1400);
 }
 
 /* ----- "This didn't work": recipe feedback ----- */
-function openFeedback() {
+function openFeedback(afterCook) {
   const r = getRecipe(S.ui.currentId); if (!r) return;
-  const R = ["Too salty", "Too bland", "Amounts seemed wrong", "Took much longer than it says", "Steps were unclear", "Didn't taste good together", "Something else"];
-  openModal(`<h2 id="authTitle">What went wrong with ${esc(r.title)}?</h2><p>Your report helps fix the recipe. It's also ranked lower for you from now on.</p>
-    <form id="feedbackForm"><div class="radios">${R.map((x, i) => `<label><input type="radio" name="fbReason" value="${esc(x)}"${i === 0 ? " checked" : ""}> ${esc(x)}</label>`).join("")}</div>
-    <label for="fbNote">Anything else? (optional)<input type="text" id="fbNote" maxlength="300" placeholder="e.g. needed 10 more minutes"></label>
-    <div class="form-actions"><button class="btn primary" type="submit">Send report</button><button class="linkbtn" type="button" data-act="auth-close">Cancel</button></div></form>`);
+  openModal(`<h2 id="authTitle">How did ${esc(r.title)} go?</h2><p>Your answer shapes what I suggest next${Cloud.user ? " and helps fix the recipe" : ""}.</p>
+    <form id="feedbackForm"><div class="fb-grid">${Object.entries(FB).map(([k, [label]], i) => `<label class="fb-opt fb-${k}"><input type="radio" name="fbReason" value="${k}"${(afterCook ? k === "good" : i === 0) ? " checked" : ""}><span>${icon(k === "good" ? "star" : k === "changed" ? "spark" : k === "bad" ? "stop" : "info")}${esc(label)}</span></label>`).join("")}</div>
+    <label for="fbNote">Anything to add? (optional)<input type="text" id="fbNote" maxlength="300" placeholder="e.g. used lime instead of calamansi; needed 10 more minutes"></label>
+    <div class="form-actions"><button class="btn primary" type="submit">Save</button><button class="linkbtn" type="button" data-act="auth-close">${afterCook ? "Skip" : "Cancel"}</button></div></form>`);
 }
 async function submitFeedback() {
   const r = getRecipe(S.ui.currentId); if (!r) return;
-  const reason = (document.querySelector('input[name="fbReason"]:checked') || {}).value || "Something else", note = $("#fbNote").value.trim().slice(0, 300);
-  S.feedback = S.feedback || {}; S.feedback[r.id] = { reason, note, at: Date.now() }; persist(); closeAuth(); renderIdeas();
+  const kind = (document.querySelector('input[name="fbReason"]:checked') || {}).value || "bad", reason = FB[kind][0], note = $("#fbNote").value.trim().slice(0, 300);
+  S.feedback = S.feedback || {}; S.feedback[r.id] = { kind, reason, note, at: Date.now() }; persist(); closeAuth(); if (S.tab === "cook") renderIdeas();
   let sent = false;
   if (Cloud.user) { try { const sb = await Cloud.client(); const { error } = await sb.from("pantry_feedback").insert({ user_id: Cloud.user.id, recipe_id: r.id, recipe_title: r.title, reason, note, ai: !!r.ai }); sent = !error; } catch (e) {} }
-  toast(sent ? "Thanks! Report sent, and the recipe is ranked lower for you." : "Thanks! Saved on this device, and the recipe is ranked lower for you." + (Cloud.user ? "" : " Sign in to send reports to the site owner."));
+  const effect = FB[kind][1] > 0 ? "I'll suggest it more often." : FB[kind][1] < 0 ? "It's ranked lower for you now." : "Noted.";
+  toast(`Thanks! ${effect}${sent ? " Your note was sent to the site owner." : ""}`);
 }
 
 /* ----- Diet & equipment ----- */
@@ -753,6 +797,11 @@ document.addEventListener("click", e => {
     case "cook-pins": S.ui.focus = S.ui.pins.slice(); S.ui.pins = []; S.ui.mode = "most"; S.ui.currentId = null; setTab("cook"); break;
     case "focus-clear": S.ui.focus = []; renderCook(); break;
     case "mode": S.ui.mode = t.dataset.mode; S.ui.currentId = null; renderCook(); break;
+    case "rescue-item": S.ui.rescueId = t.dataset.id; setTab("rescue"); break;
+    case "focus-add": { const q = $("#qaText"); if (q) { q.focus(); q.scrollIntoView({ behavior: "smooth", block: "center" }); } break; }
+    case "welcome-done": S.ui.welcomeDone = true; renderKitchen(); break;
+    case "load-sample": seedKitchen(); persist(); S.ui.welcomeDone = true; renderKitchen(); renderNavCounts(); toast("Example kitchen loaded. Empty it any time to add your own food."); break;
+    case "one-mode": S.ui.mode = "one"; S.ui.oneId = null; S.ui.focus = []; S.ui.currentId = null; setTab("cook"); break;
     case "kind": S.prefs.kind = t.dataset.k; S.ui.currentId = null; persist(); renderCook(); break;
     case "serv": { let n; if (!S.prefs.servings) n = +t.dataset.d > 0 ? 2 : 1; else { n = S.prefs.servings + +t.dataset.d; if (n < 1) n = null; if (n > 12) n = 12; } S.prefs.servings = n; S.ui.servingsOverride = {}; persist(); renderCook(); break; }
     case "set-qty": { const it = S.pantry.find(x => x.id === t.dataset.id); const q = Number($("#sq-" + t.dataset.id).value);

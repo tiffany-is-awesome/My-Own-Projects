@@ -2,10 +2,12 @@
   <div class="wrap bar">
     <a class="brand" href="#home" data-act="tab" data-tab="home">Pantry <span class="arrow">→</span> Plate</a>
     <nav aria-label="Sections">
-      <button data-act="tab" data-tab="home">Home</button>
-      <button data-act="tab" data-tab="kitchen">My kitchen <span class="mono count" id="navKitchen"></span></button>
-      <button data-act="tab" data-tab="cook">Cook something</button>
-      <button data-act="tab" data-tab="saved">Saved <span class="mono count" id="navSaved"></span></button>
+      <button data-act="tab" data-tab="home"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/><path d="M10 20v-5h4v5"/></svg><span class="nl">Home</span></button>
+      <button data-act="tab" data-tab="kitchen"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M6 10h12M9 6v2M9 13v3"/></svg><span class="nl"><span class="lg">My </span>Kitchen</span><span class="mono count" id="navKitchen"></span></button>
+      <button data-act="tab" data-tab="cook"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M2 10h2M20 10h2M9 6.5c0-1.2 1-1.2 1-2.5M14 6.5c0-1.2 1-1.2 1-2.5"/></svg><span class="nl">Cook</span></button>
+      <button data-act="tab" data-tab="plan"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4M8 14h3M8 17h6"/></svg><span class="nl"><span class="lg">Meal </span>Planner</span></button>
+      <button data-act="tab" data-tab="rescue"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5c-4.8-2.8-8-6.2-8-10A4.4 4.4 0 0 1 12 8a4.4 4.4 0 0 1 8 3.5c0 3.8-3.2 7.2-8 10z"/><path d="M12 11.5v5M9.5 14h5"/></svg><span class="nl">Rescue<span class="lg"> my food</span></span><span class="mono count urgent" id="navRescue"></span></button>
+      <button data-act="tab" data-tab="saved"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v16l-5-3.8L7 20z"/></svg><span class="nl">Saved</span><span class="mono count" id="navSaved"></span></button>
     </nav>
     <button class="btn small acct out" id="acctBtn" data-act="account" hidden>Sign in</button>
     <button class="status" id="aiStatus" data-act="ai-info" type="button">AI · connecting</button>
@@ -16,22 +18,67 @@
   <!-- HOME -->
   <section class="view" id="view-home">
     <div class="hero">
-      <h1>Tell us what you have.<br>We'll help you turn it into something delicious.</h1>
-      <div class="hero-actions">
-        <button class="btn primary big" data-act="cook-today">What can I cook today?</button>
-        <form class="quickadd big" id="homeAdd">
-          <label class="sr" for="homeAddText">Add food you have</label>
-          <input type="text" id="homeAddText" placeholder="Add food: 3 eggs, half a cabbage, leftover rice" autocomplete="off">
-          <button class="btn" type="submit">Add</button>
-        </form>
+      <div class="hero-text">
+      <span class="eyebrow rise">Your kitchen companion</span>
+      <h1 class="rise" style="--d:.04s">Good food starts with what you have.</h1>
+      <p class="lead rise" style="--d:.1s">Discover delicious meals, make the most of your ingredients, and keep food from going to waste.</p>
+      <ul class="benefits rise" style="--d:.16s" aria-label="What Pantry to Plate does">
+        <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M2 10h2M20 10h2M9 6.5c0-1.2 1-1.2 1-2.5M14 6.5c0-1.2 1-1.2 1-2.5"/></svg>Recipes from what you already have</li>
+        <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5c-4.8-2.8-8-6.2-8-10A4.4 4.4 0 0 1 12 8a4.4 4.4 0 0 1 8 3.5c0 3.8-3.2 7.2-8 10z"/><path d="M12 11.5v5M9.5 14h5"/></svg>Use food before it spoils</li>
+        <li><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 10h16M9 3v4M15 3v4M8 14h3M8 17h6"/></svg>Plan meals without the waste</li>
+      </ul>
+      <div class="hero-actions rise" style="--d:.22s">
+        <button class="btn primary big" data-act="tab" data-tab="kitchen"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M6 10h12M9 6v2M9 13v3"/></svg>Open my kitchen</button>
+        <button class="btn big" data-act="cook-today"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M2 10h2M20 10h2M9 6.5c0-1.2 1-1.2 1-2.5M14 6.5c0-1.2 1-1.2 1-2.5"/></svg>Find something to cook</button>
       </div>
+      <div id="homeSample"></div>
       <div id="homeAlert"></div>
+      <div id="homeResume"></div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <svg viewBox="0 0 420 360" class="pp-art">
+          <defs>
+            <radialGradient id="ppGlow" cx="50%" cy="55%" r="55%"><stop offset="0" stop-color="#DDEEE5"/><stop offset="1" stop-color="#EDF4F0" stop-opacity="0"/></radialGradient>
+            <radialGradient id="ppPlate" cx="45%" cy="35%" r="70%"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#ECEDEA"/></radialGradient>
+          </defs>
+          <circle cx="210" cy="200" r="175" fill="url(#ppGlow)" class="pp-glow"/>
+          <g class="pp-orbit">
+            <circle cx="210" cy="205" r="150" fill="none" stroke="#2E6B5A" stroke-opacity=".14" stroke-width="1.5" stroke-dasharray="3 9"/>
+          </g>
+          <ellipse cx="210" cy="300" rx="120" ry="16" fill="#2A2B29" opacity=".07" class="pp-shadow"/>
+          <g class="pp-plate">
+            <ellipse cx="210" cy="262" rx="128" ry="44" fill="url(#ppPlate)" stroke="#D3D4D0" stroke-width="2"/>
+            <ellipse cx="210" cy="258" rx="86" ry="27" fill="#FFFFFF" stroke="#E6E6E3" stroke-width="2"/>
+          </g>
+          <g class="pp-pile">
+            <ellipse cx="190" cy="250" rx="34" ry="13" fill="#F5F1E6"/>
+            <ellipse cx="226" cy="252" rx="30" ry="12" fill="#EFE7D2"/>
+            <circle cx="182" cy="244" r="9" fill="#E8833A" class="pp-bit" style="--d:.0s"/>
+            <circle cx="236" cy="243" r="8" fill="#D9443A" class="pp-bit" style="--d:.15s"/>
+            <ellipse cx="210" cy="240" rx="14" ry="8" fill="#FFFFFF" class="pp-bit" style="--d:.3s"/>
+            <circle cx="210" cy="240" r="5" fill="#F4B400" class="pp-bit" style="--d:.3s"/>
+            <path d="M196 252 q8 -12 18 -4 q-8 10 -18 4z" fill="#4E9A5B" class="pp-bit" style="--d:.45s"/>
+            <path d="M228 254 q6 -10 15 -3 q-7 8 -15 3z" fill="#6DB36F" class="pp-bit" style="--d:.55s"/>
+          </g>
+          <g class="pp-steam" fill="none" stroke="#9BB8AC" stroke-width="3" stroke-linecap="round">
+            <path d="M188 222 q-8 -12 0 -24 q8 -12 0 -24" style="--d:0s"/>
+            <path d="M210 216 q-8 -12 0 -24 q8 -12 0 -24" style="--d:.7s"/>
+            <path d="M232 222 q-8 -12 0 -24 q8 -12 0 -24" style="--d:1.4s"/>
+          </g>
+          <g class="pp-fall" style="--x:60px;--y:150px;--r:200deg;--d:0s"><g transform="translate(110 40)"><circle r="17" fill="#D9443A"/><path d="M-6 -15 l6 5 l6 -5 l-2 7 l-4 -1 l-4 1z" fill="#4E9A5B"/></g></g>
+          <g class="pp-fall" style="--x:-70px;--y:165px;--r:-160deg;--d:.8s"><g transform="translate(300 50)"><ellipse rx="15" ry="19" fill="#FFFFFF" stroke="#E2DDD0" stroke-width="2"/></g></g>
+          <g class="pp-fall" style="--x:90px;--y:120px;--r:140deg;--d:1.6s"><g transform="translate(60 120)"><path d="M-6 -22 L6 -22 L0 22z" fill="#E8833A"/><path d="M-4 -22 q-6 -10 2 -14 M2 -22 q4 -10 10 -8" stroke="#4E9A5B" stroke-width="3" fill="none"/></g></g>
+          <g class="pp-fall" style="--x:-95px;--y:115px;--r:-120deg;--d:2.4s"><g transform="translate(355 125)"><path d="M0 -20 q16 6 10 22 q-12 6 -20 -6 q-2 -10 10 -16z" fill="#4E9A5B"/><path d="M0 -18 L2 16" stroke="#2E6B5A" stroke-width="2"/></g></g>
+          <g class="pp-fall" style="--x:20px;--y:185px;--r:90deg;--d:3.2s"><g transform="translate(190 20)"><rect x="-14" y="-9" width="28" height="18" rx="9" fill="#F4E9C8"/><rect x="-6" y="-4" width="12" height="8" rx="4" fill="#E8D7A3"/></g></g>
+          <g class="pp-spark" fill="#F4B400"><path d="M330 220 l3 8 l8 3 l-8 3 l-3 8 l-3 -8 l-8 -3 l8 -3z" style="--d:0s"/><path d="M85 235 l2 6 l6 2 l-6 2 l-2 6 l-2 -6 l-6 -2 l6 -2z" style="--d:1.3s"/><path d="M300 110 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2z" style="--d:2.4s"/></g>
+        </svg>
+      </div>
     </div>
     <div class="home-grid">
-      <section class="card" aria-labelledby="hUse"><div class="card-head"><h2 id="hUse">Use these first</h2><button class="linkbtn" data-act="tab" data-tab="kitchen">My kitchen →</button></div><div id="homeUse"></div></section>
+      <section class="card" aria-labelledby="hUse"><div class="card-head"><h2 id="hUse">Needs attention</h2><button class="linkbtn" data-act="tab" data-tab="rescue">Rescue my food →</button></div><div id="homeUse"></div></section>
       <section class="card" aria-labelledby="hPick"><div class="card-head"><h2 id="hPick">Today's pick</h2><button class="linkbtn" data-act="cook-today">More ideas →</button></div><div id="homePick"></div></section>
       <section class="card" aria-labelledby="hQuick"><div class="card-head"><h2 id="hQuick">Quick ideas for your leftovers</h2></div><div id="homeQuick"></div></section>
-      <section class="card" aria-labelledby="hProg"><div class="card-head"><h2 id="hProg">Your progress</h2></div><div id="homeProgress"></div></section>
+      <section class="card" aria-labelledby="hProg"><div class="card-head"><h2 id="hProg">How it works</h2></div><div id="homeProgress"></div></section>
     </div>
   </section>
 
@@ -44,16 +91,20 @@
         <p class="small muted">Times are cautious estimates to help you plan, not guarantees. A printed use-by date always wins, and how food was stored matters. If in doubt, throw it out.</p>
       </div>
       <div class="head-actions">
+        <button class="btn" data-act="scan-photo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Scan a photo</button>
+        <button class="btn" data-act="scan-receipt"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Scan a receipt</button>
         <button class="btn" data-act="item-new">Add with details</button>
-        <button class="btn primary" data-act="cook-today">What can I cook?</button>
       </div>
     </div>
     <div id="sampleNote"></div>
+    <div id="kitchenWelcome"></div>
     <form class="quickadd big" id="quickAdd">
       <label class="sr" for="qaText">Add several foods at once</label>
-      <input type="text" id="qaText" placeholder="Type several at once: 3 eggs, half a cabbage, 2 cups of rice, one leftover chicken breast" autocomplete="off">
+      <input type="text" id="qaText" placeholder="Type several at once: 2 tomatoes, 1 onion, 3 eggs, half a cabbage, leftover rice" autocomplete="off">
       <button class="btn primary" type="submit">Add</button>
     </form>
+    <div id="nextStep"></div>
+    <input type="file" id="scanFile" accept="image/*" capture="environment" hidden>
     <div class="kitchen-tools">
       <div class="filters" role="group" aria-label="Where" id="locFilters"></div>
       <label class="sortsel">Sort by
@@ -94,6 +145,17 @@
   </section>
 
   <!-- SAVED -->
+  <section class="view" id="view-plan" hidden>
+    <div class="headline"><div><h1>Meal planner</h1><p>Plan a day or a week from what you have. Each meal gets its own share of your food, and the shopping list only shows what's genuinely missing.</p></div></div>
+    <div class="plan-tools" id="planTools"></div>
+    <div class="plan-layout"><div id="planDays" class="plan-days"></div><aside id="planSide"></aside></div>
+  </section>
+
+  <section class="view" id="view-rescue" hidden>
+    <div class="headline"><div><h1>Rescue my food</h1><p>Food that needs using soon, and the best ways to save it: cook it, freeze it, preserve it or turn it into something new. Food that isn't safe is clearly marked.</p></div></div>
+    <div id="rescueBody"></div>
+  </section>
+
   <section class="view" id="view-saved" hidden>
     <div class="headline">
       <div>
@@ -121,3 +183,9 @@
 <div class="cookbar" id="cookbar" hidden></div>
 <div class="modal" id="authModal" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="authTitle" id="authBox"></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="gc" id="gc" hidden role="dialog" aria-modal="true" aria-labelledby="gcTitle">
+  <div class="gc-top"><button class="iconbtn" data-act="gc-close" aria-label="Back to the full recipe"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="gc-head"><span class="label">Cooking</span><h2 id="gcTitle"></h2></div><button class="linkbtn" data-act="gc-quit">Stop cooking</button></div>
+  <div class="gc-prog" id="gcProg"></div>
+  <div class="gc-main"><div class="gc-body" id="gcBody"></div><aside class="gc-ings" id="gcIngs"></aside></div>
+  <div class="gc-foot"><button class="btn big gc-prev" data-act="gc-prev"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Back</button><button class="btn primary big gc-next" data-act="gc-next">Next step</button></div>
+</div>

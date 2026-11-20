@@ -8,8 +8,8 @@ async def sweep(b,w,h,label):
     pg.on("dialog",lambda d: asyncio.ensure_future(d.dismiss()))
     await pg.goto(URL+"#home"); await pg.wait_for_timeout(2200)
     clicked=0; acts=set()
-    for tab in ["home","kitchen","cook","saved"]:
-        for rnd in range(2):
+    for tab in ["home","kitchen","cook","plan","rescue","saved"]:
+        for rnd in range(1):
             await pg.evaluate(f"location.hash='#{tab}'"); await pg.wait_for_timeout(250)
             n=await pg.eval_on_selector_all("[data-act]","e=>e.length")
             for i in range(n):
@@ -18,13 +18,13 @@ async def sweep(b,w,h,label):
                 if i>=len(els): break
                 el=els[i]
                 act=await el.get_attribute("data-act")
-                if act in ("clear-sample-yes","reset-sample","signout","account-delete","puter-connect") or not await el.is_visible(): continue
+                if act in ("clear-sample-yes","reset-sample","signout","account-delete","puter-connect","pl-clear-yes","rs-toss","item-delete","item-toss","scan-photo","scan-receipt") or not await el.is_visible(): continue
                 try:
-                    await el.click(timeout=1500); clicked+=1; acts.add(act); await pg.wait_for_timeout(60)
+                    await el.click(timeout=800); clicked+=1; acts.add(act); await pg.wait_for_timeout(60)
                 except Exception: pass
                 for _ in range(2):
                     await pg.keyboard.press("Escape")
-                for sel in ["#authModal","#itemModal","#cookedModal","#reviewModal","#feedbackModal"]:
+                for sel in ["#authModal","#gc"]:
                     await pg.evaluate(f"(()=>{{const m=document.querySelector('{sel}'); if(m) m.hidden=true;}})()")
         ov=await pg.evaluate("document.documentElement.scrollWidth>window.innerWidth+1")
         if ov: errs.append(f"overflow on {tab}")

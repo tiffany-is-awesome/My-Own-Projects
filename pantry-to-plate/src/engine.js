@@ -54,7 +54,7 @@ const ING = {
   leftover:       {n:"Leftovers", s:["leftovers","leftover","leftover adobo","leftover soup","leftover stew","leftover curry","leftover sinigang","leftover viand","leftover ulam"], c:"cooked", r:"high", u:"servings", f:3, z:60, p:null, loc:"fridge", isCooked:true, fz:"Cool within 2 hours, portion into shallow containers and freeze."},
   // ---- dairy ----
   milk:           {n:"Milk", s:["milk","fresh milk","whole milk"], c:"dairy", r:"high", u:"ml", cup:245, f:5, z:90, p:null, loc:"fridge", d:true, o:5},
-  evap_milk:      {n:"Evaporated milk", s:["evaporated milk","evap"], c:"dairy", r:"med", u:"ml", cup:250, f:4, z:null, p:365, loc:"pantry", d:true, o:4, opensTo:"fridge"},
+  evap_milk:      {n:"Evaporated milk", s:["evaporated milk","evap"], c:"dairy", r:"med", u:"ml", cup:250, pk:370, f:4, z:null, p:365, loc:"pantry", d:true, o:4, opensTo:"fridge"},
   yogurt:         {n:"Yogurt", s:["yogurt","greek yogurt","plain yogurt","yoghurt"], c:"dairy", r:"high", u:"g", cup:245, f:7, z:60, p:null, loc:"fridge", d:true},
   cheese:         {n:"Cheese", s:["cheese","cheddar","cheddar cheese","quickmelt","eden cheese","processed cheese","parmesan","gouda"], c:"dairy", r:"med", u:"g", cup:100, f:21, z:120, p:null, loc:"fridge", d:true},
   mozzarella:     {n:"Mozzarella", s:["mozzarella","mozarella"], c:"dairy", r:"high", u:"g", cup:110, f:5, z:90, p:null, loc:"fridge", d:true},
@@ -125,7 +125,7 @@ const ING = {
   honey:          {n:"Honey", s:["honey"], c:"condiment", r:"low", u:"tbsp", p:730, loc:"pantry", st:true},
   gochujang:      {n:"Gochujang", s:["gochujang","korean chili paste"], c:"condiment", r:"low", u:"tbsp", f:365, p:null, loc:"fridge", st:true},
   kimchi:         {n:"Kimchi", s:["kimchi"], c:"condiment", r:"low", u:"cup", cup:150, f:90, z:null, p:null, loc:"fridge"},
-  condensed_milk: {n:"Condensed milk", s:["condensed milk","sweetened condensed milk","condensada"], c:"dairy", r:"med", u:"tbsp", cup:300, f:7, z:null, p:365, loc:"pantry", d:true, o:7, opensTo:"fridge"},
+  condensed_milk: {n:"Condensed milk", s:["condensed milk","sweetened condensed milk","condensada"], c:"dairy", r:"med", u:"tbsp", cup:300, pk:390, f:7, z:null, p:365, loc:"pantry", d:true, o:7, opensTo:"fridge"},
   ice:            {n:"Ice", s:["ice","ice cubes","crushed ice"], c:"condiment", r:"low", u:"cup", cup:140, z:99999, loc:"freezer"},
   tamarind_mix:   {n:"Tamarind / sinigang mix", s:["sinigang mix","sinigang sa sampalok","tamarind","sampalok","tamarind soup base","tamarind mix"], c:"condiment", r:"low", u:"pack", w:40, p:365, loc:"pantry", st:true},
   mung_beans:     {n:"Mung beans (monggo)", s:["mung beans","monggo","munggo","mongo beans","green mung beans"], c:"grain", r:"low", u:"cup", cup:200, p:365, loc:"pantry"},

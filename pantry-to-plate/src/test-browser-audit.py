@@ -99,7 +99,7 @@ async def main():
             upsert:async(r)=>{window.__store.row={data:r.data,updated_at:r.updated_at};return {error:null}}};return q;}
         })};"""
         ctx,pg,errs=await page(b,1300,950,mock)
-        await pg.goto(URL+"#kitchen"); await pg.wait_for_timeout(500)
+        await pg.goto(URL+"#kitchen"); await pg.wait_for_timeout(2500)
         # A: signed-out device kitchen, then first sign-in to an account that already has data
         await pg.evaluate("""()=>{localStorage.setItem('p2p.v3',JSON.stringify({v:3,owner:null,sample:false,savedAt:Date.now(),pantry:[{name:'Local cheese',key:'cheese',qty:200,unit:'g',loc:'fridge',added:'2026-11-18'}],staples:['salt'],saved:[],collections:[],week:[],history:[],prefs:{}}));
           window.__signed=true; window.__store.row={data:{v:3,owner:'u1',savedAt:1000,pantry:[{name:'Account eggs',key:'egg',qty:6,unit:'pcs',loc:'fridge',added:'2026-11-18'}],staples:['salt'],saved:[],collections:[],week:[],history:[],prefs:{}},updated_at:'2026-01-01'};}""")

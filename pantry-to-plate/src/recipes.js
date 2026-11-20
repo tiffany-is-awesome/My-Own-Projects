@@ -607,6 +607,86 @@ const DRINKS = [
 ];
 RECIPES.push(...DRINKS);
 
+/* ---------- Breakfasts, snacks and desserts ---------- */
+RECIPES.push(
+{ id:"banana-oatmeal", title:"Creamy Banana Oatmeal", cuisine:"American", style:"Home-style", meal:"breakfast",
+  desc:"Warm, naturally sweet oats cooked with mashed ripe banana. A five-minute breakfast that uses up spotty bananas.",
+  serves:2, prep:2, cook:6, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#E9D7AE","#F4E3B5","#C99A5B","#FFFFFF"], flavor:"Sweet, cozy",
+  ingredients:[
+    {k:"oats", q:1, u:"cup", note:"rolled or quick oats"},
+    {k:"milk", q:1.5, u:"cup", subs:[{k:"evap_milk", q:0.75, u:"cup", f:"Richer.", t:"Same.", w:"Mix with 0.75 cup water."},{k:"coconut_milk", q:0.75, u:"cup", f:"Coconutty.", t:"Creamier.", w:"Mix with 0.75 cup water."}]},
+    {k:"banana", q:2, u:"pcs", note:"very ripe, mashed"},
+    {k:"salt", q:0.1, u:"tsp"},
+    {k:"cinnamon", q:0.5, u:"tsp", opt:true},
+    {k:"honey", q:1, u:"tbsp", opt:true}],
+  steps:["Mash one banana in the pot. Add the oats, milk and a pinch of salt.","Bring to a gentle simmer and cook 4 to 5 minutes, stirring often, until thick and creamy.","Stir in the cinnamon. Top with the second banana, sliced, and a drizzle of honey."],
+  season:"The pinch of salt makes it taste sweeter. Very ripe bananas usually mean you don't need honey at all.",
+  store:"Best fresh. Refrigerate leftovers up to 2 days; loosen with a splash of milk and reheat until steaming." },
+
+{ id:"grilled-cheese", title:"Golden Grilled Cheese", cuisine:"American", style:"Classic", meal:"snack",
+  desc:"Crisp, buttery bread around melted cheese. A quick lunch or snack, and a good way to use bread before it goes stale.",
+  serves:2, prep:3, cook:8, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#D9A55B","#F4C95D","#8A5A2B","#F7F3EA"], flavor:"Rich, crunchy",
+  ingredients:[
+    {k:"bread", q:4, u:"pcs"},
+    {k:"cheese", q:100, u:"g", note:"sliced or grated; a melting cheese works best"},
+    {k:"butter", q:1.5, u:"tbsp", note:"soft", subs:[{k:"mayonnaise", q:1.5, u:"tbsp", f:"Tangier.", t:"Extra crisp.", w:"Spread thinly on the outside."}]},
+    {k:"tomato", q:1, u:"pcs", opt:true, note:"thinly sliced"}],
+  steps:["Butter one side of each slice. Put cheese (and tomato, if using) between the unbuttered sides.","Cook in a pan over medium-low heat 3 to 4 minutes per side, pressing gently, until deep golden and the cheese has melted.","Rest 1 minute, then cut in half."],
+  season:"Low heat is the secret: the bread crisps while the cheese has time to melt.",
+  store:"Best eaten hot. It doesn't keep well once cooked." },
+
+{ id:"banana-cue", title:"Banana Cue (Caramelized Bananas)", cuisine:"Filipino", style:"Classic", meal:"snack",
+  desc:"A favorite Filipino merienda: bananas fried until glossy with a crackly caramel coat.",
+  serves:2, prep:5, cook:10, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#C9862E","#F2C14E","#8A4B12","#F7F3EA"], flavor:"Sweet, caramel",
+  ingredients:[
+    {k:"banana", q:4, u:"pcs", note:"saba (cooking bananas) are traditional; firm ripe bananas also work"},
+    {k:"sugar", q:4, u:"tbsp", note:"brown sugar if you have it"},
+    {k:"oil", q:4, u:"tbsp", note:"for frying"}],
+  steps:["Peel the bananas (halve them lengthwise if they're large).","Heat the oil in a pan over medium heat. Fry the bananas 3 to 4 minutes, turning, until lightly golden.","Sprinkle the sugar into the oil around the bananas. Keep turning for 2 to 3 minutes as it melts and coats them in caramel.","Lift out onto a plate (or onto skewers) and let cool 5 minutes: the caramel is very hot."],
+  season:"Watch the sugar closely: it goes from caramel to burnt in seconds. Lower the heat if it darkens fast.",
+  store:"Best fresh, while the coating is crisp. Keep leftovers at room temperature and eat the same day." },
+
+{ id:"banana-bread", title:"Banana Bread", cuisine:"American", style:"Classic", meal:"dessert",
+  desc:"Moist, fragrant loaf that turns overripe bananas into something everyone wants a slice of.",
+  serves:8, prep:15, cook:55, difficulty:"Easy", equip:["oven"], q:5, plating:"plate", palette:["#A9692F","#E2B272","#6B3E19","#F7F3EA"], flavor:"Sweet, warm",
+  ingredients:[
+    {k:"banana", q:3, u:"pcs", note:"very ripe, well mashed"},
+    {k:"flour", q:1.5, u:"cup"},
+    {k:"sugar", q:0.5, u:"cup"},
+    {k:"egg", q:1, u:"pcs"},
+    {k:"butter", q:80, u:"g", note:"melted", subs:[{k:"oil", q:5, u:"tbsp", f:"Less buttery.", t:"Even moister.", w:"Use instead of the melted butter."}]},
+    {k:"baking_powder", q:1.5, u:"tsp"},
+    {k:"salt", q:0.25, u:"tsp"},
+    {k:"cinnamon", q:0.5, u:"tsp", opt:true}],
+  steps:["Heat the oven to 175°C (350°F). Grease a loaf pan.","Mash the bananas in a bowl. Stir in the melted butter, sugar and egg until smooth.","Add the flour, baking powder, salt and cinnamon. Fold gently until just combined: a few streaks of flour are fine.","Pour into the pan and bake 50 to 60 minutes, until a skewer pushed into the middle comes out clean.","Cool in the pan 10 minutes, then on a rack before slicing."],
+  season:"The browner the bananas, the sweeter and more flavorful the loaf. Overmixing makes it tough.",
+  store:"Wrap and keep at room temperature up to 3 days, or freeze slices up to 3 months." },
+
+{ id:"leche-flan", title:"Leche Flan", cuisine:"Filipino", style:"Classic", meal:"dessert",
+  desc:"Silky, rich Filipino custard under a layer of dark caramel. Steamed on the stove, no oven needed.",
+  serves:6, prep:15, cook:45, difficulty:"Medium", equip:["stove"], q:5, plating:"plate", palette:["#F2C14E","#B36A12","#FCE7A8","#FFFFFF"], flavor:"Sweet, creamy",
+  ingredients:[
+    {k:"egg", q:6, u:"pcs", note:"yolks only (keep the whites for an omelette)"},
+    {k:"condensed_milk", q:1, u:"can"},
+    {k:"evap_milk", q:1, u:"can", subs:[{k:"milk", q:1.5, u:"cup", f:"A little lighter.", t:"Slightly less firm.", w:"Use whole milk."}]},
+    {k:"sugar", q:0.5, u:"cup", note:"for the caramel"}],
+  steps:["Melt the sugar in a llanera or small metal pan over low heat, without stirring, until amber. Tilt to coat the bottom and let it cool and harden.","Gently stir the yolks, condensed milk and evaporated milk together (don't whisk in air). Strain through a sieve onto the caramel.","Cover tightly with foil. Steam over gently simmering water for 35 to 45 minutes, until set but still slightly wobbly in the middle.","Cool, then chill at least 4 hours. Run a knife around the edge and flip onto a plate."],
+  season:"Low, gentle steam keeps it silky; boiling water makes bubbles and holes.",
+  store:"Keep covered in the fridge and eat within 3 days. It contains eggs and milk, so don't leave it out more than 2 hours." },
+
+{ id:"fruit-salad", title:"Filipino Fruit Salad", cuisine:"Filipino", style:"Home-style", meal:"dessert",
+  desc:"Chilled fruit in a sweet, creamy dressing: a party favorite, and a great way to use fruit that's fully ripe.",
+  serves:6, prep:15, cook:0, difficulty:"Easy", equip:[], q:4, plating:"bowl", palette:["#F4B400","#E8833A","#D9443A","#FFFFFF"], flavor:"Sweet, creamy, cold",
+  ingredients:[
+    {any:FRUIT.filter(f => f !== "avocado"), label:"Fruit (any mix: mango, papaya, pineapple, apple, banana…)", k:"mango", q:700, u:"g", minKinds:2, tol:0.85, tolNote:"A little less fruit just makes it creamier."},
+    {k:"cream", q:250, u:"ml", note:"all-purpose or heavy cream, chilled", subs:[{k:"evap_milk", q:200, u:"ml", f:"Lighter.", t:"Thinner dressing.", w:"Chill it well first."}]},
+    {k:"condensed_milk", q:6, u:"tbsp"},
+    {k:"cheese", q:50, u:"g", opt:true, note:"small cubes, the Filipino way"}],
+  steps:["Peel and cut the fruit into bite-size pieces. Drain any juice.","Stir the cream and condensed milk together, then fold in the fruit (and cheese, if using).","Chill at least 1 hour before serving."],
+  season:"Add the condensed milk a spoon at a time: very ripe fruit needs less.",
+  store:"Keep in the fridge and eat within 2 days. Don't leave it out more than 2 hours." }
+);
+
 /* ---------- More everyday Filipino and international meals ---------- */
 RECIPES.push(
 { id:"chicken-afritada", title:"Chicken Afritada", cuisine:"Filipino", style:"Classic",
@@ -795,6 +875,45 @@ RECIPES.push(
    Rules: the photo must show THIS dish; licensed for reuse (your own, Unsplash/Pexels licence,
    or an AI image you generated, marked ai:true); about 800×1000 px, WebP or JPG, under ~120 KB.
    Without a photo (or if it fails to load), the drawn plate is shown instead. Example:
-     "chicken-adobo": { file: "chicken-adobo.webp", credit: "Photo: Tiffany", ai: false } */
-const PHOTOS = {};
+     "chicken-adobo": { file: "chicken-adobo.webp", credit: "Photo: Tiffany", ai: false }
+   Photos below are free-licence images from Wikimedia Commons, each checked by eye to show this dish,
+   loaded at 500 px wide and credited with their licence. Dishes without a matching photo keep the drawing. */
+const PHOTOS = {
+  "aglio-olio": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Spaghetti_aglio_e_olio_KB.jpg/500px-Spaghetti_aglio_e_olio_KB.jpg", credit: "Photo: Bairuilong \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Spaghetti_aglio_e_olio_KB.jpg" },
+  "apple-carrot-juice": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/GlassOfJuice_and_carrots.JPG/500px-GlassOfJuice_and_carrots.JPG", credit: "Photo: Salix \u00b7 CC BY 3.0", page: "https://commons.wikimedia.org/wiki/File:GlassOfJuice_and_carrots.JPG" },
+  "arroz-caldo": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Home_-_Dinner.jpg/500px-Home_-_Dinner.jpg", credit: "Photo: Ernesto Andrade \u00b7 CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File:Home_-_Dinner.jpg" },
+  "banana-pancakes": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Nutella_Banana_Pancakes_-_Laughing_Dog_2026-08-25.jpg/500px-Nutella_Banana_Pancakes_-_Laughing_Dog_2026-08-25.jpg", credit: "Photo: Andy Li \u00b7 CC0", page: "https://commons.wikimedia.org/wiki/File:Nutella_Banana_Pancakes_-_Laughing_Dog_2026-08-25.jpg" },
+  "banana-smoothie": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Banana_Smoothie.jpg/500px-Banana_Smoothie.jpg", credit: "Photo: Ourlibrary \u00b7 CC0", page: "https://commons.wikimedia.org/wiki/File:Banana_Smoothie.jpg" },
+  "bistek-tagalog": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/08/Bistek_Tagalog_DSCF3899.jpg/500px-Bistek_Tagalog_DSCF3899.jpg", credit: "Photo: Joy D. Ganaden \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Bistek_Tagalog_DSCF3899.jpg" },
+  "calamansi-juice": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Calamansi_juice_%28Filipino_lemonade%29.jpg/500px-Calamansi_juice_%28Filipino_lemonade%29.jpg", credit: "Photo: Obsidian Soul \u00b7 CC0", page: "https://commons.wikimedia.org/wiki/File:Calamansi_juice_(Filipino_lemonade).jpg" },
+  "carbonara": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/Espaguetis_carbonara.jpg/500px-Espaguetis_carbonara.jpg", credit: "Photo: Javier Somoza \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Espaguetis_carbonara.jpg" },
+  "chicken-adobo": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Chicken_adobo.jpg/500px-Chicken_adobo.jpg", credit: "Photo: dbgg1979 on Flickr \u00b7 CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File:Chicken_adobo.jpg" },
+  "chicken-afritada": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Chicken_afritada_with_pineapple_%28Philippines%29.jpg/500px-Chicken_afritada_with_pineapple_%28Philippines%29.jpg", credit: "Photo: livininoblivion \u00b7 CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File:Chicken_afritada_with_pineapple_(Philippines).jpg" },
+  "coleslaw": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Bowl%27o%27Coleslaw_modified.jpg/500px-Bowl%27o%27Coleslaw_modified.jpg", credit: "Photo: Wikimedia Commons contributor \u00b7 CC BY-SA 2.0", page: "https://commons.wikimedia.org/wiki/File:Bowl'o'Coleslaw_modified.jpg" },
+  "egg-fried-rice": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Egg_Fried_Rice.jpg/500px-Egg_Fried_Rice.jpg", credit: "Photo: Gaurav Dhwaj Khadka \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Egg_Fried_Rice.jpg" },
+  "filipino-spaghetti": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/Filipino_Spaghetti_2.0.jpg/500px-Filipino_Spaghetti_2.0.jpg", credit: "Photo: Arnold Gatilao \u00b7 CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File:Filipino_Spaghetti_2.0.jpg" },
+  "french-toast": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/French_toast_001.jpg/500px-French_toast_001.jpg", credit: "Photo: Ocdp \u00b7 CC0", page: "https://commons.wikimedia.org/wiki/File:French_toast_001.jpg" },
+  "garlic-greens": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/Filipino_Culinary_Specialties_2.jpg/500px-Filipino_Culinary_Specialties_2.jpg", credit: "Photo: LuzViMindaLife \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Filipino_Culinary_Specialties_2.jpg" },
+  "ginataang-kalabasa": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Ginataang_kalabasa_%28Philippines%29.jpg/500px-Ginataang_kalabasa_%28Philippines%29.jpg", credit: "Photo: Obsidian Soul \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Ginataang_kalabasa_(Philippines).jpg" },
+  "ginisang-monggo": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Ginisang_munggo_with_fried_bangus.jpg/500px-Ginisang_munggo_with_fried_bangus.jpg", credit: "Photo: Pandakekok9 \u00b7 CC0", page: "https://commons.wikimedia.org/wiki/File:Ginisang_munggo_with_fried_bangus.jpg" },
+  "ginisang-repolyo": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2c/Ginisang_tokwa_at_repolyo_04.jpg/500px-Ginisang_tokwa_at_repolyo_04.jpg", credit: "Photo: FBenjr123 \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Ginisang_tokwa_at_repolyo_04.jpg" },
+  "green-smoothie": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Green_smoothie_%288222465502%29.jpg/500px-Green_smoothie_%288222465502%29.jpg", credit: "Photo: Lablascovegmenu \u00b7 CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File:Green_smoothie_(8222465502).jpg" },
+  "kimchi-fried-rice": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Kimchi_fried_rice.jpg/500px-Kimchi_fried_rice.jpg", credit: "Photo: Sharon Ang \u00b7 CC0", page: "https://commons.wikimedia.org/wiki/File:Kimchi_fried_rice.jpg" },
+  "mango-shake": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Mango_Shake_and_Fruit_Icecream_Shake_at_Kochi%2C_Kerala_-_September_2026.jpg/500px-Mango_Shake_and_Fruit_Icecream_Shake_at_Kochi%2C_Kerala_-_September_2026.jpg", credit: "Photo: Dev Jadiya \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Mango_Shake_and_Fruit_Icecream_Shake_at_Kochi,_Kerala_-_September_2026.jpg" },
+  "okonomiyaki": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/59/Okonomiyaki_001.jpg/500px-Okonomiyaki_001.jpg", credit: "Photo: ume-y \u00b7 CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File:Okonomiyaki_001.jpg" },
+  "orange-juice": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Orange_juice_1_edit1.jpg/500px-Orange_juice_1_edit1.jpg", credit: "Photo: USDA \u00b7 Public domain", page: "https://commons.wikimedia.org/wiki/File:Orange_juice_1_edit1.jpg" },
+  "oyakodon": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Oyakodon_003.jpg/500px-Oyakodon_003.jpg", credit: "Photo: Ocdp \u00b7 CC0", page: "https://commons.wikimedia.org/wiki/File:Oyakodon_003.jpg" },
+  "pinakbet": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Pinakbet_ni_Lakay_Jesse.jpg/500px-Pinakbet_ni_Lakay_Jesse.jpg", credit: "Photo: Jesse Alegre \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Pinakbet_ni_Lakay_Jesse.jpg" },
+  "pineapple-juice": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Pineapple_Juice_in_Glass_Jar.jpg/500px-Pineapple_Juice_in_Glass_Jar.jpg", credit: "Photo: Srini297 \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Pineapple_Juice_in_Glass_Jar.jpg" },
+  "pork-menudo": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Menudo_%28Philippines%29_02.jpg/500px-Menudo_%28Philippines%29_02.jpg", credit: "Photo: Obsidian Soul \u00b7 CC0", page: "https://commons.wikimedia.org/wiki/File:Menudo_(Philippines)_02.jpg" },
+  "potato-hash": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Hashed_brown_potatoes_with_red_bell_peppers_and_bacon%2C_topped_with_a_fried_egg._-breakfast.jpg/500px-Hashed_brown_potatoes_with_red_bell_peppers_and_bacon%2C_topped_with_a_fried_egg._-breakfast.jpg", credit: "Photo: naotakem \u00b7 CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File:Hashed_brown_potatoes_with_red_bell_peppers_and_bacon,_topped_with_a_fried_egg._-breakfast.jpg" },
+  "quesadilla": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/At_Long_Island_2023_267.jpg/500px-At_Long_Island_2023_267.jpg", credit: "Photo: Mike Peel \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:At_Long_Island_2023_267.jpg" },
+  "shakshuka": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Shakshuka_by_Calliopejen1.jpg/500px-Shakshuka_by_Calliopejen1.jpg", credit: "Photo: Calliopejen1 \u00b7 CC BY-SA 3.0", page: "https://commons.wikimedia.org/wiki/File:Shakshuka_by_Calliopejen1.jpg" },
+  "sinangag-itlog": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Spam_Meal.jpg/500px-Spam_Meal.jpg", credit: "Photo: Bing Ramos \u00b7 CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File:Spam_Meal.jpg" },
+  "sinigang-na-baboy": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Sinigang_na_Baboy_with_Taro.jpg/500px-Sinigang_na_Baboy_with_Taro.jpg", credit: "Photo: MarvinBikolano \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Sinigang_na_Baboy_with_Taro.jpg" },
+  "stir-fried-noodles": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b6/Pancit_Ilonggo_Style_-_12110089845.jpg/500px-Pancit_Ilonggo_Style_-_12110089845.jpg", credit: "Photo: pulaw \u00b7 CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File:Pancit_Ilonggo_Style_-_12110089845.jpg" },
+  "tinola": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8e/Tinolalunch.jpg/500px-Tinolalunch.jpg", credit: "Photo: FoxLad \u00b7 CC BY 3.0", page: "https://commons.wikimedia.org/wiki/File:Tinolalunch.jpg" },
+  "tomato-egg": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/87/Hunan_cuisine%2C_stir-fried_tomato_with_eggs.jpg/500px-Hunan_cuisine%2C_stir-fried_tomato_with_eggs.jpg", credit: "Photo: Huangdan2060 \u00b7 CC BY 3.0", page: "https://commons.wikimedia.org/wiki/File:Hunan_cuisine,_stir-fried_tomato_with_eggs.jpg" },
+  "watermelon-juice": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Watermelon_Juice_1.jpg/500px-Watermelon_Juice_1.jpg", credit: "Photo: Gaurav Dhwaj Khadka \u00b7 CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File:Watermelon_Juice_1.jpg" },
+};
 if (typeof module !== "undefined") module.exports = { RECIPES, PHOTOS };

@@ -33,7 +33,8 @@ Also optional: **nicer email links.** In Supabase, go to **Authentication → UR
 | File | What it does |
 |---|---|
 | `src/engine.js` | The "brain", no AI needed: ingredients, units, freshness and food-safety rules, recipe matching, ranking, swaps, and updating the kitchen after cooking. |
-| `src/recipes.js` | The curated library: 36 meals (17 Filipino) and 12 drinks (smoothies, shakes, fresh juices), with exact amounts, essential vs optional ingredients, explained swaps, storage and reheating. |
+| `src/features.js` | Icons and illustrations, Rescue My Food, the Meal Planner and shopping list, guided cooking mode, and photo/receipt scanning. |
+| `src/recipes.js` | The curated library: 42 dishes (19 Filipino) including breakfasts, snacks and desserts, plus 12 drinks (smoothies, shakes, fresh juices), with exact amounts, essential vs optional ingredients, explained swaps, storage and reheating. |
 | `src/app.js` | The screens: Home, My kitchen, Cook something, "I made this", Saved. |
 | `src/ai.js` | Settings and the AI connection (Claude in claude.ai, free Gemini through Puter, or your own key via the `pantry-ai` Supabase function). |
 | `src/cloud.js` | Sign-in and syncing with Supabase. |
@@ -53,14 +54,12 @@ Freshness times are deliberately at the short end of public guidance: the USDA /
 
 ## Recipe photos
 
-Dishes show a drawn illustration until a real photo is added. To add one:
-1. Put the image in `img/` (about 800×1000, WebP or JPG, under 120 KB). It must show **this exact dish**.
-2. Use your own photo, a free-licence photo (Unsplash, Pexels) with credit, or an AI image marked as AI.
-3. Add a line to `PHOTOS` in `src/recipes.js`, for example
-   `"chicken-adobo": { src: "img/chicken-adobo.webp", credit: "Photo: Jane Doe / Unsplash" }`
-   or `{ src: "img/x.webp", ai: true }`, then run `python3 src/build.py`.
-If a photo fails to load, the illustration stays.
+36 dishes show a real photo from **Wikimedia Commons** under free licences (CC0, CC BY, CC BY-SA, public domain). Each one was checked by eye to show that dish, and each recipe page credits the photographer and licence with a link. Photos load at 500 px wide; if one can't load, the drawn illustration stays. The other dishes keep their illustration until a matching photo is found. The list lives in `src/photos-src.json` and `PHOTOS` in `src/recipes.js`.
+
+To add your own photo instead: put it in `img/` (about 800×1000, WebP or JPG, under 120 KB) and list it in `PHOTOS` as `{ file: "name.webp", credit: "Photo: …" }`.
 
 ## Recipe feedback
+
+After cooking (or any time), **How did it go?** offers: it turned out well, it needs improvement, I changed an ingredient, the quantities were wrong, the instructions were unclear, or it didn't work. "Turned out well" ranks a recipe up for that person; problems rank it down.
 
 The **This didn't work** button on a recipe saves the reason on the device and, when signed in, to the `pantry_feedback` table in Supabase (people can add reports but can't read anyone's). Recipes reported as not working are ranked lower for that person.

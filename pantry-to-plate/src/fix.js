@@ -30,7 +30,7 @@ async function rescue(p){
   box.innerHTML=`<div class="loading">Finding a fix with what you have…</div>`;
   try{
     const res=await AI.json(`A home cook is mid-way through making "${r.title}". Problem: "${p}".
-Ingredients they have: ${S.pantry.map(x=>x.name).join(", ")}; staples: ${S.staples.filter(s=>s.on).map(s=>s.name).join(", ")}.
+Ingredients they have: ${S.pantry.map(x=>x.name).join(", ")}; staples: ${S.staples.map(k=>(E.ING[k]||{}).n||k).join(", ")}.
 Give 3 quick fixes using ONLY those ingredients or techniques. JSON only: {"fixes":[{"fix":"short instruction","why":"one short sentence"}]}`,{fast:true});
     const fx=(res&&res.fixes||[]).slice(0,3).map(x=>[x.fix,x.why]);
     show(fx.length?fx:demoFixes(p));
