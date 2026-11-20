@@ -138,7 +138,23 @@ export function candidates(pool, ctx, anchor, limit = 60) {
 }
 
 /** Describe an outfit's character in a few words, e.g. "Polished · Classic". */
+const TC = (t) => t.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+
+/** A memorable, descriptive name from the two pieces that define the look, e.g. "Olive Trousers & Black Turtleneck". */
 export function describe(o) {
+  const hero = (i) => i && (i.pattern && i.pattern !== 'solid' ? 3 : 0) + (isNeutralItem(i) ? 0 : 2) + (i.category === 'dress' ? 2 : 0);
+  const pieces = ['top', 'bottom', 'outer'].map((k) => o[k]).filter(Boolean);
+  if (!pieces.length) return 'New look';
+  const [a, ...rest] = pieces;
+  const b = rest.sort((x, y) => hero(y) - hero(x))[0];
+  const second = b || o.shoes;
+  return second ? `${TC(short(a))} & ${TC(short(second))}` : TC(short(a));
+}
+const NEUTRALS = /^(black|white|off-white|ivory|cream|gray|grey|charcoal|beige|camel|navy|khaki|brown|taupe|stone)/;
+const isNeutralItem = (i) => NEUTRALS.test(i.colors?.[0]?.name || '');
+
+/** The outfit's mood, e.g. "Polished · Classic" (shown under the name). */
+export function vibeOf(o) {
   const core = CORE.map((k) => o[k]).filter(Boolean);
   const f = core.reduce((a, i) => a + (i.formality || 2), 0) / (core.length || 1);
   const level = f >= 3.4 ? 'Polished' : f >= 2.3 ? 'Smart' : 'Relaxed';
@@ -151,14 +167,26 @@ export function describe(o) {
 
 /** Plain-language explanation (no jargon) built from the strongest findings. */
 export function explain(o, c, ctx) {
-  const pros = c.pillars.flatMap((p) => p.pros.map((t) => ({ t, w: p.score }))).sort((a, b) => b.w - a.w).map((x) => x.t);
+  // Written like a stylist: color story → shape → why it suits the day → one thing to watch.
+  const P = Object.fromEntries(c.pillars.map((p) => [p.id, p]));
   const cons = c.pillars.filter((p) => p.cons.length).sort((a, b) => a.score - b.score).flatMap((p) => p.cons);
   const lower = (t) => t.charAt(0).toLowerCase() + t.slice(1).replace(/\.$/, '');
   const parts = [];
-  const head = o.top ? (isDress(o.top) ? `your ${short(o.top)}` : `your ${short(o.top)} and ${short(o.bottom)}`) : 'this outfit';
-  if (pros.length) parts.push(`This works for ${occ(ctx)}: ${lower(pros[0])}${pros[1] ? `, and ${lower(pros[1])}` : ''}.`);
-  else parts.push(`A workable combination built around ${head}.`);
-  if (cons.length) parts.push(`One thing to watch: ${lower(cons[0])}.`);
+  const color = P.color?.pros[0];
+  const shape = P.proportions?.pros.find((t) => /column|anchor|balanced|line/.test(t)) || P.proportions?.pros[0];
+  if (color) parts.push(color.replace(/\.$/, '') + '.');
+  if (shape && parts.length < 2) {
+    const m = shape.match(/^The (\w+) (.+?) (are|is) balanced by (.+)$/);
+    const again = m && color && color.includes(m[2]);
+    parts.push(again ? `${m[3] === 'are' ? 'Their' : 'Its'} ${m[1]} cut is balanced by ${m[4].replace(/\.$/, '')}.` : shape.replace(/\.$/, '') + '.');
+  }
+  const practical = [...(P.fabric?.pros || [])].filter((t) => /rain|puddle|drizzle|breath|cool|warm enough|layer/i.test(t))[0];
+  const fit = (P.occasion?.score ?? 0) >= 80 ? `Right for ${occ(ctx)}` : `Works for ${occ(ctx)}`;
+  parts.push(`${fit} at ${ctx.tempC}°C${practical ? `, and ${lower(practical).replace(/\s*\([^)]*\)/g, '')}` : ''}.`);
+  const said = parts.join(' ');
+  const finish = (P.finish?.pros || []).find((t) => /finishes|point of interest|keep it|pull it together/.test(t) && !said.includes((t.match(/^The (.+?) (adds|finishes|keep|pull)/) || [])[1] || '§'));
+  if (finish && parts.length < 4) parts.push(finish.replace(/\.$/, '') + '.');
+  if (cons.length) parts.push(`Watch: ${lower(cons[0])}.`);
   return parts.join(' ');
 }
 
@@ -194,7 +222,7 @@ export function generateOutfits(pool, ctx, anchor = null) {
   const outfits = chosen.map(({ o }) => {
     const full = accessorize(o, ctx, avail, anchor);
     const c = critique(full, ctx);
-    return { name: describe(full), outfit: full, critique: c, why: explain(full, c, ctx) + personalNote(full, ctx), weak: c.dealBreakers.length > 0 };
+    return { name: describe(full), vibe: vibeOf(full), outfit: full, critique: c, why: explain(full, c, ctx) + personalNote(full, ctx), weak: c.dealBreakers.length > 0 };
   });
   // Never pad with clearly bad outfits: keep weak ones only when nothing better exists.
   const strong = outfits.filter((x) => !x.weak);

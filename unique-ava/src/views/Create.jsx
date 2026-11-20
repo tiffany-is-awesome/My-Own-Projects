@@ -1,8 +1,9 @@
 // Create an Outfit: choose → get 3 outfits → compare → save.
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store.jsx';
 import { useToast } from '../components/common.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
+import { StylistLoader } from '../components/Motion.jsx';
 import { ContextPicker, OutfitCard, Compare, DEFAULT_CHOICE, contextOf, toSlots } from '../components/Choose.jsx';
 import { styleWithAI } from '../ai/stylist.js';
 import { isAvailable } from '../ai/generator.js';
@@ -23,7 +24,7 @@ export function MissingNotice({ missing, go, name }) {
   );
 }
 
-export default function Create({ go }) {
+export default function Create({ go, autoRun = false }) {
   const { state, dispatch, owned, profile, personal } = useStore();
   const toast = useToast();
   const ai = useClaudeStatus();
@@ -33,8 +34,11 @@ export default function Create({ go }) {
   const [res, setRes] = useState(null);       // { ctx, outfits, note, error, missing, unavailable }
   const [comparing, setComparing] = useState(false);
   const [saved, setSaved] = useState({});     // index → outfit id
+  const [formOpen, setFormOpen] = useState(true);
+  const resultsRef = useRef(null);
   const child = profile.kind === 'child';
 
+  useEffect(() => { if (autoRun) { run(); window.history.replaceState(null, '', '#/create'); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const anchorChoices = owned.filter(isAvailable);
   const anchor = anchorChoices.find((g) => g.id === anchorId) || null;
 
@@ -42,8 +46,12 @@ export default function Create({ go }) {
     const ctx = { ...contextOf(choice), personal: personal.rated ? personal : null };
     setBusy(true); setRes(null); setComparing(false); setSaved({});
     try {
-      const r = await styleWithAI({ ctx, pool: owned, anchor });
+      const [r] = await Promise.all([styleWithAI({ ctx, pool: owned, anchor }), new Promise((ok) => setTimeout(ok, 650))]); // let the reveal animation breathe
       setRes({ ctx, ...r });
+      if (r.outfits?.length) {
+        setFormOpen(false);
+        setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }), 60);
+      }
     } catch (e) {
       setRes({ ctx, outfits: [], error: 'Something went wrong while building outfits. Please try again.' });
     } finally {
@@ -75,6 +83,15 @@ export default function Create({ go }) {
         </div>
       </div>
 
+      {!formOpen && res ? (
+        <div className="ctx-summary">
+          <span className="small"><b>{res.ctx.occasionLabel}</b> · {res.ctx.weather} {res.ctx.tempC}°C{choice.style ? ` · ${choice.style}` : ''}{choice.prefs.length ? ` · ${choice.prefs.join(', ')}` : ''}{anchor ? ` · with the ${anchor.name}` : ''}</span>
+          <span style={{ display: 'flex', gap: 8 }}>
+            <button className="btn sm" onClick={() => setFormOpen(true)}>Change</button>
+            <button className="btn sm accent" onClick={run} disabled={busy}>{busy ? 'Styling…' : 'New ideas'}</button>
+          </span>
+        </div>
+      ) : (
       <div className="create-form">
         <ContextPicker value={choice} onChange={setChoice} />
         <div className="ctx-row"><span className="label">Wear this piece <span className="muted">(optional)</span></span>
@@ -94,8 +111,8 @@ export default function Create({ go }) {
           </span>
         </div>
       </div>
-
-      {busy && <div className="loading-block"><div className="loading-bar"><i /></div><p className="small muted">Looking through {owned.filter(isAvailable).length} available pieces…</p></div>}
+      )}
+      {busy && <StylistLoader count={owned.filter(isAvailable).length} />}
 
       {res && !busy && (
         <>
@@ -106,8 +123,8 @@ export default function Create({ go }) {
           {res.ctx.personal && <p className="tiny">Personalized with {res.ctx.personal.rated} rated outfit{res.ctx.personal.rated > 1 ? 's' : ''} from your history.</p>}
           {res.outfits.length > 0 && (
             <>
-              <div className="results-head">
-                <div className="small">{res.ctx.prompt} · {res.ctx.tempC}°C{res.ctx.rain >= 0.6 ? ' · rain' : ''}</div>
+              <div className="results-head" ref={resultsRef}>
+                <h2 className="h2">{res.outfits.length === 1 ? 'Your outfit' : `${res.outfits.length} outfits for you`}</h2>
                 {res.outfits.length > 1 && !comparing && <button className="btn sm" onClick={() => setComparing(!comparing)}>{comparing ? 'Back to cards' : `Compare ${res.outfits.length} side by side`}</button>}
               </div>
               {comparing ? (

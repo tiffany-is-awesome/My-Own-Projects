@@ -1,12 +1,12 @@
 // Building blocks for "choose → get outfits → compare → save".
 import { useState } from 'react';
 import Stage from './Stage.jsx';
-import { PieceList, ScoreBadge } from './common.jsx';
+import { PieceList, ScoreBadge, HeartButton } from './common.jsx';
 import { OCCASIONS, STYLES, SLOTS } from '../data/closet.js';
 import { WEATHER_CHOICES, PREF_CHOICES, buildContext } from '../ai/context.js';
 import { alternatives } from '../ai/generator.js';
 import { critique } from '../ai/critic.js';
-import { explain, describe } from '../ai/generator.js';
+import { explain, describe, vibeOf } from '../ai/generator.js';
 
 export const DEFAULT_CHOICE = { occasion: 'everyday', style: null, weather: 'warm', prefs: [], text: '' };
 export const contextOf = (choice) => buildContext(choice, OCCASIONS);
@@ -69,7 +69,6 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
   const [showAlts, setShowAlts] = useState(false);
   const alts = showAlts ? alternatives(result.outfit, ctx, pool) : [];
   const c = result.critique;
-  const weak = weaknessesOf(c, 1)[0];
   return (
     <article className="outfit-card" aria-label={`Outfit ${index + 1}`}>
       <div className="outfit-card-stage">
@@ -82,7 +81,7 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
       <div className="outfit-card-body">
         <div className="outfit-card-head">
           <div>
-            <div className="tiny">Outfit {index + 1}{result.label ? ` · ${result.label}` : ''}</div>
+            <div className="tiny">Outfit {index + 1}{result.label ? ` · ${result.label}` : ''}{result.vibe || result.outfit ? ` · ${result.vibe || vibeOf(result.outfit)}` : ''}</div>
             <h3 className="h3">{result.name}</h3>
           </div>
           <ScoreBadge score={c.overall} />
@@ -90,11 +89,10 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
         {result.source && <span className={'source-tag ' + result.source}>{SOURCE[result.source] || 'Edited by you'}</span>}
         {result.critique.dealBreakers?.length > 0 && <span className="source-tag weak">Weak option · {result.critique.dealBreakers[0]}</span>}
         <p className="small why">{result.why}</p>
-        {weak && <p className="small watch"><b>Watch:</b> {weak}</p>}
         <PieceList outfit={result.outfit} />
         <div className="outfit-card-actions">
-          <button className={'btn sm ' + (saved ? '' : 'accent')} onClick={onSave} disabled={saved}>{saved ? '♥ Saved' : '♡ Save'}</button>
-          <button className="btn sm" onClick={() => setShowAlts(!showAlts)} aria-expanded={showAlts}>{showAlts ? 'Hide changes' : 'Change items'}</button>
+          <HeartButton saved={saved} onSave={onSave} />
+          <button className="btn sm" onClick={() => setShowAlts(!showAlts)} aria-expanded={showAlts}>{showAlts ? 'Hide changes' : 'Improve or change'}</button>
           {onWore && <button className="btn sm ghost" disabled={wore} onClick={() => { onWore(); setWore(true); }}>{wore ? '✓ Logged' : 'I wore this'}</button>}
           {onOpen && <button className="btn sm ghost" onClick={onOpen}>Open in builder</button>}
         </div>

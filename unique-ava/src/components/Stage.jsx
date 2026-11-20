@@ -45,14 +45,14 @@ export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', cu
   let layers;
   if (!onBody) {
     const L = o.top?.category === 'dress' ? DRESS : o.outer ? FLATLAY_WITH_OUTER : FLATLAY;
-    layers = KEYS.filter((k) => o[k]).map((k) => (
-      <div key={k} className="stage-item" style={box(L[k] || FLATLAY[k])}>
+    layers = KEYS.filter((k) => o[k]).map((k, i) => (
+      <div key={k + o[k].id} className="stage-item" style={{ ...box(L[k] || FLATLAY[k]), '--i': i, '--r': `${((i * 37) % 7) - 3}deg` }}>
         <GarmentArt item={o[k]} />
       </div>
     ));
   } else {
     // dressed on the mannequin: every piece drawn to fit the body
-    layers = <Worn outfit={o} child={child} photoFor={(it) => it.image || photos.garments[it.id] || null} />;
+    layers = <Worn key={KEYS.map((k) => o[k]?.id || '').join('|')} outfit={o} child={child} photoFor={(it) => it.image || photos.garments[it.id] || null} />;
   }
 
   // "On you": a real photo of a person, with the outfit pinned beside it as a product card.

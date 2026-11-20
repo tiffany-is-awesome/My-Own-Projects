@@ -219,9 +219,18 @@ export default function DressingRoom({ go }) {
           )}
 
           {!complete && <p className="small muted" style={{ marginTop: 14 }}>Add a top and bottom (or a dress) and shoes to get alternatives.</p>}
+          {complete && (() => {
+            const best = alts.filter((a) => a.delta > 0).sort((a, b) => b.delta - a.delta)[0];
+            return best ? (
+              <button className="improve-btn" onClick={() => { dispatch({ type: 'LOAD_DRAFT', draft: { slots: toSlots(best.outfit) } }); toast(`Improved: ${best.label.toLowerCase()} (+${best.delta})`); }}>
+                <span className="spark" aria-hidden="true">✦</span>
+                <span><b>Improve this outfit</b><span className="tiny">{best.label} · +{best.delta} points</span></span>
+              </button>
+            ) : <p className="tiny improve-done">✓ This is already the strongest version of this outfit from your closet. The ideas below change the mood instead.</p>;
+          })()}
           {alts.length > 0 && (
             <div className="alts builder-alts">
-              <span className="label">Try instead (from this closet)</span>
+              <span className="label">Other ideas (from this closet)</span>
               {alts.map((a) => (
                 <button key={a.id} className="alt" onClick={() => { dispatch({ type: 'LOAD_DRAFT', draft: { slots: toSlots(a.outfit) } }); toast(a.label); }}>
                   <span>{a.label}</span>
@@ -237,7 +246,7 @@ export default function DressingRoom({ go }) {
             <button className="btn" disabled={!complete} onClick={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: draft.slots, context: ctx } }); toast('Added to Outfit History'); }}>I wore this</button>
             <button className="btn ghost" onClick={() => go('#/create')}>Create an Outfit</button>
           </div>
-          <p className="tiny" style={{ marginTop: 12 }}>The AI stylist's critique is grounded in Unique Ava’s measured facts (warmth, water resistance, formality), so it can add taste and nuance but not contradict the weather math. The alternatives and live score come from the rules engine. AI requests go to Google Gemini through Puter; the first time, Puter asks you to sign in (free, no key).</p>
+          <p className="tiny" style={{ marginTop: 12 }}>The AI stylist's critique is grounded in Unique Ava’s measured facts (warmth, water resistance, formality), so it can add taste and nuance but not contradict the weather math. The alternatives and live score come from the rules engine. AI requests go to Google Gemini through Puter, only after you sign in with the Gemini button at the top (free, no key).</p>
         </div>
       </div>
       {saving && <SaveModal defaultName={draft.name} onClose={() => setSaving(false)} onDone={(t) => { setSaving(false); toast(`Saved to “${t}”`); }} />}

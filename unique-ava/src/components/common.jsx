@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import GarmentArt from './GarmentArt.jsx';
 import Stage from './Stage.jsx';
 import { CATEGORY_LABEL } from '../data/closet.js';
@@ -79,6 +79,41 @@ export function ConfirmButton({ label, confirmLabel = 'Click again to confirm', 
   return <button className={className} style={{ ...style, ...(armed ? { color: 'var(--accent)' } : {}) }} onClick={() => (armed ? (setArmed(false), onConfirm()) : setArmed(true))}>{armed ? confirmLabel : label}</button>;
 }
 
+/** Score that counts up when it first appears (instantly if the user prefers reduced motion). */
 export function ScoreBadge({ score }) {
-  return <span className="score-ring"><b>{score}</b><span className="tiny">/100</span></span>;
+  const [shown, setShown] = useState(score);
+  const first = useRef(true);
+  useEffect(() => {
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reduce || typeof score !== 'number') { setShown(score); return; }
+    const from = first.current ? Math.max(0, score - 40) : shown;
+    first.current = false;
+    const t0 = performance.now(), dur = 700;
+    let raf;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / dur);
+      setShown(Math.round(from + (score - from) * (1 - Math.pow(1 - k, 3))));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [score]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tier = score >= 85 ? 'great' : score >= 72 ? 'good' : 'fair';
+  return (
+    <span className={'score-ring ' + tier} aria-label={`Score ${score} out of 100`}>
+      <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" className="track" /><circle cx="18" cy="18" r="15.5" className="arc" style={{ strokeDasharray: `${(shown / 100) * 97.4} 97.4` }} /></svg>
+      <b>{shown}</b>
+    </span>
+  );
+}
+
+/** A heart button that bursts when it saves. */
+export function HeartButton({ saved, onSave, label = 'Save', savedLabel = 'Saved', className = 'btn sm accent' }) {
+  const [burst, setBurst] = useState(0);
+  return (
+    <button className={className + ' heart-btn' + (saved ? ' is-saved' : '')} disabled={saved} onClick={() => { onSave(); setBurst((b) => b + 1); }}>
+      <span className="heart" aria-hidden="true">{saved ? '♥' : '♡'}</span> {saved ? savedLabel : label}
+      {burst > 0 && <span key={burst} className="burst" aria-hidden="true">{Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--a': `${i * 45}deg` }} />)}</span>}
+    </button>
+  );
 }

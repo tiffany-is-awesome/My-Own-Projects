@@ -20,12 +20,39 @@ const NAV = [
   ['#/home', 'Home'],
   ['#/closet', 'My Closet'],
   ['#/create', 'Create an Outfit', true],
-  ['#/builder', 'Builder'],
-  ['#/saved', 'Saved Outfits'],
+  ['#/saved', 'Saved'],
   ['#/history', 'History'],
   ['#/family', 'Family'],
-  ['#/settings', 'Settings'],
 ];
+
+// Phone: a bottom tab bar (thumb reach) + a "More" page for everything else.
+const TABS = [
+  ['#/home', 'Home', 'M4 11 12 4l8 7v9h-5v-6H9v6H4z'],
+  ['#/closet', 'Closet', 'M12 6a2 2 0 1 1 2-2M12 6 3 14h18z M5 14v5h14v-5'],
+  ['#/create', 'Create', 'M12 3l2.2 5.6L20 9l-4.5 3.8L17 19l-5-3.2L7 19l1.5-6.2L4 9l5.8-.4z'],
+  ['#/saved', 'Saved', 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z'],
+  ['#/more', 'More', 'M5 12h.01M12 12h.01M19 12h.01'],
+];
+
+function MorePage() {
+  const links = [
+    ['#/history', 'Outfit History', 'What you wore, with ratings'],
+    ['#/insights', 'Closet insights', 'Rediscover My Closet and versatility'],
+    ['#/builder', 'Outfit builder', 'Put a look together piece by piece'],
+    ['#/family', 'Family looks', 'Coordinated outfits for everyone'],
+    ['#/lookbooks', 'Lookbooks & trips', 'Collections and packing lists'],
+    ['#/inspiration', 'Inspiration', 'Recreate a look you saw'],
+    ['#/settings', 'Settings', 'Account, AI, places, delete data'],
+  ];
+  return (
+    <div className="page narrow">
+      <div className="page-head"><div><div className="label">Unique Ava</div><h1 className="h1">More</h1></div></div>
+      <ul className="more-list">
+        {links.map(([h, t, d]) => <li key={h}><a href={h}><b>{t}</b><span className="tiny">{d}</span><span aria-hidden="true">›</span></a></li>)}
+      </ul>
+    </div>
+  );
+}
 
 function ProfileSwitch() {
   const { state, dispatch, profile } = useStore();
@@ -79,7 +106,7 @@ export default function App() {
   if (route === 'share' && param) view = <SharedLookbook data={param} go={go} />;
   else if (route === 'closet') view = <Closet go={go} />;
   else if (route === 'builder' || route === 'dressing') view = <DressingRoom go={go} />;
-  else if (route === 'create' || route === 'mix') view = <Create go={go} />;
+  else if (route === 'create' || route === 'mix') view = <Create key={param || 'c'} go={go} autoRun={param === 'go'} />;
   else if (route === 'style' && param) view = <StyleMe key={param} id={decodeURIComponent(param)} go={go} />;
   else if (route === 'saved') view = <Saved go={go} />;
   else if (route === 'history') view = <History go={go} />;
@@ -89,9 +116,11 @@ export default function App() {
   else if (route === 'lookbooks' && param) view = <LookbookDetail id={param} go={go} />;
   else if (route === 'lookbooks') view = <LookbookList go={go} />;
   else if (route === 'inspiration') view = <Inspiration go={go} />;
+  else if (route === 'more') view = <MorePage />;
   else view = <Welcome go={go} />;
 
-  const ALIAS = { dressing: 'builder', mix: 'create', welcome: 'home', style: 'closet', lookbooks: 'saved', inspiration: 'saved', insights: 'history' };
+  const ALIAS = { dressing: 'create', builder: 'create', mix: 'create', welcome: 'home', style: 'closet', lookbooks: 'saved', inspiration: 'saved', insights: 'history' };
+  const MOBILE_ALIAS = { history: 'more', family: 'more', settings: 'more', insights: 'more', lookbooks: 'more', inspiration: 'more' };
   const active = route === 'share' ? '' : '#/' + (ALIAS[route] || route || 'home');
 
   return (
@@ -103,6 +132,9 @@ export default function App() {
             {NAV.map(([h, l, primary]) => <a key={h} href={h} className={(active === h ? 'active' : '') + (primary ? ' primary' : '')}>{l}</a>)}
           </nav>
           <ProfileSwitch />
+          <a className={'icon-link' + (active === '#/settings' ? ' active' : '')} href="#/settings" aria-label="Settings" title="Settings">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+          </a>
           {ai.via === 'puter' ? (
             <button className={'ai-status as-button ' + (gemUser ? 'ready' : '')} onClick={gemClick}
               title={gemUser ? `AI stylist: Gemini, signed in to Puter as ${gemUser.username}. Click to sign out.` : 'AI stylist: Gemini. Free, no key: sign in with a Puter account to switch it on.'}>
@@ -116,7 +148,18 @@ export default function App() {
           <Account />
         </div>
       </header>
-      <main>{view}</main>
+      <main key={route || 'home'} className="view-enter">{view}</main>
+      <nav className="tabbar" aria-label="Main (mobile)">
+        {TABS.map(([h, l, d]) => {
+          const on = h === '#/more' ? (route === 'more' || MOBILE_ALIAS[route] === 'more') : active === h && !MOBILE_ALIAS[route];
+          return (
+            <a key={h} href={h} className={(on ? 'on' : '') + (h === '#/create' ? ' create' : '')} aria-current={on ? 'page' : undefined}>
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
+              <span>{l}</span>
+            </a>
+          );
+        })}
+      </nav>
       <footer className="footer">
         Unique Ava · AI stylist: Google Gemini via Puter (free, no key: sign in), checked by a built-in rules engine that also works on its own · saved in this browser, or to your account when you sign in · <a href="#/settings">Settings &amp; delete my data</a>
       </footer>

@@ -6,6 +6,7 @@ import UploadModal from '../components/UploadModal.jsx';
 import ItemForm, { STATUSES, LocationPicker } from '../components/ItemForm.jsx';
 import { CATEGORIES, STYLES, OCCASIONS, slotOf } from '../data/closet.js';
 import { NAMED_COLORS } from '../ai/color.js';
+import { wearStats } from '../ai/insights.js';
 
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -84,6 +85,9 @@ export default function Closet({ go }) {
   const [occasion, setOccasion] = useState('');
   const [status, setStatus] = useState('');
   const [place, setPlace] = useState('');
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState('newest');
+  const stats = useMemo(() => wearStats(state.history.filter((h) => h.profileId === profile.id)), [state.history, profile.id]);
   const [detail, setDetail] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [justAdded, setJustAdded] = useState([]);
@@ -96,11 +100,16 @@ export default function Closet({ go }) {
     && (!style || g.style === style)
     && (!occasion || (g.occasions || []).includes(occasion))
     && (!status || (g.status || 'available') === status)
-    && (!place || (place === 'none' ? !g.location : g.location === place))), [owned, cat, season, color, style, occasion, status, place]);
+    && (!place || (place === 'none' ? !g.location : g.location === place))
+    && (!q.trim() || q.toLowerCase().trim().split(/\s+/).every((w) => [g.name, g.material, g.art, g.category, g.style, g.pattern, ...(g.colors || []).map((c) => c.name), state.locations.find((l) => l.id === g.location)?.name].filter(Boolean).join(' ').toLowerCase().includes(w))))
+    .sort((a, b) => sort === 'name' ? a.name.localeCompare(b.name)
+      : sort === 'most' ? (stats[b.id]?.wears || 0) - (stats[a.id]?.wears || 0)
+      : sort === 'least' ? (stats[a.id]?.wears || 0) - (stats[b.id]?.wears || 0)
+      : 0), [owned, cat, season, color, style, occasion, status, place, q, sort, stats, state.locations]);
 
   const counts = Object.fromEntries(CATEGORIES.map((c) => [c.id, owned.filter((g) => g.category === c.id).length]));
   const colorsHere = NAMED_COLORS.filter((c) => owned.some((g) => g.colors.some((x) => x.name === c.name)));
-  const filtered = season || color || style || occasion || status || place;
+  const filtered = season || color || style || occasion || status || place || q;
 
   function saved(items) {
     dispatch({ type: 'ADD_GARMENTS', garments: items });
@@ -132,6 +141,15 @@ export default function Closet({ go }) {
 
       {owned.length > 0 && (
         <div className="toolbar">
+          <div className="search-row">
+            <div className="search-box">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search: “navy linen”, “boots”, “under-bed”…" aria-label="Search the closet" />
+            </div>
+            <select className="select sm" value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">
+              <option value="newest">Newest first</option><option value="name">A–Z</option><option value="most">Most worn</option><option value="least">Least worn</option>
+            </select>
+          </div>
           <div className="chips" role="group" aria-label="Category">
             <button className={'chip' + (cat === 'all' ? ' on' : '')} onClick={() => setCat('all')}>All</button>
             {CATEGORIES.map((c) => <button key={c.id} className={'chip' + (cat === c.id ? ' on' : '')} onClick={() => setCat(c.id)}>{c.label} {counts[c.id] ? <span style={{ opacity: .6 }}>&nbsp;{counts[c.id]}</span> : null}</button>)}
@@ -143,7 +161,7 @@ export default function Closet({ go }) {
             <select className="select sm" value={season || ''} onChange={(e) => setSeason(e.target.value || null)} aria-label="Season"><option value="">Any season</option>{SEASONS.map((x) => <option key={x} value={x}>{cap(x)}</option>)}</select>
             <select className="select sm" value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status"><option value="">Any status</option>{STATUSES.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select>
             {state.locations.length > 0 && <select className="select sm" value={place} onChange={(e) => setPlace(e.target.value)} aria-label="Where it's kept"><option value="">Anywhere</option>{state.locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}<option value="none">No place set</option></select>}
-            {filtered && <button className="btn ghost sm" onClick={() => { setSeason(null); setColor(''); setStyle(''); setOccasion(''); setStatus(''); setPlace(''); }}>Clear</button>}
+            {filtered && <button className="btn ghost sm" onClick={() => { setSeason(null); setColor(''); setStyle(''); setOccasion(''); setStatus(''); setPlace(''); setQ(''); }}>Clear</button>}
           </div>
         </div>
       )}
@@ -158,7 +176,7 @@ export default function Closet({ go }) {
           </div>
         </div>
       ) : list.length === 0 ? (
-        <div className="empty"><p className="small">Nothing matches these filters.</p></div>
+        <div className="empty"><p className="small">Nothing matches{q ? ` “${q}”` : ' these filters'}.</p><button className="btn sm" onClick={() => { setSeason(null); setColor(''); setStyle(''); setOccasion(''); setStatus(''); setPlace(''); setQ(''); setCat('all'); }}>Show everything</button></div>
       ) : (
         <div className="grid">
           {list.map((g) => (
