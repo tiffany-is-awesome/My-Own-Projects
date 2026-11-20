@@ -137,13 +137,36 @@ function niceAmount(q, u, k) {
   return E.fmtAmount(q, u);
 }
 function amountLabel(p) { return p.qty == null ? "Amount not recorded" : E.fmtAmount(p.qty, p.unit) + (p.unit === "pcs" || !p.unit ? "" : ""); }
+/* Four-pointed twinkle stars: the "shine" used for every success. */
+const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C12.8 7.2 16.8 11.2 24 12 16.8 12.8 12.8 16.8 12 24 11.2 16.8 7.2 12.8 0 12 7.2 11.2 11.2 7.2 12 0Z"/></svg>';
+const STAR_COLS = ["#F4B400", "#FFD35C", "#9BB8AC", "#2E6B5A", "#FFFFFF"];
+function reducedMotion() { return matchMedia("(prefers-reduced-motion: reduce)").matches; }
+/* Twinkle a few stars around an element (or a CSS selector). */
+function sparkle(target, n = 5) {
+  if (reducedMotion()) return;
+  const el = typeof target === "string" ? document.querySelector(target) : target; if (!el) return;
+  const r = el.getBoundingClientRect(); if (!r.width) return;
+  const layer = document.createElement("div"); layer.className = "sparkles"; layer.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < n; i++) {
+    const s = document.createElement("i"), size = 9 + Math.random() * 13, edge = Math.random() < .5;
+    const x = edge ? (Math.random() < .5 ? r.left - 6 : r.right - 8) : r.left + Math.random() * r.width;
+    const y = edge ? r.top + Math.random() * r.height : (Math.random() < .5 ? r.top - 10 : r.bottom - 8);
+    s.innerHTML = STAR; s.style.cssText = `left:${x}px;top:${y}px;width:${size}px;height:${size}px;color:${STAR_COLS[i % 3]};animation-delay:${i * 70 + Math.random() * 120}ms`;
+    layer.appendChild(s);
+  }
+  document.body.appendChild(layer); setTimeout(() => layer.remove(), 1600);
+}
+/* Finishing a meal: a burst of stars from the middle of the screen. */
 function celebrate() {
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (reducedMotion()) return;
   const box = document.createElement("div"); box.className = "celebrate"; box.setAttribute("aria-hidden", "true");
-  const cols = ["#2E6B5A", "#4E9A5B", "#F4B400", "#E8833A", "#D9443A", "#9BB8AC"];
-  for (let i = 0; i < 46; i++) { const p = document.createElement("i"); p.style.left = Math.random() * 100 + "%"; p.style.background = cols[i % cols.length];
-    p.style.setProperty("--x", (Math.random() * 160 - 80) + "px"); p.style.setProperty("--r", (Math.random() * 720 - 360) + "deg"); p.style.animationDelay = Math.random() * .35 + "s"; box.appendChild(p); }
-  document.body.appendChild(box); setTimeout(() => box.remove(), 2300);
+  const cx = innerWidth / 2, cy = innerHeight * .45;
+  for (let i = 0; i < 26; i++) {
+    const p = document.createElement("i"), ang = (i / 26) * Math.PI * 2 + Math.random() * .3, dist = 90 + Math.random() * Math.min(innerWidth, 520) * .45, size = 10 + Math.random() * 18;
+    p.innerHTML = STAR; p.style.cssText = `left:${cx}px;top:${cy}px;width:${size}px;height:${size}px;color:${STAR_COLS[i % STAR_COLS.length]};--x:${Math.cos(ang) * dist}px;--y:${Math.sin(ang) * dist}px;animation-delay:${Math.random() * 160}ms`;
+    box.appendChild(p);
+  }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 1900);
 }
 let tt; function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 3800); }
 function openModal(html, focusSel) { $("#authBox").innerHTML = html; $("#authModal").hidden = false; const f = focusSel ? $("#authBox " + focusSel) : $("#authBox input, #authBox button"); if (f) f.focus(); }
@@ -342,6 +365,7 @@ function commitItems(items) {
   S.ui.fresh = r.added.concat(r.merged).map(p => p.id); S.ui.justAdded = true;
   if (S.tab === "kitchen") renderKitchen(); else if (S.tab === "home") renderHome();
   renderNavCounts();
+  requestAnimationFrame(() => { document.querySelectorAll(".item.just-added").forEach((el, i) => i < 4 && setTimeout(() => sparkle(el, 4), i * 120)); sparkle("#navKitchen", 3); });
   return S.pantry.length - before;
 }
 
@@ -705,6 +729,7 @@ function saveCurrent(col) {
   persist(); renderDetail(); renderNavCounts();
   document.querySelectorAll(".pick[data-act=pick]").forEach(b => { if (b.dataset.id === r.id && !b.querySelector(".savedmark")) b.querySelector(".label").insertAdjacentHTML("beforeend", ' · <span class="savedmark">Saved</span>'); });
   toast(col ? `Saved to ${col}.` : "Saved. Find it under Saved.");
+  requestAnimationFrame(() => { sparkle("#detail .btn.saved, #detail .save-wrap", 5); sparkle("#navSaved", 3); });
 }
 function renderSaved() {
   S.ui.savedCol = S.ui.savedCol ?? "all"; S.ui.savedSort = S.ui.savedSort || "new"; S.ui.savedQ = S.ui.savedQ || "";

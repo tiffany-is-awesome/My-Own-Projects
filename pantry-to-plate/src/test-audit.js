@@ -57,7 +57,7 @@ const d4 = E.planDeductions(oy4);
 ok(near(d4.find(r => r.name === "Chicken thighs").take, 0.5), "deduct 500 g from a 1 kg pack = 0.5 kg");
 ok(near(d4.find(r => r.name === "Rice").take, 1.5 * 185 / 1000, 0.002), "deduct 1.5 cups raw rice ≈ 0.28 kg");
 const d1 = E.planDeductions(E.matchRecipe(R("oyakodon"), big, ST, { servings: 1 }, now));
-ok(d1.find(r => r.name === "Eggs").take === 1.5, "1 serving: 1.5 eggs (amounts scale linearly)");
+ok(d1.find(r => r.name === "Eggs").take === 2, "1 serving: 1.5 eggs scaled → 2 whole eggs used, matching what the recipe shows");
 const twoRice = K([{ name: "Leftover rice", key: "rice_cooked", qty: 2, unit: "cup" }, { name: "Eggs", key: "egg", qty: 2, unit: "pcs" }]);
 const fm = E.fitMatch(R("egg-fried-rice"), twoRice, ST, {}, now);
 ok(fm.ok && fm.scaledDown && fm.servings === 1, "only 2 of 3 cups rice → smaller batch (1 serving) instead of hiding it");

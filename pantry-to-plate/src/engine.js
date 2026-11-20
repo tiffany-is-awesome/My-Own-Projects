@@ -642,7 +642,10 @@ function planDeductions(m) {
       let take = null, all = false;
       if (p.qty == null || haveG == null) { take = null; all = false; } // unknown amount: the person says how much they used
       else if (needG == null) { take = p.qty; all = true; }
-      else { const g = Math.min(haveG, needG); take = roundU(fromGrams(k, g, p.unit), p.unit); needG -= g; all = take >= p.qty - 1e-6; }
+      else { const g = Math.min(haveG, needG); take = roundU(fromGrams(k, g, p.unit), p.unit);
+        // you can't use a third of an egg or clove: use whole ones, as the recipe shows them
+        if ((k === "egg" || p.unit === "clove") && p.unit !== "g") take = Math.min(p.qty, Math.max(1, Math.round(take)));
+        needG -= g; all = take >= p.qty - 1e-6; }
       rows.push({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, take, all, unknown: p.qty == null || haveG == null });
       if (needG != null && needG <= 0) break;
     }

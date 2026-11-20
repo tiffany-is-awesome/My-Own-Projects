@@ -219,12 +219,27 @@ footer{font-size:12.5px;line-height:1.5}
 @keyframes popIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
 .toast{transition:opacity .25s ease,transform .35s cubic-bezier(.2,.9,.3,1.2);transform:translate(-50%,14px)}
 .toast.show{transform:translate(-50%,0)}
-.celebrate{position:fixed;inset:0;pointer-events:none;z-index:200;overflow:hidden}
-.celebrate i{position:absolute;top:-12px;width:9px;height:14px;border-radius:2px;animation:confetti 1.6s cubic-bezier(.2,.6,.4,1) forwards}
-@keyframes confetti{to{transform:translate(var(--x),105vh) rotate(var(--r));opacity:.2}}
+/* Four-pointed twinkle stars */
+.sparkles,.celebrate{position:fixed;inset:0;pointer-events:none;z-index:200;overflow:hidden}
+.sparkles i,.celebrate i{position:absolute;display:block;opacity:0;filter:drop-shadow(0 0 3px rgba(244,180,0,.45))}
+.sparkles svg,.celebrate svg{width:100%;height:100%;fill:currentColor;display:block}
+.sparkles i{animation:twinkle .9s cubic-bezier(.3,1.4,.5,1) forwards}
+@keyframes twinkle{0%{opacity:0;transform:scale(0) rotate(-30deg)}40%{opacity:1;transform:scale(1.1) rotate(10deg)}70%{opacity:1;transform:scale(.9) rotate(30deg)}100%{opacity:0;transform:scale(0) rotate(60deg)}}
+.celebrate i{margin:-10px 0 0 -10px;animation:starBurst 1.5s cubic-bezier(.15,.7,.3,1) forwards}
+@keyframes starBurst{0%{opacity:0;transform:translate(0,0) scale(.2) rotate(0)}15%{opacity:1}70%{opacity:1;transform:translate(var(--x),var(--y)) scale(1) rotate(90deg)}100%{opacity:0;transform:translate(var(--x),calc(var(--y) + 30px)) scale(.3) rotate(140deg)}}
+/* A glint on cards when you hover or tap them */
+.pick,.rcard,.pick-hero,.rs-rec,.pe-open{position:relative}
+.pick::after,.rcard::after,.pick-hero::after{content:"";position:absolute;top:8px;right:10px;width:15px;height:15px;opacity:0;pointer-events:none;
+  background:#F4B400;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0C12.8 7.2 16.8 11.2 24 12 16.8 12.8 12.8 16.8 12 24 11.2 16.8 7.2 12.8 0 12 7.2 11.2 11.2 7.2 12 0Z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0C12.8 7.2 16.8 11.2 24 12 16.8 12.8 12.8 16.8 12 24 11.2 16.8 7.2 12.8 0 12 7.2 11.2 11.2 7.2 12 0Z'/%3E%3C/svg%3E") center/contain no-repeat}
+.pick:hover::after,.rcard:hover::after,.pick-hero:hover::after,.pick:active::after,.pick[aria-current="true"]::after{animation:twinkle .9s ease forwards}
+/* Ambient glints on the homepage dish and today's pick */
+.pp-twinkle path{opacity:0;transform-box:fill-box;transform-origin:center;animation:ppTwinkle 3.6s ease-in-out infinite;animation-delay:var(--d)}
+@keyframes ppTwinkle{0%,100%{opacity:0;transform:scale(.2) rotate(0)}45%{opacity:1;transform:scale(1) rotate(45deg)}60%{opacity:.9;transform:scale(.85) rotate(60deg)}}
+.dish-photo.in{animation:photoGlint 1.2s ease .2s}
+@keyframes photoGlint{0%{filter:brightness(1)}35%{filter:brightness(1.08)}100%{filter:brightness(1)}}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;animation-delay:0s!important;transition-duration:.001ms!important}
-  .pp-fall,.pp-steam path,.pp-spark path{display:none}
+  .pp-fall,.pp-steam path,.pp-spark path,.pp-twinkle path,.sparkles,.celebrate{display:none}
   .pp-bit{opacity:1;transform:none}
 }
 

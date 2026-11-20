@@ -230,7 +230,7 @@ function rescueAct(act, t) {
     case "rs-toss": if (!p) return true; S.pantry = S.pantry.filter(x => x !== p); persist(); toast(`${p.name} removed from your kitchen.`); renderRescue(); afterRescuePaint(); renderNavCounts(); return true;
     case "rs-freeze": if (!p) return true;
       { const i = S.pantry.indexOf(p); S.pantry[i] = E.newItem({ ...p, loc: "freezer", thawedOn: null }); }
-      persist(); toast(`${p.name} moved to the freezer. Write today's date on it.`); renderRescue(); afterRescuePaint(); return true;
+      persist(); toast(`${p.name} moved to the freezer. Write today's date on it.`); renderRescue(); afterRescuePaint(); sparkle("#rescuePanel .rp-head", 6); return true;
     case "rs-made": if (!p) return true; {
       const opt = rescueOptions(p)[+t.dataset.i]; const mk = opt && opt[3] && opt[3].makes; if (!mk) return true;
       openModal(`<h2 id="authTitle">${esc(opt[1])}: done!</h2><p>I'll take ${esc(p.name.toLowerCase())} out of your kitchen and add what you made, dated today.</p>
@@ -247,7 +247,7 @@ function submitRsMade(form) {
   S.pantry = S.pantry.filter(x => x !== p);
   const today = E.todayISO();
   E.addToPantry(S.pantry, [{ name: mk.name, key: mk.key || (mk.dry ? null : "leftover"), qty, unit: mk.unit, loc: mk.dry ? "pantry" : "fridge", cooked: !mk.dry, cookedOn: mk.dry ? null : today, added: today }]);
-  persist(); closeAuth(); celebrate(); toast(`Rescued! ${mk.name} is in your ${mk.dry ? "cupboard" : "fridge"}, dated today.`); renderRescue(); afterRescuePaint(); renderNavCounts();
+  persist(); closeAuth(); sparkle("#rescueBody", 8); toast(`Rescued! ${mk.name} is in your ${mk.dry ? "cupboard" : "fridge"}, dated today.`); renderRescue(); afterRescuePaint(); renderNavCounts();
 }
 
 /* =====================================================================
@@ -380,6 +380,7 @@ function autoPlan() {
     day[k].push({ id: uid(), rid: cands[0].r.id, sv: cands[0].m.servings }); added++;
   }
   persist(); renderPlan();
+  if (added) requestAnimationFrame(() => document.querySelectorAll(".pentry").forEach((el, i) => i < 6 && setTimeout(() => sparkle(el, 3), i * 110)));
   toast(added ? `Planned ${added} meal${added > 1 ? "s" : ""} from what you have, using what needs using first.` : "I couldn't fit more meals from what's in your kitchen. Add food, or pick recipes yourself (I'll list what's missing).");
 }
 function openShopList() {
@@ -396,7 +397,7 @@ function planAct(act, t) {
     case "pl-range": S.ui.planRange = t.dataset.v; renderPlan(); return true;
     case "pl-add": openPlanPicker(t.dataset.d, t.dataset.k); return true;
     case "pl-choose": { const { d, k } = S.ui.pick || {}; const r = getRecipe(t.dataset.id); if (!d || !r) return true;
-      planDay(d)[k].push({ id: uid(), rid: r.id, sv: S.prefs.servings || r.serves }); persist(); closeAuth(); renderPlan(); toast(`${r.title} planned for ${E.prettyDate(d)}.`); flash(".pentry:last-of-type"); return true; }
+      planDay(d)[k].push({ id: uid(), rid: r.id, sv: S.prefs.servings || r.serves }); persist(); closeAuth(); renderPlan(); toast(`${r.title} planned for ${E.prettyDate(d)}.`); requestAnimationFrame(() => sparkle([...document.querySelectorAll(`.pe-open[data-d="${d}"][data-k="${k}"]`)].pop(), 5)); return true; }
     case "pl-del": if (list) { day[t.dataset.k] = list.filter(e => e.id !== t.dataset.id); persist(); renderPlan(); } return true;
     case "pl-sv": if (list) { const e = list.find(x => x.id === t.dataset.id); if (e) { e.sv = Math.max(1, Math.min(20, e.sv + Number(t.dataset.v))); persist(); renderPlan(); } } return true;
     case "pl-open": { const e = list && list.find(x => x.id === t.dataset.id); if (!e) return true; S.ui.currentId = e.rid; S.ui.planEntry = { d: t.dataset.d, k: t.dataset.k, id: e.id }; S.ui.servingsOverride[e.rid] = e.sv; S.ui.mode = "urgent"; S.ui.focus = [];
@@ -487,7 +488,7 @@ function toggleTimer() {
     gcTimer.left = Math.max(0, Math.round((end - Date.now()) / 1000));
     const el = $("#gcTime"); if (!el) { stopTimer(); return; }
     el.textContent = fmtClock(gcTimer.left); box.querySelector(".ring").style.setProperty("--p", 1 - gcTimer.left / gcTimer.total);
-    if (gcTimer.left <= 0) { clearInterval(gcTimer.iv); gcTimer.running = false; box.classList.remove("running"); box.classList.add("done"); btn.innerHTML = `${icon("check")}Time's up`; ding(); toast("Timer done: check your food."); }
+    if (gcTimer.left <= 0) { clearInterval(gcTimer.iv); gcTimer.running = false; box.classList.remove("running"); box.classList.add("done"); btn.innerHTML = `${icon("check")}Time's up`; sparkle(box, 7); ding(); toast("Timer done: check your food."); }
   }, 250);
 }
 function ding() {
