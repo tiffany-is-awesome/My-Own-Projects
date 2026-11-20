@@ -99,6 +99,10 @@ function fromPuter() {
     async json(prompt, { images, tier = 'default' } = {}) {
       const puter = await loadPuter();
       if (!puter) throw Object.assign(new Error('Could not load Puter'), { code: 'upstream_error', serverMessage: 'The AI service (Puter) could not be reached.' });
+      // Never let a background request pop up Puter's dialog: sign-in only happens when she clicks "Sign in".
+      let signedIn = false;
+      try { signedIn = await puter.auth.isSignedIn(); } catch { /* treat as signed out */ }
+      if (!signedIn) throw Object.assign(new Error('Not signed in to Puter'), { code: 'not_signed_in' });
       const img = images?.[0] || null;
       const dataUrl = img ? await blobToDataUrl(img) : null;
       let lastErr = null;
@@ -140,9 +144,9 @@ export async function puterUser() {
 /** Must be called straight from a click (it opens Puter's sign-in pop-up). */
 export function puterSignIn() {
   if (!window.puter?.auth?.signIn) return Promise.reject(new Error('Puter is still loading'));
-  return window.puter.auth.signIn();
+  return window.puter.auth.signIn().then((u) => { notify(); return u; });
 }
-export function puterSignOut() { try { window.puter?.auth?.signOut(); } catch { /* ignore */ } }
+export function puterSignOut() { try { window.puter?.auth?.signOut(); } catch { /* ignore */ } notify(); }
 
 // Optional backup: the unique-ava-ai Supabase function (needs a key on the server; off by default).
 async function fromProxy() {
@@ -208,7 +212,7 @@ export function friendlyError(e) {
     case 'image_rejected': return 'The AI could not read that image. Try another photo.';
     case 'invalid_json': return 'The AI answered in an unexpected format. Try again.';
     case 'cancelled': return '';
-    case 'not_signed_in': return 'Sign in to Puter (the pop-up) to use the AI stylist. It\'s free. Until then, the built-in rules engine answers.';
+    case 'not_signed_in': return 'Gemini is off because you\'re not signed in to Puter (free). These outfits come from the built-in rules engine.';
     default: return (e?.serverMessage ? e.serverMessage + ' ' : '') + 'Showing the built-in rules engine instead.';
   }
 }
@@ -226,7 +230,14 @@ export function useClaudeStatus() {
     const check = () => getClaude().then((p) => {
       if (!alive) return;
       if (p && p.needsLogin && !getAccessToken()) setS({ status: 'signin', name: p.name });
-      else setS(p ? { status: 'ready', name: p.name, images: p.images, via: p.via } : { status: notSetUp ? 'notsetup' : 'offline', name: disabledReason ? 'declined' : '' });
+      else if (p?.via === 'puter') {
+        setS({ status: 'checking', name: p.name, via: 'puter', images: true });
+        loadPuter().then(async (pt) => {
+          let ok = false;
+          try { ok = !!pt && (await pt.auth.isSignedIn()); } catch { /* signed out */ }
+          if (alive) setS(pt ? { status: ok ? 'ready' : 'signin', name: p.name, images: true, via: 'puter' } : { status: 'offline', name: '' });
+        });
+      } else setS(p ? { status: 'ready', name: p.name, images: p.images, via: p.via } : { status: notSetUp ? 'notsetup' : 'offline', name: disabledReason ? 'declined' : '' });
       if (p?.via === 'puter') loadPuter(); // warm up in the background so sign-in is instant
     });
     check();
