@@ -17,4 +17,10 @@ export const CONFIG = {
   SUPABASE_ANON_KEY: 'sb_publishable_t8Zf_XjZPrRZB9piISZOhQ_FXdNja7h',
   // Optional backup only (needs a key on the server). Leave empty: the AI runs on Gemini via Puter, no key.
   AI_PROXY_URL: '',
+
+  // 🍩 "Treat the developer" tip jar (same as Tiffo). Hidden until at least one of these is filled in.
+  GCASH_QR: '',    // your GCash / QR Ph image: a file next to wearwise.html (e.g. 'gcash-qr.png') or an image URL.
+                   // In GCash: Profile → QR → "Receive" → save image.
+  GCASH_NAME: '',  // optional name shown under the title, e.g. 'Tiffany P.'
+  TIP_URL: '',     // optional card / PayPal / Ko-fi page, e.g. 'https://ko-fi.com/yourname'
 };

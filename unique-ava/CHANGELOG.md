@@ -42,6 +42,14 @@
 
 ---
 
+## 2026-11-20 · 🍩 "Treat the developer to a donut" (tip jar, like Tiffo)
+- The owner's "give me a donut" meant a **donation** to the developer, as in Tiffo, not a donut chart. Added `components/TipJar.jsx`: a discreet card *"Saved you time? Treat the developer to a donut"* with a **GCash / QR Ph** button (opens the QR in a pop-up, with the name under it) and a **💳 Card / PayPal** link. It sits at the bottom of Home for returning users, in Settings, and as a footer link. Its "time saved" line only counts real activity (outfits saved, planned or worn).
+- **Off until configured** (same rule as Tiffo): fill `GCASH_QR` (an image next to `wearwise.html`, e.g. `gcash-qr.png`, or an image URL), optionally `GCASH_NAME`, and/or `TIP_URL` in `src/config.js`, then build. With nothing filled in, visitors see no card and no broken button. *Currently nothing is filled in, so it is not visible on the live site.*
+- The closet donut **chart** was moved off Home (it stays in Closet insights, opened from My Closet → Insights).
+- Tests: tip jar off → no card/link (1/1); with temporary test values → card, PayPal link, GCash QR pop-up with name, footer link (4/4), test values removed before publishing; all other suites still pass (49/49 unit, 29/29, 21/21, 25/25, 12/12, 4/4).
+
+---
+
 ## 2026-11-20 · Honest verdicts, closet donut, wardrobes, outfit calendar & trips
 Owner's requests: *"be honest on the looks"*, *"a 'give me a donut' thing like in Tiffo"*, *"a clothes calendar so the user can plan outfits for trips"*, *"different 'wardrobes' in one person's wardrobe… 'work', 'home'"*, *"don't make the website too complicated"*.
 
@@ -49,8 +57,8 @@ Owner's requests: *"be honest on the looks"*, *"a 'give me a donut' thing like i
 - Every outfit now carries a plain verdict next to its score, written like a frank friend: **Great look** (≥ 88, with any small note), **Good outfit** (78–87, its main weakness), **Okay, not exciting** (68–77, "wearable, but…"), **Not recommended**, and **Doesn't work** whenever a deal-breaker applies (stating it, e.g. athletic shoes with a cocktail dress). Shown on outfit cards, comparison, Today's outfit, family looks, the calendar and, most prominently, in the builder for outfits you put together yourself.
 - Previews say what they are: flat-lays drawn from item details are labelled "Illustrations… not photos" (or "some pieces are illustrations") in the builder.
 
-**Closet donut** (like Tiffo's "Where the money went", `ClosetDonut.jsx`)
-- On Home and Closet insights. Three views: *What's in it* (by category), *Colors* (slices wear the garments' own colors, top 7 + "Other"), *What you wear* (wears per category from Outfit History, with **This month · 90 days · All** like Tiffo, plus how many pieces weren't worn in the period). Hover a slice to see its count and % in the centre; the list beside it names every slice with count and %. Tapping a slice opens My Closet filtered to it (`#/closet/category:shoes`, `#/closet/color:black`).
+**Closet donut** (`ClosetDonut.jsx`; a misunderstanding of the owner's "donut", see the tip-jar entry above)
+- In Closet insights (was also on Home until the next change). Three views: *What's in it* (by category), *Colors* (slices wear the garments' own colors, top 7 + "Other"), *What you wear* (wears per category from Outfit History, with **This month · 90 days · All** like Tiffo, plus how many pieces weren't worn in the period). Hover a slice to see its count and % in the centre; the list beside it names every slice with count and %. Tapping a slice opens My Closet filtered to it (`#/closet/category:shoes`, `#/closet/color:black`).
 - Category colors were checked with the dataviz palette validator (6 slots pass colour-blind and normal-vision separation; the light slots carry text labels as required). Slices animate in; off with reduced motion.
 
 **Wardrobes** (groups inside each person's saved outfits)

@@ -7,7 +7,7 @@ import { generateOutfits } from '../ai/generator.js';
 import { WEATHER_CHOICES } from '../ai/context.js';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
-import ClosetDonut from '../components/ClosetDonut.jsx';
+import TipJar from '../components/TipJar.jsx';
 import UploadModal from '../components/UploadModal.jsx';
 import { OutfitThumb, useToast } from '../components/common.jsx';
 
@@ -91,9 +91,6 @@ export default function Welcome({ go }) {
           <button className="home-tile" onClick={() => go('#/family')}><b>Family look</b><span className="tiny">Coordinated, not matching</span></button>
           <button className="home-tile" onClick={() => go('#/history')}><b>Outfit history</b><span className="tiny">Rate what you wore</span></button>
         </div>
-        <div style={{ marginTop: 28 }}>
-          <ClosetDonut garments={owned} history={historyOf(profile.id)} onPick={(view, key) => key !== 'other' && go(`#/closet/${view}:${encodeURIComponent(key)}`)} />
-        </div>
         {recent.length > 0 && (
           <section style={{ marginTop: 28 }}>
             <div className="results-head" style={{ marginTop: 0 }}><h2 className="h2">Recently saved</h2><a className="small" href="#/saved">See all</a></div>
@@ -102,6 +99,7 @@ export default function Welcome({ go }) {
             </div>
           </section>
         )}
+        <div style={{ marginTop: 28 }}><TipJar /></div>
         {uploading && <UploadModal onClose={() => setUploading(false)} onSaved={added} ownerName={profile.name} />}
       </div>
     );
