@@ -66,14 +66,14 @@ function proportions(o) {
   } else if ((tv >= 1 && bv <= 0) || (bv >= 1 && tv <= 0)) {
     s += 14;
     const loose = tv >= 1 ? top : bottom, neat = tv >= 1 ? bottom : top;
-    pros.push(`Balanced proportions: ${loose.fit} ${short(loose)} against ${neat.fit === 'fitted' ? 'a fitted' : 'a ' + neat.fit} ${short(neat)}.`);
+    pros.push(`The ${loose.fit} ${short(loose)} ${plural(loose) ? 'are' : 'is'} balanced by the ${neat.fit === 'fitted' ? 'slimmer' : 'neater'} ${short(neat)}.`);
   } else if (tv < 0 && bv < 0) {
     s += 4;
     pros.push('Streamlined, close-to-body line from top to hem.');
     if (!outer) cons.push('All-fitted can feel a little severe. A relaxed outer layer would add ease.');
   } else {
     s += 6;
-    pros.push('Classic regular-fit proportions that are easy to wear and well balanced.');
+    pros.push('Easy, classic proportions that flatter without trying too hard.');
   }
 
   if (outer) {
@@ -110,7 +110,7 @@ function fabricWeather(o, ctx) {
   else if (diff < -1.2) { s -= 12; cons.push(`Slightly light for ${t}°C. You may feel the chill once the sun goes.`); }
   else if (diff > 3) { s -= 22; cons.push(`Overheated at ${t}°C: ${o.outer ? `the ${short(o.outer)} is too much layering` : 'this is too much fabric'} for the conditions.`); }
   else if (diff > 1.5) { s -= 6; cons.push(`May run warm indoors at ${t}°C. Choose a layer that's easy to take off.`); }
-  else { s += 10; pros.push(`Warmth is well judged for ${t}°C.`); }
+  else { s += 10; pros.push(`Just the right warmth for ${t}°C.`); }
 
   if (ctx.rain >= 0.6) {
     const sh = o.shoes;
@@ -172,7 +172,7 @@ function colorHarmony(o, ctx = {}) {
     if (items.length >= 4 && !o.accessory) { s -= 3; cons.push('This is a safe palette. One colored accessory would give it a point of interest.'); }
   } else if (uniqueAccents.length === 1) {
     const a = uniqueAccents[0];
-    s = 92; pros.push(`${cap(a.name)} is your one focal point (the ${NOUN[a.item.art] || 'piece'}), set against neutrals. Textbook.`);
+    s = 92; pros.push(`The ${short(a.item)} ${plural(a.item) ? 'are' : 'is'} the one pop of color against calm neutrals.`);
   } else if (uniqueAccents.length === 2) {
     const [a, b] = uniqueAccents;
     const hd = hueDistance(hexToHsl(a.hex)[0], hexToHsl(b.hex)[0]);
@@ -277,7 +277,7 @@ function finish(o, ctx) {
     const A = styled.find((i) => STYLE_FAMILY[i.style] === clash[0]), B = styled.find((i) => STYLE_FAMILY[i.style] === clash[1]);
     s -= 22; cons.push(`Mixed messages: the ${styleName(A.style)} ${short(A)} and the ${styleName(B.style)} ${short(B)} pull in different directions.`);
   } else if (styled.length >= 3 && fams.length <= 2) {
-    s += 8; { const mood = [...new Set(styled.map((i) => styleName(i.style)))].slice(0, 2).join(' / '); pros.push(`Consistent feel: the pieces share ${aAn(mood)} ${mood} mood.`); }
+    s += 8; { const mood = [...new Set(styled.map((i) => styleName(i.style)))].slice(0, 2).join(' / '); pros.push(`Every piece speaks the same ${mood.replace(' / ', '-and-')} language.`); }
   }
   if (ctx.style && styled.length) {
     const match = styled.filter((i) => i.style === ctx.style || STYLE_FAMILY[i.style] === STYLE_FAMILY[ctx.style]).length / styled.length;
@@ -296,7 +296,7 @@ function finish(o, ctx) {
     else if (avg - sh.formality >= 2 && sh.art === 'sneaker' && (ctx.formality >= 4 || ctx.style === 'elegant')) { s -= 10; cons.push(`The ${short(sh)} are too casual for an ${ctx.style === 'elegant' ? 'elegant' : 'dressy'} look.`); }
     else if (avg - sh.formality >= 2 && sh.art === 'sneaker' && (sh.profile === 'chunky' || ['sporty', 'streetwear'].includes(sh.style))) { s -= 8; cons.push(`The ${short(sh)} ${be} too sporty for the rest of the outfit.`); }
     else if (avg - sh.formality >= 2 && sh.art === 'sneaker') { pros.push(`The ${short(sh)} relax a smart outfit, a modern touch.`); }
-    else { s += 4; pros.push(`The ${short(sh)} ${plural(sh) ? 'suit' : 'suits'} the outfit.`); }
+    else { s += 4; const tone = avg >= 3.3 ? 'keep it polished' : avg <= 1.8 ? 'keep it easy-going' : 'pull it together'; pros.push(`The ${short(sh)} ${tone}.`); }
     if (sh.art === 'sandal' && o.outer?.weight === 'heavy') { s -= 10; cons.push(`Sandals with a heavy ${short(o.outer)} mix two seasons.`); }
   }
 
@@ -305,7 +305,7 @@ function finish(o, ctx) {
   const loud = extras.filter((i) => !isNeutral(i.colors[0].name));
   const before = cons.length;
   if (loud.length >= 2) { s -= 8; cons.push(`Two bold accessories (${loud.map(short).join(', ')}) compete. Keep one.`); }
-  if (o.bag && /straw|woven|raffia|wicker/i.test(`${o.bag.name} ${o.bag.material || ''}`) && (ctx.tempC < 15 || ctx.rain >= 0.6)) { s -= 8; cons.push(ctx.rain >= 0.6 ? `A ${short(o.bag)} will soak up the rain.` : `A ${short(o.bag)} is a summer piece; it looks out of season at ${ctx.tempC}°C.`); }
+  if (o.bag && (/straw|woven|raffia|wicker/i.test(`${o.bag.name} ${o.bag.material || ''}`) && ctx.tempC < 15 || /straw|woven|raffia|wicker|canvas/i.test(`${o.bag.name} ${o.bag.material || ''}`) && ctx.rain >= 0.6)) { s -= 8; cons.push(ctx.rain >= 0.6 ? `A ${short(o.bag)} will soak up the rain.` : `A ${short(o.bag)} is a summer piece; it looks out of season at ${ctx.tempC}°C.`); }
   if (o.accessory?.art === 'scarf' && ctx.tempC >= 25) { s -= 10; cons.push(`A ${short(o.accessory)} is too warm for ${ctx.tempC}°C.`); }
   if (o.accessory?.art === 'necklace' && core.some((i) => i.style === 'sporty')) { s -= 6; cons.push(`The ${short(o.accessory)} feels out of place with sporty pieces.`); }
   const coreAvg = core.length ? core.reduce((a, i) => a + (i.formality || 2), 0) / core.length : 2;

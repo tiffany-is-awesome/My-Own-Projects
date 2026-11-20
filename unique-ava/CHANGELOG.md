@@ -39,6 +39,29 @@
 
 ---
 
+## 2026-11-20 · Polish & everyday usefulness (product polish brief)
+Audit first (screenshots of every main screen on desktop 1360px and phone 390px), then fixes in order of impact. No rebuild; same architecture, no new dependencies.
+
+**Problems found → fixed**
+1. **Phones had no navigation at all** and the header ran off-screen (Sign in cut off). → Bottom tab bar on phones (Home · Closet · Create · Saved · More) with a raised Create button; a **More** page for History, Insights, Builder, Family, Lookbooks, Inspiration, Settings; compact header. Desktop nav trimmed from 8 links to 6 (Home, My Closet, Create an Outfit, Saved, History, Family); Settings is a gear icon; the Builder opens from outfits ("Open in builder").
+2. **Explanations read like a machine** ("Consistent feel: the pieces share a minimalist / casual mood… Textbook."). → Stylist voice in the order a stylist thinks: color story → shape → why it suits the day and weather → finishing touch → one thing to watch. E.g. *"The olive trousers are the one pop of color against calm neutrals. Their relaxed cut is balanced by the neater white tee. Right for work at 17°C, and the black boots will shrug off puddles."* No piece is mentioned twice.
+3. **Outfit names were generic and repeated** ("Relaxed · Easy" ×2). → Named by the pieces that define the look ("Off-White Shirt & Black Trousers"); the mood ("Smart · Minimalist") moves to a small line above.
+4. **Home didn't use the closet.** → Returning users get **Today's outfit** from their own available clothes (weather chips, *Another idea*, ♡ Save, *I'll wear this*), **one-tap quick outfits** (Work, Date night, Church, Party, Vacation, or *Something else…*) that open Create an Outfit with results already made, shortcut tiles (Add clothes, Rediscover, Family look, History) and recently saved looks. First-time visitors get the brand promise as the headline.
+5. **Results were buried under the form on phones.** → After generating, the form collapses to a sticky one-line summary (*Change* / *New ideas*) and the page scrolls to the outfits.
+6. **No way to search the closet.** → Search box (matches name, color, material, type, style, pattern and storage place, all words must match) and sorting (newest, A–Z, most worn, least worn). An empty result offers *Show everything*.
+7. **Improve This Outfit** was a plain list. → The builder now has a highlighted **✦ Improve this outfit** button that applies the single best owned-only change (+points shown), or says when the outfit is already the strongest version; other ideas stay listed. Outfit cards say *Improve or change*.
+8. Canvas bags in the rain are now flagged (found during Today's outfit testing).
+
+**Animations & graphics (owner's request)**: garments land on the flat-lay one by one; the mannequin fades in; scores count up inside a colored ring (green ≥ 85, amber < 72); a heart burst on save; a "stylist at work" animation with real step text while outfits are made; Home hero cycles three example looks (labelled *illustration*) between flat-lay and mannequin over soft floating color fields; staggered card entrances; page transitions; a gentle sheen on *Improve this outfit*. All of it is switched off for people with *reduce motion* turned on.
+
+**Tests (actual results)**
+- `npm test`: 44/44.
+- Headless Chrome, local build: Phase 1 flow 25/25, Phase 2 flow 12/12, new polish flow **21/21** on desktop and a 390px phone (landing hero, Today's outfit, Another idea, rainy Today avoids suede/sandals, quick occasion → results, Improve this outfit, closet search, tab bar visible on phone / hidden on desktop, More → History, no horizontal overflow, Sign in fully visible, no page errors).
+
+**Still unverified**: unchanged from the 2026-11-20 live-test entry (real Gemini answers, Supabase sign-up/login/sync, real phone photos). Animations were checked in headless Chrome screenshots, not yet on a real phone's frame rate.
+
+---
+
 ## 2026-11-19 (evening) · Quality pass, photo accuracy, storage locations, Phase 2
 **Branch / PR:** `unique-ava-phase1` (PR #15, same branch) · nothing rebuilt; all Phase 1 tests still pass.
 
