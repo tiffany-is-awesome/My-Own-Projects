@@ -5,11 +5,11 @@
 > and what is still open. The owner may ask you to review, critique or extend it.
 
 **Repo:** https://github.com/tiffany-is-awesome/My-Own-Projects (public) · app source in `unique-ava/`
-**Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/unique-ava.html
+**Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
 ## The app in 30 seconds
-- **Stack:** React 18 + Vite, built into ONE self-contained file (`/unique-ava.html` at the repo root, served by GitHub Pages).
+- **Stack:** React 18 + Vite, built into ONE self-contained file (`/wearwise.html` at the repo root, served by GitHub Pages).
   Build: `cd unique-ava && npm install && npm run build`. Tests: `npm test` (Vitest, rules engine).
 - **Look:** minimalist "boutique" style (white / `#F4F4F4`, crisp grids, product cards, spec sheets).
 - **Screens (since Phase 1):** Home · My Closet · **Create an Outfit** (primary) · Builder (4:5 stage) · Saved Outfits ·
@@ -36,6 +36,15 @@
 | `src/components/GarmentArt.jsx` | Realistic flat-lay product renders |
 | `src/auth.jsx`, `src/components/Account.jsx` | Sign-in and cloud sync |
 | `supabase/unique-ava.sql` | Table + Row Level Security |
+
+---
+
+## 2026-11-20 · New address: wearwise.html
+- The app is now built to **`/wearwise.html`** (https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html). `scripts/publish-single-file.js` writes there.
+- **`/unique-ava.html` is now a tiny forwarder**: it sends visitors to `wearwise.html`, keeping the page they asked for (`#/closet`…) and any sign-in token from an email link. Old shared links keep working. Saved closets carry over (same site, same browser storage key `unique-ava.v1`).
+- Sign-up and password-reset emails still return to `unique-ava.html` (the address already approved in Supabase), which forwards to Wearwise with the token intact, so no Supabase setting had to change. *Not yet tested with a real confirmation email.*
+- Docs and the repo README point to the new address.
+- Tests: `npm test` 44/44 · headless Chrome: forwarding 4/4 (page kept, saved closet kept, token kept, title), flows 25/25, 12/12, 21/21 on the new address.
 
 ---
 

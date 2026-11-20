@@ -4,8 +4,8 @@ Your closet, run like a clean, minimalist boutique. Photograph your clothes (how
 mix outfits for real weather and places, get an honest four-pillar critique, and save looks
 into shareable lookbooks.
 
-**Live app:** `unique-ava.html` at the repo root (GitHub Pages:
-https://tiffany-is-awesome.github.io/My-Own-Projects/unique-ava.html)
+**Live app:** `wearwise.html` at the repo root (GitHub Pages:
+https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html)
 
 | Doc | What's in it |
 |---|---|
@@ -43,7 +43,7 @@ cd unique-ava
 npm install
 npm run dev      # local dev server
 npm test         # rules-engine unit tests (Vitest)
-npm run build    # builds ONE self-contained file and copies it to ../unique-ava.html
+npm run build    # builds ONE self-contained file and copies it to ../wearwise.html
 ```
 
 ## Where the "AI" lives

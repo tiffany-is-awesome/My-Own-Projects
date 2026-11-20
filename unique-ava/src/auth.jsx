@@ -48,7 +48,9 @@ export function AuthProvider({ children }) {
   useEffect(() => { currentSession = session; authListeners.forEach((f) => f(session)); }, [session]);
 
   const api = useMemo(() => {
-    const redirect = location.href.split('#')[0];
+    // Email links return to the address already approved in Supabase (unique-ava.html), which forwards
+    // to wearwise.html keeping the sign-in token in the URL hash.
+    const redirect = location.href.split('#')[0].split('?')[0].replace(/wearwise\.html$/, 'unique-ava.html');
     const wrap = (fn) => async (...a) => { try { return await fn(...a); } catch (e) { throw new Error(niceError(e)); } };
     return {
       configured,
