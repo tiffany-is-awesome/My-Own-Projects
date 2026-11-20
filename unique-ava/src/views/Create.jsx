@@ -6,7 +6,7 @@ import GarmentArt from '../components/GarmentArt.jsx';
 import { ContextPicker, OutfitCard, Compare, DEFAULT_CHOICE, contextOf, toSlots } from '../components/Choose.jsx';
 import { styleWithAI } from '../ai/stylist.js';
 import { isAvailable } from '../ai/generator.js';
-import { useClaudeStatus } from '../ai/claude.js';
+import { useClaudeStatus, puterSignIn } from '../ai/claude.js';
 import { CATEGORY_LABEL } from '../data/closet.js';
 
 export function MissingNotice({ missing, go, name }) {
@@ -89,7 +89,7 @@ export default function Create({ go }) {
           <button className="btn accent" onClick={run} disabled={busy}>{busy ? 'Styling…' : res ? 'Get 3 new outfits' : 'Get 3 outfits'}</button>
           <span className="tiny">
             {ai.status === 'ready' ? `${ai.name} picks the outfits; the rules engine checks every one (weather, formality, colors, fit) before you see it.`
-              : ai.status === 'signin' ? 'Gemini is off until you sign in (top right). The rules engine builds the outfits meanwhile.'
+              : ai.status === 'signin' ? <>Gemini is off until you sign in to Puter (free). The rules engine builds the outfits meanwhile. <button className="btn sm" onClick={() => puterSignIn().catch(() => toast('Sign-in was closed'))}>Sign in for Gemini</button></>
               : 'The AI stylist is not connected here, so the rules engine builds the outfits.'}
           </span>
         </div>
