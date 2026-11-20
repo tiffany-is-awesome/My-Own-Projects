@@ -61,8 +61,9 @@ export default function Create({ go, autoRun = false }) {
 
   function save(i, favorite = false) {
     const r = res.outfits[i];
-    dispatch({ type: 'SAVE_OUTFIT', outfit: { name: r.name, slots: toSlots(r.outfit), context: res.ctx, stage: { mode: 'flatlay' }, favorite, why: r.why, source: r.source || 'rules' } });
-    setSaved((s) => ({ ...s, [i]: true }));
+    const id = 'o-' + Date.now().toString(36) + i;
+    dispatch({ type: 'SAVE_OUTFIT', outfit: { id, name: r.name, slots: toSlots(r.outfit), context: res.ctx, stage: { mode: 'flatlay' }, favorite, why: r.why, source: r.source || 'rules' } });
+    setSaved((s) => ({ ...s, [i]: id }));
     toast(favorite ? 'Saved as a favorite' : 'Saved to Saved Outfits');
   }
 
@@ -133,7 +134,7 @@ export default function Create({ go, autoRun = false }) {
               ) : (
                 <div className="outfit-grid">
                   {res.outfits.map((r, i) => (
-                    <OutfitCard key={i} index={i} result={r} ctx={res.ctx} pool={owned} child={child} saved={!!saved[i]}
+                    <OutfitCard key={i} index={i} result={r} ctx={res.ctx} pool={owned} child={child} saved={!!saved[i]} savedId={saved[i]}
                       onReplace={(n) => { replace(i, n); setSaved((s) => { const x = { ...s }; delete x[i]; return x; }); }}
                       onSave={() => save(i)} onOpen={() => open(i)}
                       onWore={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: toSlots(r.outfit), context: res.ctx } }); toast('Added to Outfit History. Rate it there later.'); }} />

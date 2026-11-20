@@ -1,12 +1,13 @@
 // Home: an honest start (empty closet → add clothes or try the demo), then quick actions.
 import { useMemo, useState } from 'react';
 import { HeroShowcase } from '../components/Motion.jsx';
-import { ScoreBadge, PieceList, HeartButton } from '../components/common.jsx';
+import { ScoreBadge, PieceList, HeartButton, Verdict } from '../components/common.jsx';
 import { contextOf, toSlots, DEFAULT_CHOICE } from '../components/Choose.jsx';
 import { generateOutfits } from '../ai/generator.js';
 import { WEATHER_CHOICES } from '../ai/context.js';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
+import ClosetDonut from '../components/ClosetDonut.jsx';
 import UploadModal from '../components/UploadModal.jsx';
 import { OutfitThumb, useToast } from '../components/common.jsx';
 
@@ -31,6 +32,7 @@ function TodayCard({ go }) {
           {WEATHER_CHOICES.map((w) => <button key={w.id} className={'chip sm' + (weather === w.id ? ' on' : '')} onClick={() => { setWeather(w.id); setN(0); }}>{w.label}</button>)}
         </div>
         <div className="outfit-card-head"><h2 className="h2">{r.name}</h2><ScoreBadge score={r.critique.overall} /></div>
+        <Verdict critique={r.critique} compact />
         <p className="small why">{r.why}</p>
         <PieceList outfit={r.outfit} />
         <div className="outfit-card-actions">
@@ -49,7 +51,7 @@ import { missingForOutfit } from '../ai/generator.js';
 
 
 export default function Welcome({ go }) {
-  const { dispatch, owned, profile, outfitsOf, hasDemo, resolve } = useStore();
+  const { dispatch, owned, profile, outfitsOf, hasDemo, resolve, historyOf } = useStore();
   const toast = useToast();
   const [uploading, setUploading] = useState(false);
   const photos = usePhotos();
@@ -88,6 +90,9 @@ export default function Welcome({ go }) {
           <button className="home-tile" onClick={() => go('#/insights')}><b>Rediscover my closet</b><span className="tiny">Forgotten pieces, new ideas</span></button>
           <button className="home-tile" onClick={() => go('#/family')}><b>Family look</b><span className="tiny">Coordinated, not matching</span></button>
           <button className="home-tile" onClick={() => go('#/history')}><b>Outfit history</b><span className="tiny">Rate what you wore</span></button>
+        </div>
+        <div style={{ marginTop: 28 }}>
+          <ClosetDonut garments={owned} history={historyOf(profile.id)} onPick={(view, key) => key !== 'other' && go(`#/closet/${view}:${encodeURIComponent(key)}`)} />
         </div>
         {recent.length > 0 && (
           <section style={{ marginTop: 28 }}>

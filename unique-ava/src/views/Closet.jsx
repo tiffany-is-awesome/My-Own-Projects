@@ -75,12 +75,13 @@ function ItemDetail({ item, onClose, go }) {
   );
 }
 
-export default function Closet({ go }) {
+export default function Closet({ go, initial = '' }) {
+  const [initKind, initVal] = initial.split(':');
   const { state, dispatch, owned, profile, hasDemo } = useStore();
   const toast = useToast();
-  const [cat, setCat] = useState('all');
+  const [cat, setCat] = useState(initKind === 'category' ? initVal : 'all');
   const [season, setSeason] = useState(null);
-  const [color, setColor] = useState('');
+  const [color, setColor] = useState(initKind === 'color' ? initVal : '');
   const [style, setStyle] = useState('');
   const [occasion, setOccasion] = useState('');
   const [status, setStatus] = useState('');

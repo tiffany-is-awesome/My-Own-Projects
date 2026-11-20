@@ -3,7 +3,7 @@ import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
 import SaveModal from '../components/SaveModal.jsx';
-import { Meter, ScoreBadge, useToast } from '../components/common.jsx';
+import { Meter, ScoreBadge, Verdict, useToast } from '../components/common.jsx';
 import { critique, isDress } from '../ai/critic.js';
 import { critiqueWithClaude } from '../ai/stylist.js';
 import { useClaudeStatus } from '../ai/claude.js';
@@ -174,6 +174,7 @@ export default function DressingRoom({ go }) {
             </div>
             <ScoreBadge score={result.overall} />
           </div>
+          {complete ? <Verdict critique={result} /> : <p className="small muted">Add a top and bottom (or a dress) and shoes for an honest verdict.</p>}
           <div className="ai-bar">
             {ai.status === 'ready' ? (
               <>

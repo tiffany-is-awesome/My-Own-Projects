@@ -1,7 +1,7 @@
 // Building blocks for "choose → get outfits → compare → save".
 import { useState } from 'react';
 import Stage from './Stage.jsx';
-import { PieceList, ScoreBadge, HeartButton } from './common.jsx';
+import { PieceList, ScoreBadge, HeartButton, Verdict, WardrobePicker } from './common.jsx';
 import { OCCASIONS, STYLES, SLOTS } from '../data/closet.js';
 import { WEATHER_CHOICES, PREF_CHOICES, buildContext } from '../ai/context.js';
 import { alternatives } from '../ai/generator.js';
@@ -63,7 +63,7 @@ export function suitability(c, ctx) {
 const SOURCE = { ai: 'Picked by Gemini · checked by the rules engine', rules: 'Picked by the rules engine' };
 
 /** One suggested outfit with explanation, alternatives and save. */
-export function OutfitCard({ result, ctx, pool, index, child = false, onReplace, onSave, onOpen, onWore, saved }) {
+export function OutfitCard({ result, ctx, pool, index, child = false, onReplace, onSave, onOpen, onWore, saved, savedId }) {
   const [wore, setWore] = useState(false);
   const [mode, setMode] = useState('flatlay');
   const [showAlts, setShowAlts] = useState(false);
@@ -86,6 +86,7 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
           </div>
           <ScoreBadge score={c.overall} />
         </div>
+        <Verdict critique={c} />
         {result.source && <span className={'source-tag ' + result.source}>{SOURCE[result.source] || 'Edited by you'}</span>}
         {result.critique.dealBreakers?.length > 0 && <span className="source-tag weak">Weak option · {result.critique.dealBreakers[0]}</span>}
         <p className="small why">{result.why}</p>
@@ -96,6 +97,7 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
           {onWore && <button className="btn sm ghost" disabled={wore} onClick={() => { onWore(); setWore(true); }}>{wore ? '✓ Logged' : 'I wore this'}</button>}
           {onOpen && <button className="btn sm ghost" onClick={onOpen}>Open in builder</button>}
         </div>
+        {savedId && <WardrobePicker outfitId={savedId} compact />}
         {showAlts && (
           <div className="alts">
             {alts.length === 0 && <p className="tiny">No other combinations from your available clothes improve or vary this one.</p>}
@@ -136,6 +138,7 @@ export function Compare({ results, ctx, child = false, onPick, onClose, savedIdx
               <h3 className="h3">{r.name}</h3>
               <Stage outfit={r.outfit} mode="flatlay" compact child={child} />
               <div className="compare-score"><ScoreBadge score={r.critique.overall} /></div>
+              <Verdict critique={r.critique} />
               <div className="compare-sec"><span className="label">Pieces</span><PieceList outfit={r.outfit} /></div>
               <div className="compare-sec"><span className="label">Why it works</span><p className="small">{r.why}</p></div>
               <div className="compare-sec"><span className="label">Strengths</span>

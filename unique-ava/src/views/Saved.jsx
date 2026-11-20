@@ -1,14 +1,17 @@
 // Saved Outfits for the active profile: favorites, open, rename, delete.
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
-import { OutfitThumb, ScoreBadge, ConfirmButton, useToast } from '../components/common.jsx';
+import { OutfitThumb, ScoreBadge, ConfirmButton, WardrobePicker, useToast } from '../components/common.jsx';
 
 export default function Saved({ go }) {
   const { state, dispatch, resolve, outfitsOf, profile, scoreOf } = useStore();
   const toast = useToast();
-  const [onlyFav, setOnlyFav] = useState(false);
+  const [tab, setTab] = useState('all'); // 'all' | 'fav' | wardrobe id
   const all = outfitsOf(profile.id);
-  const list = onlyFav ? all.filter((o) => o.favorite) : all;
+  const wardrobes = state.wardrobes.filter((w) => w.profileId === profile.id);
+  const current = wardrobes.find((w) => w.id === tab);
+  const list = tab === 'all' ? all : tab === 'fav' ? all.filter((o) => o.favorite) : all.filter((o) => o.wardrobe === tab);
+  const onlyFav = tab === 'fav';
   const child = profile.kind === 'child';
 
   return (
@@ -25,13 +28,23 @@ export default function Saved({ go }) {
       </div>
       <div className="toolbar">
         <div className="chips">
-          <button className={'chip' + (!onlyFav ? ' on' : '')} onClick={() => setOnlyFav(false)}>All</button>
-          <button className={'chip' + (onlyFav ? ' on' : '')} onClick={() => setOnlyFav(true)}>♥ Favorites {all.filter((o) => o.favorite).length}</button>
+          <button className={'chip' + (tab === 'all' ? ' on' : '')} onClick={() => setTab('all')}>All {all.length}</button>
+          <button className={'chip' + (tab === 'fav' ? ' on' : '')} onClick={() => setTab('fav')}>♥ Favorites {all.filter((o) => o.favorite).length}</button>
+          {wardrobes.map((w) => <button key={w.id} className={'chip' + (tab === w.id ? ' on' : '')} onClick={() => setTab(w.id)}>{w.name} {all.filter((o) => o.wardrobe === w.id).length}</button>)}
+        </div>
+        {current && (
+          <div className="wardrobe-tools">
+            <input className="input" value={current.name} aria-label="Rename wardrobe" onChange={(e) => dispatch({ type: 'RENAME_WARDROBE', id: current.id, name: e.target.value })} />
+            <ConfirmButton label="Delete wardrobe" confirmLabel="Click again (outfits stay saved)" onConfirm={() => { dispatch({ type: 'DELETE_WARDROBE', id: current.id }); setTab('all'); }} />
+          </div>
+        )}
+        <div className="tiny" style={{ marginTop: 6 }}>
+          {wardrobes.length ? 'Wardrobes group your saved outfits (Work, Home…). Add an outfit to one from its card below.' : 'Tip: group saved outfits into wardrobes like Work or Home. Use the chips on any outfit below.'}
         </div>
       </div>
       {list.length === 0 ? (
         <div className="empty">
-          <p className="h2" style={{ marginBottom: 8 }}>{onlyFav ? 'No favorites yet.' : 'Nothing saved yet.'}</p>
+          <p className="h2" style={{ marginBottom: 8 }}>{onlyFav ? 'No favorites yet.' : current ? `Nothing in ${current.name} yet.` : 'Nothing saved yet.'}</p>
           <p className="small">Create an outfit, then tap ♡ Save on the ones you like.</p>
           <button className="btn primary" onClick={() => go('#/create')}>Create an Outfit</button>
         </div>
@@ -53,6 +66,7 @@ export default function Saved({ go }) {
                     <ScoreBadge score={score} />
                   </div>
                   {o.why && <p className="tiny" style={{ marginTop: 6 }}>{o.why}</p>}
+                  <WardrobePicker outfitId={o.id} compact />
                   <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                     <button className="btn sm" aria-pressed={!!o.favorite} onClick={() => dispatch({ type: 'TOGGLE_FAVORITE', id: o.id })}>{o.favorite ? '♥ Favorite' : '♡ Favorite'}</button>
                     <button className="btn sm" onClick={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: o.slots, context: o.context, outfitId: o.id } }); toast('Added to Outfit History'); }}>I wore this</button>

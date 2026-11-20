@@ -31,11 +31,43 @@
 | `src/ai/generator.js` | 3 distinct outfits, Style Me directions, alternatives, family coordination (owned + available items only) |
 | `src/ai/insights.js` | Phase 2: versatility, Rediscover My Closet, wear stats, learned preferences from ratings |
 | `src/ai/quality.fixture.js` | Test-only closets (bold/patterned, tiny) used by the outfit-quality tests |
+| `src/ai/planner.js` | Trip planner: one strong, different outfit per day, re-using pieces; packing list |
+| `src/components/ClosetDonut.jsx` | "Closet at a glance" donut (category · colors · what you wear) |
+| `src/views/Calendar.jsx` | Outfit calendar, day planning, trips |
 | `src/components/Choose.jsx` | Context picker chips, outfit card, side-by-side comparison |
 | `src/components/Worn.jsx` | Outfit drawn fitted on a front-facing mannequin |
 | `src/components/GarmentArt.jsx` | Realistic flat-lay product renders |
 | `src/auth.jsx`, `src/components/Account.jsx` | Sign-in and cloud sync |
 | `supabase/unique-ava.sql` | Table + Row Level Security |
+
+---
+
+## 2026-11-20 · Honest verdicts, closet donut, wardrobes, outfit calendar & trips
+Owner's requests: *"be honest on the looks"*, *"a 'give me a donut' thing like in Tiffo"*, *"a clothes calendar so the user can plan outfits for trips"*, *"different 'wardrobes' in one person's wardrobe… 'work', 'home'"*, *"don't make the website too complicated"*.
+
+**Honest verdicts** (`verdictOf` in `critic.js`, `<Verdict>` in `common.jsx`)
+- Every outfit now carries a plain verdict next to its score, written like a frank friend: **Great look** (≥ 88, with any small note), **Good outfit** (78–87, its main weakness), **Okay, not exciting** (68–77, "wearable, but…"), **Not recommended**, and **Doesn't work** whenever a deal-breaker applies (stating it, e.g. athletic shoes with a cocktail dress). Shown on outfit cards, comparison, Today's outfit, family looks, the calendar and, most prominently, in the builder for outfits you put together yourself.
+- Previews say what they are: flat-lays drawn from item details are labelled "Illustrations… not photos" (or "some pieces are illustrations") in the builder.
+
+**Closet donut** (like Tiffo's "Where the money went", `ClosetDonut.jsx`)
+- On Home and Closet insights. Three views: *What's in it* (by category), *Colors* (slices wear the garments' own colors, top 7 + "Other"), *What you wear* (wears per category from Outfit History, with **This month · 90 days · All** like Tiffo, plus how many pieces weren't worn in the period). Hover a slice to see its count and % in the centre; the list beside it names every slice with count and %. Tapping a slice opens My Closet filtered to it (`#/closet/category:shoes`, `#/closet/color:black`).
+- Category colors were checked with the dataviz palette validator (6 slots pass colour-blind and normal-vision separation; the light slots carry text labels as required). Slices animate in; off with reduced motion.
+
+**Wardrobes** (groups inside each person's saved outfits)
+- Saved Outfits has tabs: All · ♥ Favorites · each wardrobe. After saving any outfit, chips let you drop it into a wardrobe or start one ("+ Work", "+ Home", "+ Going out", "+ New"). Rename or delete a wardrobe from its tab (outfits stay saved). Per person, removed with the person.
+
+**Outfit calendar & trips** (`Calendar.jsx`, `planner.js`; desktop nav *Calendar*, phone *More → Outfit calendar*)
+- Month view (Monday first). Tap a day: plan it from saved outfits (filter by wardrobe/favorites) or *Suggest one* (occasion/weather/style chips → 3 options). Planned days show the outfit; *I wore it* marks the day as worn (it also goes to Outfit History, so the donut and Rediscover learn from it). *Coming up* lists the next plans.
+- **Plan a trip:** name, dates (up to 31 days), occasion, weather → one strong outfit per day (no deal-breakers, score ≥ 72), never the same outfit twice and never the same top two days running, deliberately re-using bottoms, shoes and layers so the bag stays small. Shows every day plus a **packing list** with tick-boxes and how many days each piece is worn; *Try other outfits* re-plans. Saving puts the trip on the calendar (blue band) with its packing list under *Trips*. Honest when the closet is too small ("some days repeat").
+- Store: new `wardrobes`, `plans`, `trips` arrays in the same saved data (older data gets empty defaults); removed with a person or with demo data.
+
+**Fix found while testing:** pop-ups on phones could sit underneath the bottom tab bar (the page-transition animation trapped them). Fixed.
+
+**Tests (actual results)**
+- `npm test`: **49/49** (+4 trip-planner tests, +1 honest-verdict test).
+- Headless Chrome, desktop + 390px phone, new flow **27/27**: verdicts on Today/cards/builder, donut (6 slices, colors view, honest empty "what you wear", slice → filtered closet), save → Work wardrobe → Work tab, plan today from saved, *I wore it* tick, plan a 4-day trip (4 different outfits, 7 pieces to pack), trip on calendar, plans persist after reload, no page errors. Existing flows still pass: 25/25, 12/12, 21/21, address-forwarding 4/4.
+
+**Still unverified:** real Gemini answers, real Supabase sign-up/login/sync across devices, real phone photos; calendar and donut checked in headless Chrome only.
 
 ---
 

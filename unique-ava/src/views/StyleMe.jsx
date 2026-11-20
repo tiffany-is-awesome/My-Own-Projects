@@ -27,8 +27,9 @@ export default function StyleMe({ id, go }) {
 
   function save(i, favorite = false) {
     const r = outfits[i];
-    dispatch({ type: 'SAVE_OUTFIT', outfit: { name: `${item.name} · ${r.label}`, slots: toSlots(r.outfit), context: r.ctx || ctx, stage: { mode: 'flatlay' }, favorite, why: r.why, source: 'rules' } });
-    setSaved((s) => ({ ...s, [i]: true }));
+    const id = 'o-' + Date.now().toString(36) + i;
+    dispatch({ type: 'SAVE_OUTFIT', outfit: { id, name: `${item.name} · ${r.label}`, slots: toSlots(r.outfit), context: r.ctx || ctx, stage: { mode: 'flatlay' }, favorite, why: r.why, source: 'rules' } });
+    setSaved((s) => ({ ...s, [i]: id }));
     toast(favorite ? 'Saved as a favorite' : 'Saved to Saved Outfits');
   }
 
@@ -59,7 +60,7 @@ export default function StyleMe({ id, go }) {
           ) : (
             <div className="outfit-grid">
               {outfits.map((r, i) => (
-                <OutfitCard key={i} index={i} result={r} ctx={r.ctx || ctx} pool={owned} child={child} saved={!!saved[i]}
+                <OutfitCard key={i} index={i} result={r} ctx={r.ctx || ctx} pool={owned} child={child} saved={!!saved[i]} savedId={saved[i]}
                   onReplace={(n) => { if (Object.values(n.outfit).some((g) => g?.id === item.id)) setEdits((e) => ({ ...e, [i]: n })); else toast('That change would drop this piece, so it was skipped.'); }}
                   onSave={() => save(i)}
                   onWore={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: toSlots(r.outfit), context: r.ctx || ctx } }); toast('Added to Outfit History'); }}

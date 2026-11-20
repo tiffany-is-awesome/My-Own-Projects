@@ -9,6 +9,7 @@ import Saved from './views/Saved.jsx';
 import Family from './views/Family.jsx';
 import Settings from './views/Settings.jsx';
 import History from './views/History.jsx';
+import Calendar from './views/Calendar.jsx';
 import Insights from './views/Insights.jsx';
 import Inspiration from './views/Inspiration.jsx';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut, loadPuter } from './ai/claude.js';
@@ -21,7 +22,7 @@ const NAV = [
   ['#/closet', 'My Closet'],
   ['#/create', 'Create an Outfit', true],
   ['#/saved', 'Saved'],
-  ['#/history', 'History'],
+  ['#/calendar', 'Calendar'],
   ['#/family', 'Family'],
 ];
 
@@ -36,6 +37,7 @@ const TABS = [
 
 function MorePage() {
   const links = [
+    ['#/calendar', 'Outfit calendar', 'Plan days and trips, with packing lists'],
     ['#/history', 'Outfit History', 'What you wore, with ratings'],
     ['#/insights', 'Closet insights', 'Rediscover My Closet and versatility'],
     ['#/builder', 'Outfit builder', 'Put a look together piece by piece'],
@@ -104,12 +106,13 @@ export default function App() {
 
   let view;
   if (route === 'share' && param) view = <SharedLookbook data={param} go={go} />;
-  else if (route === 'closet') view = <Closet go={go} />;
+  else if (route === 'closet') view = <Closet key={param || 'all'} go={go} initial={param ? decodeURIComponent(param) : ''} />;
   else if (route === 'builder' || route === 'dressing') view = <DressingRoom go={go} />;
   else if (route === 'create' || route === 'mix') view = <Create key={param || 'c'} go={go} autoRun={param === 'go'} />;
   else if (route === 'style' && param) view = <StyleMe key={param} id={decodeURIComponent(param)} go={go} />;
   else if (route === 'saved') view = <Saved go={go} />;
   else if (route === 'history') view = <History go={go} />;
+  else if (route === 'calendar') view = <Calendar go={go} />;
   else if (route === 'insights') view = <Insights go={go} />;
   else if (route === 'family') view = <Family go={go} />;
   else if (route === 'settings') view = <Settings go={go} />;
@@ -119,8 +122,8 @@ export default function App() {
   else if (route === 'more') view = <MorePage />;
   else view = <Welcome go={go} />;
 
-  const ALIAS = { dressing: 'create', builder: 'create', mix: 'create', welcome: 'home', style: 'closet', lookbooks: 'saved', inspiration: 'saved', insights: 'history' };
-  const MOBILE_ALIAS = { history: 'more', family: 'more', settings: 'more', insights: 'more', lookbooks: 'more', inspiration: 'more' };
+  const ALIAS = { dressing: 'create', builder: 'create', mix: 'create', welcome: 'home', style: 'closet', lookbooks: 'saved', inspiration: 'saved', insights: 'closet', history: 'calendar' };
+  const MOBILE_ALIAS = { calendar: 'more', history: 'more', family: 'more', settings: 'more', insights: 'more', lookbooks: 'more', inspiration: 'more' };
   const active = route === 'share' ? '' : '#/' + (ALIAS[route] || route || 'home');
 
   return (

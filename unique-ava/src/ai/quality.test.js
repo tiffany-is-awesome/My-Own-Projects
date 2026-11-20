@@ -74,3 +74,18 @@ describe('honesty when the closet is too small', () => {
     for (const o of r.outfits) expect(names(o.outfit)).not.toContain('Flip Flops');
   });
 });
+
+describe('honest verdicts', () => {
+  it('says plainly when an outfit does not work, and is only "great" when it really scores high', async () => {
+    const { verdictOf } = await import('./critic.js');
+    const bad = critique({ top: by(BOLD, 'Black Cocktail Dress'), shoes: by(BOLD, 'Running Shoes') }, ctxOf({ occasion: 'church', weather: 'warm' }));
+    expect(verdictOf(bad)).toMatchObject({ label: "Doesn't work", tone: 'no' });
+    expect(verdictOf(bad).line).toMatch(/Athletic/);
+    const ok = generateOutfits(BOLD, ctxOf({ occasion: 'everyday', weather: 'warm' })).outfits[0];
+    const v = verdictOf(ok.critique);
+    expect(['great', 'good']).toContain(v.tone);
+    if (v.tone === 'great') expect(ok.critique.overall).toBeGreaterThanOrEqual(88);
+    const meh = { ...ok.critique, overall: 70, dealBreakers: [] };
+    expect(verdictOf(meh).label).toMatch(/Okay/);
+  });
+});

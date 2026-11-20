@@ -80,6 +80,9 @@ export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', cu
       {bg}
       {layers}
       {photoOnBody && !compact && <div className="stage-note">Your photos are placed as taken, not reshaped to the body</div>}
+      {!compact && !empty && mode === 'flatlay' && KEYS.some((k) => o[k] && !o[k].image && !photos.garments[o[k].id]) && (
+        <div className="stage-note">{KEYS.every((k) => !o[k] || (!o[k].image && !photos.garments[o[k].id])) ? 'Illustrations drawn from each piece\'s details, not photos' : 'Some pieces are illustrations; add photos to see the real thing'}</div>
+      )}
       {empty && !compact && <div className="stage-empty">Pick pieces from the slots below to start a look.</div>}
       {caption && <div className="stage-caption">{caption}</div>}
     </div>
