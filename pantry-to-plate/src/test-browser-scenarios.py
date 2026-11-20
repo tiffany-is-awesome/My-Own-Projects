@@ -11,10 +11,16 @@ async def page(b,w,h,init=None):
     return ctx,pg,errs
 async def empty_kitchen(pg):
     await pg.goto(URL+"#kitchen"); await pg.wait_for_timeout(600)
-    await pg.click("[data-act=clear-sample]"); await pg.click("[data-act=clear-sample-yes]"); await pg.wait_for_timeout(150)
+    await pg.click("#kitchenWelcome [data-act=clear-sample]"); await pg.click("[data-act=clear-sample-yes]"); await pg.wait_for_timeout(150); await tick_basics(pg)
 async def quick(pg,text):
     await pg.fill("#qaText",text); await pg.press("#qaText","Enter"); await pg.wait_for_timeout(250)
 async def store(pg): return await pg.evaluate("JSON.parse(localStorage.getItem('p2p.v3'))")
+async def tick_basics(pg):
+    await pg.evaluate("location.hash='#kitchen'"); await pg.wait_for_timeout(250)
+    for n in ["Salt","Black pepper","Cooking oil","Garlic","Soy sauce","Sugar","Oyster sauce","Onions","Fish sauce","Flour","Butter","Vinegar"]:
+        el=await pg.query_selector(f"#staples label.chip:has-text('{n}') input")
+        if el and not await el.is_checked(): await el.check()
+    await pg.wait_for_timeout(150)
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch()

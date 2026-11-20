@@ -133,7 +133,7 @@ const RECIPES = [
     {k:"pepper", q:0.5, u:"tsp"},
     {k:"water", q:0.25, u:"cup"},
     {k:"oil", q:2, u:"tbsp"}],
-  steps:["Sauté garlic and onion in the oil over medium heat until soft, 2 minutes.","Add the meat. Raw ground pork or shrimp: cook until no pink remains (3 to 4 minutes). Cooked meat: just heat it.","Add carrot and fish sauce; cook 2 minutes.","Add cabbage and water. Toss, cover and cook 3 minutes until just tender but still a little crunchy.","Season with pepper; taste for salt."],
+  steps:["Sauté garlic and onion in the oil over medium heat until soft, 2 minutes.","Add the meat. Raw ground pork or shrimp: cook until no pink remains (3 to 4 minutes). Cooked meat: just heat it.","Add carrot and fish sauce; cook 2 minutes.","Add cabbage and water. Toss, cover and cook 3 minutes until just tender but still a little crunchy.","Season with pepper. Taste, and add a little more fish sauce if it needs it."],
   season:"Don't overcook the cabbage: crunchy-tender tastes sweeter. A splash of vinegar at the table is a nice contrast.",
   store:"Refrigerate within 2 hours; eat within 3 days. Reheat in a pan until hot." },
 
@@ -297,9 +297,10 @@ const RECIPES = [
     {k:"ginger", q:15, u:"g", note:"grated", opt:true},
     {k:"fish_sauce", q:1, u:"tbsp", subs:[{k:"soy_sauce", q:1, u:"tbsp", f:"Less funky.", t:"No change.", w:"Add with the coconut milk."},{k:"salt", q:0.75, u:"tsp", f:"Plainer.", t:"No change.", w:"Season to taste at the end.", cost:5}]},
     {k:"sugar", q:1, u:"tsp"},
+    {k:"lemon", q:0.5, u:"pcs", opt:true, note:"calamansi, lime or lemon, for a squeeze at the end"},
     {k:"water", q:0.5, u:"cup"},
     {k:"oil", q:2, u:"tbsp"}],
-  steps:["Soften onion, garlic and ginger in the oil, 3 minutes. Add curry powder and stir 1 minute until fragrant.","Add raw chicken (if using) and cook 3 minutes.","Add hard vegetables, coconut milk, water, fish sauce and sugar. Simmer 15 minutes.","Add soft vegetables and any cooked protein; simmer 5 to 8 minutes until everything is tender and chicken is cooked through (74°C / 165°F).","Taste and balance with fish sauce (salt), sugar (sweet) and a squeeze of calamansi (sour)."],
+  steps:["Soften onion, garlic and ginger in the oil, 3 minutes. Add curry powder and stir 1 minute until fragrant.","Add raw chicken (if using) and cook 3 minutes.","Add hard vegetables, coconut milk, water, fish sauce and sugar. Simmer 15 minutes.","Add soft vegetables and any cooked protein; simmer 5 to 8 minutes until everything is tender and chicken is cooked through (74°C / 165°F).","Taste and balance with fish sauce (salt), sugar (sweet) and a squeeze of calamansi or lemon (sour)."],
   season:"Good curry tastes balanced: salty, a little sweet, and bright. Add citrus at the end if it feels heavy.",
   store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months in the freezer. Reheat until bubbling." },
 
@@ -726,7 +727,7 @@ RECIPES.push(
     {k:"lemon", q:1, u:"pcs", note:"juice of 4 calamansi or ½ lemon", opt:true},
     {k:"water", q:1, u:"cup"},
     {k:"oil", q:2, u:"tbsp"}],
-  steps:["Optional: marinate the pork in the soy sauce and citrus juice for 15 minutes.","Sauté garlic and onion in the oil, then add the pork and cook until it's no longer pink outside, 5 minutes.","Add tomato sauce and water. Cover and simmer 30 minutes until the pork is tender.","Add potato, carrot and hotdog; simmer 12–15 minutes until the vegetables are soft.","Add bell pepper for 2 minutes. Taste for salt."],
+  steps:["Optional: marinate the pork in the soy sauce and citrus juice for 15 minutes.","Sauté garlic and onion in the oil, then add the pork and cook until it's no longer pink outside, 5 minutes.","Add tomato sauce and water. Cover and simmer 30 minutes until the pork is tender.","Add potato, carrot and hotdog; simmer 12–15 minutes until the vegetables are soft.","Add bell pepper for 2 minutes. Taste, and add a splash more soy sauce if it needs it."],
   season:"Cut everything the same small size so it cooks evenly. A squeeze of calamansi at the end brightens it.",
   store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months frozen. Reheat until bubbling." },
 
@@ -795,7 +796,7 @@ RECIPES.push(
     {k:"ginger", q:10, u:"g", opt:true},
     {k:"bagoong", q:1, u:"tbsp", subs:[{k:"fish_sauce", q:1, u:"tbsp", f:"Less funky.", t:"Smoother.", w:"Add with the coconut milk."}]},
     {k:"oil", q:1, u:"tbsp"}],
-  steps:["Sauté garlic, onion and ginger in the oil until soft. Add raw pork (until no longer pink) or shrimp (until pink).","Add the bagoong and stir 1 minute.","Add squash and coconut milk; simmer 10–12 minutes until the squash is tender but holds its shape.","Add the string beans; simmer 4 minutes until bright green. Taste for salt."],
+  steps:["Sauté garlic, onion and ginger in the oil until soft. Add raw pork (until no longer pink) or shrimp (until pink).","Add the bagoong and stir 1 minute.","Add squash and coconut milk; simmer 10–12 minutes until the squash is tender but holds its shape.","Add the string beans; simmer 4 minutes until bright green. Taste, and add a little more bagoong if it needs it."],
   season:"Bagoong brings the savory depth; add it gradually since brands vary in saltiness.",
   store:"Refrigerate within 2 hours; eat within 3 days. Reheat gently until bubbling." },
 

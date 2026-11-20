@@ -28,6 +28,12 @@ async def answer_review(pg):
     if await pg.is_visible("#reviewForm"):
         for sel in await pg.query_selector_all("select[id^=rvCooked]"): await sel.select_option("0")
         await pg.click("#reviewForm button[type=submit]"); await pg.wait_for_timeout(200)
+async def tick_basics(pg):
+    await pg.evaluate("location.hash='#kitchen'"); await pg.wait_for_timeout(250)
+    for n in ["Salt","Black pepper","Cooking oil","Garlic","Soy sauce","Sugar","Oyster sauce","Onions","Fish sauce","Flour","Butter","Vinegar"]:
+        el=await pg.query_selector(f"#staples label.chip:has-text('{n}') input")
+        if el and not await el.is_checked(): await el.check()
+    await pg.wait_for_timeout(150)
 async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch()
@@ -45,7 +51,7 @@ async def main():
         print("\n8. FORMS, DEDUCTIONS, LEFTOVERS, SAVING")
         ctx,pg,errs=await page(b,1300,950)
         await pg.goto(URL+"#kitchen"); await pg.wait_for_timeout(700)
-        await pg.click("[data-act=clear-sample]"); await pg.click("[data-act=clear-sample-yes]"); await pg.wait_for_timeout(200)
+        await pg.click("#kitchenWelcome [data-act=clear-sample]"); await pg.click("[data-act=clear-sample-yes]"); await pg.wait_for_timeout(150); await tick_basics(pg); await pg.wait_for_timeout(200)
         await pg.fill("#qaText","6 eggs, 3 cups leftover rice, 1 cup leftover chicken, half a cabbage, 2 carrots"); await pg.press("#qaText","Enter"); await pg.wait_for_timeout(200); await answer_review(pg)
         n=await pg.eval_on_selector_all(".item","e=>e.length"); ok(n==5,f"bulk add made 5 items ({n})")
         await pg.fill("#qaText","3 eggs"); await pg.press("#qaText","Enter"); await pg.wait_for_timeout(200)
@@ -133,7 +139,7 @@ async def main():
         stub="""window.__calls=0;window.puter={auth:{isSignedIn:async()=>true,signIn:async()=>{}},ai:{chat:async(p,o)=>{window.__calls++;return {message:{content: window.__calls===1?%s:%s}};}}};""" % (json.dumps(json.dumps(recipes)), json.dumps(json.dumps(review)))
         ctx,pg,errs=await page(b,1300,950,stub)
         await pg.goto(URL+"#kitchen"); await pg.wait_for_timeout(500)
-        await pg.click("[data-act=clear-sample]"); await pg.click("[data-act=clear-sample-yes]")
+        await pg.click("#kitchenWelcome [data-act=clear-sample]"); await pg.click("[data-act=clear-sample-yes]"); await pg.wait_for_timeout(150); await tick_basics(pg)
         await pg.fill("#qaText","500 g chicken thighs, 3 cups leftover rice, 6 eggs"); await pg.press("#qaText","Enter"); await pg.wait_for_timeout(200); await answer_review(pg)
         await pg.evaluate("location.hash='#cook'"); await pg.wait_for_timeout(2500)
         await pg.click("[data-act=ai-more]"); await pg.wait_for_timeout(800)

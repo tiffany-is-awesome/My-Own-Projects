@@ -692,7 +692,18 @@ function safetyNotes(m) {
   return n;
 }
 
-const Engine = { ING, LOCS, GROUPS, GROUP_RANK, UNITS, UNIT_LABEL, DEFAULT_STAPLES, OPTIONAL_STAPLES, todayISO, addDays, daysUntil, prettyDate, parseISO,
+/* Foods a recipe's steps mention that aren't in its own ingredient list ("fish sauce" doesn't count as fish). */
+function unlistedInSteps(steps, ings) {
+  const listed = new Set(); ings.forEach(i => { if (i.k) listed.add(i.k); (i.any || []).forEach(k => listed.add(k)); (i.subs || []).forEach(s => listed.add(s.k)); });
+  let t = " " + norm(steps.join(" ")) + " ";
+  // remove names of listed foods first, so "fish sauce" or "coconut milk" don't count as fish or milk
+  const namesOf = k => [ING[k].n].concat(ING[k].s || []).map(n => norm(n)).filter(n => n.length > 2).sort((a, b) => b.length - a.length);
+  [...listed].filter(k => ING[k]).forEach(k => namesOf(k).forEach(n => { t = t.split(" " + n + " ").join("  "); }));
+  // a one-word mention like "the chicken" or "beans" is covered when a listed food's name contains that word
+  const listedWords = new Set([...listed].filter(k => ING[k]).flatMap(k => namesOf(k).flatMap(n => n.split(" ").map(w => w.replace(/(es|s)$/, "")))));
+  return Object.keys(ING).filter(k => !listed.has(k) && !ING[k].free && namesOf(k).some(n => t.includes(" " + n + " ") && !(!n.includes(" ") && listedWords.has(n.replace(/(es|s)$/, "")))));
+}
+const Engine = { unlistedInSteps, ING, LOCS, GROUPS, GROUP_RANK, UNITS, UNIT_LABEL, DEFAULT_STAPLES, OPTIONAL_STAPLES, todayISO, addDays, daysUntil, prettyDate, parseISO,
   resolveKey, ingName, norm, toGrams, fromGrams, fmtQty, fmtAmount, parseIngredientText, freshness, newItem, addToPantry, validateItem,
   usableItems, sameBatch, splitParts, matchRecipe, fitMatch, rankRecipes, planEverything, planDeductions, applyDeductions, leftoverItem, safetyNotes, scoreMatch };
 if (typeof module !== "undefined") module.exports = Engine;

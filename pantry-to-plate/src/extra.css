@@ -490,3 +490,18 @@ aside.gc-ings b{color:var(--accent)}
 .flash{animation:flash .9s ease}
 @keyframes flash{30%{box-shadow:0 0 0 4px rgba(46,107,90,.3)}}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Basics picker + step notes */
+.basics{background:var(--cream);border:1px solid #EFE2BF;border-radius:var(--r);padding:16px 18px;margin:4px 0 14px;animation:riseIn .45s both}
+.basics h2{font-size:18px;margin:0 0 4px;display:flex;gap:8px;align-items:center}
+.basics h2 .ic{color:var(--amber)}
+.basics p{margin:0 0 10px;color:#4B4D49}
+.basics .chips{display:flex;flex-wrap:wrap;gap:6px}
+.stepnote{display:block;margin-top:5px;font-size:13.5px;font-weight:600;padding:4px 9px;border-radius:8px;width:max-content;max-width:100%}
+.stepnote.skip{background:var(--amber-soft);color:var(--amber)}
+.stepnote.swap{background:var(--accent-soft);color:var(--accent)}
+.gc-note{display:flex;gap:8px;align-items:center;border-radius:var(--r-sm);padding:9px 12px;margin:6px 0;font-weight:600;font-size:15px}
+.gc-note.skip{background:var(--amber-soft);color:#6B4204}
+.gc-note.swap{background:var(--accent-soft);color:var(--accent)}
+.basics-note{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;background:var(--cream);border:1px solid #EFE2BF;border-radius:var(--r-sm);padding:9px 12px;margin-bottom:10px;font-size:14px}
+.basics-note .ic{color:var(--amber)}.basics-note span{flex:1 1 200px}

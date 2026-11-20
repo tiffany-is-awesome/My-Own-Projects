@@ -794,6 +794,21 @@ aside.gc-ings b{color:var(--accent)}
 @keyframes flash{30%{box-shadow:0 0 0 4px rgba(46,107,90,.3)}}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+/* Basics picker + step notes */
+.basics{background:var(--cream);border:1px solid #EFE2BF;border-radius:var(--r);padding:16px 18px;margin:4px 0 14px;animation:riseIn .45s both}
+.basics h2{font-size:18px;margin:0 0 4px;display:flex;gap:8px;align-items:center}
+.basics h2 .ic{color:var(--amber)}
+.basics p{margin:0 0 10px;color:#4B4D49}
+.basics .chips{display:flex;flex-wrap:wrap;gap:6px}
+.stepnote{display:block;margin-top:5px;font-size:13.5px;font-weight:600;padding:4px 9px;border-radius:8px;width:max-content;max-width:100%}
+.stepnote.skip{background:var(--amber-soft);color:var(--amber)}
+.stepnote.swap{background:var(--accent-soft);color:var(--accent)}
+.gc-note{display:flex;gap:8px;align-items:center;border-radius:var(--r-sm);padding:9px 12px;margin:6px 0;font-weight:600;font-size:15px}
+.gc-note.skip{background:var(--amber-soft);color:#6B4204}
+.gc-note.swap{background:var(--accent-soft);color:var(--accent)}
+.basics-note{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;background:var(--cream);border:1px solid #EFE2BF;border-radius:var(--r-sm);padding:9px 12px;margin-bottom:10px;font-size:14px}
+.basics-note .ic{color:var(--amber)}.basics-note span{flex:1 1 200px}
+
 </style>
 </head>
 <body>
@@ -903,6 +918,7 @@ aside.gc-ings b{color:var(--accent)}
       <input type="text" id="qaText" placeholder="Type several at once: 2 tomatoes, 1 onion, 3 eggs, half a cabbage, leftover rice" autocomplete="off">
       <button class="btn primary" type="submit">Add</button>
     </form>
+    <div id="basicsAsk"></div>
     <div id="nextStep"></div>
     <input type="file" id="scanFile" accept="image/*" capture="environment" hidden>
     <div class="kitchen-tools">
@@ -1687,7 +1703,18 @@ function safetyNotes(m) {
   return n;
 }
 
-const Engine = { ING, LOCS, GROUPS, GROUP_RANK, UNITS, UNIT_LABEL, DEFAULT_STAPLES, OPTIONAL_STAPLES, todayISO, addDays, daysUntil, prettyDate, parseISO,
+/* Foods a recipe's steps mention that aren't in its own ingredient list ("fish sauce" doesn't count as fish). */
+function unlistedInSteps(steps, ings) {
+  const listed = new Set(); ings.forEach(i => { if (i.k) listed.add(i.k); (i.any || []).forEach(k => listed.add(k)); (i.subs || []).forEach(s => listed.add(s.k)); });
+  let t = " " + norm(steps.join(" ")) + " ";
+  // remove names of listed foods first, so "fish sauce" or "coconut milk" don't count as fish or milk
+  const namesOf = k => [ING[k].n].concat(ING[k].s || []).map(n => norm(n)).filter(n => n.length > 2).sort((a, b) => b.length - a.length);
+  [...listed].filter(k => ING[k]).forEach(k => namesOf(k).forEach(n => { t = t.split(" " + n + " ").join("  "); }));
+  // a one-word mention like "the chicken" or "beans" is covered when a listed food's name contains that word
+  const listedWords = new Set([...listed].filter(k => ING[k]).flatMap(k => namesOf(k).flatMap(n => n.split(" ").map(w => w.replace(/(es|s)$/, "")))));
+  return Object.keys(ING).filter(k => !listed.has(k) && !ING[k].free && namesOf(k).some(n => t.includes(" " + n + " ") && !(!n.includes(" ") && listedWords.has(n.replace(/(es|s)$/, "")))));
+}
+const Engine = { unlistedInSteps, ING, LOCS, GROUPS, GROUP_RANK, UNITS, UNIT_LABEL, DEFAULT_STAPLES, OPTIONAL_STAPLES, todayISO, addDays, daysUntil, prettyDate, parseISO,
   resolveKey, ingName, norm, toGrams, fromGrams, fmtQty, fmtAmount, parseIngredientText, freshness, newItem, addToPantry, validateItem,
   usableItems, sameBatch, splitParts, matchRecipe, fitMatch, rankRecipes, planEverything, planDeductions, applyDeductions, leftoverItem, safetyNotes, scoreMatch };
 
@@ -1827,7 +1854,7 @@ const RECIPES = [
     {k:"pepper", q:0.5, u:"tsp"},
     {k:"water", q:0.25, u:"cup"},
     {k:"oil", q:2, u:"tbsp"}],
-  steps:["Sauté garlic and onion in the oil over medium heat until soft, 2 minutes.","Add the meat. Raw ground pork or shrimp: cook until no pink remains (3 to 4 minutes). Cooked meat: just heat it.","Add carrot and fish sauce; cook 2 minutes.","Add cabbage and water. Toss, cover and cook 3 minutes until just tender but still a little crunchy.","Season with pepper; taste for salt."],
+  steps:["Sauté garlic and onion in the oil over medium heat until soft, 2 minutes.","Add the meat. Raw ground pork or shrimp: cook until no pink remains (3 to 4 minutes). Cooked meat: just heat it.","Add carrot and fish sauce; cook 2 minutes.","Add cabbage and water. Toss, cover and cook 3 minutes until just tender but still a little crunchy.","Season with pepper. Taste, and add a little more fish sauce if it needs it."],
   season:"Don't overcook the cabbage: crunchy-tender tastes sweeter. A splash of vinegar at the table is a nice contrast.",
   store:"Refrigerate within 2 hours; eat within 3 days. Reheat in a pan until hot." },
 
@@ -1991,9 +2018,10 @@ const RECIPES = [
     {k:"ginger", q:15, u:"g", note:"grated", opt:true},
     {k:"fish_sauce", q:1, u:"tbsp", subs:[{k:"soy_sauce", q:1, u:"tbsp", f:"Less funky.", t:"No change.", w:"Add with the coconut milk."},{k:"salt", q:0.75, u:"tsp", f:"Plainer.", t:"No change.", w:"Season to taste at the end.", cost:5}]},
     {k:"sugar", q:1, u:"tsp"},
+    {k:"lemon", q:0.5, u:"pcs", opt:true, note:"calamansi, lime or lemon, for a squeeze at the end"},
     {k:"water", q:0.5, u:"cup"},
     {k:"oil", q:2, u:"tbsp"}],
-  steps:["Soften onion, garlic and ginger in the oil, 3 minutes. Add curry powder and stir 1 minute until fragrant.","Add raw chicken (if using) and cook 3 minutes.","Add hard vegetables, coconut milk, water, fish sauce and sugar. Simmer 15 minutes.","Add soft vegetables and any cooked protein; simmer 5 to 8 minutes until everything is tender and chicken is cooked through (74°C / 165°F).","Taste and balance with fish sauce (salt), sugar (sweet) and a squeeze of calamansi (sour)."],
+  steps:["Soften onion, garlic and ginger in the oil, 3 minutes. Add curry powder and stir 1 minute until fragrant.","Add raw chicken (if using) and cook 3 minutes.","Add hard vegetables, coconut milk, water, fish sauce and sugar. Simmer 15 minutes.","Add soft vegetables and any cooked protein; simmer 5 to 8 minutes until everything is tender and chicken is cooked through (74°C / 165°F).","Taste and balance with fish sauce (salt), sugar (sweet) and a squeeze of calamansi or lemon (sour)."],
   season:"Good curry tastes balanced: salty, a little sweet, and bright. Add citrus at the end if it feels heavy.",
   store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months in the freezer. Reheat until bubbling." },
 
@@ -2420,7 +2448,7 @@ RECIPES.push(
     {k:"lemon", q:1, u:"pcs", note:"juice of 4 calamansi or ½ lemon", opt:true},
     {k:"water", q:1, u:"cup"},
     {k:"oil", q:2, u:"tbsp"}],
-  steps:["Optional: marinate the pork in the soy sauce and citrus juice for 15 minutes.","Sauté garlic and onion in the oil, then add the pork and cook until it's no longer pink outside, 5 minutes.","Add tomato sauce and water. Cover and simmer 30 minutes until the pork is tender.","Add potato, carrot and hotdog; simmer 12–15 minutes until the vegetables are soft.","Add bell pepper for 2 minutes. Taste for salt."],
+  steps:["Optional: marinate the pork in the soy sauce and citrus juice for 15 minutes.","Sauté garlic and onion in the oil, then add the pork and cook until it's no longer pink outside, 5 minutes.","Add tomato sauce and water. Cover and simmer 30 minutes until the pork is tender.","Add potato, carrot and hotdog; simmer 12–15 minutes until the vegetables are soft.","Add bell pepper for 2 minutes. Taste, and add a splash more soy sauce if it needs it."],
   season:"Cut everything the same small size so it cooks evenly. A squeeze of calamansi at the end brightens it.",
   store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months frozen. Reheat until bubbling." },
 
@@ -2489,7 +2517,7 @@ RECIPES.push(
     {k:"ginger", q:10, u:"g", opt:true},
     {k:"bagoong", q:1, u:"tbsp", subs:[{k:"fish_sauce", q:1, u:"tbsp", f:"Less funky.", t:"Smoother.", w:"Add with the coconut milk."}]},
     {k:"oil", q:1, u:"tbsp"}],
-  steps:["Sauté garlic, onion and ginger in the oil until soft. Add raw pork (until no longer pink) or shrimp (until pink).","Add the bagoong and stir 1 minute.","Add squash and coconut milk; simmer 10–12 minutes until the squash is tender but holds its shape.","Add the string beans; simmer 4 minutes until bright green. Taste for salt."],
+  steps:["Sauté garlic, onion and ginger in the oil until soft. Add raw pork (until no longer pink) or shrimp (until pink).","Add the bagoong and stir 1 minute.","Add squash and coconut milk; simmer 10–12 minutes until the squash is tender but holds its shape.","Add the string beans; simmer 4 minutes until bright green. Taste, and add a little more bagoong if it needs it."],
   season:"Bagoong brings the savory depth; add it gradually since brands vary in saltiness.",
   store:"Refrigerate within 2 hours; eat within 3 days. Reheat gently until bubbling." },
 
@@ -2755,7 +2783,10 @@ function applySnapshot(d) {
   const madeHere = p => p.key === "leftover" && p.unit === "servings" && /^Leftover /.test(p.name || "");
   S.pantry = (d.pantry || []).map(p => E.newItem((p.cooked || (E.ING[p.key] || {}).isCooked) && !p.cookedOn && !p.unknownAge && p.loc !== "freezer" && madeHere(p) ? { ...p, cookedOn: p.added } : p));
   S.feedback = d.feedback || {};
-  S.staples = Array.isArray(d.staples) ? d.staples : E.DEFAULT_STAPLES.slice();
+  S.staples = Array.isArray(d.staples) ? d.staples : [];
+  // Basics used to be ticked automatically. Only keep them if the person chose them (or it's the example kitchen).
+  const auto = [E.DEFAULT_STAPLES, E.DEFAULT_STAPLES.concat(["onion", "fish_sauce", "flour"])].some(set => set.length === S.staples.length && set.every(k => S.staples.includes(k)));
+  if (!d.sample && auto && !(d.prefs && d.prefs.staplesChosen)) S.staples = [];
   S.saved = d.saved || []; S.collections = d.collections || []; S.week = d.week || [];
   S.plan = d.plan && d.plan.days ? d.plan : { days: {} }; S.cooking = d.cooking && d.cooking.rid ? d.cooking : null;
   S.history = d.history || []; S.prefs = Object.assign({ servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals" }, d.prefs || {});
@@ -2776,7 +2807,7 @@ function migrateV2(d) {
   });
   const staples = (d.staples || []).filter(s => s.on).map(s => E.resolveKey(s.name)).filter(Boolean);
   const saved = (d.saved || []).map(z => ({ id: z.id || uid(), col: z.col || "", at: z.at || 0, ...(LIB.find(r => r.title === z.recipe?.title) ? { rid: LIB.find(r => r.title === z.recipe.title).id } : { recipe: legacyRecipe(z.recipe) }) }));
-  return { v: 3, pantry, staples: staples.length ? staples : E.DEFAULT_STAPLES.slice(), saved, collections: d.collections || [], week: d.week || [], history: [], prefs: null, sample: false, savedAt: d.savedAt || 0 };
+  return { v: 3, pantry, staples, saved, collections: d.collections || [], week: d.week || [], history: [], prefs: staples.length ? { staplesChosen: true } : null, sample: false, savedAt: d.savedAt || 0 };
 }
 function legacyRecipe(r) {
   if (!r) return null;
@@ -2848,6 +2879,16 @@ function owns(name) {
 function niceAmount(q, u, k) {
   if (q != null && (k === "egg" || u === "clove") && Math.abs(q - Math.round(q)) > 0.01) return E.fmtAmount(Math.max(1, Math.round(q)), u) + (k === "egg" ? "" : "");
   return E.fmtAmount(q, u);
+}
+/* Steps are written for the full recipe. Point out, right in the step, anything you'll skip or swap. */
+function stepNotes(step, m) {
+  const t = " " + E.norm(step) + " ", out = [];
+  const said = name => E.norm(name).split(" ").filter(w => w.length > 2).some(w => t.includes(" " + w.replace(/(es|s)$/, "")));
+  for (const l of m.lines) {
+    if (l.skipped && said(l.name)) out.push({ kind: "skip", text: `You don't have ${l.name.toLowerCase()}: skip it in this step.` });
+    else if (l.sub && l.subFor && said(l.subFor)) out.push({ kind: "swap", text: `Use your ${l.name.toLowerCase()} instead of ${l.subFor.toLowerCase()} here.` });
+  }
+  return out;
 }
 function amountLabel(p) { return p.qty == null ? "Amount not recorded" : E.fmtAmount(p.qty, p.unit) + (p.unit === "pcs" || !p.unit ? "" : ""); }
 /* Four-pointed twinkle stars: the "shine" used for every success. */
@@ -3005,7 +3046,8 @@ function renderKitchen() {
     <button class="way" data-act="item-new">${icon("plus")}<b>Add one with details</b><small>Amount, place and dates</small></button>
     <button class="way" data-act="scan-photo">${icon("camera")}<b>Scan a photo</b><small>${scanAvailable() ? "Uses the free AI; you confirm everything" : "Needs the free AI"}</small></button>
     <button class="way" data-act="${S.pantry.length ? "welcome-done" : "load-sample"}">${icon("spark")}<b>${S.pantry.length ? "Explore the example kitchen" : "Try an example kitchen"}</b><small>${S.pantry.length ? "It's loaded: look around, then empty it" : "See how everything works first"}</small></button></div></div></div>` : "";
-  $("#nextStep").innerHTML = S.ui.justAdded && S.pantry.length ? `<div class="nextstep"><div><h2>${icon("check", "ok")}Your kitchen is ready. What would you like to make?</h2></div>
+  $("#basicsAsk").innerHTML = needsBasics() && S.pantry.length ? basicsPicker() : "";
+  $("#nextStep").innerHTML = S.ui.justAdded && S.pantry.length && !needsBasics() ? `<div class="nextstep"><div><h2>${icon("check", "ok")}Your kitchen is ready. What would you like to make?</h2></div>
     <div class="ways"><button class="way" data-act="cook-today">${icon("pot")}<b>Find a recipe</b></button><button class="way" data-act="tab" data-tab="rescue">${icon("rescue")}<b>Use food that needs attention</b></button>
     <button class="way" data-act="one-mode">${icon("spark")}<b>Explore one ingredient</b></button><button class="way" data-act="tab" data-tab="plan">${icon("calendar")}<b>Plan several meals</b></button></div></div>` : "";
   renderZones();
@@ -3013,6 +3055,14 @@ function renderKitchen() {
   $("#staples").innerHTML = st.map(k => `<label class="chip"><input type="checkbox" data-staple="${k}" ${S.staples.includes(k) ? "checked" : ""}>${esc(E.ingName(k))}</label>`).join("");
   renderNavCounts(); renderCookbar();
 }
+/* Which basics do you have? Nothing is assumed until the person ticks it. */
+function basicsPicker(compact) {
+  const st = E.DEFAULT_STAPLES.concat(E.OPTIONAL_STAPLES.filter(k => !E.DEFAULT_STAPLES.includes(k)));
+  return `<div class="basics${compact ? " compact" : ""}"><div><h2>${icon("jar")}Which basics do you have?</h2><p>Recipes only use what you've added. Tick the everyday basics you keep, like salt and cooking oil, so recipes can count on them.</p></div>
+    <div class="chips">${st.map(k => `<label class="chip"><input type="checkbox" data-staple="${k}" ${S.staples.includes(k) ? "checked" : ""}>${esc(E.ingName(k))}</label>`).join("")}</div>
+    <div class="es-actions"><button class="btn primary small" data-act="basics-done">${icon("check")}Done</button></div></div>`;
+}
+function needsBasics() { return !S.sample && !S.prefs.staplesChosen && S.staples.length === 0; }
 function renderZones() {
   const box = $("#zones"); if (!box) return;
   const open = [...box.querySelectorAll("details[open]")].map(d => d.dataset.z);
@@ -3202,6 +3252,7 @@ function renderIdeas() {
   } else {
     const list = res.list;
     S.ui.lastList = list;
+    if (needsBasics()) html += `<div class="basics-note">${icon("info")}<span>Recipes only use food you've added. Tick the basics you keep (salt, oil…) to unlock more.</span><button class="btn small" data-act="go-basics">Choose basics</button></div>`;
     html += `<p class="count"><b>${list.length}</b> recipe${list.length === 1 ? "" : "s"} you can make now${S.ui.mode === "urgent" ? ", most urgent first" : ""}</p>`;
     html += list.slice(0, 30).map(m => ideaCard(m)).join("") || `<div class="empty">${S.pantry.length ? "Nothing fits these filters. Try “Any time”, another cuisine, or fewer diet limits." : "Add some food in My kitchen first."}</div>`;
   }
@@ -3224,7 +3275,7 @@ function renderDetail() {
     const u = l.unit || l.ing.u;
     const amount = l.ing.q == null ? esc(l.ing.amountText || "") : esc(niceAmount(l.q, u, l.ing.k));
     const have = l.src === "pantry" ? l.items.map(x => x.p.name + (x.p.qty != null ? " (" + amountLabel(x.p) + ")" : "")).join(", ") : "";
-    const tag = l.src === "pantry" ? `<span class="st have">Yours</span>` : `<span class="st">Staple</span>`;
+    const tag = l.src === "pantry" ? `<span class="st have">Yours</span>` : `<span class="st">Your basics</span>`;
     const sw = l.sub ? `<div class="swapbox"><b>Swap: ${esc(E.fmtAmount(l.q, u))} ${esc(l.name.toLowerCase())} instead of ${esc(l.subFor.toLowerCase())}</b><span><i>Flavor:</i> ${esc(l.sub.f)}</span><span><i>Texture:</i> ${esc(l.sub.t)}</span><span><i>How:</i> ${esc(l.sub.w)}</span></div>` : "";
     const need = E.fmtAmount(l.q, u);
     const haveTxt = l.haveG != null && l.needG ? Math.round(l.haveG / l.needG * 100) : null;
@@ -3265,7 +3316,7 @@ function renderDetail() {
       </div>
     </div>
     <section><div class="sec-title"><h3>Ingredients</h3><span class="label">for ${sv}</span></div><ul class="ings">${m.lines.map(lineHTML).join("")}</ul></section>
-    <section><div class="sec-title"><h3>Method</h3><span class="label">${r.steps.length} steps</span></div><ol class="steps">${r.steps.map(s => `<li><span>${esc(s)}</span></li>`).join("")}</ol></section>
+    <section><div class="sec-title"><h3>Method</h3><span class="label">${r.steps.length} steps</span></div><ol class="steps">${r.steps.map(s => `<li><span>${esc(s)}${stepNotes(s, m).map(n => `<small class="stepnote ${n.kind}">${esc(n.text)}</small>`).join("")}</span></li>`).join("")}</ol></section>
     ${r.season ? `<section><div class="sec-title"><h3>Seasoning</h3></div><p>${esc(r.season)}</p></section>` : ""}
     <section><div class="sec-title"><h3>Storing & leftovers</h3></div><p>${esc(r.store || "Refrigerate within 2 hours and eat within 3 days. Reheat until steaming hot.")}</p></section>
     <section class="safety"><div class="sec-title"><h3>Food safety</h3></div><ul>${safety.map(n => `<li>${esc(n)}</li>`).join("")}</ul></section>
@@ -3417,6 +3468,7 @@ function aiToRecipe(x) {
   const rawUsed = ings.filter(i => RAW.includes(i.k));
   if (drink && rawUsed.length) return null;
   if (drink && ings.some(i => i.k === "egg")) return null; // no raw egg in drinks
+  if (E.unlistedInSteps(x.steps, ings).length) return null; // steps may only use what's in the ingredient list
   const addSafety = rawUsed.length && !/(74|165|71|160|63|145)\s*°|no (longer )?pink|cooked through|opaque|juices run clear/.test(stepsText);
   let style = ["Classic", "Home-style", "Fusion"].includes(x.style) ? x.style : "Home-style";
   if (style === "Classic" && x.ingredients.some(i => i.replaces)) style = "Home-style";
@@ -3515,7 +3567,7 @@ document.addEventListener("click", e => {
       persist(); rerender(); toast("Added this device's kitchen to your account."); }
       closeAuth(); break; }
     case "merge-no": S.ui.pendingMerge = null; closeAuth(); toast("Kept your account as it is."); break;
-    case "clear-sample-yes": S.pantry = []; S.sample = false; persist(); closeAuth(); renderKitchen(); toast("Your kitchen is empty. Add what you have above."); break;
+    case "clear-sample-yes": S.pantry = []; S.staples = []; S.prefs.staplesChosen = false; S.sample = false; persist(); closeAuth(); renderKitchen(); toast("Your kitchen is empty. Add what you have above."); break;
     case "loc": S.ui.loc = t.dataset.v; renderKitchen(); break;
     case "item-new": openModal(itemForm(null), "#fName"); break;
     case "item-edit": openModal(itemForm(S.pantry.find(p => p.id === t.dataset.id)), "#fName"); break;
@@ -3537,6 +3589,8 @@ document.addEventListener("click", e => {
     case "mode": S.ui.mode = t.dataset.mode; S.ui.currentId = null; renderCook(); break;
     case "rescue-item": S.ui.rescueId = t.dataset.id; setTab("rescue"); break;
     case "focus-add": { const q = $("#qaText"); if (q) { q.focus(); q.scrollIntoView({ behavior: "smooth", block: "center" }); } break; }
+    case "basics-done": S.prefs.staplesChosen = true; persist(); rerender(); toast(S.staples.length ? `Got it: ${S.staples.length} basic${S.staples.length > 1 ? "s" : ""} recipes can count on.` : "Got it: recipes will only use the food you've added."); break;
+    case "go-basics": setTab("kitchen"); requestAnimationFrame(() => { const el = $("#basicsAsk .basics") || $("#staples"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }); break;
     case "welcome-done": S.ui.welcomeDone = true; renderKitchen(); break;
     case "load-sample": seedKitchen(); persist(); S.ui.welcomeDone = true; renderKitchen(); renderNavCounts(); toast("Example kitchen loaded. Empty it any time to add your own food."); break;
     case "one-mode": S.ui.mode = "one"; S.ui.oneId = null; S.ui.focus = []; S.ui.currentId = null; setTab("cook"); break;
@@ -3580,7 +3634,7 @@ document.addEventListener("submit", e => {
 });
 document.addEventListener("change", e => {
   const t = e.target;
-  if (t.dataset.staple) { const k = t.dataset.staple; S.staples = t.checked ? [...new Set([...S.staples, k])] : S.staples.filter(x => x !== k); persist(); return; }
+  if (t.dataset.staple) { const k = t.dataset.staple; S.staples = t.checked ? [...new Set([...S.staples, k])] : S.staples.filter(x => x !== k); if (!t.closest(".basics")) S.prefs.staplesChosen = true; persist(); return; }
   if (t.id === "kitchenSort") { S.ui.sort = t.value; renderKitchen(); return; }
   if (t.id === "oneSel") { S.ui.oneId = t.value; S.ui.currentId = null; renderIdeas(); return; }
   if (t.id === "timeSel") { S.prefs.maxTime = +t.value; persist(); renderIdeas(); return; }
@@ -4363,6 +4417,7 @@ function renderCooking(dir) {
   $("#gcProg").innerHTML = `<div class="gc-bar"><i style="width:${((i + 1) / n) * 100}%"></i></div><span>Step ${i + 1} of ${n}</span>`;
   $("#gcBody").innerHTML = `<div class="gc-step ${dir === "back" ? "from-left" : dir === "none" ? "" : "from-right"}" aria-live="polite">
       <span class="gc-num">${i + 1}</span><p class="gc-text">${esc(s)}</p>
+      ${stepNotes(s, m).map(n => `<div class="gc-note ${n.kind}">${icon(n.kind === "skip" ? "minus" : "spark")}<span>${esc(n.text)}</span></div>`).join("")}
       ${here.length ? `<ul class="gc-ings">${here.map(l => `<li><b>${esc(l.amt)}</b> ${esc(l.name)}${l.note ? ` <small>${esc(l.note)}</small>` : ""}</li>`).join("")}</ul>` : ""}
       ${warns.map(w => `<div class="gc-warn">${icon("alert")}<span>${esc(w)}</span></div>`).join("")}
       ${t ? `<div class="gc-timer" id="gcTimer" data-sec="${t.min * 60}"><div class="ring" style="--p:0">${icon("timer")}<b id="gcTime">${fmtClock(t.min * 60)}</b></div>

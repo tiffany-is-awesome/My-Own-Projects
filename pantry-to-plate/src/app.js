@@ -42,7 +42,10 @@ function applySnapshot(d) {
   const madeHere = p => p.key === "leftover" && p.unit === "servings" && /^Leftover /.test(p.name || "");
   S.pantry = (d.pantry || []).map(p => E.newItem((p.cooked || (E.ING[p.key] || {}).isCooked) && !p.cookedOn && !p.unknownAge && p.loc !== "freezer" && madeHere(p) ? { ...p, cookedOn: p.added } : p));
   S.feedback = d.feedback || {};
-  S.staples = Array.isArray(d.staples) ? d.staples : E.DEFAULT_STAPLES.slice();
+  S.staples = Array.isArray(d.staples) ? d.staples : [];
+  // Basics used to be ticked automatically. Only keep them if the person chose them (or it's the example kitchen).
+  const auto = [E.DEFAULT_STAPLES, E.DEFAULT_STAPLES.concat(["onion", "fish_sauce", "flour"])].some(set => set.length === S.staples.length && set.every(k => S.staples.includes(k)));
+  if (!d.sample && auto && !(d.prefs && d.prefs.staplesChosen)) S.staples = [];
   S.saved = d.saved || []; S.collections = d.collections || []; S.week = d.week || [];
   S.plan = d.plan && d.plan.days ? d.plan : { days: {} }; S.cooking = d.cooking && d.cooking.rid ? d.cooking : null;
   S.history = d.history || []; S.prefs = Object.assign({ servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals" }, d.prefs || {});
@@ -63,7 +66,7 @@ function migrateV2(d) {
   });
   const staples = (d.staples || []).filter(s => s.on).map(s => E.resolveKey(s.name)).filter(Boolean);
   const saved = (d.saved || []).map(z => ({ id: z.id || uid(), col: z.col || "", at: z.at || 0, ...(LIB.find(r => r.title === z.recipe?.title) ? { rid: LIB.find(r => r.title === z.recipe.title).id } : { recipe: legacyRecipe(z.recipe) }) }));
-  return { v: 3, pantry, staples: staples.length ? staples : E.DEFAULT_STAPLES.slice(), saved, collections: d.collections || [], week: d.week || [], history: [], prefs: null, sample: false, savedAt: d.savedAt || 0 };
+  return { v: 3, pantry, staples, saved, collections: d.collections || [], week: d.week || [], history: [], prefs: staples.length ? { staplesChosen: true } : null, sample: false, savedAt: d.savedAt || 0 };
 }
 function legacyRecipe(r) {
   if (!r) return null;
@@ -135,6 +138,16 @@ function owns(name) {
 function niceAmount(q, u, k) {
   if (q != null && (k === "egg" || u === "clove") && Math.abs(q - Math.round(q)) > 0.01) return E.fmtAmount(Math.max(1, Math.round(q)), u) + (k === "egg" ? "" : "");
   return E.fmtAmount(q, u);
+}
+/* Steps are written for the full recipe. Point out, right in the step, anything you'll skip or swap. */
+function stepNotes(step, m) {
+  const t = " " + E.norm(step) + " ", out = [];
+  const said = name => E.norm(name).split(" ").filter(w => w.length > 2).some(w => t.includes(" " + w.replace(/(es|s)$/, "")));
+  for (const l of m.lines) {
+    if (l.skipped && said(l.name)) out.push({ kind: "skip", text: `You don't have ${l.name.toLowerCase()}: skip it in this step.` });
+    else if (l.sub && l.subFor && said(l.subFor)) out.push({ kind: "swap", text: `Use your ${l.name.toLowerCase()} instead of ${l.subFor.toLowerCase()} here.` });
+  }
+  return out;
 }
 function amountLabel(p) { return p.qty == null ? "Amount not recorded" : E.fmtAmount(p.qty, p.unit) + (p.unit === "pcs" || !p.unit ? "" : ""); }
 /* Four-pointed twinkle stars: the "shine" used for every success. */
@@ -292,7 +305,8 @@ function renderKitchen() {
     <button class="way" data-act="item-new">${icon("plus")}<b>Add one with details</b><small>Amount, place and dates</small></button>
     <button class="way" data-act="scan-photo">${icon("camera")}<b>Scan a photo</b><small>${scanAvailable() ? "Uses the free AI; you confirm everything" : "Needs the free AI"}</small></button>
     <button class="way" data-act="${S.pantry.length ? "welcome-done" : "load-sample"}">${icon("spark")}<b>${S.pantry.length ? "Explore the example kitchen" : "Try an example kitchen"}</b><small>${S.pantry.length ? "It's loaded: look around, then empty it" : "See how everything works first"}</small></button></div></div></div>` : "";
-  $("#nextStep").innerHTML = S.ui.justAdded && S.pantry.length ? `<div class="nextstep"><div><h2>${icon("check", "ok")}Your kitchen is ready. What would you like to make?</h2></div>
+  $("#basicsAsk").innerHTML = needsBasics() && S.pantry.length ? basicsPicker() : "";
+  $("#nextStep").innerHTML = S.ui.justAdded && S.pantry.length && !needsBasics() ? `<div class="nextstep"><div><h2>${icon("check", "ok")}Your kitchen is ready. What would you like to make?</h2></div>
     <div class="ways"><button class="way" data-act="cook-today">${icon("pot")}<b>Find a recipe</b></button><button class="way" data-act="tab" data-tab="rescue">${icon("rescue")}<b>Use food that needs attention</b></button>
     <button class="way" data-act="one-mode">${icon("spark")}<b>Explore one ingredient</b></button><button class="way" data-act="tab" data-tab="plan">${icon("calendar")}<b>Plan several meals</b></button></div></div>` : "";
   renderZones();
@@ -300,6 +314,14 @@ function renderKitchen() {
   $("#staples").innerHTML = st.map(k => `<label class="chip"><input type="checkbox" data-staple="${k}" ${S.staples.includes(k) ? "checked" : ""}>${esc(E.ingName(k))}</label>`).join("");
   renderNavCounts(); renderCookbar();
 }
+/* Which basics do you have? Nothing is assumed until the person ticks it. */
+function basicsPicker(compact) {
+  const st = E.DEFAULT_STAPLES.concat(E.OPTIONAL_STAPLES.filter(k => !E.DEFAULT_STAPLES.includes(k)));
+  return `<div class="basics${compact ? " compact" : ""}"><div><h2>${icon("jar")}Which basics do you have?</h2><p>Recipes only use what you've added. Tick the everyday basics you keep, like salt and cooking oil, so recipes can count on them.</p></div>
+    <div class="chips">${st.map(k => `<label class="chip"><input type="checkbox" data-staple="${k}" ${S.staples.includes(k) ? "checked" : ""}>${esc(E.ingName(k))}</label>`).join("")}</div>
+    <div class="es-actions"><button class="btn primary small" data-act="basics-done">${icon("check")}Done</button></div></div>`;
+}
+function needsBasics() { return !S.sample && !S.prefs.staplesChosen && S.staples.length === 0; }
 function renderZones() {
   const box = $("#zones"); if (!box) return;
   const open = [...box.querySelectorAll("details[open]")].map(d => d.dataset.z);
@@ -489,6 +511,7 @@ function renderIdeas() {
   } else {
     const list = res.list;
     S.ui.lastList = list;
+    if (needsBasics()) html += `<div class="basics-note">${icon("info")}<span>Recipes only use food you've added. Tick the basics you keep (salt, oil…) to unlock more.</span><button class="btn small" data-act="go-basics">Choose basics</button></div>`;
     html += `<p class="count"><b>${list.length}</b> recipe${list.length === 1 ? "" : "s"} you can make now${S.ui.mode === "urgent" ? ", most urgent first" : ""}</p>`;
     html += list.slice(0, 30).map(m => ideaCard(m)).join("") || `<div class="empty">${S.pantry.length ? "Nothing fits these filters. Try “Any time”, another cuisine, or fewer diet limits." : "Add some food in My kitchen first."}</div>`;
   }
@@ -511,7 +534,7 @@ function renderDetail() {
     const u = l.unit || l.ing.u;
     const amount = l.ing.q == null ? esc(l.ing.amountText || "") : esc(niceAmount(l.q, u, l.ing.k));
     const have = l.src === "pantry" ? l.items.map(x => x.p.name + (x.p.qty != null ? " (" + amountLabel(x.p) + ")" : "")).join(", ") : "";
-    const tag = l.src === "pantry" ? `<span class="st have">Yours</span>` : `<span class="st">Staple</span>`;
+    const tag = l.src === "pantry" ? `<span class="st have">Yours</span>` : `<span class="st">Your basics</span>`;
     const sw = l.sub ? `<div class="swapbox"><b>Swap: ${esc(E.fmtAmount(l.q, u))} ${esc(l.name.toLowerCase())} instead of ${esc(l.subFor.toLowerCase())}</b><span><i>Flavor:</i> ${esc(l.sub.f)}</span><span><i>Texture:</i> ${esc(l.sub.t)}</span><span><i>How:</i> ${esc(l.sub.w)}</span></div>` : "";
     const need = E.fmtAmount(l.q, u);
     const haveTxt = l.haveG != null && l.needG ? Math.round(l.haveG / l.needG * 100) : null;
@@ -552,7 +575,7 @@ function renderDetail() {
       </div>
     </div>
     <section><div class="sec-title"><h3>Ingredients</h3><span class="label">for ${sv}</span></div><ul class="ings">${m.lines.map(lineHTML).join("")}</ul></section>
-    <section><div class="sec-title"><h3>Method</h3><span class="label">${r.steps.length} steps</span></div><ol class="steps">${r.steps.map(s => `<li><span>${esc(s)}</span></li>`).join("")}</ol></section>
+    <section><div class="sec-title"><h3>Method</h3><span class="label">${r.steps.length} steps</span></div><ol class="steps">${r.steps.map(s => `<li><span>${esc(s)}${stepNotes(s, m).map(n => `<small class="stepnote ${n.kind}">${esc(n.text)}</small>`).join("")}</span></li>`).join("")}</ol></section>
     ${r.season ? `<section><div class="sec-title"><h3>Seasoning</h3></div><p>${esc(r.season)}</p></section>` : ""}
     <section><div class="sec-title"><h3>Storing & leftovers</h3></div><p>${esc(r.store || "Refrigerate within 2 hours and eat within 3 days. Reheat until steaming hot.")}</p></section>
     <section class="safety"><div class="sec-title"><h3>Food safety</h3></div><ul>${safety.map(n => `<li>${esc(n)}</li>`).join("")}</ul></section>
@@ -704,6 +727,7 @@ function aiToRecipe(x) {
   const rawUsed = ings.filter(i => RAW.includes(i.k));
   if (drink && rawUsed.length) return null;
   if (drink && ings.some(i => i.k === "egg")) return null; // no raw egg in drinks
+  if (E.unlistedInSteps(x.steps, ings).length) return null; // steps may only use what's in the ingredient list
   const addSafety = rawUsed.length && !/(74|165|71|160|63|145)\s*°|no (longer )?pink|cooked through|opaque|juices run clear/.test(stepsText);
   let style = ["Classic", "Home-style", "Fusion"].includes(x.style) ? x.style : "Home-style";
   if (style === "Classic" && x.ingredients.some(i => i.replaces)) style = "Home-style";
@@ -802,7 +826,7 @@ document.addEventListener("click", e => {
       persist(); rerender(); toast("Added this device's kitchen to your account."); }
       closeAuth(); break; }
     case "merge-no": S.ui.pendingMerge = null; closeAuth(); toast("Kept your account as it is."); break;
-    case "clear-sample-yes": S.pantry = []; S.sample = false; persist(); closeAuth(); renderKitchen(); toast("Your kitchen is empty. Add what you have above."); break;
+    case "clear-sample-yes": S.pantry = []; S.staples = []; S.prefs.staplesChosen = false; S.sample = false; persist(); closeAuth(); renderKitchen(); toast("Your kitchen is empty. Add what you have above."); break;
     case "loc": S.ui.loc = t.dataset.v; renderKitchen(); break;
     case "item-new": openModal(itemForm(null), "#fName"); break;
     case "item-edit": openModal(itemForm(S.pantry.find(p => p.id === t.dataset.id)), "#fName"); break;
@@ -824,6 +848,8 @@ document.addEventListener("click", e => {
     case "mode": S.ui.mode = t.dataset.mode; S.ui.currentId = null; renderCook(); break;
     case "rescue-item": S.ui.rescueId = t.dataset.id; setTab("rescue"); break;
     case "focus-add": { const q = $("#qaText"); if (q) { q.focus(); q.scrollIntoView({ behavior: "smooth", block: "center" }); } break; }
+    case "basics-done": S.prefs.staplesChosen = true; persist(); rerender(); toast(S.staples.length ? `Got it: ${S.staples.length} basic${S.staples.length > 1 ? "s" : ""} recipes can count on.` : "Got it: recipes will only use the food you've added."); break;
+    case "go-basics": setTab("kitchen"); requestAnimationFrame(() => { const el = $("#basicsAsk .basics") || $("#staples"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }); break;
     case "welcome-done": S.ui.welcomeDone = true; renderKitchen(); break;
     case "load-sample": seedKitchen(); persist(); S.ui.welcomeDone = true; renderKitchen(); renderNavCounts(); toast("Example kitchen loaded. Empty it any time to add your own food."); break;
     case "one-mode": S.ui.mode = "one"; S.ui.oneId = null; S.ui.focus = []; S.ui.currentId = null; setTab("cook"); break;
@@ -867,7 +893,7 @@ document.addEventListener("submit", e => {
 });
 document.addEventListener("change", e => {
   const t = e.target;
-  if (t.dataset.staple) { const k = t.dataset.staple; S.staples = t.checked ? [...new Set([...S.staples, k])] : S.staples.filter(x => x !== k); persist(); return; }
+  if (t.dataset.staple) { const k = t.dataset.staple; S.staples = t.checked ? [...new Set([...S.staples, k])] : S.staples.filter(x => x !== k); if (!t.closest(".basics")) S.prefs.staplesChosen = true; persist(); return; }
   if (t.id === "kitchenSort") { S.ui.sort = t.value; renderKitchen(); return; }
   if (t.id === "oneSel") { S.ui.oneId = t.value; S.ui.currentId = null; renderIdeas(); return; }
   if (t.id === "timeSel") { S.prefs.maxTime = +t.value; persist(); renderIdeas(); return; }

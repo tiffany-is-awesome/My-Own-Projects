@@ -463,6 +463,7 @@ function renderCooking(dir) {
   $("#gcProg").innerHTML = `<div class="gc-bar"><i style="width:${((i + 1) / n) * 100}%"></i></div><span>Step ${i + 1} of ${n}</span>`;
   $("#gcBody").innerHTML = `<div class="gc-step ${dir === "back" ? "from-left" : dir === "none" ? "" : "from-right"}" aria-live="polite">
       <span class="gc-num">${i + 1}</span><p class="gc-text">${esc(s)}</p>
+      ${stepNotes(s, m).map(n => `<div class="gc-note ${n.kind}">${icon(n.kind === "skip" ? "minus" : "spark")}<span>${esc(n.text)}</span></div>`).join("")}
       ${here.length ? `<ul class="gc-ings">${here.map(l => `<li><b>${esc(l.amt)}</b> ${esc(l.name)}${l.note ? ` <small>${esc(l.note)}</small>` : ""}</li>`).join("")}</ul>` : ""}
       ${warns.map(w => `<div class="gc-warn">${icon("alert")}<span>${esc(w)}</span></div>`).join("")}
       ${t ? `<div class="gc-timer" id="gcTimer" data-sec="${t.min * 60}"><div class="ring" style="--p:0">${icon("timer")}<b id="gcTime">${fmtClock(t.min * 60)}</b></div>

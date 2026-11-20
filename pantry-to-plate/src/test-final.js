@@ -83,5 +83,17 @@ console.log("\nE. Leftovers can't silently get today's date");
   const merged = K([{ name: "Leftover adobo", key: "leftover", cooked: true, cookedOn: E.addDays(T, -2), qty: 1, unit: "servings" }, { name: "Leftover adobo", key: "leftover", cooked: true, cookedOn: T, qty: 1, unit: "servings" }]);
   ok(merged.length === 2, "leftovers from different days never merge into one date");
 }
+
+console.log("\nF. Recipes only use what's listed and what you have");
+{
+  const bad = RECIPES.filter(r => E.unlistedInSteps(r.steps, r.ingredients).length);
+  ok(!bad.length, "no curated recipe's steps use an ingredient missing from its list" + (bad.length ? ": " + bad.map(r => r.id).join(", ") : ""));
+  ok(E.unlistedInSteps(["Fry the eggs.", "Sprinkle cinnamon on top."], [{ k: "egg" }]).includes("cinnamon"), "an AI recipe that slips cinnamon into a step is caught");
+  const p = K([{ name: "Spinach", key: "spinach", qty: 400, unit: "g" }]);
+  const none = E.matchRecipe(R("garlic-greens"), p, [], {}, now);
+  ok(!none.ok, "with no basics ticked, a recipe needing garlic and oil isn't offered (nothing assumed)");
+  const withB = E.matchRecipe(R("garlic-greens"), p, ["garlic", "oil", "oyster_sauce"], {}, now);
+  ok(withB.ok && withB.lines.filter(l => l.src === "staple").every(l => ["garlic", "oil", "oyster_sauce", "water"].includes(l.ing.k)), "once you tick garlic, oil and oyster sauce, it is offered, using only those basics (plus tap water)");
+}
 console.log(`\n${count - fails}/${count} final checks passed`);
 process.exit(fails ? 1 : 0);
