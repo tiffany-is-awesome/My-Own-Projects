@@ -206,7 +206,7 @@ export function noteFailure(e) {
 
 export function friendlyError(e) {
   switch (e?.code) {
-    case 'not_granted': return 'AI access was declined, so Unique Ava is using its built-in rules engine.';
+    case 'not_granted': return 'AI access was declined, so Wearwise is using its built-in rules engine.';
     case 'rate_limited': return e.serverMessage || 'The AI is busy or the daily limit was reached. Try again later.';
     case 'session_expired': return 'Please sign in again.';
     case 'image_rejected': return 'The AI could not read that image. Try another photo.';

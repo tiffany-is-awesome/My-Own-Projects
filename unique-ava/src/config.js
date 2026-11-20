@@ -1,5 +1,5 @@
 // ───────────────────────────────────────────────────────────────────────────
-//  UNIQUE AVA CONFIG
+//  WEARWISE CONFIG
 //
 //  Accounts & cloud sync: Supabase (the same free project Tiffo uses).
 //    One-time setup: run supabase/unique-ava.sql in the Supabase SQL Editor.

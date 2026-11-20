@@ -1,4 +1,4 @@
-# Unique Ava: UX/UI Spec & Product Roadmap
+# Wearwise: UX/UI Spec & Product Roadmap
 
 > The feel: **your closet as a quiet, well-run boutique.** Every garment gets a clean product card;
 > every outfit gets a spec sheet. No clutter, no collage chaos, no flattery.
@@ -54,7 +54,7 @@
 ## Part B: Information architecture
 
 ```
-Top bar:  UNIQUE AVA   Closet   Dressing Room   Mix & Match   Lookbooks   Inspiration      [+ Add item]
+Top bar:  WEARWISE   Closet   Dressing Room   Mix & Match   Lookbooks   Inspiration      [+ Add item]
 ```
 
 | Screen | Job to be done |
@@ -76,7 +76,7 @@ Top bar:  UNIQUE AVA   Closet   Dressing Room   Mix & Match   Lookbooks   Inspir
 2. **Upload 1–2 items**: drag/drop or camera. Progress steps are shown honestly:
    `Removing background → Reading colors → Tagging`.
 3. **Confirm tags sheet**: the AI's guess is shown as editable chips. One tap on "Looks right".
-4. **"Complete the look with basics"**: Unique Ava suggests placeholder basics (dark jeans, white sneakers,
+4. **"Complete the look with basics"**: Wearwise suggests placeholder basics (dark jeans, white sneakers,
    white tee…) to fill empty slots. Each is clearly marked BASIC.
 5. **Land in the Dressing Room** with the first outfit already critiqued.
 

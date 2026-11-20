@@ -1,6 +1,6 @@
-# Unique Ava: System Architecture & Tech Stack
+# Wearwise: System Architecture & Tech Stack
 
-> **Unique Ava** is an AI personal stylist and digital wardrobe. You photograph your own clothes, and it
+> **Wearwise** is an AI personal stylist and digital wardrobe. You photograph your own clothes, and it
 > turns them into a clean boutique catalog. Then it mixes outfits for real weather and places,
 > critiques them honestly, and saves them into shareable lookbooks.
 >
@@ -19,7 +19,7 @@ small adapter. You can swap a provider without touching the app.
    free Puter account once and her usage runs on her own allowance. The site owner pays nothing and holds no key.
    (A key-based Supabase function, `unique-ava-ai`, remains as an optional backup.) Image *generation* (scenes, try-on) needs a dedicated image model, since the stylist model reads images but doesn't create them.
 2. **Same stack as Tiffo.** This repo already runs Tiffo on GitHub Pages + Supabase + an Edge
-   Function. Unique Ava reuses that setup, so you learn one stack and stay on free tiers for as long as possible.
+   Function. Wearwise reuses that setup, so you learn one stack and stay on free tiers for as long as possible.
 3. **Rules first, LLM second.** Weather, fabric and color logic is deterministic code. It is fast, free,
    testable and never hallucinates. The language model *explains* those findings in a stylist's voice;
    it doesn't invent them. (The prototype already works this way. See `src/ai/critic.js`.)
@@ -175,7 +175,7 @@ Generated images are cached by `hash(outfit_items + scene_prompt)`, so they are 
 and copyright. The safe design:
 
 * Users **paste a link or screenshot** they found (it's their personal reference, like saving a pin).
-  Unique Ava stores the URL + a small thumbnail with attribution, not a re-hosted copy.
+  Wearwise stores the URL + a small thumbnail with attribution, not a re-hosted copy.
 * Optional licensed sources: brand/retailer affiliate feeds (Phase 3), or partner creators.
 
 **Matching:** Gemini vision decomposes (✅ built) the look into items (`{category, color, material, fit}`). Each is

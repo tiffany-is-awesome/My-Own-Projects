@@ -35,7 +35,7 @@ export default function History({ go }) {
       </div>
 
       <div className="notice">
-        <b>What Unique Ava has learned{personal.rated ? ` from ${personal.rated} rated outfit${personal.rated > 1 ? 's' : ''}` : ''}:</b>{' '}
+        <b>What Wearwise has learned{personal.rated ? ` from ${personal.rated} rated outfit${personal.rated > 1 ? 's' : ''}` : ''}:</b>{' '}
         {personal.rated === 0 ? 'Nothing yet. Rate a few outfits you wore and suggestions will lean toward what you love.' : learned.length ? learned.join(' ') : 'Not enough of a pattern yet. Keep rating.'}
         {personal.rated > 0 && <div className="tiny" style={{ marginTop: 4 }}>Learned taste only chooses between outfits that already pass every styling check; it never overrides weather or occasion rules.</div>}
       </div>

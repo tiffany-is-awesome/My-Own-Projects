@@ -1,4 +1,4 @@
-# Unique Ava: AI personal stylist & digital wardrobe
+# Wearwise: AI personal stylist & digital wardrobe
 
 Your closet, run like a clean, minimalist boutique. Photograph your clothes (however messy),
 mix outfits for real weather and places, get an honest four-pillar critique, and save looks

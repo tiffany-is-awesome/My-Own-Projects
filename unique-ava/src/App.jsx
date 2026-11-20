@@ -46,7 +46,7 @@ function MorePage() {
   ];
   return (
     <div className="page narrow">
-      <div className="page-head"><div><div className="label">Unique Ava</div><h1 className="h1">More</h1></div></div>
+      <div className="page-head"><div><div className="label">Wearwise</div><h1 className="h1">More</h1></div></div>
       <ul className="more-list">
         {links.map(([h, t, d]) => <li key={h}><a href={h}><b>{t}</b><span className="tiny">{d}</span><span aria-hidden="true">›</span></a></li>)}
       </ul>
@@ -127,7 +127,7 @@ export default function App() {
     <>
       <header className="topbar">
         <div className="topbar-inner">
-          <a className="logo" href="#/home" aria-label="Unique Ava home"><span className="logo-mark">U</span><span>UNIQUE AVA</span></a>
+          <a className="logo" href="#/home" aria-label="Wearwise home"><span className="logo-mark">W</span><span>WEARWISE</span></a>
           <nav className="nav" aria-label="Main">
             {NAV.map(([h, l, primary]) => <a key={h} href={h} className={(active === h ? 'active' : '') + (primary ? ' primary' : '')}>{l}</a>)}
           </nav>
@@ -161,7 +161,7 @@ export default function App() {
         })}
       </nav>
       <footer className="footer">
-        Unique Ava · AI stylist: Google Gemini via Puter (free, no key: sign in), checked by a built-in rules engine that also works on its own · saved in this browser, or to your account when you sign in · <a href="#/settings">Settings &amp; delete my data</a>
+        Wearwise · AI stylist: Google Gemini via Puter (free, no key: sign in), checked by a built-in rules engine that also works on its own · saved in this browser, or to your account when you sign in · <a href="#/settings">Settings &amp; delete my data</a>
       </footer>
     </>
   );
