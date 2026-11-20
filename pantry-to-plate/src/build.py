@@ -30,5 +30,5 @@ html = f'''<!DOCTYPE html>
 </body>
 </html>
 '''
-(src.parent/"index.html").write_text(html)
+(src/"index.html").write_text(html)
 print("built", len(html), "bytes")

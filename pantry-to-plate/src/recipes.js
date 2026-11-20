@@ -25,7 +25,7 @@ const RECIPES = [
     {k:"carrot", q:0.5, u:"pcs", note:"finely diced", opt:true},
     {k:"peas", q:0.5, u:"cup", opt:true},
     {k:"pepper", q:0.25, u:"tsp", opt:true}],
-  steps:["Heat 1 tbsp oil in a wok or large pan over high heat. Pour in the eggs, stir gently until just set, then tip them onto a plate.","Add the rest of the oil. Fry the garlic (and carrot or peas, if using) for 1 minute.","Add the rice and press it flat. Leave it for 1 minute, then toss. Repeat for 3 to 4 minutes until every grain is hot and some are lightly crisp.","Drizzle the soy sauce around the edge of the pan so it sizzles, then toss through.","Return the egg, add spring onion and pepper, toss for 30 seconds and taste for salt."],
+  steps:["Heat about a third of the oil in a wok or large pan over high heat. Pour in the eggs, stir gently until just set, then tip them onto a plate.","Add the rest of the oil. Fry the garlic (and carrot or peas, if using) for 1 minute.","Add the rice and press it flat. Leave it for 1 minute, then toss. Repeat for 3 to 4 minutes until every grain is hot and some are lightly crisp.","Drizzle the soy sauce around the edge of the pan so it sizzles, then toss through.","Return the egg, add spring onion and pepper, toss for 30 seconds and taste for salt."],
   season:"Taste at the end: if it's flat, add a few drops of soy sauce; if it's heavy, a squeeze of calamansi or lime wakes it up.",
   store:"Best eaten right away. Leftovers: cool within an hour, refrigerate, eat within 24 hours and reheat only once until steaming hot." },
 
@@ -43,7 +43,7 @@ const RECIPES = [
     {k:"soy_sauce", q:2, u:"tbsp", subs:[{k:"fish_sauce", q:1, u:"tbsp", f:"Saltier and funkier.", t:"No change.", w:"Start with less and taste."}]},
     {k:"oil", q:3, u:"tbsp"},
     {k:"pepper", q:0.5, u:"tsp", opt:true}],
-  steps:["Scramble the eggs in 1 tbsp oil over high heat until just set. Set aside.","Add the remaining oil, then the garlic, onion and carrot. Stir-fry 2 minutes.","Add the cabbage and stir-fry 2 minutes until it wilts but still has some crunch.","Add the chicken and rice. Press, leave for a minute, then toss. Keep going for 4 minutes until everything is steaming hot.","Add soy sauce around the edge of the pan, return the egg, season with pepper and toss."],
+  steps:["Scramble the eggs in about a third of the oil over high heat until just set. Set aside.","Add the remaining oil, then the garlic, onion and carrot. Stir-fry 2 minutes.","Add the cabbage and stir-fry 2 minutes until it wilts but still has some crunch.","Add the chicken and rice. Press, leave for a minute, then toss. Keep going for 4 minutes until everything is steaming hot.","Add soy sauce around the edge of the pan, return the egg, season with pepper and toss."],
   season:"Cabbage releases water, so keep the heat high. A little extra pepper and a squeeze of calamansi suits the chicken.",
   store:"Cool within an hour, refrigerate and eat within 24 hours. Reheat only once, until steaming hot." },
 
@@ -116,7 +116,7 @@ const RECIPES = [
     {k:"ketchup", q:1, u:"tbsp", note:"if your tomatoes are pale", opt:true},
     {k:"spring_onion", q:1, u:"stalk", opt:true},
     {k:"water", q:3, u:"tbsp"}],
-  steps:["Heat 1 tbsp oil over medium-high heat. Add the eggs, stir in big soft folds and remove while still a little wet.","Add the remaining oil and the tomatoes. Cook 3 minutes, pressing them so they release juice.","Add water, sugar, salt and ketchup; simmer 1 minute into a glossy sauce.","Return the eggs and fold gently for 30 seconds until the eggs are cooked through. Top with spring onion."],
+  steps:["Heat half the oil over medium-high heat. Add the eggs, stir in big soft folds and remove while still a little wet.","Add the remaining oil and the tomatoes. Cook 3 minutes, pressing them so they release juice.","Add water, sugar, salt and ketchup; simmer 1 minute into a glossy sauce.","Return the eggs and fold gently for 30 seconds until the eggs are cooked through. Top with spring onion."],
   season:"It should taste both sweet and tangy. Under-ripe tomatoes need the ketchup or a bit more sugar.",
   store:"Best fresh. Leftovers keep 1 day in the fridge (it's an egg dish); reheat until steaming." },
 
@@ -124,7 +124,7 @@ const RECIPES = [
   desc:"Cabbage and carrots sautéed with garlic, onion and a little meat. Uses half a cabbage in one go.",
   serves:4, prep:10, cook:12, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#B9D58C","#F3EBD2","#E8792B","#A0522D"], flavor:"Savory, sweet, garlicky",
   ingredients:[
-    {k:"cabbage", q:0.5, u:"pcs", note:"sliced"},
+    {k:"cabbage", q:0.5, u:"pcs", note:"sliced", tol:0.8, tolNote:"A little less cabbage is fine in a sauté."},
     {k:"carrot", q:1, u:"pcs", note:"julienned", opt:true},
     {any:["ground_pork","chicken_cooked","hotdog","corned_beef","shrimp","pork","spam"], label:"A little meat (ground pork, chicken, hotdog, corned beef or shrimp)", k:"ground_pork", q:150, u:"g", opt:true},
     {k:"onion", q:1, u:"pcs", note:"sliced", subs:[{k:"spring_onion", q:3, u:"stalk", f:"Milder, greener.", t:"Softer.", w:"Add the white parts first, greens at the end."}]},
@@ -157,7 +157,7 @@ const RECIPES = [
   desc:"A flexible, freezer-friendly soup for a lot of vegetables at once. Season well and it's a meal.",
   serves:6, prep:15, cook:30, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#D96B2B","#E8C15E","#5E8C3A","#F3E6C4"], flavor:"Savory, warming",
   ingredients:[
-    {any:VEG_ANY, label:"Vegetables (any mix)", k:"carrot", q:800, u:"g", minKinds:2},
+    {any:VEG_ANY, label:"Vegetables (any mix)", k:"carrot", q:800, u:"g", minKinds:2, tol:0.75, tolNote:"Soup is forgiving: with fewer vegetables it's just a little brothier."},
     {k:"onion", q:1, u:"pcs", note:"chopped"},
     {k:"garlic", q:3, u:"clove", note:"minced"},
     {k:"stock_cube", q:2, u:"pcs", opt:true},
@@ -176,7 +176,7 @@ const RECIPES = [
   serves:4, prep:10, cook:15, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#F2C14E","#E8A33D","#5E8C3A","#D9372B"], flavor:"Rich, savory",
   ingredients:[
     {k:"egg", q:6, u:"pcs"},
-    {any:["spinach","leafy_greens","bell_pepper","mushroom","potato_cooked","tomato","broccoli","sayote","onion","corn","peas"], label:"Vegetables (any mix)", k:"spinach", q:300, u:"g"},
+    {any:["spinach","leafy_greens","bell_pepper","mushroom","potato_cooked","tomato","broccoli","sayote","onion","corn","peas"], label:"Vegetables (any mix)", k:"spinach", q:300, u:"g", tol:0.7, tolNote:"Fewer vegetables is fine: the frittata will just be eggier."},
     {k:"cheese", q:0.5, u:"cup", note:"grated", opt:true},
     {k:"milk", q:3, u:"tbsp", opt:true},
     {k:"onion", q:0.5, u:"pcs", opt:true},
@@ -214,7 +214,7 @@ const RECIPES = [
     {k:"salt", q:1, u:"tbsp", note:"for the pasta water"},
     {k:"herbs", q:0.5, u:"bunch", note:"parsley, chopped", opt:true, subs:[{k:"spring_onion", q:2, u:"stalk", f:"Milder, oniony.", t:"Same.", w:"Slice finely and add off the heat."}]},
     {k:"cheese", q:0.25, u:"cup", note:"grated", opt:true}],
-  steps:["Boil the pasta in well-salted water until just al dente. Keep 1 cup of the pasta water.","Meanwhile warm the oil and garlic over low heat until the garlic is pale gold, about 4 minutes. Don't let it brown dark or it turns bitter. Add chili flakes.","Add the drained pasta and ½ cup pasta water. Toss hard over medium heat for 1 minute until glossy; add more water if dry.","Off the heat, add herbs and cheese. Taste for salt."],
+  steps:["Boil the pasta in well-salted water until just al dente. Keep a mugful of the pasta water.","Meanwhile warm the oil and garlic over low heat until the garlic is pale gold, about 4 minutes. Don't let it brown dark or it turns bitter. Add chili flakes.","Add the drained pasta and a splash of pasta water (about ¼ cup for every 100 g of pasta). Toss hard over medium heat for 1 minute until glossy; add more water if dry.","Off the heat, add herbs and cheese. Taste for salt."],
   season:"The pasta water seasons the dish: it should taste pleasantly salty. Finish with black pepper.",
   store:"Best fresh. Leftovers: fridge up to 2 days; reheat in a pan with a splash of water." },
 
@@ -289,7 +289,7 @@ const RECIPES = [
   serves:4, prep:15, cook:25, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#E8B04B","#F3E6C4","#5E8C3A","#D96B2B"], flavor:"Creamy, warm spice, mild heat",
   ingredients:[
     {k:"coconut_milk", q:400, u:"ml"},
-    {any:["potato","carrot","squash","sweet_potato","eggplant","bell_pepper","green_beans","sayote","cabbage","broccoli","spinach","leafy_greens","peas","corn"], label:"Vegetables (any mix)", k:"potato", q:600, u:"g", minKinds:2},
+    {any:["potato","carrot","squash","sweet_potato","eggplant","bell_pepper","green_beans","sayote","cabbage","broccoli","spinach","leafy_greens","peas","corn"], label:"Vegetables (any mix)", k:"potato", q:600, u:"g", minKinds:2, tol:0.75, tolNote:"A little less is fine: the curry will just be saucier."},
     {any:["chicken","chicken_cooked","tofu","shrimp","beans_canned","egg"], label:"Protein (chicken, tofu, shrimp, beans or boiled eggs)", k:"chicken", q:300, u:"g", opt:true},
     {k:"curry_powder", q:1.5, u:"tbsp"},
     {k:"onion", q:1, u:"pcs", note:"chopped"},
@@ -358,7 +358,7 @@ const RECIPES = [
   desc:"Bright greens seared with lots of garlic and a savory glaze, in under ten minutes.",
   serves:2, prep:5, cook:5, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#3E7A3A","#5E8C3A","#F1E4C3","#8A5A2B"], flavor:"Garlicky, savory, fresh",
   ingredients:[
-    {any:GREENS, label:"Greens (spinach, kangkong, pechay, bok choy, cabbage, broccoli or beans)", k:"spinach", q:300, u:"g"},
+    {any:GREENS, label:"Greens (spinach, kangkong, pechay, bok choy, cabbage, broccoli or beans)", k:"spinach", q:300, u:"g", tol:0.7, tolNote:"With less greens it's simply a smaller side dish; use a little less sauce."},
     {k:"garlic", q:4, u:"clove", note:"sliced"},
     {k:"oil", q:1.5, u:"tbsp"},
     {k:"oyster_sauce", q:1, u:"tbsp", subs:[{k:"soy_sauce", q:2, u:"tsp", f:"Saltier, less sweet-savory.", t:"Thinner glaze.", w:"Add with ½ tsp sugar."}]},
@@ -481,7 +481,7 @@ const DRINKS = [
   desc:"Whatever fruit is going soft, blended with yogurt into a thick, tangy smoothie.",
   serves:2, prep:5, cook:0, difficulty:"Easy", equip:["blender"], q:4, plating:"glass", palette:["#E8738A","#F7C9D2","#FFF1F3","#7DAA4F"], flavor:"Fruity, tangy, creamy",
   ingredients:[
-    {any:FRUIT, label:"Fruit (any mix: banana, mango, pineapple, papaya, berries, apple…)", k:"banana", q:300, u:"g", minKinds:2, maxKinds:3},
+    {any:FRUIT, label:"Fruit (any mix: banana, mango, pineapple, papaya, berries, apple…)", k:"banana", q:300, u:"g", minKinds:2, maxKinds:3, tol:0.8, tolNote:"Slightly less fruit just makes a smaller, slightly thinner glass."},
     {k:"yogurt", q:0.5, u:"cup", subs:[{k:"milk", q:0.5, u:"cup", f:"Less tangy.", t:"Thinner.", w:"Add a squeeze of calamansi for tang."}]},
     {k:"milk", q:0.5, u:"cup", subs:[{k:"water", q:0.5, u:"cup", f:"Lighter.", t:"Thinner.", w:"Use the same amount.", cost:1}]},
     {k:"honey", q:1, u:"tbsp", opt:true, subs:[{k:"sugar", q:1, u:"tbsp", f:"Cleaner.", t:"Same.", w:"Use the same amount."}]},
@@ -525,7 +525,7 @@ const DRINKS = [
     {k:"sugar", q:4, u:"tbsp", subs:[{k:"honey", q:3, u:"tbsp", f:"Floral.", t:"Same.", w:"Stir into a little warm water first so it dissolves."}]},
     {k:"water", q:4, u:"cup", note:"cold"},
     {k:"ice", q:2, u:"cup", opt:true}],
-  steps:["Stir the sugar into ½ cup of warm water until dissolved.","Squeeze the citrus and strain out the seeds.","Mix juice, sugar water and the remaining cold water. Taste: it should be pleasantly tart. Pour over ice."],
+  steps:["Stir the sugar into a little of the water, warmed, until dissolved.","Squeeze the citrus and strain out the seeds.","Mix juice, sugar water and the remaining cold water. Taste: it should be pleasantly tart. Pour over ice."],
   season:"Adjust to taste: more sugar for kids, more citrus for a sharper drink. A pinch of salt brightens it.",
   store:"Keep covered in the fridge and drink within 2 days." },
 
@@ -588,7 +588,7 @@ const DRINKS = [
     {k:"sugar", q:2, u:"tbsp", subs:[{k:"honey", q:2, u:"tbsp", f:"Floral.", t:"Same.", w:"Same amount."}]},
     {k:"water", q:3, u:"cup", note:"cold"},
     {k:"ice", q:1, u:"cup", opt:true}],
-  steps:["Blend the cucumber with 1 cup water until smooth.","Strain into a jug, pressing on the pulp.","Stir in the citrus juice, sugar and remaining water. Taste, then serve over ice."],
+  steps:["Blend the cucumber with about a third of the water until smooth.","Strain into a jug, pressing on the pulp.","Stir in the citrus juice, sugar and remaining water. Taste, then serve over ice."],
   season:"It should taste lightly sweet and sour. Mint leaves are a great addition.",
   store:"Fridge, covered, up to 24 hours." },
 
@@ -606,4 +606,195 @@ const DRINKS = [
   store:"Drink right away. Fridge up to 24 hours if needed." }
 ];
 RECIPES.push(...DRINKS);
-if (typeof module !== "undefined") module.exports = { RECIPES };
+
+/* ---------- More everyday Filipino and international meals ---------- */
+RECIPES.push(
+{ id:"chicken-afritada", title:"Chicken Afritada", cuisine:"Filipino", style:"Classic",
+  desc:"Chicken braised in tomato sauce with potatoes, carrots and bell pepper. A weeknight family favorite.",
+  serves:4, prep:15, cook:45, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#C8452B","#E8B04B","#E8792B","#5E8C3A"], flavor:"Savory, tangy-sweet tomato",
+  ingredients:[
+    {k:"chicken", q:600, u:"g", note:"bone-in pieces", subs:[{k:"pork", q:600, u:"g", f:"Richer.", t:"Firmer.", w:"Cut into chunks and simmer 15 minutes longer before adding the vegetables."}]},
+    {k:"canned_tomato", q:1, u:"cup", note:"tomato sauce", subs:[{k:"tomato", q:4, u:"pcs", f:"Fresher, less concentrated.", t:"Chunkier sauce.", w:"Chop finely and cook down with the onion for 5 minutes first."}]},
+    {k:"potato", q:2, u:"pcs", note:"quartered"},
+    {k:"carrot", q:1, u:"pcs", note:"chunks"},
+    {k:"bell_pepper", q:1, u:"pcs", note:"strips", opt:true},
+    {k:"onion", q:1, u:"pcs", note:"chopped"},
+    {k:"garlic", q:4, u:"clove", note:"minced"},
+    {k:"fish_sauce", q:1, u:"tbsp", subs:[{k:"salt", q:0.75, u:"tsp", f:"Less savory depth.", t:"No change.", w:"Season to taste at the end.", cost:4}]},
+    {k:"water", q:1, u:"cup"},
+    {k:"peas", q:0.5, u:"cup", opt:true},
+    {k:"bay_leaf", q:1, u:"pcs", opt:true},
+    {k:"sugar", q:1, u:"tsp", opt:true},
+    {k:"oil", q:2, u:"tbsp"}],
+  steps:["Brown the chicken in the oil over medium-high heat, about 6 minutes. Set aside.","In the same pan, sauté garlic and onion until soft.","Return the chicken; add tomato sauce, water, fish sauce and bay leaf. Simmer covered for 20 minutes.","Add potatoes and carrot; simmer 15 minutes until tender and the chicken is cooked through (74°C / 165°F).","Add bell pepper and peas for the last 3 minutes. Taste: add sugar if the sauce is sharp."],
+  season:"Tomato sauce needs balance: a little fish sauce for depth and a pinch of sugar if it tastes sour.",
+  store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months frozen. Reheat until bubbling." },
+
+{ id:"pork-menudo", title:"Pork Menudo", cuisine:"Filipino", style:"Home-style", styleNote:"Made without pork liver, which many home cooks skip.",
+  desc:"Small cubes of pork, potato and carrot in a savory tomato sauce. Great with rice and even better the next day.",
+  serves:4, prep:20, cook:50, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#B5442A","#E8B04B","#E8792B","#F2E3B8"], flavor:"Savory, tomato-rich",
+  ingredients:[
+    {k:"pork", q:500, u:"g", note:"1 cm cubes", subs:[{k:"chicken", q:500, u:"g", f:"Lighter.", t:"Softer.", w:"Use thigh; simmer 20 minutes instead of 30."}]},
+    {k:"canned_tomato", q:1, u:"cup", note:"tomato sauce"},
+    {k:"potato", q:2, u:"pcs", note:"1 cm cubes"},
+    {k:"carrot", q:1, u:"pcs", note:"1 cm cubes"},
+    {k:"bell_pepper", q:1, u:"pcs", note:"diced", opt:true},
+    {k:"hotdog", q:2, u:"pcs", note:"sliced", opt:true},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"soy_sauce", q:2, u:"tbsp"},
+    {k:"lemon", q:1, u:"pcs", note:"juice of 4 calamansi or ½ lemon", opt:true},
+    {k:"water", q:1, u:"cup"},
+    {k:"oil", q:2, u:"tbsp"}],
+  steps:["Optional: marinate the pork in the soy sauce and citrus juice for 15 minutes.","Sauté garlic and onion in the oil, then add the pork and cook until it's no longer pink outside, 5 minutes.","Add tomato sauce and water. Cover and simmer 30 minutes until the pork is tender.","Add potato, carrot and hotdog; simmer 12–15 minutes until the vegetables are soft.","Add bell pepper for 2 minutes. Taste for salt."],
+  season:"Cut everything the same small size so it cooks evenly. A squeeze of calamansi at the end brightens it.",
+  store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months frozen. Reheat until bubbling." },
+
+{ id:"bistek-tagalog", title:"Bistek Tagalog", cuisine:"Filipino", style:"Classic",
+  desc:"Thin beef in a tangy soy-calamansi sauce, topped with soft onion rings.",
+  serves:4, prep:25, cook:20, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#5A2E1A","#8A4A2A","#F3E6C4","#7DAA4F"], flavor:"Salty, tangy, oniony",
+  ingredients:[
+    {k:"beef", q:500, u:"g", note:"sliced very thin", subs:[{k:"pork", q:500, u:"g", f:"Sweeter, milder.", t:"Softer.", w:"Slice thin and cook until no pink remains."}]},
+    {k:"soy_sauce", q:4, u:"tbsp"},
+    {k:"lemon", q:2, u:"pcs", note:"juice of 2 lemons or 10–12 calamansi"},
+    {k:"onion", q:2, u:"pcs", note:"thick rings"},
+    {k:"garlic", q:4, u:"clove", note:"minced"},
+    {k:"pepper", q:1, u:"tsp"},
+    {k:"water", q:0.5, u:"cup"},
+    {k:"oil", q:3, u:"tbsp"}],
+  steps:["Marinate the beef with soy sauce, citrus juice, garlic and pepper for 20 minutes.","Fry the onion rings in the oil until just soft; set aside.","Lift the beef from the marinade and sear in batches over high heat, 1–2 minutes per side.","Return all the beef with the marinade and water; simmer 10–15 minutes until tender and the sauce reduces.","Top with the onion rings."],
+  season:"It should taste salty and sour in balance; add a splash of water if too strong.",
+  store:"Refrigerate within 2 hours; eat within 3 days. Reheat until steaming." },
+
+{ id:"ginisang-monggo", title:"Ginisang Monggo (Mung Bean Stew)", cuisine:"Filipino", style:"Classic",
+  desc:"Creamy mung beans with garlic, tomato and greens, the Friday classic. Cheap, filling and freezer-friendly.",
+  serves:5, prep:10, cook:50, difficulty:"Easy", equip:["stove"], q:5, plating:"bowl", palette:["#8A9A4B","#C9B27A","#3E7A3A","#D9372B"], flavor:"Savory, earthy, comforting",
+  ingredients:[
+    {k:"mung_beans", q:1, u:"cup", note:"rinsed"},
+    {k:"water", q:6, u:"cup"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"tomato", q:2, u:"pcs", note:"chopped"},
+    {any:["pork","ground_pork","shrimp","tuna","fish_cooked","chicken_cooked"], label:"Protein (pork, shrimp, tuna or leftover fish/chicken)", k:"pork", q:150, u:"g", opt:true},
+    {any:["leafy_greens","spinach"], label:"Greens (malunggay, ampalaya leaves, spinach or pechay)", k:"spinach", q:100, u:"g", opt:true},
+    {k:"fish_sauce", q:2, u:"tbsp", subs:[{k:"salt", q:1, u:"tsp", f:"Less savory.", t:"No change.", w:"Season to taste at the end.", cost:4}]},
+    {k:"oil", q:2, u:"tbsp"}],
+  steps:["Boil the mung beans in the water, then simmer 35–40 minutes until soft and starting to split. Add water if it gets too thick.","In another pan, sauté garlic, onion and tomato in the oil until soft. Add raw pork or shrimp and cook through (pork no longer pink; shrimp pink and opaque).","Stir the sauté into the beans with the fish sauce; simmer 5 minutes.","Turn off the heat and stir in the greens. Taste for salt."],
+  season:"Mung beans need good seasoning: add fish sauce gradually until it tastes savory.",
+  store:"Refrigerate within 2 hours; 3 days in the fridge, 2 months frozen. It thickens: add water when reheating until bubbling." },
+
+{ id:"sinigang-na-baboy", title:"Sinigang na Baboy (Pork Sour Soup)", cuisine:"Filipino", style:"Classic",
+  desc:"Tender pork in a sour tamarind broth with vegetables. Warming, bright and a great way to use leftover vegetables.",
+  serves:5, prep:15, cook:70, difficulty:"Easy", equip:["stove"], q:5, plating:"bowl", palette:["#E8D9A8","#3E7A3A","#D9372B","#F3E6C4"], flavor:"Sour, savory, fresh",
+  ingredients:[
+    {k:"pork", q:600, u:"g", note:"belly or ribs, chunks", subs:[{k:"shrimp", q:500, u:"g", f:"Sweeter, lighter (sinigang na hipon).", t:"Delicate.", w:"Skip the long simmer: add shrimp for the last 3 minutes."},{k:"fish", q:500, u:"g", f:"Lighter (sinigang na isda).", t:"Flaky.", w:"Add fish for the last 8 minutes only."}]},
+    {k:"tamarind_mix", q:1, u:"pack", note:"or fresh tamarind boiled and strained", subs:[{k:"lemon", q:4, u:"pcs", f:"Sour but sharper, less fruity: not true sinigang.", t:"No change.", w:"Add the juice at the end, a little at a time.", cost:8}]},
+    {k:"tomato", q:2, u:"pcs", note:"quartered"},
+    {k:"onion", q:1, u:"pcs", note:"quartered"},
+    {k:"water", q:8, u:"cup"},
+    {k:"radish", q:1, u:"pcs", note:"sliced", opt:true},
+    {k:"eggplant", q:1, u:"pcs", note:"sliced", opt:true},
+    {k:"green_beans", q:150, u:"g", note:"cut", opt:true},
+    {k:"okra", q:6, u:"pcs", opt:true},
+    {any:["leafy_greens","spinach"], label:"Greens (kangkong, pechay or spinach)", k:"spinach", q:150, u:"g", opt:true},
+    {k:"fish_sauce", q:2, u:"tbsp", subs:[{k:"salt", q:1, u:"tsp", f:"Less savory.", t:"No change.", w:"Season to taste.", cost:4}]}],
+  steps:["Bring the pork, water, tomato and onion to a boil; skim off any foam.","Simmer covered 45–60 minutes until the pork is tender.","Add the radish; simmer 5 minutes. Add eggplant, beans and okra; simmer 5 minutes more.","Stir in the tamarind mix and fish sauce. Taste: it should be clearly sour and savory.","Turn off the heat and add the greens; they wilt in a minute."],
+  season:"Sour first, then salt: add tamarind until it's pleasantly sour, then fish sauce to taste.",
+  store:"Refrigerate within 2 hours; eat within 3 days. Bring back to a boil when reheating." },
+
+{ id:"ginataang-kalabasa", title:"Ginataang Kalabasa at Sitaw", cuisine:"Filipino", style:"Classic",
+  desc:"Squash and string beans simmered in coconut milk: creamy, sweet and savory.",
+  serves:4, prep:15, cook:20, difficulty:"Easy", equip:["stove"], q:5, plating:"bowl", palette:["#E8A33D","#F6E7C8","#4E8A3E","#C98B4A"], flavor:"Creamy, sweet, savory",
+  ingredients:[
+    {k:"squash", q:500, u:"g", note:"peeled, cubed"},
+    {k:"green_beans", q:200, u:"g", note:"5 cm pieces", opt:true},
+    {k:"coconut_milk", q:400, u:"ml"},
+    {any:["shrimp","pork","ground_pork","chicken_cooked"], label:"Protein (shrimp or pork)", k:"shrimp", q:200, u:"g", opt:true},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"ginger", q:10, u:"g", opt:true},
+    {k:"bagoong", q:1, u:"tbsp", subs:[{k:"fish_sauce", q:1, u:"tbsp", f:"Less funky.", t:"Smoother.", w:"Add with the coconut milk."}]},
+    {k:"oil", q:1, u:"tbsp"}],
+  steps:["Sauté garlic, onion and ginger in the oil until soft. Add raw pork (until no longer pink) or shrimp (until pink).","Add the bagoong and stir 1 minute.","Add squash and coconut milk; simmer 10–12 minutes until the squash is tender but holds its shape.","Add the string beans; simmer 4 minutes until bright green. Taste for salt."],
+  season:"Bagoong brings the savory depth; add it gradually since brands vary in saltiness.",
+  store:"Refrigerate within 2 hours; eat within 3 days. Reheat gently until bubbling." },
+
+{ id:"filipino-spaghetti", title:"Filipino-style Sweet Spaghetti", cuisine:"Filipino", style:"Classic",
+  desc:"The party favorite: sweet tomato-banana ketchup sauce with ground meat, hotdogs and cheese.",
+  serves:5, prep:15, cook:30, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#C8341F","#F2C14E","#EAD7A6","#A0522D"], flavor:"Sweet, savory, cheesy",
+  ingredients:[
+    {k:"pasta_dry", q:400, u:"g", note:"spaghetti"},
+    {any:["ground_pork","ground_beef"], label:"Ground pork or beef", k:"ground_pork", q:300, u:"g"},
+    {k:"hotdog", q:4, u:"pcs", note:"sliced", opt:true},
+    {k:"canned_tomato", q:2, u:"cup", note:"tomato sauce"},
+    {k:"ketchup", q:0.5, u:"cup", note:"banana ketchup"},
+    {k:"sugar", q:2, u:"tbsp"},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"cheese", q:0.75, u:"cup", note:"grated, to top"},
+    {k:"fish_sauce", q:1, u:"tbsp", subs:[{k:"salt", q:0.5, u:"tsp", f:"Plainer.", t:"No change.", w:"Season to taste.", cost:3}]},
+    {k:"oil", q:2, u:"tbsp"},
+    {k:"salt", q:1, u:"tbsp", note:"for the pasta water"}],
+  steps:["Boil the spaghetti in salted water until just tender; drain.","Sauté garlic and onion in the oil, then brown the ground meat until no pink remains (71°C / 160°F).","Add hotdogs, tomato sauce, banana ketchup, sugar and fish sauce. Simmer 15 minutes, stirring.","Taste: it should be sweet and savory. Spoon over the spaghetti and top with cheese."],
+  season:"It's meant to be sweet, but balance it with fish sauce or salt so it doesn't taste like dessert.",
+  store:"Keep sauce and pasta separately if you can. Refrigerate within 2 hours; eat within 3 days." },
+
+{ id:"pinakbet", title:"Pinakbet (Vegetable Stew with Bagoong)", cuisine:"Filipino", style:"Classic",
+  desc:"The Ilocano vegetable stew: squash, eggplant, beans and okra cooked down with bagoong.",
+  serves:4, prep:20, cook:20, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#E8A33D","#6B3A5A","#4E8A3E","#D9372B"], flavor:"Savory, funky, vegetable-sweet",
+  ingredients:[
+    {any:["squash","eggplant","green_beans","okra","sayote","bell_pepper"], label:"Vegetables (squash, eggplant, string beans, okra…)", k:"squash", q:700, u:"g", minKinds:3, tol:0.8, tolNote:"With a bit less it's just a smaller pot."},
+    {k:"tomato", q:2, u:"pcs", note:"chopped"},
+    {k:"onion", q:1, u:"pcs"},
+    {k:"garlic", q:4, u:"clove"},
+    {k:"ginger", q:10, u:"g", opt:true},
+    {k:"bagoong", q:2, u:"tbsp", subs:[{k:"fish_sauce", q:2, u:"tbsp", f:"Less funky; lacks bagoong's depth.", t:"Thinner.", w:"Add with the water.", cost:4}]},
+    {k:"pork", q:150, u:"g", note:"small pieces", opt:true},
+    {k:"water", q:0.5, u:"cup"},
+    {k:"oil", q:2, u:"tbsp"}],
+  steps:["Sauté garlic, onion, ginger and tomato in the oil. Add pork, if using, and cook until no longer pink and lightly browned.","Stir in the bagoong for 1 minute.","Add the squash and water; cover and cook 5 minutes.","Add the remaining vegetables; cover and cook 8–10 minutes, shaking the pan rather than stirring, until just tender."],
+  season:"Don't stir too much: the vegetables should stay whole. Taste before adding any salt; bagoong is salty.",
+  store:"Refrigerate within 2 hours; eat within 3 days. Reheat gently." },
+
+{ id:"shakshuka", title:"Shakshuka (Eggs in Spiced Tomato Sauce)", cuisine:"Middle Eastern", style:"Classic",
+  desc:"Eggs gently cooked in a spiced tomato and pepper sauce. One pan, great with bread.",
+  serves:2, prep:10, cook:20, difficulty:"Easy", equip:["stove"], q:5, plating:"skillet", palette:["#C8341F","#F2C14E","#F7F3EA","#5E8C3A"], flavor:"Spiced, tangy, rich",
+  ingredients:[
+    {k:"egg", q:4, u:"pcs"},
+    {k:"canned_tomato", q:400, u:"g", subs:[{k:"tomato", q:5, u:"pcs", f:"Fresher, lighter.", t:"Chunkier.", w:"Chop and simmer 10 minutes longer until saucy."}]},
+    {k:"onion", q:1, u:"pcs", note:"diced"},
+    {k:"bell_pepper", q:1, u:"pcs", note:"diced", opt:true},
+    {k:"garlic", q:3, u:"clove"},
+    {k:"cumin", q:1, u:"tsp", subs:[{k:"curry_powder", q:1, u:"tsp", f:"Warmer, more complex.", t:"No change.", w:"Use the same amount."}]},
+    {k:"paprika", q:1, u:"tsp", opt:true},
+    {k:"chili_flakes", q:0.25, u:"tsp", opt:true},
+    {k:"salt", q:0.5, u:"tsp"},
+    {k:"oil", q:2, u:"tbsp"},
+    {k:"bread", q:4, u:"pcs", note:"to serve", opt:true}],
+  steps:["Soften onion and bell pepper in the oil over medium heat, 6 minutes. Add garlic and spices for 1 minute.","Add tomatoes and salt; simmer 8–10 minutes until thick.","Make 4 hollows and crack in the eggs. Cover and cook on low 6–8 minutes until the whites are set (cook the yolks firm for children, older adults or pregnant people).","Serve straight from the pan with bread."],
+  season:"Taste the sauce before adding eggs: it should be well salted and slightly spicy.",
+  store:"Best fresh. The sauce alone keeps 3 days refrigerated; add fresh eggs when reheating." },
+
+{ id:"carbonara", title:"Spaghetti Carbonara", cuisine:"Italian", style:"Home-style", styleNote:"Made with bacon instead of guanciale, and any hard cheese instead of Pecorino.",
+  desc:"Silky egg-and-cheese sauce with crisp bacon and black pepper. No cream needed.",
+  serves:2, prep:10, cook:15, difficulty:"Medium", equip:["stove"], q:5, plating:"plate", palette:["#F2E3B8","#E8C15E","#A0522D","#5E5E5E"], flavor:"Rich, peppery, savory",
+  ingredients:[
+    {k:"pasta_dry", q:200, u:"g", note:"spaghetti"},
+    {k:"egg", q:2, u:"pcs", note:"plus 1 extra yolk if you have it"},
+    {k:"bacon", q:6, u:"pcs", note:"strips, chopped", subs:[{k:"ham", q:120, u:"g", f:"Less smoky.", t:"Softer.", w:"Dice and fry until golden in a little oil."}]},
+    {k:"cheese", q:0.5, u:"cup", note:"finely grated hard cheese"},
+    {k:"pepper", q:1, u:"tsp", note:"freshly cracked"},
+    {k:"salt", q:1, u:"tbsp", note:"for the pasta water"}],
+  steps:["Boil the pasta in salted water. Keep a mugful of the pasta water.","Fry the bacon slowly until crisp. Turn off the heat.","Whisk eggs, cheese and pepper together.","Add the drained hot pasta to the bacon pan (heat off), pour in the egg mixture and toss fast, adding splashes of pasta water, until creamy. The pan's heat thickens the sauce.","For young children, older adults, pregnant people or anyone with weak immunity: keep tossing over low heat until the sauce reaches 71°C (160°F); it'll be a little thicker."],
+  season:"Bacon and cheese are salty: taste before adding any salt. Lots of black pepper is the point.",
+  store:"Best fresh; the sauce doesn't reheat well. Refrigerate leftovers and eat within 1 day." }
+);
+
+/* ---------- Dish photos ----------
+   Add a real photo for a recipe by putting the file in the img/ folder and listing it here.
+   Rules: the photo must show THIS dish; licensed for reuse (your own, Unsplash/Pexels licence,
+   or an AI image you generated, marked ai:true); about 800×1000 px, WebP or JPG, under ~120 KB.
+   Without a photo (or if it fails to load), the drawn plate is shown instead. Example:
+     "chicken-adobo": { file: "chicken-adobo.webp", credit: "Photo: Tiffany", ai: false } */
+const PHOTOS = {};
+if (typeof module !== "undefined") module.exports = { RECIPES, PHOTOS };

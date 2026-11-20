@@ -7,7 +7,8 @@ const ST = E.DEFAULT_STAPLES.concat(["onion", "fish_sauce", "flour"]);
 let fails = 0, count = 0;
 const ok = (c, msg) => { count++; console.log((c ? "  ✓ " : "  ✗ ") + msg); if (!c) fails++; };
 const near = (a, b, tol = 0.01) => Math.abs(a - b) <= tol;
-const K = items => { const p = []; E.addToPantry(p, items, now); return p; };
+const withCook = x => (x.cooked || (E.ING[x.key] || {}).isCooked) && !x.cookedOn && !x.unknownAge && x.loc !== "freezer" ? { ...x, cookedOn: x.added || T } : x;
+const K = items => { const p = []; E.addToPantry(p, items.map(withCook), now); return p; };
 const R = id => RECIPES.find(r => r.id === id);
 const meals = { kind: "meals" }, drinks = { kind: "drinks" };
 
@@ -88,12 +89,13 @@ const lo2 = K([]); E.addToPantry(lo2, [loAdobo], now); E.addToPantry(lo2, [E.lef
 ok(lo2.length === 2, "two different leftover dishes stay as two entries");
 
 console.log("\n5. FRESHNESS SYSTEM");
-const F = s => E.freshness(E.newItem(s, now), now);
+const F = s => E.freshness(E.newItem(withCook(s), now), now);
 ok(!F({ name: "Leftover stew", key: "leftover", unknownAge: true }).safe, "unknown-age cooked food: not called safe");
 ok(F({ name: "Mystery soup", key: "leftover", unknownAge: true, loc: "freezer" }).safe, "unknown-age but frozen: safe while frozen, no invented date");
 ok(!F({ name: "Yogurt", key: "yogurt", label: { type: "useby", date: ago(1) } }).safe, "past printed use-by: don't eat");
 ok(F({ name: "Pasta", key: "pasta_dry", loc: "pantry", label: { type: "bestbefore", date: ago(30) } }).safe, "dry pasta past best-before: quality warning, still usable");
-ok(!F({ name: "Cream", key: "cream", loc: "fridge", label: { type: "bestbefore", date: ago(2) } }).safe, "perishable past best-before: don't eat");
+ok(F({ name: "Cream", key: "cream", loc: "fridge", added: ago(1), label: { type: "bestbefore", date: ago(2) } }).safe, "cream past best-before but bought yesterday: NOT called unsafe (quality date)");
+ok(!F({ name: "Cream", key: "cream", loc: "fridge", added: ago(10), label: { type: "bestbefore", date: E.addDays(T, 5) } }).safe, "cream within best-before but 10 days in the fridge: storage time still applies");
 ok(F({ name: "Milk", key: "milk", added: ago(3), opened: true, openedOn: ago(1), label: { type: "useby", date: E.addDays(T, 20) } }).daysLeft === 4, "opened milk: 5 days from opening beats a later printed date");
 ok(F({ name: "Mayo", key: "mayonnaise", opened: true, openedOn: ago(10), added: ago(30) }).daysLeft === 50, "opened mayo: 60 days from opening");
 ok(F({ name: "Chicken", key: "chicken", loc: "freezer", added: ago(400) }).safe, "frozen chicken past best quality: still safe while frozen");
