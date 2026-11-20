@@ -1,7 +1,7 @@
 // Photo slots: real photos (e.g. generated with Gemini) replace the built-in renders.
 //
 // How it works:
-//   1. Put image files in the repo-root folder  unique-ava-photos/  (next to unique-ava.html).
+//   1. Put image files in the repo-root folder  unique-ava-photos/  (next to wearwise.html).
 //   2. List them in  unique-ava-photos/manifest.json , e.g.
 //        { "garments": { "t-white-tee": "t-white-tee.webp" },
 //          "scenes":   { "tokyo-rain": "scene-tokyo-rain.webp" },

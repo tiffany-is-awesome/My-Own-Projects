@@ -77,7 +77,7 @@ lives in Edge Functions, and Postgres RLS means even a bug in the client can't l
 | Image editing / scenes (Phase 2) | A dedicated image model (e.g. Gemini image or FLUX) | The stylist model doesn't generate images, so scene backgrounds and flat-lay clean-up use an image model behind the same adapter |
 | Virtual try-on | **FASHN API** or **Google Vertex AI Virtual Try-On** | Purpose-built garment → person models, about $0.06–0.08 per image (see §7) |
 | Weather | **Open-Meteo** | Free, no API key, global |
-| Hosting | **GitHub Pages** (`unique-ava.html`) | Same as Tiffo |
+| Hosting | **GitHub Pages** (`wearwise.html`; `unique-ava.html` forwards to it) | Same as Tiffo |
 | Analytics / errors | PostHog (free tier) + Sentry (free tier) | Funnel + crash visibility |
 | Tests | Vitest (rules engine), Playwright (critical flows) | The rules engine is pure functions, so it's easy to test |
 
@@ -344,7 +344,8 @@ about **$0.60**. With try-on (10/month) about **$1.30**. A $4–6/month premium 
 
 ```
 My-Own-Projects/
-├─ unique-ava.html                 ← built, single-file app (served by GitHub Pages)
+├─ wearwise.html                   ← built, single-file app (served by GitHub Pages)
+├─ unique-ava.html                 ← old address: forwards to wearwise.html
 └─ unique-ava/
    ├─ docs/ARCHITECTURE.md      ← this file
    ├─ docs/UX-AND-ROADMAP.md

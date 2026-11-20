@@ -12,9 +12,11 @@ Sign-ins are shared between the two apps; each app keeps its own private data.
    You should see "Success. No rows returned". ✅
 3. **Authentication → URL Configuration → Redirect URLs** → **Add URL**:
    `https://tiffany-is-awesome.github.io/My-Own-Projects/unique-ava.html`
-   (This makes "confirm your email" and "reset password" links come back to Wearwise.)
+   (This makes "confirm your email" and "reset password" links come back to Wearwise. The app is served at
+   `wearwise.html`; email links deliberately use the old `unique-ava.html` address, which forwards to
+   `wearwise.html` with the sign-in token intact, so no new redirect URL is needed.)
 
-**Test it:** open Wearwise → **Sign in → New here? Create an account** → confirm the email → sign in.
+**Test it:** open Wearwise (https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html) → **Sign in → New here? Create an account** → confirm the email → sign in.
 Add a piece, then open the site on your phone and sign in. Your closet appears.
 The account menu (top right) shows **☁️ Synced just now**.
 
