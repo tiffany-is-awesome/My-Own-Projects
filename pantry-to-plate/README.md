@@ -4,12 +4,11 @@ Recipes from every cuisine, made **only** from what's already in your kitchen. N
 
 Live site: https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/
 
-## ⚠️ Needed for sign-in to work for everyone
+## Sign-up
 
-Supabase's built-in email service only sends emails to **members of your Supabase team**. Anyone else who signs up gets "Email address not authorized" and never receives the confirmation email. Fix it in one of two ways:
+**"Confirm email" is turned off** (Authentication → Sign In / Providers), so anyone can create an account and sign in straight away.
 
-- **Quick (5 minutes):** Supabase → **Authentication → Sign In / Providers → Email** → turn **off "Confirm email"**. People can sign up and sign in straight away. Password-reset emails still won't reach non-team addresses.
-- **Proper (about 20 minutes, free):** set up a free email-sending service such as Resend or Brevo, and enter its details under **Authentication → Emails → SMTP Settings**. Then confirmation and password-reset emails reach everyone.
+Still to do: Supabase's built-in email service only sends to **members of your Supabase team**, so **password-reset emails won't reach other people**. To fix that, set up a free email-sending service such as Resend or Brevo under **Authentication → Emails → SMTP Settings**. After that you can turn "Confirm email" back on if you want.
 
 ## What's already set up (nothing left to do)
 
