@@ -510,32 +510,6 @@ img { max-width: 100%; }
 .verdict.no .verdict-label { color: var(--accent); background: #FDF1F1; }
 .critique-head + .verdict { margin: -4px 0 12px; font-size: 13px; }
 
-/* Closet donut */
-.donut-card { border: 1px solid var(--line); background: #fff; padding: 18px; }
-.donut-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.donut-head .h2 { margin: 0; }
-.seg.period { margin-top: 10px; }
-.donut-body { display: grid; grid-template-columns: 240px 1fr; gap: 24px; align-items: center; margin-top: 14px; }
-.donut-wrap { position: relative; width: 220px; height: 220px; }
-.donut-svg { width: 100%; height: 100%; overflow: visible; }
-.donut-slice { cursor: pointer; transition: opacity .2s ease, transform .2s ease; transform-origin: 110px 110px; animation: sliceIn .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 60ms); outline: none; }
-.donut-slice:hover, .donut-slice:focus { transform: scale(1.04); }
-.donut-slice.dim { opacity: .35; }
-@keyframes sliceIn { from { opacity: 0; transform: rotate(-20deg) scale(.85); } to { opacity: 1; transform: none; } }
-.donut-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
-.donut-center b { font-size: 34px; letter-spacing: -.03em; line-height: 1; }
-.donut-center .tiny { text-transform: capitalize; }
-.donut-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.donut-legend button { width: 100%; display: grid; grid-template-columns: 14px 1fr auto 44px; gap: 10px; align-items: center; background: none; border: 0; padding: 6px 8px; text-align: left; font-size: 13px; color: var(--ink); }
-.donut-legend button:disabled { cursor: default; opacity: 1; }
-.donut-legend li.on button, .donut-legend button:not(:disabled):hover { background: var(--stage); }
-.donut-legend .sw { width: 12px; height: 12px; border-radius: 3px; border: 1px solid; }
-.donut-legend .nm { text-transform: capitalize; }
-.donut-legend .vl { font-weight: 700; } .donut-legend .pc { color: var(--ink-3); text-align: right; font-size: 12px; }
-.donut-foot { margin: 12px 0 0; } .donut-empty { margin: 18px 0 4px; }
-@media (max-width: 760px) { .donut-body { grid-template-columns: 1fr; justify-items: center; } .donut-legend { width: 100%; } }
-@media (prefers-reduced-motion: reduce) { .donut-slice { animation: none; } }
-
 /* Wardrobes */
 .wardrobe-picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .wardrobe-picker .tiny { margin-right: 2px; }
@@ -602,7 +576,6 @@ img { max-width: 100%; }
   .packing { columns: 1; }
   .upcoming b { min-width: 90px; }
 }
-.donut-legend { max-width: 420px; }
 @media (max-width: 760px) { .modal { max-height: calc(100vh - 110px); } .overlay { align-items: start; padding-top: 12px; } }
 
 /* 🍩 Tip jar (like Tiffo) */
