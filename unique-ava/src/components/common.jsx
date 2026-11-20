@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import GarmentArt from './GarmentArt.jsx';
 import Stage from './Stage.jsx';
 import { CATEGORY_LABEL } from '../data/closet.js';
+import { verdictOf } from '../ai/critic.js';
+import { useStore } from '../store.jsx';
 
 const STATUS_FLAG = { laundry: 'In laundry', repair: 'Needs repair', stored: 'Stored' };
 
@@ -104,6 +106,53 @@ export function ScoreBadge({ score }) {
       <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" className="track" /><circle cx="18" cy="18" r="15.5" className="arc" style={{ strokeDasharray: `${(shown / 100) * 97.4} 97.4` }} /></svg>
       <b>{shown}</b>
     </span>
+  );
+}
+
+/** The honest verdict: a plain label and the one reason that matters most. */
+export function Verdict({ critique, compact = false }) {
+  if (!critique) return null;
+  const v = verdictOf(critique);
+  return (
+    <div className={'verdict ' + v.tone}>
+      <span className="verdict-label">{v.label}</span>
+      {!compact && <span className="verdict-line">{v.line}</span>}
+    </div>
+  );
+}
+
+export const WARDROBE_IDEAS = ['Work', 'Home', 'Going out', 'Church', 'Weekend'];
+
+/** Put a saved outfit into one of this person's wardrobes (Work, Home…), or start one. */
+export function WardrobePicker({ outfitId, compact = false }) {
+  const { state, dispatch, profile } = useStore();
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const mine = state.wardrobes.filter((w) => w.profileId === profile.id);
+  const outfit = state.outfits.find((o) => o.id === outfitId);
+  if (!outfit) return null;
+  const set = (id) => dispatch({ type: 'SET_OUTFIT_WARDROBE', id: outfitId, wardrobe: outfit.wardrobe === id ? null : id });
+  const create = (n) => {
+    const clean = n.trim(); if (!clean) return;
+    const existing = mine.find((w) => w.name.toLowerCase() === clean.toLowerCase());
+    const id = existing?.id || 'wr-' + Date.now().toString(36);
+    if (!existing) dispatch({ type: 'ADD_WARDROBE', wardrobe: { id, name: clean, profileId: profile.id } });
+    dispatch({ type: 'SET_OUTFIT_WARDROBE', id: outfitId, wardrobe: id });
+    setAdding(false); setName('');
+  };
+  const ideas = WARDROBE_IDEAS.filter((n) => !mine.some((w) => w.name.toLowerCase() === n.toLowerCase())).slice(0, mine.length ? 0 : 3);
+  return (
+    <div className={'wardrobe-picker' + (compact ? ' compact' : '')}>
+      <span className="tiny">Wardrobe:</span>
+      {mine.map((w) => <button key={w.id} className={'chip sm' + (outfit.wardrobe === w.id ? ' on' : '')} onClick={() => set(w.id)} aria-pressed={outfit.wardrobe === w.id}>{w.name}</button>)}
+      {ideas.map((n) => <button key={n} className="chip sm ghost-chip" onClick={() => create(n)}>+ {n}</button>)}
+      {adding ? (
+        <form className="wardrobe-new" onSubmit={(e) => { e.preventDefault(); create(name); }}>
+          <input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Office" aria-label="New wardrobe name" />
+          <button className="btn sm primary" type="submit">Add</button>
+        </form>
+      ) : <button className="chip sm ghost-chip" onClick={() => setAdding(true)}>+ New</button>}
+    </div>
   );
 }
 

@@ -32,6 +32,9 @@ export function initialState() {
     ensembles: [],
     inspirations: [],
     locations: [],   // where clothes are kept: [{ id, name }] (shared by the household)
+    wardrobes: [],   // a person's groups of saved outfits: [{ id, profileId, name }] (e.g. Work, Home)
+    plans: [],       // outfits planned on the calendar: [{ id, profileId, date, slots, name, outfitId?, tripId? }]
+    trips: [],       // [{ id, profileId, name, start, end, occasion, weather }]
     history: [],     // outfits actually worn: [{ id, profileId, date, slots, context, outfitId?, rating?, tags? }]
     draft: { name: '', slots: emptySlots(), context: DEFAULT_CONTEXT, stage: { mode: 'flatlay', scene: 'tokyo-rain', customBg: null } },
   };
@@ -114,6 +117,9 @@ function reducer(state, a) {
         ensembles: state.ensembles.map((e) => ({ ...e, members: e.members.filter((m) => m.profileId !== a.id) })).filter((e) => e.members.length),
         activeProfile: state.activeProfile === a.id ? ME : state.activeProfile,
         history: state.history.filter((h) => h.profileId !== a.id),
+        wardrobes: state.wardrobes.filter((w) => w.profileId !== a.id),
+        plans: state.plans.filter((p) => p.profileId !== a.id),
+        trips: state.trips.filter((t) => t.profileId !== a.id),
       };
     }
     case 'SWITCH_PROFILE':
@@ -158,6 +164,9 @@ function reducer(state, a) {
         ensembles: state.ensembles.filter((e) => !e.demo).map((e) => ({ ...e, members: e.members.filter((m) => !demoProfiles.has(m.profileId)) })).filter((e) => e.members.length),
         inspirations: state.inspirations.filter((i) => !i.demo),
         history: state.history.filter((h) => !demoProfiles.has(h.profileId) && Object.values(h.slots || {}).every((v) => !v || keep.has(v))),
+        plans: state.plans.filter((p) => !demoProfiles.has(p.profileId) && Object.values(p.slots || {}).every((v) => !v || keep.has(v))),
+        trips: state.trips.filter((t) => !demoProfiles.has(t.profileId)),
+        wardrobes: state.wardrobes.filter((w) => !demoProfiles.has(w.profileId)),
         draft: { ...state.draft, slots: clean(state.draft.slots) },
       };
     }
@@ -178,7 +187,7 @@ function reducer(state, a) {
     case 'SAVE_OUTFIT': {
       const src = a.outfit || { slots: state.draft.slots, context: state.draft.context, stage: state.draft.stage };
       const outfit = {
-        id: uid('o'), name: a.name || src.name || 'Untitled look', profileId: a.profileId || me, favorite: !!(a.favorite || src.favorite),
+        id: src.id || uid('o'), name: a.name || src.name || 'Untitled look', ...(src.wardrobe ? { wardrobe: src.wardrobe } : {}), profileId: a.profileId || me, favorite: !!(a.favorite || src.favorite),
         ...(src.why ? { why: src.why } : {}), ...(src.source ? { source: src.source } : {}),
         slots: { ...emptySlots(), ...src.slots }, context: src.context || state.draft.context,
         stage: { ...(src.stage || { mode: 'flatlay' }), mode: src.stage?.mode === 'person' ? 'flatlay' : (src.stage?.mode || 'flatlay'), customBg: null, personPhoto: null },
@@ -221,6 +230,27 @@ function reducer(state, a) {
     case 'RATE_WEAR': return { ...state, history: state.history.map((h) => (h.id === a.id ? { ...h, rating: a.rating ?? h.rating, tags: a.tags ?? h.tags, note: a.note ?? h.note } : h)) };
     case 'UPDATE_WEAR_DATE': return { ...state, history: state.history.map((h) => (h.id === a.id ? { ...h, date: a.date } : h)).sort((x, y) => (y.date || '').localeCompare(x.date || '')) };
     case 'DELETE_WEAR': return { ...state, history: state.history.filter((h) => h.id !== a.id) };
+
+    // ── wardrobes (groups of saved outfits, per person)
+    case 'ADD_WARDROBE': return { ...state, wardrobes: [...state.wardrobes, { id: a.wardrobe.id || uid('wr'), profileId: a.wardrobe.profileId || me, name: a.wardrobe.name }] };
+    case 'RENAME_WARDROBE': return { ...state, wardrobes: state.wardrobes.map((w) => (w.id === a.id ? { ...w, name: a.name } : w)) };
+    case 'DELETE_WARDROBE': return { ...state, wardrobes: state.wardrobes.filter((w) => w.id !== a.id), outfits: state.outfits.map((o) => (o.wardrobe === a.id ? { ...o, wardrobe: null } : o)) };
+    case 'SET_OUTFIT_WARDROBE': return { ...state, outfits: state.outfits.map((o) => (o.id === a.id ? { ...o, wardrobe: a.wardrobe || null } : o)) };
+
+    // ── calendar plans & trips
+    case 'PLAN_DAY': {
+      const others = state.plans.filter((p) => !(p.profileId === (a.plan.profileId || me) && p.date === a.plan.date));
+      return { ...state, plans: [...others, { id: uid('pl'), profileId: a.plan.profileId || me, date: a.plan.date, slots: { ...emptySlots(), ...a.plan.slots }, name: a.plan.name || 'Planned outfit', outfitId: a.plan.outfitId || null, tripId: a.plan.tripId || null, context: a.plan.context || null }] };
+    }
+    case 'UNPLAN_DAY': return { ...state, plans: state.plans.filter((p) => !(p.profileId === (a.profileId || me) && p.date === a.date)) };
+    case 'SAVE_TRIP': {
+      const trip = { id: a.trip.id || uid('tr'), profileId: a.trip.profileId || me, name: a.trip.name, start: a.trip.start, end: a.trip.end, occasion: a.trip.occasion, weather: a.trip.weather };
+      const days = new Set(a.days.map((d) => d.date));
+      const kept = state.plans.filter((p) => !(p.profileId === trip.profileId && days.has(p.date)));
+      const plans = a.days.map((d) => ({ id: uid('pl'), profileId: trip.profileId, date: d.date, slots: { ...emptySlots(), ...d.slots }, name: d.name, tripId: trip.id, context: d.context || null }));
+      return { ...state, trips: [...state.trips.filter((t) => t.id !== trip.id), trip], plans: [...kept, ...plans] };
+    }
+    case 'DELETE_TRIP': return { ...state, trips: state.trips.filter((t) => t.id !== a.id), plans: state.plans.filter((p) => p.tripId !== a.id) };
 
     case 'DELETE_ALL': return { ...initialState(), onboarded: true };
     case 'RESET': return { ...initialState(), onboarded: true };

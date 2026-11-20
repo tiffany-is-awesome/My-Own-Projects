@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
+import ClosetDonut from '../components/ClosetDonut.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
 import { PieceList, ScoreBadge, useToast } from '../components/common.jsx';
 import { toSlots } from '../components/Choose.jsx';
@@ -43,7 +44,8 @@ export default function Insights({ go }) {
 
       {!data ? <div className="loading-block"><div className="loading-bar"><i /></div><p className="small muted">Checking every piece against the rest of the closet…</p></div> : (
         <>
-          <section>
+          <ClosetDonut garments={owned} history={history} onPick={(view, key) => key !== 'other' && go(`#/closet/${view}:${encodeURIComponent(key)}`)} />
+          <section style={{ marginTop: 32 }}>
             <h2 className="h2">Rediscover My Closet</h2>
             <p className="small muted" style={{ marginTop: 0 }}>{history.length ? 'Pieces you haven\'t worn in 30 days or more, each in a strong outfit.' : 'Nothing is logged in Outfit History yet, so every piece counts as unworn. Tap "I wore this" on outfits to make this smarter.'}</p>
             {data.r.length === 0 ? <p className="small">Nothing forgotten. Everything has been worn recently, or the pieces you haven't worn don't make a strong outfit yet.</p> : (

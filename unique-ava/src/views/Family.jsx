@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
-import { PieceList, ScoreBadge, ConfirmButton, useToast } from '../components/common.jsx';
+import { PieceList, ScoreBadge, ConfirmButton, Verdict, useToast } from '../components/common.jsx';
 import { ContextPicker, DEFAULT_CHOICE, contextOf, toSlots } from '../components/Choose.jsx';
 import { familyLook } from '../ai/generator.js';
 import { ProfileManager } from './Settings.jsx';
@@ -81,6 +81,7 @@ export default function Family({ go }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 className="h3">{m.profile.name}</h3><ScoreBadge score={m.critique.overall} />
                 </div>
+                <Verdict critique={m.critique} compact />
                 <Stage outfit={m.outfit} mode="mannequin" compact child={m.profile.kind === 'child'} />
                 <PieceList outfit={m.outfit} />
               </div>
