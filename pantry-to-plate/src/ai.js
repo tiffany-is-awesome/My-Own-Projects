@@ -48,7 +48,11 @@ const AI={
   },
   async puterSignedIn(){try{await this.loadPuter();return !!(await window.puter.auth.isSignedIn());}catch(e){return false;}},
   async puterSignIn(){await this.loadPuter();await window.puter.auth.signIn();},
-  async json(prompt,{fast}={}){
+  async json(prompt,opts={}){
+    try{ const r=await this._json(prompt,opts); this.onResult&&this.onResult(true); return r; }
+    catch(e){ if(!(e&&e.code==="bad_json")) this.onResult&&this.onResult(false,e&&e.code); throw e; }
+  },
+  async _json(prompt,{fast}={}){
     if(this.mode==="claude-ai") return this._c.json(prompt,{modelTier:fast?"quick":"default"});
     if(this.mode==="puter"){
       if(!(await this.puterSignedIn())) throw {code:"puter_sign_in"};

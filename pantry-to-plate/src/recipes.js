@@ -85,7 +85,7 @@ const RECIPES = [
     {k:"lemon", q:2, u:"pcs", note:"calamansi or lime wedges", opt:true}],
   steps:["Fry the sliced garlic in the oil over medium-low heat until golden. Lift out and keep for topping.","In the same oil, cook onion, minced garlic and ginger for 2 minutes until fragrant.","Add the chicken and fish sauce; cook 3 minutes, turning.","Add the rice and stir 1 minute, then add the water. Bring to a boil, lower the heat and simmer 30 minutes, stirring often, until the rice is soft and creamy and the chicken is cooked through.","Taste for salt. Serve topped with crisp garlic, spring onion, halved eggs and calamansi."],
   season:"It needs enough salt to taste savory; add fish sauce a teaspoon at a time. The calamansi at the table is what makes it sing.",
-  store:"Cool quickly in shallow containers; refrigerate and eat within 24 hours (it contains rice). It thickens in the fridge: add water when reheating until steaming hot." },
+  store:"Cool within an hour in shallow containers; refrigerate and eat within 24 hours (it contains rice). It thickens in the fridge: add water when reheating until steaming hot." },
 
 { id:"chicken-adobo", title:"Chicken Adobo", cuisine:"Filipino", style:"Classic",
   desc:"Chicken braised in soy, vinegar, garlic and pepper until glossy and tender. Even better the next day.",
@@ -124,7 +124,7 @@ const RECIPES = [
   desc:"Cabbage and carrots sautéed with garlic, onion and a little meat. Uses half a cabbage in one go.",
   serves:4, prep:10, cook:12, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#B9D58C","#F3EBD2","#E8792B","#A0522D"], flavor:"Savory, sweet, garlicky",
   ingredients:[
-    {k:"cabbage", q:0.5, u:"pcs", note:"sliced", tol:0.8, tolNote:"A little less cabbage is fine in a sauté."},
+    {k:"cabbage", q:0.5, u:"pcs", note:"sliced", tol:0.85, tolNote:"Slightly less cabbage is fine; go a little lighter on the fish sauce."},
     {k:"carrot", q:1, u:"pcs", note:"julienned", opt:true},
     {any:["ground_pork","chicken_cooked","hotdog","corned_beef","shrimp","pork","spam"], label:"A little meat (ground pork, chicken, hotdog, corned beef or shrimp)", k:"ground_pork", q:150, u:"g", opt:true},
     {k:"onion", q:1, u:"pcs", note:"sliced", subs:[{k:"spring_onion", q:3, u:"stalk", f:"Milder, greener.", t:"Softer.", w:"Add the white parts first, greens at the end."}]},
@@ -169,7 +169,7 @@ const RECIPES = [
     {any:["chicken_cooked","beans_canned","pasta_dry","rice_raw","potato_cooked"], label:"Something hearty (cooked chicken, beans, pasta or rice)", k:"beans_canned", q:200, u:"g", opt:true}],
   steps:["Soften the onion and garlic in the oil over medium heat, 4 minutes.","Add hard vegetables first (carrot, potato, squash, sayote) and cook 3 minutes.","Add tomatoes, water and stock cubes. Simmer 15 minutes.","Add softer vegetables (cabbage, peas, beans, greens) and anything hearty; simmer 10 minutes until everything is tender.","Season with salt and pepper until it tastes bright and savory, not flat."],
   season:"Soup needs more salt than you think. If it tastes dull, add salt first, then a squeeze of calamansi or a splash of vinegar.",
-  store:"Cool in shallow containers within 2 hours. Fridge 3 days, freezer 3 months. Bring back to a boil when reheating." },
+  store:"Cool in shallow containers within 2 hours. Fridge 3 days, freezer 3 months (if you added rice: cool within an hour and eat within 24 hours). Bring back to a boil when reheating." },
 
 { id:"veg-frittata", title:"Leftover Vegetable Frittata", cuisine:"Italian", style:"Classic",
   desc:"A thick, golden egg cake that turns odds and ends into a proper meal, hot or cold.",
@@ -201,7 +201,7 @@ const RECIPES = [
     {k:"spring_onion", q:1, u:"stalk", opt:true}],
   steps:["Simmer water, soy sauce and sugar in a small pan. Add the onion and cook 3 minutes.","Add the chicken; simmer 6 to 8 minutes, turning, until cooked through (74°C / 165°F).","Pour the eggs over in a circle. Cover and cook on low 1 to 2 minutes until set to your liking (fully set for children, older adults or pregnant people).","Slide over bowls of hot rice and top with spring onion."],
   season:"The broth should taste sweet and salty, like teriyaki but thinner. Adjust with sugar or soy before adding the egg.",
-  store:"Best fresh. Leftovers: refrigerate, eat within 24 hours (rice), reheat once until steaming." },
+  store:"Best fresh. Leftovers: cool within an hour, refrigerate, eat within 24 hours (it contains rice) and reheat only once until steaming hot." },
 
 { id:"aglio-olio", title:"Garlic & Oil Spaghetti (Aglio e Olio)", cuisine:"Italian", style:"Classic",
   desc:"Five pantry ingredients, fifteen minutes: spaghetti glossy with golden garlic and chili.",
@@ -289,7 +289,7 @@ const RECIPES = [
   serves:4, prep:15, cook:25, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#E8B04B","#F3E6C4","#5E8C3A","#D96B2B"], flavor:"Creamy, warm spice, mild heat",
   ingredients:[
     {k:"coconut_milk", q:400, u:"ml"},
-    {any:["potato","carrot","squash","sweet_potato","eggplant","bell_pepper","green_beans","sayote","cabbage","broccoli","spinach","leafy_greens","peas","corn"], label:"Vegetables (any mix)", k:"potato", q:600, u:"g", minKinds:2, tol:0.75, tolNote:"A little less is fine: the curry will just be saucier."},
+    {any:["potato","carrot","squash","sweet_potato","eggplant","bell_pepper","green_beans","sayote","cabbage","broccoli","spinach","leafy_greens","peas","corn"], label:"Vegetables (any mix)", k:"potato", q:600, u:"g", minKinds:2, tol:0.8, tolNote:"Slightly fewer vegetables is fine: the curry will just be a bit saucier."},
     {any:["chicken","chicken_cooked","tofu","shrimp","beans_canned","egg"], label:"Protein (chicken, tofu, shrimp, beans or boiled eggs)", k:"chicken", q:300, u:"g", opt:true},
     {k:"curry_powder", q:1.5, u:"tbsp"},
     {k:"onion", q:1, u:"pcs", note:"chopped"},
@@ -358,7 +358,7 @@ const RECIPES = [
   desc:"Bright greens seared with lots of garlic and a savory glaze, in under ten minutes.",
   serves:2, prep:5, cook:5, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#3E7A3A","#5E8C3A","#F1E4C3","#8A5A2B"], flavor:"Garlicky, savory, fresh",
   ingredients:[
-    {any:GREENS, label:"Greens (spinach, kangkong, pechay, bok choy, cabbage, broccoli or beans)", k:"spinach", q:300, u:"g", tol:0.7, tolNote:"With less greens it's simply a smaller side dish; use a little less sauce."},
+    {any:GREENS, label:"Greens (spinach, kangkong, pechay, bok choy, cabbage, broccoli or beans)", k:"spinach", q:300, u:"g", tol:0.85, tolNote:"Slightly less greens is fine; use a little less sauce so it isn't too salty."},
     {k:"garlic", q:4, u:"clove", note:"sliced"},
     {k:"oil", q:1.5, u:"tbsp"},
     {k:"oyster_sauce", q:1, u:"tbsp", subs:[{k:"soy_sauce", q:2, u:"tsp", f:"Saltier, less sweet-savory.", t:"Thinner glaze.", w:"Add with ½ tsp sugar."}]},
@@ -743,7 +743,7 @@ RECIPES.push(
   desc:"The Ilocano vegetable stew: squash, eggplant, beans and okra cooked down with bagoong.",
   serves:4, prep:20, cook:20, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#E8A33D","#6B3A5A","#4E8A3E","#D9372B"], flavor:"Savory, funky, vegetable-sweet",
   ingredients:[
-    {any:["squash","eggplant","green_beans","okra","sayote","bell_pepper"], label:"Vegetables (squash, eggplant, string beans, okra…)", k:"squash", q:700, u:"g", minKinds:3, tol:0.8, tolNote:"With a bit less it's just a smaller pot."},
+    {any:["squash","eggplant","green_beans","okra","sayote","bell_pepper"], label:"Vegetables (squash, eggplant, string beans, okra…)", k:"squash", q:700, u:"g", minKinds:3, tol:0.85, tolNote:"Slightly fewer vegetables is fine; taste before adding all the bagoong."},
     {k:"tomato", q:2, u:"pcs", note:"chopped"},
     {k:"onion", q:1, u:"pcs"},
     {k:"garlic", q:4, u:"clove"},

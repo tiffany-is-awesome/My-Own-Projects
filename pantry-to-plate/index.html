@@ -947,7 +947,8 @@ function estimate(item, now) {
     return { group: "first", daysLeft: d, dateISO: date, basis: "estimate", safe: true, note: "Past its usual freshness. Check it carefully before using; if in doubt, throw it out." };
   }
   return { group: groupFor(d, v), daysLeft: d, dateISO: date, basis: "estimate", safe: true,
-    note: (d === 0 ? "Best used today" : "Best used within " + d + " day" + (d === 1 ? "" : "s")) + " (estimate)" };
+    note: (d === 0 ? "Best used today" : "Best used within " + d + " day" + (d === 1 ? "" : "s")) + " (estimate)" +
+      (item.key === "egg" && item.loc === "pantry" ? ". Room temperature is only for eggs sold unrefrigerated; eggs bought from a fridge must stay in the fridge." : "") };
 }
 function groupFor(d, v) { if (d <= 1) return "first"; if (d <= 4) return "soon"; if (d <= 30) return "fresh"; return "long"; }
 const GROUPS = [
@@ -1370,7 +1371,7 @@ const RECIPES = [
     {k:"lemon", q:2, u:"pcs", note:"calamansi or lime wedges", opt:true}],
   steps:["Fry the sliced garlic in the oil over medium-low heat until golden. Lift out and keep for topping.","In the same oil, cook onion, minced garlic and ginger for 2 minutes until fragrant.","Add the chicken and fish sauce; cook 3 minutes, turning.","Add the rice and stir 1 minute, then add the water. Bring to a boil, lower the heat and simmer 30 minutes, stirring often, until the rice is soft and creamy and the chicken is cooked through.","Taste for salt. Serve topped with crisp garlic, spring onion, halved eggs and calamansi."],
   season:"It needs enough salt to taste savory; add fish sauce a teaspoon at a time. The calamansi at the table is what makes it sing.",
-  store:"Cool quickly in shallow containers; refrigerate and eat within 24 hours (it contains rice). It thickens in the fridge: add water when reheating until steaming hot." },
+  store:"Cool within an hour in shallow containers; refrigerate and eat within 24 hours (it contains rice). It thickens in the fridge: add water when reheating until steaming hot." },
 
 { id:"chicken-adobo", title:"Chicken Adobo", cuisine:"Filipino", style:"Classic",
   desc:"Chicken braised in soy, vinegar, garlic and pepper until glossy and tender. Even better the next day.",
@@ -1409,7 +1410,7 @@ const RECIPES = [
   desc:"Cabbage and carrots sautéed with garlic, onion and a little meat. Uses half a cabbage in one go.",
   serves:4, prep:10, cook:12, difficulty:"Easy", equip:["stove"], q:4, plating:"plate", palette:["#B9D58C","#F3EBD2","#E8792B","#A0522D"], flavor:"Savory, sweet, garlicky",
   ingredients:[
-    {k:"cabbage", q:0.5, u:"pcs", note:"sliced", tol:0.8, tolNote:"A little less cabbage is fine in a sauté."},
+    {k:"cabbage", q:0.5, u:"pcs", note:"sliced", tol:0.85, tolNote:"Slightly less cabbage is fine; go a little lighter on the fish sauce."},
     {k:"carrot", q:1, u:"pcs", note:"julienned", opt:true},
     {any:["ground_pork","chicken_cooked","hotdog","corned_beef","shrimp","pork","spam"], label:"A little meat (ground pork, chicken, hotdog, corned beef or shrimp)", k:"ground_pork", q:150, u:"g", opt:true},
     {k:"onion", q:1, u:"pcs", note:"sliced", subs:[{k:"spring_onion", q:3, u:"stalk", f:"Milder, greener.", t:"Softer.", w:"Add the white parts first, greens at the end."}]},
@@ -1454,7 +1455,7 @@ const RECIPES = [
     {any:["chicken_cooked","beans_canned","pasta_dry","rice_raw","potato_cooked"], label:"Something hearty (cooked chicken, beans, pasta or rice)", k:"beans_canned", q:200, u:"g", opt:true}],
   steps:["Soften the onion and garlic in the oil over medium heat, 4 minutes.","Add hard vegetables first (carrot, potato, squash, sayote) and cook 3 minutes.","Add tomatoes, water and stock cubes. Simmer 15 minutes.","Add softer vegetables (cabbage, peas, beans, greens) and anything hearty; simmer 10 minutes until everything is tender.","Season with salt and pepper until it tastes bright and savory, not flat."],
   season:"Soup needs more salt than you think. If it tastes dull, add salt first, then a squeeze of calamansi or a splash of vinegar.",
-  store:"Cool in shallow containers within 2 hours. Fridge 3 days, freezer 3 months. Bring back to a boil when reheating." },
+  store:"Cool in shallow containers within 2 hours. Fridge 3 days, freezer 3 months (if you added rice: cool within an hour and eat within 24 hours). Bring back to a boil when reheating." },
 
 { id:"veg-frittata", title:"Leftover Vegetable Frittata", cuisine:"Italian", style:"Classic",
   desc:"A thick, golden egg cake that turns odds and ends into a proper meal, hot or cold.",
@@ -1486,7 +1487,7 @@ const RECIPES = [
     {k:"spring_onion", q:1, u:"stalk", opt:true}],
   steps:["Simmer water, soy sauce and sugar in a small pan. Add the onion and cook 3 minutes.","Add the chicken; simmer 6 to 8 minutes, turning, until cooked through (74°C / 165°F).","Pour the eggs over in a circle. Cover and cook on low 1 to 2 minutes until set to your liking (fully set for children, older adults or pregnant people).","Slide over bowls of hot rice and top with spring onion."],
   season:"The broth should taste sweet and salty, like teriyaki but thinner. Adjust with sugar or soy before adding the egg.",
-  store:"Best fresh. Leftovers: refrigerate, eat within 24 hours (rice), reheat once until steaming." },
+  store:"Best fresh. Leftovers: cool within an hour, refrigerate, eat within 24 hours (it contains rice) and reheat only once until steaming hot." },
 
 { id:"aglio-olio", title:"Garlic & Oil Spaghetti (Aglio e Olio)", cuisine:"Italian", style:"Classic",
   desc:"Five pantry ingredients, fifteen minutes: spaghetti glossy with golden garlic and chili.",
@@ -1574,7 +1575,7 @@ const RECIPES = [
   serves:4, prep:15, cook:25, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#E8B04B","#F3E6C4","#5E8C3A","#D96B2B"], flavor:"Creamy, warm spice, mild heat",
   ingredients:[
     {k:"coconut_milk", q:400, u:"ml"},
-    {any:["potato","carrot","squash","sweet_potato","eggplant","bell_pepper","green_beans","sayote","cabbage","broccoli","spinach","leafy_greens","peas","corn"], label:"Vegetables (any mix)", k:"potato", q:600, u:"g", minKinds:2, tol:0.75, tolNote:"A little less is fine: the curry will just be saucier."},
+    {any:["potato","carrot","squash","sweet_potato","eggplant","bell_pepper","green_beans","sayote","cabbage","broccoli","spinach","leafy_greens","peas","corn"], label:"Vegetables (any mix)", k:"potato", q:600, u:"g", minKinds:2, tol:0.8, tolNote:"Slightly fewer vegetables is fine: the curry will just be a bit saucier."},
     {any:["chicken","chicken_cooked","tofu","shrimp","beans_canned","egg"], label:"Protein (chicken, tofu, shrimp, beans or boiled eggs)", k:"chicken", q:300, u:"g", opt:true},
     {k:"curry_powder", q:1.5, u:"tbsp"},
     {k:"onion", q:1, u:"pcs", note:"chopped"},
@@ -1643,7 +1644,7 @@ const RECIPES = [
   desc:"Bright greens seared with lots of garlic and a savory glaze, in under ten minutes.",
   serves:2, prep:5, cook:5, difficulty:"Easy", equip:["stove"], q:5, plating:"plate", palette:["#3E7A3A","#5E8C3A","#F1E4C3","#8A5A2B"], flavor:"Garlicky, savory, fresh",
   ingredients:[
-    {any:GREENS, label:"Greens (spinach, kangkong, pechay, bok choy, cabbage, broccoli or beans)", k:"spinach", q:300, u:"g", tol:0.7, tolNote:"With less greens it's simply a smaller side dish; use a little less sauce."},
+    {any:GREENS, label:"Greens (spinach, kangkong, pechay, bok choy, cabbage, broccoli or beans)", k:"spinach", q:300, u:"g", tol:0.85, tolNote:"Slightly less greens is fine; use a little less sauce so it isn't too salty."},
     {k:"garlic", q:4, u:"clove", note:"sliced"},
     {k:"oil", q:1.5, u:"tbsp"},
     {k:"oyster_sauce", q:1, u:"tbsp", subs:[{k:"soy_sauce", q:2, u:"tsp", f:"Saltier, less sweet-savory.", t:"Thinner glaze.", w:"Add with ½ tsp sugar."}]},
@@ -2028,7 +2029,7 @@ RECIPES.push(
   desc:"The Ilocano vegetable stew: squash, eggplant, beans and okra cooked down with bagoong.",
   serves:4, prep:20, cook:20, difficulty:"Easy", equip:["stove"], q:4, plating:"bowl", palette:["#E8A33D","#6B3A5A","#4E8A3E","#D9372B"], flavor:"Savory, funky, vegetable-sweet",
   ingredients:[
-    {any:["squash","eggplant","green_beans","okra","sayote","bell_pepper"], label:"Vegetables (squash, eggplant, string beans, okra…)", k:"squash", q:700, u:"g", minKinds:3, tol:0.8, tolNote:"With a bit less it's just a smaller pot."},
+    {any:["squash","eggplant","green_beans","okra","sayote","bell_pepper"], label:"Vegetables (squash, eggplant, string beans, okra…)", k:"squash", q:700, u:"g", minKinds:3, tol:0.85, tolNote:"Slightly fewer vegetables is fine; taste before adding all the bagoong."},
     {k:"tomato", q:2, u:"pcs", note:"chopped"},
     {k:"onion", q:1, u:"pcs"},
     {k:"garlic", q:4, u:"clove"},
@@ -2134,7 +2135,11 @@ const AI={
   },
   async puterSignedIn(){try{await this.loadPuter();return !!(await window.puter.auth.isSignedIn());}catch(e){return false;}},
   async puterSignIn(){await this.loadPuter();await window.puter.auth.signIn();},
-  async json(prompt,{fast}={}){
+  async json(prompt,opts={}){
+    try{ const r=await this._json(prompt,opts); this.onResult&&this.onResult(true); return r; }
+    catch(e){ if(!(e&&e.code==="bad_json")) this.onResult&&this.onResult(false,e&&e.code); throw e; }
+  },
+  async _json(prompt,{fast}={}){
     if(this.mode==="claude-ai") return this._c.json(prompt,{modelTier:fast?"quick":"default"});
     if(this.mode==="puter"){
       if(!(await this.puterSignedIn())) throw {code:"puter_sign_in"};
@@ -2217,7 +2222,10 @@ function persist() { S.savedAt = Math.max(Date.now(), (S.savedAt || 0) + 1); sav
 function applySnapshot(d) {
   if (!d) return;
   if (d.v !== 3) d = migrateV2(d);
-  S.pantry = (d.pantry || []).map(p => E.newItem((p.cooked || (E.ING[p.key] || {}).isCooked) && !p.cookedOn && !p.unknownAge && p.loc !== "freezer" ? { ...p, cookedOn: p.added } : p));
+  // Older saves had no cooking date. Only leftovers the app made itself ("I made this") were really cooked on the day
+  // they were added; anything typed in might be older, so it gets no date and the person is asked.
+  const madeHere = p => p.key === "leftover" && p.unit === "servings" && /^Leftover /.test(p.name || "");
+  S.pantry = (d.pantry || []).map(p => E.newItem((p.cooked || (E.ING[p.key] || {}).isCooked) && !p.cookedOn && !p.unknownAge && p.loc !== "freezer" && madeHere(p) ? { ...p, cookedOn: p.added } : p));
   S.feedback = d.feedback || {};
   S.staples = Array.isArray(d.staples) ? d.staples : E.DEFAULT_STAPLES.slice();
   S.saved = d.saved || []; S.collections = d.collections || []; S.week = d.week || [];
@@ -2228,13 +2236,14 @@ function applySnapshot(d) {
 }
 /* Older versions stored "days left" as a fixed number. Keep everything, convert it to dates. */
 function migrateV2(d) {
-  const today = E.todayISO();
+  // "days left" in the old format were counted from when it was last saved, not from today
+  const today = d.savedAt > 0 && d.savedAt <= Date.now() ? E.todayISO(new Date(d.savedAt)) : E.todayISO();
   const pantry = (d.pantry || []).map(o => {
     const parts = String(o.qty || "").split(",").map(x => x.trim()).filter(Boolean);
     const tries = (parts.length ? parts : [""]).map(q => E.parseIngredientText((q ? q + " " : "") + o.name).slice(-1)[0] || {});
     const parsed = tries.find(t => ["g", "kg", "ml", "l", "cup"].includes(t.unit)) || tries[0] || {};
     return { name: o.name, key: parsed.key || E.resolveKey(o.name), qty: parsed.qty ?? null, unit: parsed.unit || null, loc: parsed.loc,
-      cooked: parsed.cooked, added: today, est: o.days != null ? E.addDays(today, Math.max(0, o.days)) : null, notes: "" };
+      cooked: parsed.cooked, added: today, est: null, notes: "" }; // the old "days left" was a default, not a date the person chose: use the normal food estimate
   });
   const staples = (d.staples || []).filter(s => s.on).map(s => E.resolveKey(s.name)).filter(Boolean);
   const saved = (d.saved || []).map(z => ({ id: z.id || uid(), col: z.col || "", at: z.at || 0, ...(LIB.find(r => r.title === z.recipe?.title) ? { rid: LIB.find(r => r.title === z.recipe.title).id } : { recipe: legacyRecipe(z.recipe) }) }));
@@ -2272,8 +2281,10 @@ function seedKitchen() {
 function load() {
   let d = null;
   try { d = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) {}
-  if (!d) { try { const old = JSON.parse(localStorage.getItem("p2p.v2") || "null"); if (old && Array.isArray(old.pantry)) d = migrateV2(old); } catch (e) {} }
+  let migrated = false;
+  if (!d) { try { const old = JSON.parse(localStorage.getItem("p2p.v2") || "null"); if (old && Array.isArray(old.pantry)) { d = migrateV2(old); migrated = true; } } catch (e) {} }
   if (d) applySnapshot(d); else seedKitchen();
+  if (migrated) saveLocal(); // convert old data once, so its dates don't move forward on every visit
 }
 function resetToSample() { try { localStorage.removeItem(STORE_KEY); } catch (e) {} seedKitchen(); S.savedAt = 0; S.owner = null; }
 /* After signing in on a device that had its own kitchen: ask before combining. */
@@ -3142,12 +3153,13 @@ function aiState(){
   if(!AI.ready) return "none";
   if(AI.mode==="puter"&&!S.puterConnected) return "signin";
   if(AI.mode==="server"&&!Cloud.user) return "signin";
+  if(S.aiError) return "error";
   return "live";
 }
 function renderAiStatus(){
   const b=$("#aiStatus"), st=aiState();
-  b.className="status"+(st==="live"?" live":st==="off"?" off":(st==="signin"||st==="none")?" demo":"");
-  b.textContent={live:"AI · "+AI.name+" connected",signin:"AI · connect",none:"No AI",off:"Offline",checking:"AI · checking"}[st];
+  b.className="status"+(st==="live"?" live":st==="off"?" off":(st==="signin"||st==="none"||st==="error")?" demo":"");
+  b.textContent={live:"AI · "+AI.name+" connected",signin:"AI · connect",none:"No AI",error:"AI · not responding",off:"Offline",checking:"AI · checking"}[st];
   b.title="What does this mean?";
 }
 function openAiInfo(){
@@ -3156,13 +3168,29 @@ function openAiInfo(){
     live:`<h2 id="authTitle">AI is connected</h2><p>${esc(AI.name)} adds extra recipe ideas (checked against your kitchen and reviewed before they're shown) and suggests fixes in Rescue My Dish. AI recipes aren't test-cooked or guaranteed. The main recipes come from the curated library either way.</p>`,
     signin:`<h2 id="authTitle">Connect the free AI</h2><p>Extra AI recipe ideas use ${esc(AI.name)}${AI.mode==="puter"?" through Puter. Connect once with a free Puter account; your use comes out of its free allowance":". Sign in to your Pantry → Plate account to use it"}.</p><p>Everything else works without it: your kitchen, freshness, the curated recipes, swaps and saved recipes.</p>${AI.mode==="puter"?`<button class="btn primary" data-act="puter-connect">Connect free AI</button>`:`<button class="btn primary" data-act="account">Sign in</button>`}`,
     none:`<h2 id="authTitle">AI isn't available right now</h2><p>Everything important still works: your kitchen, freshness tracking, the curated recipe library, swaps and saved recipes.</p><p>Only the extra AI recipe ideas and AI dish fixes are off; you'll get ready-made fixes instead.</p>`,
+    error:`<h2 id="authTitle">The AI isn't responding</h2><p>You're signed in, but the last request to ${esc(AI.name)} failed. It may be busy, or the free allowance may be used up for now. It will show as connected again as soon as a request works.</p><p>Everything else still works: your kitchen, freshness, the curated recipes, swaps and saved recipes.</p>`,
     off:`<h2 id="authTitle">You're offline</h2><p>Your pantry and cookbooks still work on this device. AI and account syncing pick up again as soon as you're back online.</p>`,
-    checking:`<h2 id="authTitle">Connecting to the AI…</h2><p>This takes a few seconds. If it can't connect, the app switches to demo mode with sample recipes.</p>`
+    checking:`<h2 id="authTitle">Connecting to the AI…</h2><p>This takes a few seconds. If it can't connect, the curated recipes still work as usual.</p>`
   };
   $("#authBox").innerHTML=T[st]+`<button class="${st==="signin"?"linkbtn":"btn primary"}" data-act="auth-close">${st==="signin"?"Not now":"Got it"}</button>`;
   $("#authModal").hidden=false; $("#authBox").querySelector("button").focus();
 }
 
+
+AI.onResult=(ok,code)=>{
+  if(ok) S.aiError=false;
+  else if(code==="puter_sign_in"){ S.puterConnected=false; S.aiError=false; }
+  else if(code==="sign_in"){ S.aiError=false; }
+  else S.aiError=true;
+  renderAiStatus();
+};
+async function recheckAi(){
+  if(document.hidden||!AI.ready||AI.mode!=="puter") return;
+  const was=S.puterConnected; S.puterConnected=await AI.puterSignedIn();
+  if(was!==S.puterConnected){ renderAiStatus(); if(S.tab==="cook") renderIdeas(); }
+}
+document.addEventListener("visibilitychange",recheckAi);
+window.addEventListener("focus",recheckAi);
 
 /* Demo fixes that name what's actually in your kitchen. Each: [candidates, fix using {x}, why, fallback fix]. */
 function firstOwned(c){for(const n of c){const o=owns(n);if(o)return o.item.name;}return null;}

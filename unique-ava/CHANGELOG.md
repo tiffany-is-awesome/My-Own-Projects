@@ -59,6 +59,21 @@ Audit first (screenshots of every main screen on desktop 1360px and phone 390px)
 - Headless Chrome, local build: Phase 1 flow 25/25, Phase 2 flow 12/12, new polish flow **21/21** on desktop and a 390px phone (landing hero, Today's outfit, Another idea, rainy Today avoids suede/sandals, quick occasion → results, Improve this outfit, closet search, tab bar visible on phone / hidden on desktop, More → History, no horizontal overflow, Sign in fully visible, no page errors).
 
 **Still unverified**: unchanged from the 2026-11-20 live-test entry (real Gemini answers, Supabase sign-up/login/sync, real phone photos). Animations were checked in headless Chrome screenshots, not yet on a real phone's frame rate.
+## 2026-11-20 · First live test on the real site + fix
+**PRs:** #18 (quality, photos, locations, Phase 2 merged to main) · #19 (fix below)
+
+**Tested live** (https://tiffany-is-awesome.github.io/My-Own-Projects/unique-ava.html, desktop browser):
+- The new version is served: navigation shows Home, My Closet, Create an Outfit, Builder, Saved Outfits, History, Family, Settings. Puter.js loads.
+- **Signed out of Puter → "Get 3 outfits": BUG FOUND.** Puter's own consent/sign-in dialog popped up uninvited and the page stalled on "Looking through 23 pieces…" until it was answered. Pressing *Cancel* did fall back correctly to the rules engine with an honest message.
+- **Fixed (#19):** the AI is only called when Puter reports the user is signed in; otherwise the rules engine answers immediately (no pop-up), the header shows the signed-out state, and an inline "Sign in for Gemini" button starts sign-in from the user's own click. Photo tagging follows the same rule (falls back to the on-device guess with a note). Re-tested locally: `npm test` 44/44, headless Chrome 25/25 + 12/12.
+
+**Still NOT verified live (owner had no time for the sign-in session; nothing here should be read as working until tested):**
+- A real Gemini answer via Puter: photo tagging accuracy on real clothes, AI outfit picks, AI critique, and the post-fix signed-out behaviour on the live site.
+- Supabase: sign-up → email confirmation → logout → login → wardrobe restored; same account on a second device.
+- Real phone photos (camera, lighting, busy backgrounds, several items in one shot) and how they look in flat-lay and on the mannequin.
+- Real users' judgment of outfit attractiveness over time (needs History ratings).
+
+**How to run these later (≈10 min):** sign in with "Gemini · Sign in" (Puter, free), create a Unique Ava account with "Sign in", then upload 4–6 real photos from a phone on the live site and run Create an Outfit, Style Me With This and a Family look.
 
 ---
 
