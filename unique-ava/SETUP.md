@@ -1,10 +1,10 @@
-# Setting up Unique Ava online
+# Setting up Wearwise online
 
-Unique Ava works right away: your closet is saved in the browser and the built-in rules engine styles you.
+Wearwise works right away: your closet is saved in the browser and the built-in rules engine styles you.
 Accounts are switched on, and the AI stylist needs no setup.
 
 ## 1. Accounts & cloud sync ✅ done
-Unique Ava uses **the same free Supabase project as Tiffo**, so it's already connected.
+Wearwise uses **the same free Supabase project as Tiffo**, so it's already connected.
 Sign-ins are shared between the two apps; each app keeps its own private data.
 
 1. Open your Supabase project → **SQL Editor** → **New query**.
@@ -12,16 +12,16 @@ Sign-ins are shared between the two apps; each app keeps its own private data.
    You should see "Success. No rows returned". ✅
 3. **Authentication → URL Configuration → Redirect URLs** → **Add URL**:
    `https://tiffany-is-awesome.github.io/My-Own-Projects/unique-ava.html`
-   (This makes "confirm your email" and "reset password" links come back to Unique Ava.)
+   (This makes "confirm your email" and "reset password" links come back to Wearwise.)
 
-**Test it:** open Unique Ava → **Sign in → New here? Create an account** → confirm the email → sign in.
+**Test it:** open Wearwise → **Sign in → New here? Create an account** → confirm the email → sign in.
 Add a piece, then open the site on your phone and sign in. Your closet appears.
 The account menu (top right) shows **☁️ Synced just now**.
 
 > If the menu says **"Cloud not set up"**, step 2 hasn't been run yet.
 
 ## 2. The AI stylist: Google Gemini ✅ nothing to set up
-There's **no API key anywhere**. Unique Ava uses Gemini through **Puter.js** (the "user-pays" model):
+There's **no API key anywhere**. Wearwise uses Gemini through **Puter.js** (the "user-pays" model):
 
 - The first time someone uses an AI feature (or clicks **Gemini · Sign in** in the header), Puter shows a
   sign-in pop-up. She signs in or creates a free Puter account, and that's it.

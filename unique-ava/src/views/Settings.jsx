@@ -81,7 +81,7 @@ export default function Settings({ go }) {
       cloud = error ? ` Your account copy could not be deleted (${error.message}).` : ' Your account copy was deleted too.';
     }
     setBusy(false);
-    toast('All Unique Ava data on this device was deleted.' + cloud);
+    toast('All Wearwise data on this device was deleted.' + cloud);
     go('#/home');
   }
 
@@ -96,7 +96,7 @@ export default function Settings({ go }) {
 
       <section className="settings-sec">
         <h2 className="h2">AI stylist</h2>
-        <p className="small">Unique Ava uses Google Gemini through Puter: free, no API key. Each person signs in with their own Puter account, and Gemini's suggestions are checked by the built-in rules engine. Without it, the rules engine does all the styling.</p>
+        <p className="small">Wearwise uses Google Gemini through Puter: free, no API key. Each person signs in with their own Puter account, and Gemini's suggestions are checked by the built-in rules engine. Without it, the rules engine does all the styling.</p>
         {ai.via === 'puter' ? (
           gem ? <p className="small">Signed in to Puter as <b>{gem.username}</b>. <button className="btn sm" onClick={() => { puterSignOut(); setGem(null); toast('Signed out of Puter'); }}>Sign out</button></p>
             : <button className="btn sm primary" onClick={async () => { try { await puterSignIn(); setGem((await puterUser()) || null); } catch { toast('Sign-in was closed'); } }}>Sign in to Puter to switch on Gemini</button>
@@ -109,7 +109,7 @@ export default function Settings({ go }) {
 
       <section className="settings-sec">
         <h2 className="h2">Demo closet</h2>
-        <p className="small">A sample wardrobe (plus a sample Dad and Mia) for trying Unique Ava out. Demo pieces are labelled “Demo” and can be removed in one click; your own pieces are never touched.</p>
+        <p className="small">A sample wardrobe (plus a sample Dad and Mia) for trying Wearwise out. Demo pieces are labelled “Demo” and can be removed in one click; your own pieces are never touched.</p>
         {hasDemo
           ? <ConfirmButton className="btn" label="Remove all demo items" confirmLabel="Click again to remove demo items" onConfirm={() => { dispatch({ type: 'REMOVE_DEMO' }); toast('Demo items removed'); }} />
           : <button className="btn" onClick={() => { dispatch({ type: 'LOAD_DEMO' }); toast('Demo closet added'); }}>Add the demo closet</button>}
@@ -118,7 +118,7 @@ export default function Settings({ go }) {
       <section className="settings-sec danger">
         <h2 className="h2">Delete my data</h2>
         <p className="small">Deletes every closet, outfit, lookbook, family member and photo from this browser{user ? ' and from your account' : ''}. This cannot be undone. {user ? 'Your sign-in itself stays; ask us if you want the account removed too.' : ''}</p>
-        <ConfirmButton className="btn" label={busy ? 'Deleting…' : 'Delete all my Unique Ava data'} confirmLabel="Click again: this cannot be undone" onConfirm={deleteEverything} />
+        <ConfirmButton className="btn" label={busy ? 'Deleting…' : 'Delete all my Wearwise data'} confirmLabel="Click again: this cannot be undone" onConfirm={deleteEverything} />
         <p className="tiny" style={{ marginTop: 8 }}>{state.garments.length} pieces · {state.outfits.length} outfits · {state.profiles.length} profile{state.profiles.length > 1 ? 's' : ''} stored now.</p>
       </section>
     </div>

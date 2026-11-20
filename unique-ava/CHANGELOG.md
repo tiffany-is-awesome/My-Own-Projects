@@ -1,6 +1,6 @@
-# Unique Ava: change log (written for AI reviewers)
+# Wearwise (formerly Unique Ava): change log (written for AI reviewers)
 
-> **If you are an AI reading this:** Unique Ava is a personal-styling and digital-wardrobe web app.
+> **If you are an AI reading this:** Wearwise (called Unique Ava before 2026-11-20; older entries use that name) is a personal-styling and digital-wardrobe web app.
 > The newest change is at the top. Each entry says what changed, why, which files, how to check it,
 > and what is still open. The owner may ask you to review, critique or extend it.
 
@@ -36,6 +36,13 @@
 | `src/components/GarmentArt.jsx` | Realistic flat-lay product renders |
 | `src/auth.jsx`, `src/components/Account.jsx` | Sign-in and cloud sync |
 | `supabase/unique-ava.sql` | Table + Row Level Security |
+
+---
+
+## 2026-11-20 · Renamed to Wearwise
+- Every name people see is now **Wearwise**: browser tab title, logo (mark "W"), Home copy, Settings, History, footer, shared lookbooks, docs and the repo README.
+- **Deliberately unchanged** so nothing breaks: the address `unique-ava.html`, the source folder `unique-ava/`, the browser storage key `unique-ava.v1` (saved closets keep loading), the Supabase table `unique_ava_data` (accounts keep their data) and the `unique-ava-ai` function. Older changelog entries keep the old name as history.
+- Tests: `npm test` 44/44 · headless Chrome flows 25/25, 12/12, 21/21 after the rename.
 
 ---
 

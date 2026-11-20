@@ -211,7 +211,7 @@ export function SharedLookbook({ data, go }) {
       <div className="share-hero">
         <div className="label">{p.k === 'trip' ? `Trip lookbook · ${p.tr?.city || ''}` : 'Seasonal lookbook'}</div>
         <h1 className="h1" style={{ marginTop: 8 }}>{p.t}</h1>
-        <p className="muted small">{p.o.length} looks · curated with Unique Ava</p>
+        <p className="muted small">{p.o.length} looks · curated with Wearwise</p>
       </div>
       <div className="page" style={{ paddingTop: 0 }}>
         <div className="grid">

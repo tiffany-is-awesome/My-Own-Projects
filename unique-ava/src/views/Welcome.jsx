@@ -81,7 +81,7 @@ export default function Welcome({ go }) {
           </div>
         </div>
         {missing.length === 0 ? <TodayCard go={go} /> : (
-          <div className="empty"><p className="small">Add {missing.join(', ')} and Unique Ava can suggest complete outfits.</p><button className="btn primary" onClick={() => setUploading(true)}>Add clothes</button></div>
+          <div className="empty"><p className="small">Add {missing.join(', ')} and Wearwise can suggest complete outfits.</p><button className="btn primary" onClick={() => setUploading(true)}>Add clothes</button></div>
         )}
         <div className="home-actions">
           <button className="home-tile" onClick={() => setUploading(true)}><b>Add clothes</b><span className="tiny">Photos or by hand</span></button>
@@ -107,14 +107,14 @@ export default function Welcome({ go }) {
       <div className="welcome-art">
         <div style={{ width: 'min(440px, 100%)' }}>
           {photos.hero
-            ? <img src={photos.hero} alt="Unique Ava look" style={{ width: '100%', aspectRatio: '4 / 5', objectFit: 'cover', display: 'block' }} />
+            ? <img src={photos.hero} alt="Wearwise look" style={{ width: '100%', aspectRatio: '4 / 5', objectFit: 'cover', display: 'block' }} />
             : <HeroShowcase />}
         </div>
       </div>
       <div className="welcome-copy">
         <span className="ai-badge">AI personal stylist</span>
         <h1 className="h1 hero-title"><span>Look your best.</span><span>Make the most of what you own.</span><span className="accent-line">Never turn your closet upside down again.</span></h1>
-        <p className="muted" style={{ margin: 0 }}>Add photos of {who} clothes, however messy. Unique Ava catalogs them, then builds complete outfits from what you really own, for the occasion and the weather, and explains why each one works.</p>
+        <p className="muted" style={{ margin: 0 }}>Add photos of {who} clothes, however messy. Wearwise catalogs them, then builds complete outfits from what you really own, for the occasion and the weather, and explains why each one works.</p>
         <ol className="feature-list">
           <li><b>01</b><span>Add {who} clothes: several photos at once, or by hand</span></li>
           <li><b>02</b><span>Choose the occasion, style and weather</span></li>

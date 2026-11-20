@@ -1,4 +1,4 @@
-# Gemini photo prompts for Unique Ava
+# Gemini photo prompts for Wearwise
 
 Generate each image with Gemini, save it in [`unique-ava-photos/`](../unique-ava-photos/) under the file name shown,
 then list it in `unique-ava-photos/manifest.json`. Until then, the built-in renders stay in place.

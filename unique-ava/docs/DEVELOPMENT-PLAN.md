@@ -1,6 +1,6 @@
-# Unique Ava: audit & development plan
+# Wearwise: audit & development plan
 
-Written against the owner's brief *"Unique Ava: Product Improvement & Development Plan"* (Nov 19, 2026).
+Written against the owner's brief *"Wearwise: Product Improvement & Development Plan"* (Nov 19, 2026).
 Central promise: **find the perfect outfit without turning your closet upside down.**
 
 ---
@@ -89,7 +89,7 @@ Each user signs in to Puter, and her requests are authorized by her own Puter se
 - **Navigation:** **Home · My Closet · Create an Outfit · Saved Outfits · Settings**. *Create an Outfit* is highlighted and also on
   Home. The builder (stage + spec sheet) opens from any outfit. Lookbooks/trips and Inspiration stay inside Saved Outfits.
 - **Saved Outfits:** favorites ♥, delete a saved outfit, lookbooks/trips as before.
-- **Settings:** account, AI (Gemini sign-in), **Delete all my Unique Ava data** (local + cloud row).
+- **Settings:** account, AI (Gemini sign-in), **Delete all my Wearwise data** (local + cloud row).
 - **Test:** save → appears; delete → gone (and from lookbooks); delete-my-data → closet empty locally and in the cloud.
 
 #### 1E · Family members & family looks (owner request, Nov 19)
