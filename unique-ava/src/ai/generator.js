@@ -88,11 +88,32 @@ function rank(o, ctx) {
     const match = core.length ? core.filter((i) => i.style === ctx.style).length / core.length : 0;
     s += match * 10;
   }
+  if (ctx.personal) s += personalBonus(o, ctx.personal);
   return s;
 }
 
+/**
+ * Learned taste (from her ratings in Outfit History) nudges the ranking, within ±8 points,
+ * so it can choose between good outfits but never rescue a bad one (deal-breakers still cap the score).
+ */
+export function personalBonus(o, p) {
+  if (!p) return 0;
+  let b = 0;
+  for (const k of [...CORE, 'bag', 'accessory']) {
+    const i = o[k];
+    if (!i) continue;
+    b += p.items?.[i.id] || 0;
+    if (k !== 'bag' && k !== 'accessory') {
+      b += (p.colors?.[i.colors?.[0]?.name] || 0) * 0.5;
+      b += (p.styles?.[i.style] || 0) * 0.5;
+    }
+    if (p.recent?.includes(i.id) && k !== 'shoes' && k !== 'bag') b -= 1.5; // worn in the last few days: a little variety
+  }
+  return Math.max(-8, Math.min(8, b));
+}
+
 /** All reasonable complete outfits, best first. */
-function candidates(pool, ctx, anchor, limit = 60) {
+export function candidates(pool, ctx, anchor, limit = 60) {
   const avail = pool.filter(isAvailable);
   const aSlot = anchor ? slotOf(anchor) : null;
   const of = (slot, filter = () => true) => avail.filter((g) => slotOf(g) === slot && filter(g));
@@ -141,6 +162,11 @@ export function explain(o, c, ctx) {
   return parts.join(' ');
 }
 
+function personalNote(o, ctx) {
+  const liked = ctx.personal ? [...CORE, 'bag', 'accessory'].map((k) => o[k]).filter((i) => i && (ctx.personal.items?.[i.id] || 0) >= 2) : [];
+  return liked.length ? ` Includes ${liked.length > 1 ? 'pieces' : 'a piece'} you rated highly before (the ${liked.slice(0, 2).map(short).join(' and ')}).` : '';
+}
+
 const shared = (a, b) => CORE.filter((k) => a[k] && b[k] && a[k].id === b[k].id).length;
 
 /**
@@ -168,9 +194,17 @@ export function generateOutfits(pool, ctx, anchor = null) {
   const outfits = chosen.map(({ o }) => {
     const full = accessorize(o, ctx, avail, anchor);
     const c = critique(full, ctx);
-    return { name: describe(full), outfit: full, critique: c, why: explain(full, c, ctx) };
+    return { name: describe(full), outfit: full, critique: c, why: explain(full, c, ctx) + personalNote(full, ctx), weak: c.dealBreakers.length > 0 };
   });
-  return { outfits, missing: [] };
+  // Never pad with clearly bad outfits: keep weak ones only when nothing better exists.
+  const strong = outfits.filter((x) => !x.weak);
+  const shown = (strong.length ? strong : outfits.slice(0, 1)).sort((a, b) => b.critique.overall - a.critique.overall);
+  const note = shown.length < 3
+    ? (strong.length
+      ? `Only ${strong.length} strong outfit${strong.length > 1 ? 's' : ''} can be made from this closet for ${occ(ctx)}. Adding pieces would give more choice.`
+      : `This closet can't make a really good outfit for ${occ(ctx)} yet. Here's the closest option, with what to watch.`)
+    : '';
+  return { outfits: shown, missing: [], note };
 }
 
 // ── Style me with this: several styling DIRECTIONS around one garment

@@ -13,7 +13,7 @@
   Build: `cd unique-ava && npm install && npm run build`. Tests: `npm test` (Vitest, rules engine).
 - **Look:** minimalist "boutique" style (white / `#F4F4F4`, crisp grids, product cards, spec sheets).
 - **Screens (since Phase 1):** Home · My Closet · **Create an Outfit** (primary) · Builder (4:5 stage) · Saved Outfits ·
-  Family · Settings. Also: Style Me With This (`#/style/<id>`), Lookbooks & trips, Inspiration.
+  Family · Settings. Also: Style Me With This (`#/style/<id>`), History (`#/history`), Closet insights (`#/insights`), Lookbooks & trips, Inspiration.
 - **Accounts:** Supabase Auth + table `public.unique_ava_data` (one JSON row per user, Row Level Security).
   Same Supabase project as the owner's other apps (Tiffo, Pantry to Plate).
 - **AI stylist:** Google Gemini through **Puter.js** (no API key; each user signs in to Puter). Used for photo tagging,
@@ -29,11 +29,53 @@
 | `src/ai/stylist.js` | The four AI features: prompts + validation of the JSON the AI returns |
 | `src/ai/critic.js` | Rules engine: 5 pillars (proportions; weather & comfort; color & pattern; occasion & formality; style, shoes & accessories) |
 | `src/ai/generator.js` | 3 distinct outfits, Style Me directions, alternatives, family coordination (owned + available items only) |
+| `src/ai/insights.js` | Phase 2: versatility, Rediscover My Closet, wear stats, learned preferences from ratings |
+| `src/ai/quality.fixture.js` | Test-only closets (bold/patterned, tiny) used by the outfit-quality tests |
 | `src/components/Choose.jsx` | Context picker chips, outfit card, side-by-side comparison |
 | `src/components/Worn.jsx` | Outfit drawn fitted on a front-facing mannequin |
 | `src/components/GarmentArt.jsx` | Realistic flat-lay product renders |
 | `src/auth.jsx`, `src/components/Account.jsx` | Sign-in and cloud sync |
 | `supabase/unique-ava.sql` | Table + Row Level Security |
+
+---
+
+## 2026-11-19 (evening) · Quality pass, photo accuracy, storage locations, Phase 2
+**Branch / PR:** `unique-ava-phase1` (PR #15, same branch) · nothing rebuilt; all Phase 1 tests still pass.
+
+**1. Outfit quality (tested against a deliberately hard closet)**
+A new test closet (`quality.fixture.js`: florals, checks, stripes, red/pink/mustard, platform sneakers, running shoes, heels, cocktail dress, joggers, straw tote…) was run through 11 occasion/weather cases and judged by eye. Problems found and fixed in `critic.js` / `generator.js`:
+- *Serious flaws were averaged away* (cocktail dress + running shoes scored 84). New **deal-breakers** cap the score at 68 (60 for two) and are listed first in "Watch": athletic shoes with dressy pieces, sandals/heels/suede in rain, open shoes below 18°C, far too warm/cold, a very casual piece at a dressy occasion (graphic tee under a coat at work), a black-tie piece at an everyday occasion, sporty/street pieces with polished ones at work or church, clothes you can't move in for sports.
+- *Padding to three:* bad outfits are no longer shown just to fill three slots. With a small closet you get fewer, with an honest note ("Only 1 strong outfit can be made from this closet for a wedding…"). Results are sorted best first.
+- Smaller fixes: casual canvas/straw bags at occasions of formality 3+, straw bags in rain or cold, boots and warm tops at 27°C+, chunky/street sneakers no longer count as a "modern high-low" touch, style clashes weigh more, casual shoes at dressy occasions, a crash on items without a material.
+- The AI is held to the same bar: Gemini picks with any deal-breaker or a score under 70 are replaced by the rules engine. A "Weak option" tag shows if one ever has to be shown.
+
+**2. Photo accuracy (uploads)**
+- Cut-outs now keep only the largest connected piece (crumbs, lint and background bits removed) and are **cropped to the garment**, so it fills its place in the flat-lay and on the mannequin. Garment pixels are never recolored or reshaped.
+- If the cut-out fails (garment the same color as the background), **the original photo is kept as taken**, with a message asking her to check the color.
+- Without AI, the category guess now reads the silhouette (two legs → trousers, sleeves → top) instead of only the width-to-height ratio.
+- On the mannequin, photo pieces are anchored (tops at the shoulders, bottoms at the waist, shoes at the feet) and labelled "placed as taken, not reshaped to the body".
+
+**3. Storage locations (owner's request)**
+Household-wide places ("Bedroom closet", "Under-bed box", "Lola's house"…), managed in Settings or added on the spot from any item ("+ Add a place…"). Each item shows where it's kept; My Closet filters by place (and "No place set").
+
+**4. Phase 2**
+- **Outfit History:** "I wore this" on outfit cards, Style Me, Saved Outfits and the builder. History page per person: date (editable), 1–5 stars, quick feedback (Loved it, Got compliments, Comfortable, Uncomfortable, Too warm/cold, Too formal/casual, Didn't feel like me), delete.
+- **Personalized recommendations:** ratings and feedback become small nudges per item, color and style (`preferenceProfile`), applied within ±8 points so taste only chooses *between* outfits that already pass every check. Pieces worn in the last 3 days are nudged down for variety. Gemini is told which pieces she rated highly/poorly. The History page says in plain words what has been learned; Create an Outfit says when results are personalized.
+- **Rediscover My Closet** (`#/insights`): pieces not worn for 30+ days (or never; skips items added in the last 14 days), each in a strong outfit, varied so suggestions don't repeat the same partners; "I'll wear this" logs it.
+- **Wardrobe versatility** (`#/insights`): for each available piece, how many other pieces it makes strong outfits with and in which of six everyday situations; pieces that work nowhere are highlighted with the reason (e.g. nothing at its level of dressiness). Score = share of pieces that pair with ≥3 others in ≥2 situations.
+
+**Database:** no schema change; `locations`, `history` and `addedAt` live in the same JSON row. Older data gets empty defaults.
+
+**Tests (actual results, 2026-11-19 evening)**
+- `npm test`: **44/44 pass** (+9 outfit-quality tests, +8 Phase 2 tests).
+- Headless Chrome, local build: Phase 1 flow **25/25**, Phase 2 + locations flow **12/12** (places, filter, add place from item form, I wore this, ratings + feedback, learned summary, persistence after reload, personalized results, versatility table, rediscover, per-person history, no page errors).
+- Synthetic messy photos (textured sheet, crumbs, small/off-centre garment, garment cut off at the edge, white-on-white): 4 clean cut-outs cropped to the garment, white-on-white correctly kept as the original photo.
+
+**Still NOT verified (needs the owner, the live site and real devices):**
+- A real Gemini request via Puter (tagging accuracy on real photos, AI outfit picks, AI critique), and the not-signed-in / Puter-down paths on the live site.
+- Real Supabase sign-up → logout → login → wardrobe restored, on two devices.
+- Real phone photos (lighting, busy backgrounds, multiple items in one shot). The synthetic tests can't stand in for these.
+- Whether the recommendations *look* attractive to real users over weeks of use (needs real feedback data).
 
 ---
 

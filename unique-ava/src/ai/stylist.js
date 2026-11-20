@@ -132,6 +132,14 @@ Each pros/cons list: 0-3 short sentences that name the actual pieces by color an
   };
 }
 
+const likedLine = (ctx, avail) => {
+  const p = ctx.personal;
+  if (!p) return '';
+  const liked = avail.filter((g) => (p.items?.[g.id] || 0) >= 1).map((g) => g.id);
+  const disliked = avail.filter((g) => (p.items?.[g.id] || 0) <= -1).map((g) => g.id);
+  return [liked.length ? `She has rated outfits with these pieces highly: ${liked.join(', ')}.` : '', disliked.length ? `She rated outfits with these poorly, so use them only if they clearly work: ${disliked.join(', ')}.` : ''].filter(Boolean).join(' ') + (liked.length || disliked.length ? '\n' : '');
+};
+
 // ─────────────────────────────────────────── 3. Three outfits (AI picks, rules engine validates)
 /**
  * @returns {{ outfits: [{ name, outfit, critique, why, source: 'ai'|'rules', note? }], provider, error?, missing? }}
@@ -146,7 +154,7 @@ export async function styleWithAI({ ctx, pool, anchor = null, direction = null }
   const q = `You are the outfit stylist of a wardrobe app. Build outfits ONLY from the closet below (the person's own, available clothes).
 
 THE SITUATION: occasion ${ctx.occasionLabel} · ${ctx.tempC}°C${ctx.rain >= 0.6 ? ', rain likely' : ''}${ctx.style ? ` · style: ${ctx.style}` : ''}${ctx.prefs?.length ? ` · preferences: ${ctx.prefs.join(', ')}` : ''}${ctx.prompt ? ` · note: "${ctx.prompt}"` : ''}.
-${anchor ? `MUST INCLUDE in every outfit: ${anchor.id} (${anchor.name}).` : ''}${direction ? `\nSTYLING DIRECTION: ${direction}.` : ''}
+${likedLine(ctx, avail)}${anchor ? `MUST INCLUDE in every outfit: ${anchor.id} (${anchor.name}).` : ''}${direction ? `\nSTYLING DIRECTION: ${direction}.` : ''}
 
 CLOSET (id | name | slot | colors | pattern | material | style | fit | warmth | rain | formality | seasons):
 ${closet}
@@ -158,7 +166,7 @@ Reply with ONLY this JSON:
 { "outfits": [ { "top": "id", "bottom": "id or null", "outer": "id or null", "shoes": "id", "bag": "id or null", "accessory": "id or null", "why": "1-2 plain sentences: why this works for the situation" } ] }`;
   const r = await ask(q, { tier: 'default' });
   if (!r.value) {
-    return { outfits: rules.outfits.map((x) => ({ ...x, source: 'rules' })), error: r.offline ? null : r.error, offline: r.offline };
+    return { outfits: rules.outfits.map((x) => ({ ...x, source: 'rules' })), note: rules.note, error: r.offline ? null : r.error, offline: r.offline };
   }
   const byId = new Map(avail.map((g) => [g.id, g]));
   const pick = (id, slot) => { const g = byId.get(id); return g && slotOf(g) === slot ? g : null; };
@@ -173,7 +181,7 @@ Reply with ONLY this JSON:
     const c = isComplete(o) ? critique(o, ctx) : null;
     const weather = c?.pillars.find((p) => p.id === 'fabric').score ?? 0;
     // Independent validation: complete, uses her real available items, practical, and genuinely decent.
-    if (!c || seen.has(k) || weather < 60 || c.overall < 62) { rejected++; continue; }
+    if (!c || seen.has(k) || weather < 60 || c.overall < 70 || c.dealBreakers.length) { rejected++; continue; }
     seen.add(k);
     validated.push({ name: describe(o), outfit: o, critique: c, why: str(raw.why, 300) || explain(o, c, ctx), source: 'ai' });
   }
@@ -188,7 +196,7 @@ Reply with ONLY this JSON:
   return {
     outfits: validated,
     provider: r.provider,
-    note: rejected ? `The rules engine replaced ${rejected} AI suggestion${rejected > 1 ? 's' : ''} that didn't pass its checks (incomplete, impractical for the weather, or a weak match).` : '',
+    note: [rejected ? `The rules engine replaced ${rejected} AI suggestion${rejected > 1 ? 's' : ''} that didn't pass its checks (incomplete, impractical for the weather, or a weak match).` : '', validated.length < 3 ? rules.note : ''].filter(Boolean).join(' '),
   };
 }
 

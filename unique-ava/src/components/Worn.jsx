@@ -292,7 +292,8 @@ function WornAccessory({ item }) {
 }
 
 // Fallback placement for pieces that only have a photo (box: left, top, width, height in %).
-const PHOTO_BOX = { shoes: [37, 86, 26, 8], bottom: [35, 45, 30, 44], top: [33, 20, 34, 33], outer: [31, 19, 38, 60], bag: [58, 48, 18, 20], accessory: [40, 18, 20, 16] };
+const PHOTO_BOX = { shoes: [36, 86, 28, 9], bottom: [34, 44, 32, 46], top: [29, 19.5, 42, 36], outer: [27, 19, 46, 60], bag: [60, 48, 18, 20], accessory: [42, 18, 16, 14] };
+const PHOTO_ANCHOR = { shoes: 'center bottom', bottom: 'center top', top: 'center top', outer: 'center top', bag: 'center', accessory: 'center top' };
 const CHILD_BOX = (b) => [36 + (b[0] - 36) * 0.64, 30 + b[1] * 0.64, b[2] * 0.64, b[3] * 0.64];
 
 export default function Worn({ outfit, photoFor, child = false }) {
@@ -317,7 +318,7 @@ export default function Worn({ outfit, photoFor, child = false }) {
       </svg>
       {['shoes', 'bottom', 'top', 'outer', 'bag', 'accessory'].filter((k) => o[k] && photoFor(o[k])).map((k) => {
         const [l, t, w, h] = child ? CHILD_BOX(PHOTO_BOX[k]) : PHOTO_BOX[k];
-        return <img key={k} className="stage-photo-piece" src={photoFor(o[k])} alt={o[k].name} style={{ left: l + '%', top: t + '%', width: w + '%', height: h + '%' }} />;
+        return <img key={k} className="stage-photo-piece" src={photoFor(o[k])} alt={o[k].name} style={{ left: l + '%', top: t + '%', width: w + '%', height: h + '%', objectPosition: PHOTO_ANCHOR[k] }} />;
       })}
     </>
   );

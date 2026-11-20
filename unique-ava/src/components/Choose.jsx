@@ -63,7 +63,8 @@ export function suitability(c, ctx) {
 const SOURCE = { ai: 'Picked by Gemini · checked by the rules engine', rules: 'Picked by the rules engine' };
 
 /** One suggested outfit with explanation, alternatives and save. */
-export function OutfitCard({ result, ctx, pool, index, child = false, onReplace, onSave, onOpen, saved }) {
+export function OutfitCard({ result, ctx, pool, index, child = false, onReplace, onSave, onOpen, onWore, saved }) {
+  const [wore, setWore] = useState(false);
   const [mode, setMode] = useState('flatlay');
   const [showAlts, setShowAlts] = useState(false);
   const alts = showAlts ? alternatives(result.outfit, ctx, pool) : [];
@@ -86,13 +87,15 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
           </div>
           <ScoreBadge score={c.overall} />
         </div>
-        {result.source && <span className={'source-tag ' + result.source}>{SOURCE[result.source]}</span>}
+        {result.source && <span className={'source-tag ' + result.source}>{SOURCE[result.source] || 'Edited by you'}</span>}
+        {result.critique.dealBreakers?.length > 0 && <span className="source-tag weak">Weak option · {result.critique.dealBreakers[0]}</span>}
         <p className="small why">{result.why}</p>
         {weak && <p className="small watch"><b>Watch:</b> {weak}</p>}
         <PieceList outfit={result.outfit} />
         <div className="outfit-card-actions">
           <button className={'btn sm ' + (saved ? '' : 'accent')} onClick={onSave} disabled={saved}>{saved ? '♥ Saved' : '♡ Save'}</button>
           <button className="btn sm" onClick={() => setShowAlts(!showAlts)} aria-expanded={showAlts}>{showAlts ? 'Hide changes' : 'Change items'}</button>
+          {onWore && <button className="btn sm ghost" disabled={wore} onClick={() => { onWore(); setWore(true); }}>{wore ? '✓ Logged' : 'I wore this'}</button>}
           {onOpen && <button className="btn sm ghost" onClick={onOpen}>Open in builder</button>}
         </div>
         {showAlts && (

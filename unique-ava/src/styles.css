@@ -349,3 +349,23 @@ img { max-width: 100%; }
   .profile-rows li, .profile-add { grid-template-columns: 1fr 1fr; }
   .item-form .field-row.three { grid-template-columns: 1fr; }
 }
+.source-tag.weak { color: var(--warn); }
+.stage-note { position: absolute; right: 10px; top: 10px; font-size: 10px; background: rgba(255,255,255,.85); padding: 3px 7px; color: var(--ink-2); }
+.card-place { font-size: 11px; color: var(--ink-2); margin-top: 4px; }
+.loc-row .select { height: 34px; font-size: 13px; max-width: 260px; }
+.stars { display: inline-flex; gap: 2px; }
+.stars button { background: none; border: 0; font-size: 22px; line-height: 1; color: #D6D3CC; padding: 2px; }
+.stars button.on { color: var(--ink); }
+.chip.sm { height: 26px; padding: 0 10px; font-size: 11px; }
+.history-list { display: grid; gap: 14px; }
+.history-row { display: grid; grid-template-columns: 180px 1fr; gap: 16px; border: 1px solid var(--line); padding: 12px; background: #fff; }
+.history-body { display: grid; gap: 10px; align-content: start; }
+.history-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.date-input { height: 34px; width: auto; font-size: 13px; }
+.versatility-score { font-size: 13px; } .versatility-score b { font-size: 28px; }
+.vtable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.vtable th { text-align: left; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); border-bottom: 1px solid var(--ink); padding: 8px 6px; }
+.vtable td { border-bottom: 1px solid var(--line); padding: 6px; vertical-align: middle; }
+.vtable tr.hard td { background: #FBF6F1; }
+.vlink { display: flex; align-items: center; gap: 10px; background: none; border: 0; padding: 0; text-align: left; font-weight: 600; }
+@media (max-width: 720px) { .history-row { grid-template-columns: 1fr; } .vtable th:nth-child(4), .vtable td:nth-child(4) { display: none; } }
