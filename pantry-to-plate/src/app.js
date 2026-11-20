@@ -173,7 +173,7 @@ function renderHome() {
   const check = items.filter(x => x.f.group === "check");
   $("#homeAlert").innerHTML = check.length ? `<button class="alert" data-act="tab" data-tab="rescue">${icon("stop")}<b>${check.length} food${check.length > 1 ? "s" : ""} may not be safe to eat.</b> See what to do in Rescue my food →</button>` : "";
   const urgent = items.filter(x => x.f.group === "first" || x.f.group === "soon").sort((a, b) => (a.f.daysLeft ?? 99) - (b.f.daysLeft ?? 99)).slice(0, 6);
-  $("#homeUse").innerHTML = urgent.length ? `<ul class="uselist">${urgent.map(({ p, f }) => `<li><button class="rowbtn plain" data-act="rescue-item" data-id="${p.id}">${foodArt(p)}<span class="ul-t"><b>${esc(p.name)}</b> <span class="muted">${esc(amountLabel(p))}</span><small>${esc(f.note)}</small></span>${freshBadge(f)}</button></li>`).join("")}</ul>`
+  $("#homeUse").innerHTML = urgent.length ? `<ul class="uselist">${urgent.map(({ p, f }) => `<li><button class="rowbtn plain" data-act="rescue-item" data-id="${p.id}">${foodArt(p)}<span class="ul-t"><span><b>${esc(p.name)}</b> <span class="muted">${esc(amountLabel(p))}</span></span><small>${esc(f.note)}</small></span>${freshBadge(f)}</button></li>`).join("")}</ul>`
     : S.pantry.length ? emptyState("basket", "Nothing urgent", "Your kitchen is in good shape. Nothing needs using in the next few days.")
     : emptyState("fridge", "Your kitchen is empty", "Add the food you have and I'll show what to use first.", `<button class="btn primary" data-act="tab" data-tab="kitchen">Add food</button>`);
   const cooking = S.cooking && getRecipe(S.cooking.rid);

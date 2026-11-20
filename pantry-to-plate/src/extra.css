@@ -244,7 +244,9 @@ nav button .ic{width:19px;height:19px;align-self:center}
 nav button{align-items:center;gap:7px;border-radius:8px 8px 0 0;transition:color .2s,background-color .2s}
 nav button:hover{background:var(--card)}
 nav button .count.urgent{background:#FDE3DF;color:var(--urgent)}
-@media (min-width:821px) and (max-width:1180px){nav button .lg{display:none} nav button{padding:8px 9px}}
+@media (min-width:821px){nav{gap:6px;margin-right:12px} nav button{padding:8px 12px}}
+@media (min-width:821px) and (max-width:1599px){nav button .lg{display:none}}
+@media (min-width:821px) and (max-width:1100px){nav{gap:2px} nav button{padding:8px 8px} nav button .ic{display:none}}
 @media (max-width:820px){
   nav{grid-template-columns:repeat(6,1fr)!important}
   nav button{flex-direction:column;gap:3px;padding:8px 2px 9px;font-size:11px;font-weight:600;position:relative;border-radius:0}
@@ -291,8 +293,14 @@ nav button .count.urgent{background:#FDE3DF;color:var(--urgent)}
 @keyframes addedIn{0%{opacity:0;transform:translateY(10px) scale(.96);box-shadow:0 0 0 0 rgba(46,107,90,.0)}60%{opacity:1;transform:none;box-shadow:0 0 0 4px rgba(46,107,90,.25)}100%{box-shadow:0 0 0 0 rgba(46,107,90,0)}}
 .uselist li{list-style:none}
 .uselist{padding:0;margin:0;display:grid;gap:4px}
-.rowbtn.plain{display:flex;width:100%;gap:11px;align-items:center;text-align:left;background:none;border:0;padding:8px;border-radius:var(--r-sm);cursor:pointer}
-.rowbtn.plain:hover{background:#fff}
+.rowbtn.plain{display:flex;flex-direction:row;width:100%;gap:12px;align-items:center;text-align:left;background:#fff;border:1px solid var(--line);padding:9px 12px;border-radius:var(--r-sm);cursor:pointer}
+.rowbtn.plain:hover{border-color:var(--sage);box-shadow:var(--shadow)}
+.rowbtn.plain span{font-size:inherit;color:inherit}
+.rowbtn.plain .ul-t{display:flex;flex-direction:column;gap:1px;font-size:15px}
+.rowbtn.plain .ul-t .muted{color:var(--muted);font-size:14px}
+.rowbtn.plain .ul-t small{font-size:12.5px;color:var(--muted)}
+.rowbtn.plain .fbadge{margin-left:auto;font-size:12px}
+.uselist{gap:6px}
 .ul-t{flex:1;min-width:0}.ul-t small{display:block;color:var(--muted);font-size:12.5px}
 
 /* Illustrations & empty states */
