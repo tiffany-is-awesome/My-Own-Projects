@@ -184,6 +184,7 @@
     <div id="parsePreview" class="mt-3 text-sm text-stone-500 dark:text-stone-400 min-h-[1.25rem]"></div>
     <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500 dark:text-stone-400">
       <span>💸 Log money · 👛 fill pockets · ⏰ set reminders · 🎯 make budgets, all by typing</span>
+      <button type="button" id="aiPill" class="hidden rounded-full border px-2.5 py-0.5 font-semibold transition" aria-pressed="false"></button>
       <button type="button" id="newHereLink" class="open-tutorial font-semibold text-violet-700 dark:text-violet-300 hover:underline">📖 New here? See how Tiffo works →</button>
     </div>
   </section>
@@ -210,6 +211,23 @@
         </div>
       </section>
 
+      <!-- Accounts: WHERE your money is -->
+      <section data-tool="accounts" data-tool-name="🏦 Accounts" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-teal-100 dark:bg-teal-900/50" aria-hidden="true">🏦</span>
+            <div><h2 class="font-bold text-lg leading-tight">Accounts</h2>
+            <p class="text-xs text-stone-500 dark:text-stone-400">Where your money is: cash, GCash, Maya, banks</p></div>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" id="moveAcctBtn" class="rounded-lg border border-teal-300 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-sm font-semibold px-3 py-1.5 hover:bg-teal-50 dark:hover:bg-teal-950/40">⇄ Move money</button>
+            <button type="button" id="addAcctBtn" class="rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold px-3 py-1.5">+ Add account</button>
+          </div>
+        </div>
+        <ul id="acctList" class="divide-y divide-stone-100 dark:divide-stone-800"></ul>
+        <p class="mt-2 text-[11px] text-stone-400">Moving money between your own accounts isn't income or spending, so your totals stay the same.</p>
+      </section>
+
       <!-- Pockets (mini accounts) -->
       <section data-tool="pockets" data-tool-name="👛 Pockets" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -233,6 +251,34 @@
         <div id="pocketEmpty" class="rounded-xl border-2 border-dashed border-fuchsia-200 dark:border-fuchsia-900/60 p-4 text-sm text-stone-500 dark:text-stone-400"></div>
         <div id="pocketGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
         <p id="pocketHint" class="hidden mt-3 text-[11px] text-stone-400">Type things like “send 500 to toys”, “move 200 from toys to necessities” or “take 100 out of toys”. Spending that mentions a pocket comes out of it.</p>
+      </section>
+
+      <!-- Family & friends: informal loans -->
+      <section data-tool="loans" data-tool-name="👥 Family & friends" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-amber-100 dark:bg-amber-900/40" aria-hidden="true">👥</span>
+            <div><h2 class="font-bold text-lg leading-tight">Family &amp; friends</h2>
+            <p class="text-xs text-stone-500 dark:text-stone-400">Money you lent or borrowed. No contracts, no pressure.</p></div>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" id="lendBtn" class="rounded-lg border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-sm font-semibold px-3 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-950/40">+ I lent</button>
+            <button type="button" id="borrowBtn" class="rounded-lg border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-sm font-semibold px-3 py-1.5 hover:bg-amber-50 dark:hover:bg-amber-950/40">+ I borrowed</button>
+          </div>
+        </div>
+        <div id="loanTotals" class="grid grid-cols-2 gap-3 mb-3">
+          <div class="rounded-xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200/70 dark:border-teal-900/60 px-3 py-2">
+            <div class="text-[11px] font-semibold text-teal-800 dark:text-teal-300">Owed to you</div>
+            <div id="loanTheyOwe" class="text-lg font-bold tabular">₱0</div>
+          </div>
+          <div class="rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200/70 dark:border-orange-900/60 px-3 py-2">
+            <div class="text-[11px] font-semibold text-orange-800 dark:text-orange-300">You owe</div>
+            <div id="loanYouOwe" class="text-lg font-bold tabular">₱0</div>
+          </div>
+        </div>
+        <ul id="loanList" class="divide-y divide-stone-100 dark:divide-stone-800"></ul>
+        <p id="loanEmpty" class="rounded-xl border-2 border-dashed border-amber-200 dark:border-amber-900/60 p-4 text-sm text-stone-500 dark:text-stone-400"></p>
+        <p class="mt-2 text-[11px] text-stone-400">Lending, borrowing and paying back aren’t income or spending, so they don’t change your profit. Gifts are separate and never need paying back.</p>
       </section>
 
       <!-- Ledger -->
@@ -441,8 +487,8 @@
 <!-- ============================ MODAL: Balance ============================ -->
 <div id="balanceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="balanceModalTitle">
   <div class="w-full max-w-sm rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xl p-6 animate-in">
-    <h3 id="balanceModalTitle" class="text-lg font-bold">Set starting balance</h3>
-    <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">The cash you had before your first ledger entry. Your current balance = starting balance + income − expenses.</p>
+    <h3 id="balanceModalTitle" class="text-lg font-bold">Set your cash balance</h3>
+    <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">For your <b>Cash</b> account. Other accounts (GCash, banks…) are set in the Accounts card.</p>
     <form id="balanceForm" class="mt-4 space-y-3">
       <div class="relative">
         <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 currency-symbol">$</span>
@@ -617,6 +663,21 @@
   </div>
 </div>
 
+<!-- ============================ MODAL: Generic form (accounts, loans, edit, confirm) ============================ -->
+<div id="formModal" class="fixed inset-0 z-[52] hidden items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="fmTitle">
+  <form id="fmForm" class="w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xl p-6 animate-in space-y-3" autocomplete="off" novalidate>
+    <h3 id="fmTitle" class="text-lg font-bold"></h3>
+    <p id="fmSub" class="text-sm text-stone-500 dark:text-stone-400"></p>
+    <div id="fmFields" class="space-y-3"></div>
+    <p id="fmError" class="hidden text-sm rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 px-3 py-2" role="alert"></p>
+    <div class="flex items-center gap-2 pt-1">
+      <button type="button" id="fmDanger" class="hidden mr-auto text-sm font-semibold text-rose-600 dark:text-rose-400 hover:underline"></button>
+      <button type="button" id="fmCancel" class="ml-auto rounded-lg px-4 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Cancel</button>
+      <button type="button" id="fmSave" class="rounded-lg bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 text-sm font-semibold">Save</button>
+    </div>
+  </form>
+</div>
+
 <!-- ============================ MODAL: Pocket form ============================ -->
 <div id="pocketModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="pocketModalTitle">
   <form id="pocketForm" class="w-full max-w-sm rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xl p-6 animate-in space-y-3" autocomplete="off" novalidate>
@@ -691,7 +752,13 @@ const LS = (() => {
 })();
 
 const CONFIG = {
-  AI_PROVIDER: 'none',                 // 'supabase' = free Google Gemini through the tiffo-ai function (see SETUP-ONLINE.md)
+  AI_PROVIDER: 'puter',                // 'puter'    = free Google Gemini through Puter (no API key; each user signs in to a free Puter account)
+                                       // 'supabase' = Gemini through your own tiffo-ai function (needs GEMINI_API_KEY, see SETUP-ONLINE.md)
+                                       // 'none'     = built-in rules only
+  PUTER_MODELS: {                      // tried in order; Puter/Google rename models from time to time
+    full: ['google/gemini-3.5-flash', 'google/gemini-2.5-flash'],
+    fast: ['google/gemini-3.5-flash-lite', 'google/gemini-2.5-flash-lite', 'google/gemini-3.5-flash'],
+  },
   API_KEY: '',                         // e.g. 'sk-ant-...' or 'sk-...'
   MODELS: {
     anthropic: 'claude-sonnet-5-5',    // any vision-capable Claude model
@@ -855,25 +922,41 @@ function toast(msg, opts = {}) {
    ========================================================================= */
 const CATEGORIES = {
   // ----- income -----
+  'Salary':            { type: 'income',  icon: '💰', schedC: 'Not business income (wages)',
+    kw: ['salary', 'sahod', 'sweldo', 'suweldo', 'payroll', 'payday', '13th month', 'thirteenth month', 'from work', 'from my job', 'paycheck', 'pay check', 'wage', 'wages', 'overtime pay', 'bonus'] },
+  'Allowance':         { type: 'income',  icon: '🎒', schedC: 'Not business income',
+    kw: ['allowance', 'baon', 'stipend', 'pocket money'] },
+  'Remittance Received': { type: 'income', icon: '📨', schedC: 'Not business income',
+    kw: ['padala from', 'remittance from', 'remittance', 'western union', 'palawan', 'cebuana', 'lbc padala'] },
+  'Gifts Received':    { type: 'income',  icon: '🎁', schedC: 'Not business income (gift)',
+    kw: ['gift from', 'regalo', 'pamasko', 'aguinaldo', 'ampao', 'angpao', 'birthday money'] },
   'Client Revenue':    { type: 'income',  icon: '💼', schedC: 'Line 1 – Gross receipts',
     kw: ['client', 'invoice', 'paid me', 'payment from', 'retainer', 'project fee', 'commission', 'consulting', 'freelance', 'gig', 'customer', 'deposit from', 'project'] },
   'Sales':             { type: 'income',  icon: '🛍️', schedC: 'Line 1 – Gross receipts',
-    kw: ['sold', 'sale', 'sales', 'etsy', 'shopify', 'payout', 'stripe', 'order'] },
+    kw: ['sold', 'sale', 'sales', 'etsy', 'shopify', 'payout', 'stripe', 'benta', 'nabenta', 'kita sa tindahan', 'tindahan sales', 'shopee payout', 'lazada payout'] },
   'Refunds & Other Income': { type: 'income', icon: '↩️', schedC: 'Line 6 – Other income',
-    kw: ['refund', 'reimburse', 'reimbursed', 'cashback', 'rebate', 'interest earned', 'grant'] },
+    kw: ['interest earned', 'interest', 'grant', 'dividend', 'dividends', 'prize', 'winnings', 'raffle', 'cashback'] },
   // ----- expenses (first 8 = fixed chart colours) -----
   'Gas & Auto':        { type: 'expense', icon: '⛽', schedC: 'Line 9 – Car & truck',
-    kw: ['gas', 'fuel', 'petrol', 'gasoline', 'diesel', 'parking', 'toll', 'tolls', 'car wash', 'oil change', 'mileage', 'tire', 'tires', 'uber', 'lyft', 'grab', 'taxi'] },
+    kw: ['gas', 'fuel', 'petrol', 'gasoline', 'diesel', 'parking', 'toll', 'tolls', 'car wash', 'oil change', 'mileage', 'tire', 'tires', 'autosweep', 'easytrip', 'rfid', 'petron', 'shell', 'caltex', 'seaoil', 'gasolina', 'change oil', 'car repair', 'vulcanizing'] },
+  'Transport':         { type: 'expense', icon: '🚌', schedC: 'Line 24a – Travel / local transport',
+    kw: ['grab', 'grab car', 'grabcar', 'angkas', 'joyride', 'move it', 'taxi', 'uber', 'lyft', 'jeep', 'jeepney', 'tricycle', 'trike', 'pedicab', 'bus', 'bus fare', 'mrt', 'lrt', 'train', 'beep', 'beep card', 'fare', 'pamasahe', 'commute', 'p2p', 'ferry', 'boat', 'uv express', 'fx', 'transport', 'transpo'] },
   'Meals':             { type: 'expense', icon: '🍽️', schedC: 'Line 24b – Meals (usually 50%)',
-    kw: ['lunch', 'dinner', 'breakfast', 'coffee', 'milk tea', 'milktea', 'boba', 'bubble tea', 'meal', 'meals', 'restaurant', 'food', 'snack', 'snacks', 'starbucks', 'pizza', 'drinks', 'cafe', 'brunch'] },
+    kw: ['lunch', 'dinner', 'breakfast', 'coffee', 'milk tea', 'milktea', 'boba', 'bubble tea', 'meal', 'meals', 'restaurant', 'food', 'snack', 'snacks', 'starbucks', 'pizza', 'drinks', 'cafe', 'brunch',
+      'merienda', 'jollibee', 'mcdo', 'mcdonalds', 'chowking', 'mang inasal', 'kfc', 'greenwich', 'max’s', 'maxs', 'shakeys', 'yellow cab', 'grabfood', 'grab food', 'foodpanda', 'food panda', 'samgyup', 'samgyupsal', 'kain', 'ulam', 'tapsilog', 'silog', 'carinderia', 'karinderya', 'bbq', 'street food', 'fishball', 'kwek kwek', 'siomai', 'halo-halo', 'kape', 'dunkin', 'tim hortons', 'bo’s coffee', 'cbtl', 'potato corner', 'turon', 'pancit', 'lechon', 'takeout', 'take out', 'delivery'] },
+  'Groceries':         { type: 'expense', icon: '🛒', schedC: 'Personal (not deductible)',
+    kw: ['groceries', 'grocery', 'palengke', 'market', 'wet market', 'supermarket', 'puregold', 'savemore', 'sm supermarket', 'sm hypermarket', 'robinsons supermarket', 'landers', 's&r', 'snr', 'waltermart', 'alfamart', '7-eleven', '7 eleven', '711', 'sari-sari', 'sari sari', 'rice', 'bigas', 'eggs', 'itlog', 'milk', 'gatas', 'bread', 'tinapay', 'pandesal', 'vegetables', 'gulay', 'fruits', 'prutas', 'meat', 'karne', 'chicken', 'manok', 'pork', 'baboy', 'fish', 'isda', 'canned goods', 'de lata', 'noodles', 'sardines', 'coffee sachets', 'sugar', 'asukal', 'cooking oil', 'mantika'] },
   'Supplies':          { type: 'expense', icon: '📦', schedC: 'Line 22 – Supplies',
     kw: ['supplies', 'paper', 'printer ink', 'ink', 'toner', 'pens', 'stationery', 'staples', 'materials', 'packaging', 'boxes', 'labels', 'postage', 'shipping'] },
   'Software':          { type: 'expense', icon: '💻', schedC: 'Line 18 – Office expense / 27a Other',
     kw: ['software', 'subscription', 'saas', 'adobe', 'figma', 'notion', 'canva', 'zoom', 'slack', 'github', 'domain', 'hosting', 'license', 'google workspace', 'chatgpt', 'claude', 'quickbooks', 'dropbox', 'app'] },
   'Utilities':         { type: 'expense', icon: '💡', schedC: 'Line 25 – Utilities',
-    kw: ['electric', 'electricity', 'water bill', 'internet', 'wifi', 'wi-fi', 'phone bill', 'utility', 'utilities', 'power bill', 'mobile plan', 'cell plan', 'broadband'] },
+    kw: ['electric', 'electricity', 'water bill', 'water', 'tubig', 'kuryente', 'internet', 'wifi', 'wi-fi', 'phone bill', 'utility', 'utilities', 'power bill', 'mobile plan', 'cell plan', 'broadband', 'postpaid',
+      'meralco', 'veco', 'davao light', 'maynilad', 'manila water', 'pldt', 'converge', 'globe at home', 'globe fiber', 'sky fiber', 'skycable', 'cignal', 'dito home', 'bills', 'lpg', 'gasul', 'solane', 'association dues', 'hoa dues', 'condo dues'] },
+  'Load & Data':       { type: 'expense', icon: '📶', schedC: 'Line 25 – Utilities (phone)',
+    kw: ['load', 'prepaid load', 'regular load', 'e-load', 'eload', 'globe load', 'smart load', 'tnt', 'tm load', 'dito load', 'gigasurf', 'go90', 'go50', 'giga', 'unli', 'data', 'mobile data', 'data promo', 'load promo', 'top up load', 'pasaload'] },
   'Rent':              { type: 'expense', icon: '🏢', schedC: 'Line 20b – Rent (other property)',
-    kw: ['rent', 'lease', 'coworking', 'co-working', 'office space', 'studio rent', 'storage unit'] },
+    kw: ['rent', 'lease', 'coworking', 'co-working', 'office space', 'studio rent', 'storage unit', 'upa', 'renta', 'boarding house', 'dorm', 'bedspace', 'apartment'] },
   'Marketing':         { type: 'expense', icon: '📣', schedC: 'Line 8 – Advertising',
     kw: ['ads', 'advertising', 'facebook ads', 'google ads', 'meta ads', 'marketing', 'promo', 'flyers', 'business cards', 'sponsorship', 'boost', 'seo'] },
   'Equipment':         { type: 'expense', icon: '🛠️', schedC: 'Line 13 – Depreciation / Sec. 179',
@@ -889,8 +972,34 @@ const CATEGORIES = {
     kw: ['insurance', 'premium', 'liability insurance'] },
   'Taxes & Licenses':  { type: 'expense', icon: '🏛️', schedC: 'Line 23 – Taxes & licenses',
     kw: ['tax', 'taxes', 'irs', 'permit', 'business license', 'registration', 'vat'] },
+  'Health & Medicine': { type: 'expense', icon: '💊', schedC: 'Personal (not deductible)',
+    kw: ['medicine', 'meds', 'gamot', 'mercury drug', 'watsons', 'southstar', 'the generics pharmacy', 'tgp', 'rose pharmacy', 'pharmacy', 'botika', 'doctor', 'checkup', 'check-up', 'consultation', 'hospital', 'clinic', 'laboratory', 'lab test', 'x-ray', 'vitamins', 'dentist', 'dental', 'optical', 'eyeglasses', 'vaccine', 'biogesic', 'paracetamol', 'neozep', 'antibiotics', 'therapy'] },
+  'Education':         { type: 'expense', icon: '📚', schedC: 'Personal / training',
+    kw: ['tuition', 'school', 'school fees', 'miscellaneous fee', 'books', 'notebooks', 'school supplies', 'enrollment', 'enrolment', 'uniform', 'course', 'class', 'review center', 'seminar', 'training', 'project sa school', 'field trip'] },
+  'Household':         { type: 'expense', icon: '🏠', schedC: 'Personal (not deductible)',
+    kw: ['laundry', 'labada', 'detergent', 'toiletries', 'shampoo', 'soap', 'sabon', 'toothpaste', 'tissue', 'diapers', 'diaper', 'household', 'cleaning', 'kasambahay', 'helper salary', 'yaya', 'repairs', 'plumber', 'electrician', 'furniture', 'appliance', 'kitchenware'] },
+  'Shopping':          { type: 'expense', icon: '🛍️', schedC: 'Personal (not deductible)',
+    kw: ['shopee', 'lazada', 'tiktok shop', 'zalora', 'clothes', 'damit', 'shoes', 'sapatos', 'bag', 'shirt', 'dress', 'pants', 'mall', 'uniqlo', 'h&m', 'penshoppe', 'bench', 'online purchase', 'online order', 'gadget', 'accessories', 'steam'] },
+  'Personal Care':     { type: 'expense', icon: '💇', schedC: 'Personal (not deductible)',
+    kw: ['haircut', 'gupit', 'barber', 'barbershop', 'salon', 'spa', 'massage', 'hilot', 'nails', 'manicure', 'pedicure', 'skincare', 'makeup', 'perfume', 'gym', 'gym membership'] },
+  'Entertainment':     { type: 'expense', icon: '🎬', schedC: 'Personal (not deductible)',
+    kw: ['netflix', 'spotify', 'youtube premium', 'disney+', 'disney plus', 'hbo', 'prime video', 'viu', 'iwantv', 'movie', 'movies', 'sine', 'cinema', 'concert', 'karaoke', 'videoke', 'bar', 'night out', 'inuman', 'beer', 'alak', 'mobile legends', 'diamonds', 'gaming'] },
+  'Gifts & Donations': { type: 'expense', icon: '🎀', schedC: 'Personal (not deductible)',
+    kw: ['gift for', 'gift to', 'birthday gift', 'present', 'donation', 'donated', 'church', 'offering', 'tithe', 'tithes', 'abuloy', 'charity', 'ninang gift', 'ninong gift', 'pakimkim', 'wedding gift', 'ampao for'] },
+  'Family Support':    { type: 'expense', icon: '👨‍👩‍👧', schedC: 'Personal (not deductible)',
+    kw: ['padala', 'sent to mom', 'sent to dad', 'sent to my parents', 'for my parents', 'for mom', 'for dad', 'family support', 'support sa pamilya', 'allowance for', 'baon for', 'baon ng anak', 'tuition ng anak'] },
+  "Gov't Contributions": { type: 'expense', icon: '🏛️', schedC: 'Personal / employer',
+    kw: ['sss', 'philhealth', 'phil health', 'pag-ibig', 'pagibig', 'pag ibig', 'hdmf', 'contribution', 'contributions'] },
+  'Bank & Transfer Fees': { type: 'expense', icon: '🏦', schedC: 'Line 27a – Other expenses',
+    kw: ['transfer fee', 'instapay fee', 'pesonet fee', 'cash in fee', 'cash-in fee', 'cash out fee', 'withdrawal fee', 'atm fee', 'service charge', 'bank charge', 'convenience fee', 'remittance fee'] },
+  'Debt Payments':     { type: 'expense', icon: '💳', schedC: 'Not an expense (debt)',
+    kw: ['credit card payment', 'cc payment', 'amortization', 'amortisation', 'loan payment', 'installment', 'hulugan', 'hulog', 'home credit', 'billease', 'atome', 'spaylater', 'ggives', 'gloan', 'sloan', 'car loan', 'housing loan'] },
   'Other Expense':     { type: 'expense', icon: '🧩', schedC: 'Line 27a – Other expenses', kw: [] },
   'Other Income':      { type: 'income',  icon: '➕', schedC: 'Line 6 – Other income', kw: [] },
+  // ----- not income or spending (money moving around) -----
+  'Loans':             { type: 'move', icon: '🤝', schedC: '', kw: [] },
+  'Transfer':          { type: 'move', icon: '⇄', schedC: '', kw: [] },
+  'Investments':       { type: 'move', icon: '📈', schedC: '', kw: [] },
 };
 // One colour per category (chips, icons). The first 8 expense categories match the chart palette.
 const CAT_COLORS = {
@@ -899,9 +1008,15 @@ const CAT_COLORS = {
   'Utilities': '#e87ba4', 'Rent': '#008300', 'Marketing': '#6250d6', 'Equipment': '#e34948',
   'Travel': '#0ea5e9', 'Contractors': '#a855f7', 'Professional Fees': '#64748b', 'Insurance': '#06b6d4',
   'Taxes & Licenses': '#b45309', 'Other Expense': '#a8a29e',
+  'Salary': '#059669', 'Allowance': '#65a30d', 'Remittance Received': '#0d9488', 'Gifts Received': '#db2777',
+  'Transport': '#0284c7', 'Groceries': '#16a34a', 'Load & Data': '#7c3aed', 'Health & Medicine': '#dc2626', 'Education': '#2563eb',
+  'Household': '#a16207', 'Shopping': '#c026d3', 'Personal Care': '#ec4899', 'Entertainment': '#9333ea', 'Gifts & Donations': '#e11d48',
+  'Family Support': '#ea580c', "Gov't Contributions": '#475569', 'Bank & Transfer Fees': '#64748b', 'Debt Payments': '#be123c',
+  'Loans': '#0f766e', 'Transfer': '#57534e', 'Investments': '#15803d',
 };
 const catColor = (c) => CAT_COLORS[c] || '#a8a29e';
-const CHART_CATEGORIES = ['Gas & Auto', 'Meals', 'Supplies', 'Software', 'Utilities', 'Rent', 'Marketing', 'Equipment'];
+// The donut shows your 7 biggest spending categories (+ Other). Set per render in Charts.renderDonut.
+let CHART_CATEGORIES = [];
 
 /* =========================================================================
    3b. AUTH — free accounts (local or Supabase)
@@ -1038,6 +1153,102 @@ const Auth = {
 };
 
 /* =========================================================================
+   3c. MONEY MODEL — every record has a KIND, so income, spending, transfers,
+   loans and repayments are never mixed up (no double counting).
+     cash effect : +1 money comes in, −1 money goes out, 0 nothing moves
+     report      : 'income' / 'expense' count in income & spending reports;
+                   'refund' lowers spending; null = not income or spending
+   ========================================================================= */
+const KINDS = {
+  income:    { dir: +1, report: 'income',  label: 'Income',          icon: '↗' },
+  expense:   { dir: -1, report: 'expense', label: 'Expense',         icon: '↘' },
+  refund:    { dir: +1, report: 'refund',  label: 'Refund',          icon: '↩' },
+  gift_in:   { dir: +1, report: 'income',  label: 'Gift received',   icon: '🎁' },
+  lend:      { dir: -1, report: null,      label: 'Lent',            icon: '🤝' },
+  borrow:    { dir: +1, report: null,      label: 'Borrowed',        icon: '🤝' },
+  repay_in:  { dir: +1, report: null,      label: 'Paid back to you', icon: '✅' },
+  repay_out: { dir: -1, report: null,      label: 'You paid back',   icon: '✅' },
+  forgive:   { dir: 0,  report: null,      label: 'Forgiven',        icon: '🕊️' },
+  invest:    { dir: -1, report: null,      label: 'Invested',        icon: '📈' },
+  transfer:  { dir: 0,  report: null,      label: 'Transfer',        icon: '⇄' },
+};
+const Money = {
+  kind(t) { return KINDS[t.kind] ? t.kind : (t.type === 'income' ? 'income' : 'expense'); },
+  dir(t) { return KINDS[this.kind(t)].dir; },
+  /** Change in TOTAL money (all accounts together). Transfers between accounts = 0. */
+  cash(t) { return this.dir(t) * (t.amount || 0); },
+  isIncome(t) { return KINDS[this.kind(t)].report === 'income'; },
+  isExpense(t) { return KINDS[this.kind(t)].report === 'expense'; },
+  isRefund(t) { return this.kind(t) === 'refund'; },
+  /** Net spending: expenses count, refunds subtract, everything else is 0. */
+  spend(t) { return this.isExpense(t) ? t.amount : this.isRefund(t) ? -t.amount : 0; },
+  earn(t) { return this.isIncome(t) ? t.amount : 0; },
+  typeFor(kind) { const d = (KINDS[kind] || KINDS.expense).dir; return d > 0 ? 'income' : d < 0 ? 'expense' : 'transfer'; },
+};
+
+/* Accounts = WHERE money is (Cash, GCash, Maya, bank). Pockets = WHAT it's for.
+   The default "Cash" account's starting amount is the old "starting balance". */
+const ACCOUNT_TYPES = { cash: { icon: '💵', label: 'Cash' }, ewallet: { icon: '📱', label: 'E-wallet' }, bank: { icon: '🏦', label: 'Bank' }, other: { icon: '👝', label: 'Other' } };
+const Accounts = {
+  DEFAULT: 'acc_cash',
+  list() { return (Store.state.accounts ||= [{ id: this.DEFAULT, name: 'Cash', type: 'cash' }]); },
+  get(id) { return this.list().find((a) => a.id === id) || null; },
+  def() { return this.get(this.DEFAULT) || this.list()[0]; },
+  idOf(t) { return t.accountId && this.get(t.accountId) ? t.accountId : this.def().id; },
+  opening(a) { return a.id === this.DEFAULT ? (Store.state.initialBalance || 0) : (a.opening || 0); },
+  setOpening(a, v) { if (a.id === this.DEFAULT) Store.state.initialBalance = round2(v); else a.opening = round2(v); },
+  icon(a) { return a.icon || (ACCOUNT_TYPES[a.type] || ACCOUNT_TYPES.other).icon; },
+  /** Effect of one record on one account. */
+  delta(t, accId) {
+    if (Money.kind(t) === 'transfer' && t.fromAccountId) {
+      return (t.toAccountId === accId ? t.amount : 0) - (t.fromAccountId === accId ? t.amount : 0);
+    }
+    return this.idOf(t) === accId ? Money.cash(t) : 0;
+  },
+  balance(a, upTo = null) {
+    let b = this.opening(a);
+    for (const t of Store.state.transactions) if (!upTo || t.date < upTo) b += this.delta(t, a.id);
+    return round2(b);
+  },
+  total(upTo = null) { return round2(this.list().reduce((x, a) => x + this.balance(a, upTo), 0)); },
+  openingTotal() { return round2(this.list().reduce((x, a) => x + this.opening(a), 0)); },
+  norm(x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]/g, ''); },
+  KNOWN: { gcash: ['GCash', 'ewallet'], maya: ['Maya', 'ewallet'], paymaya: ['Maya', 'ewallet'], gotyme: ['GoTyme', 'bank'], bdo: ['BDO', 'bank'], bpi: ['BPI', 'bank'],
+    metrobank: ['Metrobank', 'bank'], landbank: ['Landbank', 'bank'], unionbank: ['UnionBank', 'bank'], securitybank: ['Security Bank', 'bank'], pnb: ['PNB', 'bank'],
+    rcbc: ['RCBC', 'bank'], chinabank: ['Chinabank', 'bank'], seabank: ['SeaBank', 'bank'], cimb: ['CIMB', 'bank'], tonik: ['Tonik', 'bank'], paypal: ['PayPal', 'ewallet'],
+    shopeepay: ['ShopeePay', 'ewallet'], grabpay: ['GrabPay', 'ewallet'], coinsph: ['Coins.ph', 'ewallet'], bank: ['Bank', 'bank'], cash: ['Cash', 'cash'], wallet: ['Cash', 'cash'] },
+  /** Find an account mentioned by name ("via GCash", "from my BDO"). */
+  find(name, exact = false) {
+    const n = this.norm(name);
+    if (!n) return null;
+    const hit = this.list().find((a) => this.norm(a.name) === n);
+    if (hit || exact) return hit || null;
+    // "my bdo savings" → BDO. Never let "cash" match inside "gcash".
+    return this.list().find((a) => { const an = this.norm(a.name); return an.length >= 3 && an !== 'cash' && n.includes(an); }) || null;
+  },
+  mentioned(text) {
+    const words = String(text).toLowerCase();
+    let best = null, len = 0;
+    for (const a of this.list()) {
+      const nm = a.name.toLowerCase();
+      if (nm === 'cash') continue;                    // "cash" is too common to auto-pick
+      if (new RegExp(`\\b${nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(words) && nm.length > len) { best = a; len = nm.length; }
+    }
+    return best;
+  },
+  known(text) {
+    const t = String(text).toLowerCase().replace(/[^a-z0-9 ]/g, ' ');
+    for (const k of Object.keys(this.KNOWN)) if (k !== 'bank' && k !== 'cash' && k !== 'wallet' && new RegExp(`\\b${k}\\b`).test(t.replace(/\s+/g, ' ')) || t.replace(/\s/g, '').includes(k) && k.length > 4) return this.KNOWN[k];
+    return null;
+  },
+  create(name, type = 'other') {
+    const a = { id: uid(), name: name.trim().slice(0, 30), type, opening: 0, createdAt: Date.now() };
+    this.list().push(a);
+    return a;
+  },
+};
+
+/* =========================================================================
    4. STORE — localStorage persistence
    ========================================================================= */
 const Store = {
@@ -1046,13 +1257,36 @@ const Store = {
   /** Each account gets its own storage slot; guests use the base key. */
   keyFor(user) { return CONFIG.STORAGE_KEY + (user ? ':' + user.id : ''); },
   key() { return this.keyFor(Auth.user); },
-  blank() { return { initialBalance: 0, currency: detectCurrency(), transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], createdAt: Date.now(), savedAt: 0 }; },
+  SCHEMA: 2,
+  blank() { return { v: 2, initialBalance: 0, currency: detectCurrency(), accounts: [{ id: 'acc_cash', name: 'Cash', type: 'cash' }], transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], loans: [], settings: {}, createdAt: Date.now(), savedAt: 0 }; },
+
+  /** Upgrade older saved data in place. Never deletes anything. */
+  migrate() {
+    const st = this.state;
+    if ((st.v || 1) < 2) {
+      for (const t of st.transactions || []) {
+        if (!t.kind) t.kind = t.type === 'income' ? 'income' : 'expense';
+        if (!t.accountId) t.accountId = 'acc_cash';
+      }
+      st.accounts ||= [{ id: 'acc_cash', name: 'Cash', type: 'cash' }];
+      st.loans ||= [];
+      st.settings ||= {};
+      st.v = 2;
+      st.migratedAt = Date.now();
+    }
+    st.accounts ||= [{ id: 'acc_cash', name: 'Cash', type: 'cash' }];
+    if (!st.accounts.find((a) => a.id === 'acc_cash')) st.accounts.unshift({ id: 'acc_cash', name: 'Cash', type: 'cash' });
+    st.loans ||= []; st.settings ||= {}; st.transactions ||= [];
+  },
+
+  /** Take saved data (from this device, the cloud or a backup) and upgrade it safely. */
+  adopt(saved) { this.state = { ...this.blank(), ...saved, v: saved.v || 1 }; this.migrate(); return this.state; },
 
   load() {
     this.state = this.blank();
     try {
       const raw = LS.getItem(this.key());
-      if (raw) { this.state = { ...this.state, ...JSON.parse(raw) }; return true; }
+      if (raw) { this.adopt(JSON.parse(raw)); return true; }
     } catch (e) { console.warn('Could not read saved data', e); }
     return false;
   },
@@ -1074,7 +1308,8 @@ const Store = {
   },
 
   addTransaction(tx) {
-    const t = { id: uid(), createdAt: Date.now(), ...tx, amount: round2(Math.abs(tx.amount)) };
+    const kind = KINDS[tx.kind] ? tx.kind : (tx.type === 'income' ? 'income' : 'expense');
+    const t = { id: uid(), createdAt: Date.now(), accountId: Accounts.DEFAULT, ...tx, kind, type: Money.typeFor(kind), amount: round2(Math.abs(tx.amount)) };
     this.state.transactions.push(t);
     this.save();
     return t;
@@ -1086,9 +1321,18 @@ const Store = {
     this.save();
     return removed;
   },
+  /** Edit a record, keeping a short history of what changed (audit trail). */
   updateTransaction(id, patch) {
     const t = this.state.transactions.find((x) => x.id === id);
-    if (t) { Object.assign(t, patch); this.save(); }
+    if (!t) return null;
+    const before = {};
+    for (const k of Object.keys(patch)) if (JSON.stringify(t[k]) !== JSON.stringify(patch[k])) before[k] = t[k];
+    if (!Object.keys(before).length) return t;
+    (t.history ||= []).push({ at: Date.now(), was: before });
+    Object.assign(t, patch);
+    if (patch.kind) t.type = Money.typeFor(t.kind);
+    this.save();
+    return before;
   },
   addDocument(doc) {
     this.state.documents.unshift({ id: uid(), createdAt: Date.now(), ...doc });
@@ -1118,12 +1362,14 @@ const Store = {
   sorted() {
     return [...this.state.transactions].sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt);
   },
+  /** Income & spending (only true income/expense; refunds lower spending). */
   totals(filterFn = () => true) {
     let income = 0, expense = 0;
-    for (const t of this.state.transactions) if (filterFn(t)) t.type === 'income' ? (income += t.amount) : (expense += t.amount);
+    for (const t of this.state.transactions) if (filterFn(t)) { income += Money.earn(t); expense += Money.spend(t); }
     return { income: round2(income), expense: round2(expense), net: round2(income - expense) };
   },
-  balance() { return round2(this.state.initialBalance + this.totals().net); },
+  /** Total money across all accounts. */
+  balance() { return Accounts.total(); },
 };
 
 /* =========================================================================
@@ -1133,75 +1379,137 @@ const Store = {
 const Parser = {
   WORD_NUMS: { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90, hundred: 100 },
 
-  INCOME_WORDS: /\b(received|receive|got paid|get paid|earned|earn|made|deposit(?:ed)?|income|revenue|sold|payout|refund(?:ed)?|reimbursed|invoice paid|collected|cashed|tip|tips|commission|got)\b/,
-  EXPENSE_WORDS: /\b(spent|spend|spending|bought|buy|purchased|purchase|cost|costs|bill|billed|fee|fees|subscription|renewed|charged|charge|expense|paid for|owe|ordered|rented|hired|tipped|donated)\b/,
-  NOT_PAYER: new Set(['i', 'we', 'just', 'already', 'have', 'had', 'been', 'finally', 'and', 'then', 'also', 'was', 'were', 'got', 'get']),
+  INCOME_WORDS: /\b(won(?=\s+[₱$]?\d)|received|receive|got paid|get paid|earned|earn|made|income|revenue|sold|payout|invoice paid|collected|cashed|tips?|commission|sahod|sweldo|suweldo|salary|payroll|kita|benta|nabenta|bonus|13th month|allowance from|baon from|padala from)\b/,
+  EXPENSE_WORDS: /\b(spent|spend|spending|bought|buy|purchased|purchase|cost|costs|bill|billed|fees?|subscription|renewed|charged|charge|expense|paid for|paid|pay|ordered|order|rented|hired|tipped|donated|bayad|binayaran|binili|bumili|gastos|nagastos|load|topped up|top[- ]?up)\b/,
+  RELATIONS: 'mom|mommy|mother|mama|ma|nanay|inay|dad|daddy|father|papa|pa|tatay|itay|lola|lolo|tita|tito|auntie|aunt|uncle|kuya|ate|bunso|sister|sis|brother|bro|cousin|pinsan|friend|bestie|bff|boss|ninang|ninong|wife|husband|partner|girlfriend|boyfriend|bf|gf|neighbor|kapitbahay|officemate|classmate|roommate|son|daughter|anak',
+  STOP_NAMES: new Set(['I', 'We', 'My', 'The', 'A', 'An', 'Spent', 'Paid', 'Bought', 'Got', 'Received', 'Sent', 'Lent', 'Borrowed', 'Gave', 'Today', 'Yesterday', 'Last', 'On', 'For', 'To', 'From', 'Via', 'And', 'Then',
+    'Cash', 'GCash', 'Maya', 'BDO', 'BPI', 'Grab', 'Jollibee', 'Netflix', 'Spotify', 'Meralco', 'Shopee', 'Lazada', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+    'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Aug', 'Sep', 'Sept', 'Oct', 'Nov', 'Dec',
+    'Php', 'PHP', 'P', 'Client', 'Customer', 'Salary', 'Refund', 'Refunded', 'Transferred', 'Moved', 'Withdrew', 'Deposited', 'Returned', 'Forgave', 'Si', 'Kay', 'Ako', 'Ko', 'Ni', 'Sa', 'Ng', 'Na']),
 
-  extractAmount(text) {
-    let s = text.replace(/\u00a0/g, ' ');
-    // Decimal comma currencies (e.g. EUR shown as "1.200,50 €"): normalise to 1200.50
+  /** Normalise money text: "P500" → "₱500", "1,500" → "1500", decimal-comma currencies. */
+  normalize(text) {
+    let s = String(text).replace(/ /g, ' ');
     const decimalComma = (moneyFmt.formatToParts(1.5).find((p) => p.type === 'decimal') || {}).value === ',';
     if (decimalComma) s = s.replace(/(\d)\.(?=\d{3}\b)/g, '$1').replace(/(\d),(\d{1,2})\b/g, '$1.$2');
-    s = s.replace(/,(?=\d{3}\b)/g, '');
-    // Remove dates & times so "due Nov 25" or "at 3pm" isn't read as money.
-    s = s.replace(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?\b/gi, ' ')
-         .replace(/\b\d{1,2}(?:st|nd|rd|th)\b/gi, ' ')
-         .replace(/\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, ' ')
-         .replace(/\b\d{1,2}:\d{2}\b/g, ' ');
-    // Prefer amounts with a currency marker.
-    const withSym = s.match(new RegExp(`${CUR_PREFIX}\\s*([+-]?\\d+(?:\\.\\d{1,2})?)\\s*(k\\b)?`, 'i'))
-                 || s.match(new RegExp(`([+-]?\\d+(?:\\.\\d{1,2})?)\\s*(k\\b)?\\s*(?:${CUR_WORD_RE})\\b`, 'i'))
-                 || s.match(new RegExp(`([+-]?\\d+(?:\\.\\d{1,2})?)\\s*(k\\b)?\\s*[${CUR_SYMBOLS}]`, 'i'));
-    let m = withSym;
-    if (!m) {
-      // Otherwise: first standalone number that isn't part of a date or time.
-      const re = /(?<![\d/:.-])([+-]?\d+(?:\.\d{1,2})?)\s*(k\b)?(?![\d/:]|\s*(?:am|pm|days?|hours?|hrs?|mins?|minutes?|miles?|km|%|st|nd|rd|th)\b)/gi;
-      m = re.exec(s);
+    s = s.replace(/(\d),(?=\d{3}\b)/g, '$1');
+    if (CURRENCY === 'PHP') s = s.replace(/\bP\s?(?=\d)/g, '₱').replace(/\bphp\.?\s?(?=\d)/gi, '₱');
+    return s;
+  },
+  /** Remove dates & times so "due Nov 25" or "at 3pm" isn't read as money. */
+  stripDates(s) {
+    return s.replace(/\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s+20\d{2})?\b/gi, (m) => ' '.repeat(m.length))
+      .replace(/\b\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?(?:,?\s+20\d{2})?\b/gi, (m) => ' '.repeat(m.length))
+      .replace(/\b20\d{2}-\d{1,2}-\d{1,2}\b/g, (m) => ' '.repeat(m.length))
+      .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g, (m) => ' '.repeat(m.length))
+      .replace(/\b\d{1,2}(?:st|nd|rd|th)\b/gi, (m) => ' '.repeat(m.length))
+      .replace(/\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, (m) => ' '.repeat(m.length))
+      .replace(/\b\d{1,2}:\d{2}\b/g, (m) => ' '.repeat(m.length))
+      .replace(/\b(?:13th|14th)\s+month\b/gi, (m) => ' '.repeat(m.length))
+      .replace(/\b(?:mp2|g-?xchange|5g|4g|3g|2fa)\b/gi, (m) => ' '.repeat(m.length));
+  },
+
+  /** Every amount in the text, with where it is. Amounts with a currency marker are marked. */
+  amountsIn(text) {
+    const s = this.stripDates(this.normalize(text));
+    const out = [];
+    const re = new RegExp(`(${CUR_PREFIX})?\\s*([+-]?\\d+(?:\\.\\d{1,2})?)\\s*(k\\b|m\\b|thousand\\b|million\\b)?\\s*((?:${CUR_WORD_RE})\\b|[${CUR_SYMBOLS}])?`, 'gi');
+    let m;
+    while ((m = re.exec(s))) {
+      if (m[0].trim() === '') { re.lastIndex++; continue; }
+      const start = m.index + m[0].indexOf(m[2]);
+      const before = s.slice(Math.max(0, start - 1), start), after = s.slice(start + m[2].length);
+      if (/[\d/:.]/.test(before)) continue;
+      if (/^\s*(?:%|percent\b|pcs?\b|x\b|kg\b|kilos?\b|g\b|grams?\b|kms?\b|days?\b|hours?\b|hrs?\b|mins?\b|minutes?\b|weeks?\b|months?\b|years?\b|yrs?\b|items?\b|pieces?\b|times\b|people\b|pax\b|liters?\b|l\b|ml\b|gb\b|mb\b|st\b|nd\b|rd\b|th\b|-[a-z])/i.test(after) && !m[1] && !m[4]) continue;
+      let n = parseFloat(m[2]);
+      const mult = (m[3] || '').toLowerCase();
+      if (mult === 'k' || mult === 'thousand') n *= 1000;
+      if (mult === 'm' || mult === 'million') n *= 1e6;
+      out.push({ value: Math.abs(n), sign: m[2].startsWith('-') ? -1 : m[2].startsWith('+') ? 1 : 0, marked: !!(m[1] || m[4]), index: start,
+        // "3 cakes", "2 tickets" — a small count right before a word
+        qty: !m[1] && !m[4] && !mult && Number.isInteger(n) && n <= 99 && /^\s+(?!and\b|then\b|tapos\b|plus\b|at\b|on\b|for\b|from\b|to\b|via\b|using\b|yesterday\b|today\b|kahapon\b|each\b|every\b|only\b|lang\b|na\b|pesos?\b|php\b)[a-z]/i.test(after) });
     }
-    if (m) {
-      let n = parseFloat(m[1]);
-      if (m[2]) n *= 1000;
-      return { value: Math.abs(n), sign: m[1].startsWith('-') ? -1 : m[1].startsWith('+') ? 1 : 0 };
-    }
-    // Spelled-out numbers ("twenty bucks")
-    const words = s.toLowerCase().match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)\b/g);
-    if (words) {
-      let total = 0;
-      for (const w of words) total = w === 'hundred' ? Math.max(total, 1) * 100 : total + this.WORD_NUMS[w];
-      return { value: total, sign: 0 };
+    // Drop counts when there's another number that's clearly the price.
+    if (out.length > 1 && out.some((a) => !a.qty)) return out.filter((a) => !a.qty);
+    return out;
+  },
+
+  extractAmount(text) {
+    const all = this.amountsIn(text);
+    const pick = all.find((a) => a.marked) || all[0];
+    if (pick) return { value: pick.value, sign: pick.sign };
+    // Spelled-out numbers ("twenty bucks", "five hundred pesos")
+    const words = text.toLowerCase().match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)\b/g);
+    if (words && new RegExp(`\\b(?:${CUR_WORD_RE})\\b|[${CUR_SYMBOLS}]`, 'i').test(text)) {
+      let total = 0, chunk = 0;
+      for (const w of words) {
+        if (w === 'hundred') chunk = Math.max(chunk, 1) * 100;
+        else if (w === 'thousand') { total += Math.max(chunk, 1) * 1000; chunk = 0; }
+        else chunk += this.WORD_NUMS[w];
+      }
+      return { value: total + chunk, sign: 0 };
     }
     return null;
   },
 
-  extractDate(text) {
+  /** → { date, explicit, future } — the date the money moved. Defaults to today. */
+  readDate(text) {
     const t = text.toLowerCase();
-    if (/\byesterday\b/.test(t)) return toISODate(daysAgo(1));
-    const ago = t.match(/\b(\d+)\s+days?\s+ago\b/);
-    if (ago) return toISODate(daysAgo(+ago[1]));
-    if (/\blast week\b/.test(t)) return toISODate(daysAgo(7));
-    const wd = t.match(/\b(?:on|last)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/);
-    if (wd) {
-      const target = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(wd[1]);
-      let diff = (new Date().getDay() - target + 7) % 7; if (diff === 0) diff = 7;
-      return toISODate(daysAgo(diff));
+    const past = /\b(spent|paid|bought|purchased|received|got|earned|sold|lent|borrowed|returned|gave|binili|nagbayad)\b/.test(t);
+    const today = daysAgo(0), iso = (d) => toISODate(d);
+    const add = (n) => { const d = new Date(today); d.setDate(d.getDate() + n); return d; };
+    const MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+    const valid = (y, m, d) => { const x = new Date(y, m, d); return !isNaN(x) && x.getMonth() === m && x.getDate() === d ? x : null; };
+    // Without a year, a date more than ~2 months ahead most likely meant last year.
+    const noYear = (m, d) => { let x = valid(today.getFullYear(), m, d); if (x && (x - today > 62 * 864e5 || (past && x > today))) x = valid(today.getFullYear() - 1, m, d); return x; };
+    let m;
+    if (/\b(yesterday|kahapon)\b/.test(t)) return { date: iso(add(-1)), explicit: true };
+    if (/\b(day before yesterday|noong isang araw)\b/.test(t)) return { date: iso(add(-2)), explicit: true };
+    if ((m = t.match(/\b(\d+|a|an|one|two|three|four|five|six|seven)\s+(day|week)s?\s+ago\b/))) {
+      const n = /^\d+$/.test(m[1]) ? +m[1] : ({ a: 1, an: 1 }[m[1]] || this.WORD_NUMS[m[1]] || 1);
+      return { date: iso(add(-n * (m[2] === 'week' ? 7 : 1))), explicit: true };
     }
-    const md = t.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
-    if (md) {
-      const y = md[3] ? (md[3].length === 2 ? 2000 + +md[3] : +md[3]) : new Date().getFullYear();
-      const d = new Date(y, +md[1] - 1, +md[2]);
-      if (!isNaN(d)) return toISODate(d);
+    if (/\blast week\b/.test(t)) return { date: iso(add(-7)), explicit: true };
+    if (/\b(tomorrow|tmrw|tmr|bukas)\b/.test(t)) return { date: iso(add(1)), explicit: true, future: true };
+    if (/\bnext week\b/.test(t)) return { date: iso(add(7)), explicit: true, future: true };
+    if (/\bnext month\b|\bsa susunod na buwan\b/.test(t)) { const d = new Date(today); d.setMonth(d.getMonth() + 1, 1); return { date: iso(d), explicit: true, future: true }; }
+    if ((m = t.match(/\b(?:on|last|noong)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/))) {
+      const target = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(m[1]);
+      let diff = (today.getDay() - target + 7) % 7; if (diff === 0) diff = 7;
+      return { date: iso(add(-diff)), explicit: true };
     }
-    return toISODate(new Date());
+    if ((m = t.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/))) { const d = valid(+m[1], +m[2] - 1, +m[3]); if (d) return { date: iso(d), explicit: true, future: d > today }; }
+    if ((m = t.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(20\d{2}))?\b/))) {
+      const d = m[3] ? valid(+m[3], MON[m[1]], +m[2]) : noYear(MON[m[1]], +m[2]);
+      if (d) return { date: iso(d), explicit: true, future: d > today };
+    }
+    if ((m = t.match(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?(?:,?\s+(20\d{2}))?\b/))) {
+      const d = m[3] ? valid(+m[3], MON[m[2]], +m[1]) : noYear(MON[m[2]], +m[1]);
+      if (d) return { date: iso(d), explicit: true, future: d > today };
+    }
+    if ((m = t.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/))) {
+      const y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : null;
+      const [a, b] = +m[1] > 12 ? [+m[2], +m[1]] : [+m[1], +m[2]];
+      const d = y ? valid(y, a - 1, b) : noYear(a - 1, b);
+      if (d) return { date: iso(d), explicit: true, future: d > today };
+    }
+    if ((m = t.match(/\b(?:on\s+)?the\s+(\d{1,2})(?:st|nd|rd|th)\b/))) {
+      let d = valid(today.getFullYear(), today.getMonth(), +m[1]);
+      if (d && d > today) d = valid(today.getFullYear(), today.getMonth() - 1, +m[1]) || d;
+      if (d) return { date: iso(d), explicit: true };
+    }
+    return { date: iso(today), explicit: /\b(today|ngayon|kanina|this morning|tonight|earlier)\b/.test(t) };
   },
+  extractDate(text) { return this.readDate(text).date; },
 
   /** Best keyword match; longer keywords win ties ("phone bill" beats "phone"). */
   matchCategory(text, onlyType = null) {
-    const t = ' ' + text.toLowerCase() + ' ';
+    const t = ' ' + text.toLowerCase().replace(/[’']/g, '') + ' ';
     let best = null, bestScore = 0;
     for (const [name, def] of Object.entries(CATEGORIES)) {
       if (onlyType && def.type !== onlyType) continue;
       for (const kw of def.kw) {
-        const re = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        const re = new RegExp(`\\b${kw.replace(/[’']/g, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
         // The user's own budget categories (e.g. "Food") win ties over built-in ones.
         const score = kw.length + (def.custom ? 0.5 : 0);
         if (re.test(t) && score > bestScore) { best = name; bestScore = score; }
@@ -1210,41 +1518,299 @@ const Parser = {
     return best;
   },
 
-  parse(text) {
-    const raw = text.trim();
+  /** A person mentioned in the note ("Maria", "Mom", "my tita"). */
+  person(text, re) {
+    const m = text.match(re);
+    if (!m) return null;
+    return this.cleanName(m[1]);
+  },
+  NAME: `((?:my\\s+)?(?:RELS)\\b(?:\\s+[A-Z][\\w'-]+)?|[A-Z][\\w'.-]+(?:\\s+[A-Z][\\w'.-]+)?)`,
+  nameRe() { return this.NAME.replace('RELS', this.RELATIONS); },
+  cleanName(n) {
+    if (!n) return null;
+    n = n.replace(/^my\s+/i, '').replace(/[.,!?;:]+$/, '').replace(/['’]s$/i, '').replace(/\s+(?:ng|sa|na|ko|si|kay|ni|po|lang|din|rin|back|me|us)$/i, '').trim();
+    const first = n.split(/\s+/)[0];
+    if (this.STOP_NAMES.has(first.replace(/^\w/, (c) => c.toUpperCase())) && !new RegExp(`^(?:${this.RELATIONS})$`, 'i').test(first)) return null;
+    if (Accounts.find(n, true) || Accounts.known(n)) return null;
+    return n.replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 40);
+  },
+
+  /** Find an account by name in a phrase ("my BDO", "gcash"). → { id } | { name, type } (not added yet) | null */
+  accountIn(phrase) {
+    if (!phrase) return null;
+    const a = Accounts.find(phrase);
+    if (a) return { id: a.id, name: a.name };
+    if (/\b(cash|wallet|pitaka|hand|bulsa)\b/i.test(phrase)) return { id: Accounts.DEFAULT, name: Accounts.def().name };
+    const k = Accounts.known(phrase);
+    if (k) return { name: k[0], type: k[1] };
+    return null;
+  },
+
+  /** The kind of money event, by pattern. Order matters: specific before general. */
+  classify(raw) {
+    const lower = raw.toLowerCase();
+    const N = this.nameRe(), NI = 'i';
+    const rx = (src, f = '') => new RegExp(src, f);
+    const hit = (kind, conf, why, extra = {}) => ({ kind, conf, why, ...extra });
+    let p;
+
+    // Statements about balances aren't transactions.
+    if (/\b(balance|outstanding|natitira|remaining)\b.*\b(is|are|=|:|of)\b|\bi have\b.*\b(in|on)\s+(my\s+)?\w+\s*$|\bmay\s+.*\bsa\s+\w+\s*$/i.test(raw) && !/\b(spent|paid|bought|received|got)\b/i.test(raw))
+      return hit('statement', 0.9, 'a balance, not a payment');
+
+    // Forgiving a debt
+    if (/\b(forgave|forgive|forgiven|forgiving|let (?:it|him|her|them) go|wag na bayaran|huwag na bayaran|cancel(?:led)? (?:the |his |her |their )?(?:debt|utang|loan))\b/i.test(raw)) {
+      p = this.person(raw, rx(`\\b(?:forgave|forgive|forgiving|forgiven)\\s+${N}`)) || this.person(raw, rx(`${N}(?:['’]s)?\\s+(?:remaining\\s+)?(?:debt|utang|loan)`)) || this.person(raw, rx(`\\b(?:si|kay|ni)\\s+${N}`, ''));
+      const mine = new RegExp(`^\\s*${N}\\s+(?:forgave|cancel)`, '').test(raw) && /\b(my|me|ko|i owe)\b/i.test(raw);
+      if (mine) p = this.person(raw, rx(`^\\s*${N}`, ''));
+      return hit('forgive', p ? 0.9 : 0.5, mine ? 'a debt of yours being forgiven' : 'forgiving a debt', { person: p, side: mine ? 'mine' : 'theirs' });
+    }
+
+    // Paying back what *you* owe
+    if ((p = this.person(raw, rx(`\\b(?:i\\s+|we\\s+)?(?:paid|pay|gave|sent|returned|bayad(?:\\s+ko)?)\\s+(?:back\\s+)?(?:[^\\s]+\\s+){0,3}?(?:back\\s+)?(?:to|kay)\\s+${N}`, 'i'))) && /\b(back|returned|repa(?:y|id)|bayad\s+(?:ko\s+)?(?:sa\s+)?utang|utang)\b/i.test(raw))
+      return hit('repay_out', 0.9, 'you paid back a loan', { person: p });
+    if ((p = this.person(raw, rx(`\\b(?:i\\s+)?(?:paid|pay|repaid)\\s+${N}\\s+back\\b`, ''))) || (p = this.person(raw, rx(`\\b(?:I|we)\\s+(?:paid|repaid)\\s+${N}\\s+(?:back)`, ''))))
+      return hit('repay_out', 0.9, 'you paid back a loan', { person: p });
+    if (/^\s*(?:i\s+)?(?:repaid|paid back|paid off|nagbayad ako)\b/i.test(raw) && (p = this.person(raw, rx(`\\b(?:to|kay|sa)\\s+${N}`, 'i'))))
+      return hit('repay_out', 0.9, 'you paid back a loan', { person: p });
+
+    // Someone paying *you* back
+    if ((p = this.person(raw, rx(`^\\s*${N}\\s+(?:has\\s+)?(?:returned|paid\\s+(?:me\\s+)?back|repaid|settled|paid\\s+(?:his|her|their)\\s+(?:debt|utang|loan))`, '')))
+      || (p = this.person(raw, rx(`\\b(?:nagbayad|nagbalik|ibinalik)\\s+(?:na\\s+)?(?:si|ni)\\s+${N}`, 'i')))
+      || (p = this.person(raw, rx(`\\b(?:got|received)\\s+(?:[^\\s]+\\s+){0,2}?back\\s+from\\s+${N}`, 'i'))))
+      return hit('repay_in', 0.9, 'a loan being paid back to you', { person: p });
+
+    // Lending
+    if ((p = this.person(raw, rx(`\\b(?:i\\s+)?(?:lent|loaned|lend|pinahiram|pinautang|nagpautang)\\s+(?:ko\\s+)?(?:(?:si|kay|ng)\\s+)?${N}`, 'i'))) && !/\blent me\b|\bloaned me\b/i.test(raw))
+      return hit('lend', 0.92, 'you lent money', { person: p });
+    if (/\b(lent|loaned|lend|pinahiram|pinautang)\b/i.test(raw) && !/\b(me|ako)\b/i.test(raw) && (p = this.person(raw, rx(`\\b(?:to|kay|si)\\s+${N}`, 'i'))))
+      return hit('lend', 0.92, 'you lent money', { person: p });
+    if ((p = this.person(raw, rx(`^\\s*${N}\\s+(?:borrowed|nangutang|umutang)\\b(?!.*\\bfrom\\s+(?!me\\b))`, ''))))
+      return hit('lend', 0.88, 'you lent money', { person: p });
+
+    if (/\b(?:i|we)\s+(?:lent|loaned)\b|^\s*(?:lent|loaned|pinahiram|pinautang)\b/i.test(raw) && !/\b(me|ako|us)\b/i.test(raw))
+      return hit('lend', 0.5, 'you lent money', { person: null });
+    // "she paid back 500" (person from earlier in the note)
+    if (/^\s*(?:she|he|they|siya|sila)\s+(?:has\s+)?(?:returned|paid\s+(?:me\s+)?back|repaid|nagbayad)/i.test(raw)) return hit('repay_in', 0.9, 'a loan being paid back to you');
+    if (/\b(?:i|we)\s+(?:paid|returned)\s+(?:him|her|them)\s+back\b|\bpaid\s+(?:him|her|them)\s+back\b/i.test(raw)) return hit('repay_out', 0.9, 'you paid back a loan');
+    // Borrowing
+    if ((p = this.person(raw, rx(`^\\s*${N}\\s+(?:lent|loaned|pinahiram|pinautang)\\s+(?:me|ako|us)\\b`, ''))))
+      return hit('borrow', 0.92, 'you borrowed money', { person: p });
+    if (/\b(i|we)\s+(borrowed|loaned)\b|^\s*borrowed\b|\b(nangutang|umutang)\s+ako\b|\butang\s+ko\s+(?:kay|kina)\b/i.test(raw)) {
+      p = this.person(raw, rx(`\\b(?:from|kay|kina|sa)\\s+${N}`, 'i'));
+      return hit('borrow', p ? 0.92 : 0.6, 'you borrowed money', { person: p });
+    }
+
+    // Gifts received
+    if (/\b(gift|regalo|pamasko|aguinaldo|ampao|ang\s?pao|birthday|graduation money|christmas money)\b/i.test(raw) && /\b(gave me|gave us|sent me|binigyan ako|from|got|received|natanggap)\b/i.test(raw) && !/\bgave\s+(?!me\b|us\b)/i.test(raw.replace(/\bgave me\b/gi, '')))
+      return hit('gift_in', 0.9, 'a gift to you', { person: this.person(raw, rx(`^\\s*${N}\\s+(?:gave|sent)`, '')) || this.person(raw, rx(`\\bfrom\\s+${N}`, 'i')) });
+    if ((p = this.person(raw, rx(`^\\s*${N}\\s+(?:gave|sent|handed)\\s+(?:me|us)\\b`, ''))))
+      return hit('gift_in', 0.6, 'money someone gave you (gift, loan or payment?)', { person: p, ask: 'gift_or_loan' });
+
+    // Refunds & reimbursements
+    if (/\b(refund(?:ed)?|reimburs(?:ed|ement)|money back|cash ?back|rebate|ibinalik ang bayad)\b/i.test(raw))
+      return hit('refund', 0.88, 'money back from a purchase');
+
+    // Transfers between your own accounts
+    const tr = this.transferIn(raw);
+    if (tr) return tr;
+
+    // Investments
+    if (/\b(invest(?:ed|ing|ment)?|mutual funds?|uitf|stocks?|shares|mp2|time deposit|crypto|bitcoin|btc|eth|etf|index fund|bonds?|retail treasury|rtb|digital gold)\b/i.test(raw)) {
+      if (/\b(sold|cashed out|withdrew|redeemed|matured)\b/i.test(raw)) return hit('income', 0.45, 'money from an investment (only the gain is income)', { category: 'Refunds & Other Income', ask: 'invest_out' });
+      return hit('invest', 0.85, 'money put into an investment');
+    }
+
+    // Installments: don't silently log the whole price as paid today
+    if (/\b(installments?|instal(?:l)?ments?|hulugan|hulog|monthly payments?|0% for \d+|\d+\s*(?:months?|mos?)\s+to pay)\b/i.test(raw) && /\b(bought|buy|purchased|got)\b/i.test(raw))
+      return hit('expense', 0.55, 'a purchase paid in installments', { ask: 'installment' });
+    // Credit card payments aren't new spending
+    if (/\b(paid|pay|bayad)\b.*\b(credit card|cc bill|card bill)\b|\b(credit card|cc)\s+payment\b/i.test(raw))
+      return hit('expense', 0.6, 'a credit card payment', { category: 'Debt Payments', ask: 'credit_card' });
+
+    return null;
+  },
+
+  /** "moved 1000 from BDO to GCash", "cash in 500 to gcash", "withdrew 2000 from BDO". */
+  transferIn(raw) {
+    const lower = raw.toLowerCase();
+    if (!/\b(transfer(?:red|ring)?|moved?|cash(?:ed)?[- ]?in|cash(?:ed)?[- ]?out|withdr[ae]w(?:n)?|withdrawal|deposit(?:ed)?|top(?:ped)?[- ]?up|nag-?cash ?in|nag-?withdraw)\b/.test(lower)) return null;
+    const grab = (re) => { const m = raw.match(re); return m ? m[1].trim().replace(/[.,!]+$/, '') : null; };
+    const fromTxt = grab(/\bfrom\s+(?:my\s+)?([a-z][\w.\- ]{1,24}?)(?=\s+(?:to|into|in|sa)\b|[.,!]|$)/i);
+    const toTxt = grab(/\b(?:to|into|in|sa)\s+(?:my\s+)?([a-z][\w.\- ]{1,24}?)(?=\s+(?:from|via|today|yesterday|on|last)\b|[.,!]|$)/i);
+    let from = this.accountIn(fromTxt), to = this.accountIn(toTxt);
+    const cash = { id: Accounts.DEFAULT, name: Accounts.def().name };
+    if (/\bcash(?:ed)?[- ]?in|top(?:ped)?[- ]?up|nag-?cash ?in\b/.test(lower)) { to ||= this.accountIn(raw.replace(/\bcash(?:ed)?[- ]?in\b/gi, '')); from ||= cash; }
+    else if (/\bcash(?:ed)?[- ]?out|withdr[ae]w|withdrawal|nag-?withdraw\b/.test(lower)) { from ||= this.accountIn(raw.replace(/\bcash(?:ed)?[- ]?out\b/gi, '')); to ||= cash; }
+    else if (/\bdeposit(?:ed)?\b/.test(lower)) {
+      // "deposited 5000 to BDO" is a transfer; "client deposited 5000" is income.
+      if (!to || /\b(client|customer|deposit from|paid)\b/.test(lower)) return null;
+      from ||= cash;
+    }
+    if (!from && !to) {
+      // Names that aren't accounts — maybe pockets ("from savings to groceries") → handled by Pockets; otherwise ask.
+      if (fromTxt && toTxt) return { kind: 'transfer', conf: 0.4, why: 'moving money between your accounts', fromName: fromTxt, toName: toTxt, ask: 'accounts' };
+      return null;
+    }
+    const ok = from && to && from.id && to.id && from.id !== to.id;
+    return { kind: 'transfer', conf: ok ? 0.9 : 0.45, why: 'moving money between your own accounts', from, to, ask: ok ? null : 'accounts' };
+  },
+
+  /** Recurring hints: "every month", "monthly", "/mo". */
+  repeatIn(text) {
+    const t = text.toLowerCase();
+    if (/\b(every|each)\s+month\b|\bmonthly\b|\/\s?mo\b|\bper month\b|\ba month\b|\bbuwan-?buwan\b|\bkada buwan\b/.test(t)) return 'month';
+    if (/\b(every|each)\s+week\b|\bweekly\b|\bper week\b|\blingguhan\b|\bkada linggo\b/.test(t)) return 'week';
+    if (/\b(every|each)\s+year\b|\byearly\b|\bannual(?:ly)?\b|\bper year\b|\btaon-?taon\b/.test(t)) return 'year';
+    if (/\b(every|each)\s+(?:day)\b|\bdaily\b|\barawan\b|\baraw-?araw\b/.test(t)) return 'day';
+    return null;
+  },
+
+  /** Which of your accounts a payment used ("via GCash", "from my BDO"). */
+  accountFor(raw) {
+    const m = raw.match(/\b(?:via|using|thru|through|with|from|on|sa|gamit)\s+(?:my\s+)?([a-z][\w.\- ]{1,20}?)(?=[\s.,!]|$)/i);
+    const viaTxt = m && m[1];
+    const viaAcc = viaTxt && this.accountIn(viaTxt);
+    if (viaAcc && (viaAcc.id || viaAcc.type)) return viaAcc;
+    const named = Accounts.mentioned(raw);
+    if (named) return { id: named.id, name: named.name };
+    const known = Accounts.known(raw);
+    if (known && /\b(via|using|thru|through|from|with|gamit)\b/i.test(raw)) return { name: known[0], type: known[1] };
+    return null;
+  },
+
+  /** Clean description: keep the user's words, drop filler. */
+  describe(raw, kind, person) {
+    let d = raw.replace(/\s+/g, ' ').trim().replace(/[.!]+$/, '');
+    if (person && ['lend', 'borrow', 'repay_in', 'repay_out', 'forgive', 'gift_in'].includes(kind) && d.length > 60) d = `${KINDS[kind].label} · ${person}`;
+    return d.replace(/^./, (c) => c.toUpperCase()).slice(0, 120);
+  },
+
+  /** One note → one entry (use parseMany for notes with several amounts). */
+  parse(text, ctx = {}) {
+    const raw = String(text || '').trim();
     if (!raw) return null;
     const lower = raw.toLowerCase();
     const amt = this.extractAmount(raw);
-    let inc = 0, exp = 0;
+    const dt = this.readDate(raw);
+    const repeat = this.repeatIn(raw);
+    const why = [];
+    let kind = null, conf = 0, person = null, category = null, ask = null, extra = {};
 
-    if (amt?.sign === 1) inc += 4;
-    if (amt?.sign === -1) exp += 4;
-    if (this.INCOME_WORDS.test(lower)) inc += 2;
-    if (this.EXPENSE_WORDS.test(lower)) exp += 2;
-    if (/\bpaid (me|us)\b/.test(lower)) inc += 4;
-    if (/\bgot\b.*\bfrom\b/.test(lower)) inc += 2;
+    const c = this.classify(raw);
+    if (c) { ({ kind, conf } = c); person = c.person || null; category = c.category || null; ask = c.ask || null; why.push(c.why); extra = { from: c.from, to: c.to, fromName: c.fromName, toName: c.toName, side: c.side }; }
+    if (!person && ctx.person && c && ['repay_in', 'repay_out', 'lend', 'borrow', 'forgive', 'gift_in'].includes(kind)) person = ctx.person;
 
-    // Who "paid"? "Client paid" → income, "I paid" / "Paid $30 for" → expense
-    const paid = lower.match(/(\b[\w'&.]+\b)?\s*\bpaid\b/);
-    if (paid) {
-      const prev = paid[1];
-      if (prev && !this.NOT_PAYER.has(prev) && !/^\d/.test(prev)) inc += 3;
-      else exp += 2;
+    if (!kind) {
+      // Plain income vs spending
+      let inc = 0, exp = 0;
+      if (amt?.sign === 1) inc += 4;
+      if (amt?.sign === -1) exp += 4;
+      const incW = this.INCOME_WORDS.test(lower), expW = this.EXPENSE_WORDS.test(lower.replace(/\b(got|get|been|getting)\s+paid\b/g, ''));
+      if (incW) inc += 2;
+      if (expW) exp += 2;
+      if (/\bpaid (me|us)\b|\bbinayaran ako\b/.test(lower)) inc += 4;
+      if (/\b(got|received|natanggap)\b.*\bfrom\b/.test(lower)) inc += 2;
+      if (/\bfrom (work|my job|the office|company|employer|boss)\b/.test(lower)) inc += 2;
+      // Who "paid"? "Client paid" → income, "I paid" / "Paid ₱30 for" → expense
+      const paid = !/\b(got|get|been|getting)\s+paid\b/i.test(raw) && raw.match(/(\b[\w'&.]+\b)?\s*\bpaid\b(?!\s+(?:me|us)\b)/i);
+      if (paid) {
+        const prev = (paid[1] || '').toLowerCase();
+        if (prev && !['i', 'we', 'just', 'already', 'have', 'had', 'been', 'finally', 'and', 'then', 'also', 'was', 'were', 'got', 'get', 'bill', 'bills'].includes(prev) && !/^\d/.test(prev)) inc += 3;
+        else exp += 2;
+      }
+      const incCat = this.matchCategory(raw, 'income');
+      const expCat = this.matchCategory(raw, 'expense');
+      const leanIn = incW && !expW;   // "padala from tito" is coming in; "Lunch with client" is a meal
+      if (incCat && (!expCat || leanIn)) inc += 1.5;
+      if (expCat && !(incCat && leanIn)) exp += 1;
+      kind = inc > exp ? 'income' : 'expense';
+      category = kind === 'income' ? (incCat || 'Other Income') : (expCat || 'Other Expense');
+      const margin = Math.abs(inc - exp);
+      const knownCat = kind === 'income' ? !!incCat : !!expCat;
+      conf = 0.45 + Math.min(margin, 4) * 0.08 + (knownCat ? 0.2 : 0);
+      if (kind === 'expense' && knownCat && inc === 0) conf = Math.max(conf, 0.8);   // "Jollibee 350"
+      if (kind === 'income' && inc >= 3 && knownCat) conf = Math.max(conf, 0.85);
+      if (kind === 'income' && exp === 0 && /\b(got paid|get paid|been paid|received|natanggap|sahod|sweldo)\b/.test(lower)) { conf = Math.max(conf, 0.8); if (!knownCat && /\bpaid for\b|\bfor (?:the|a|my)\b/.test(lower)) category = 'Client Revenue'; }
+      why.push(kind === 'income' ? 'money coming in' : 'money going out');
+      // "Maria paid me ₱3,000" — if Maria owes you, it's probably a repayment.
+      const payer = (raw.match(new RegExp(`^\\s*${this.nameRe()}\\s+paid\\s+(?:me|us)\\b`)) || [])[1];
+      const pn = this.cleanName(payer);
+      if (kind === 'income' && pn && typeof Loans !== 'undefined' && Loans.owedBy?.(pn) > 0) { kind = 'repay_in'; person = pn; conf = 0.7; ask = 'repay_or_income'; why.splice(0, 9, `${pn} owes you, so this may be a repayment`); }
+      else if (kind === 'income' && pn) { person = pn; conf = Math.min(conf, 0.7); ask = 'who_paid'; why.push(`is this pay for work, a gift, or ${pn} paying you back?`); }
     }
 
-    // Category hints nudge direction ("lunch" → expense), but a mention of
-    // "client" alone shouldn't turn "Lunch with client" into income.
-    const incCat = this.matchCategory(raw, 'income');
-    const expCat = this.matchCategory(raw, 'expense');
-    if (incCat) inc += 1;
-    if (expCat) exp += 1;
+    if (kind === 'refund') category = this.matchCategory(raw, 'expense') || 'Other Expense';
+    if (kind === 'gift_in') category = 'Gifts Received';
+    if (['lend', 'borrow', 'repay_in', 'repay_out', 'forgive'].includes(kind)) category = 'Loans';
+    if (kind === 'transfer') category = 'Transfer';
+    if (kind === 'invest') category = 'Investments';
+    if (kind === 'income' && !category) category = this.matchCategory(raw, 'income') || 'Other Income';
+    if (kind === 'expense' && !category) category = this.matchCategory(raw, 'expense') || 'Other Expense';
 
-    const type = inc > exp ? 'income' : 'expense'; // ties default to expense (most common log)
-    const category = type === 'income' ? (incCat || 'Client Revenue') : (expCat || 'Other Expense');
+    // Things the user should confirm
+    const needs = [];
+    if (kind !== 'statement' && kind !== 'forgive' && !amt) needs.push('amount');
+    if (['lend', 'borrow', 'repay_in', 'repay_out', 'forgive'].includes(kind) && !person) needs.push('person');
+    if (kind === 'transfer' && ask === 'accounts') needs.push('accounts');
+    if (dt.future && !['statement'].includes(kind)) { needs.push('future'); why.push('the date is in the future'); }
+    if (amt && amt.value >= 1e6) { needs.push('big'); conf = Math.min(conf, 0.6); }
+    if (amt && amt.value === 0) needs.push('amount');
+    if (ask) needs.push(ask);
 
-    const confidence = !amt ? 0 : Math.min(1, 0.45 + Math.abs(inc - exp) * 0.1 + ((type === 'income' ? incCat : expCat) ? 0.2 : 0));
-    const description = raw.replace(/\s+/g, ' ').replace(/^./, (c) => c.toUpperCase());
-    return { type, amount: amt ? round2(amt.value) : null, category, date: this.extractDate(raw), description, confidence };
+    const account = kind === 'transfer' ? null : this.accountFor(raw);
+    if (account && !account.id) why.push(`${account.name} isn’t one of your accounts yet`);
+
+    return {
+      kind, type: KINDS[kind] ? Money.typeFor(kind) : null,
+      amount: amt ? round2(amt.value) : null,
+      category, date: dt.date, dateExplicit: !!dt.explicit, side: extra.side,
+      description: this.describe(raw, kind, person),
+      person: person || null, repeat, account, ...extra,
+      confidence: round2(Math.max(0, Math.min(1, needs.length ? Math.min(conf, 0.6) : conf))),
+      needs, why,
+    };
+  },
+
+  /** "Meralco 2,800 due Friday" → a reminder, not a payment. */
+  isBillDue(text) {
+    const t = text.toLowerCase();
+    if (!/\b(due|deadline|babayaran|bayaran sa|payable|pay by|until)\b/.test(t)) return false;
+    if (/\b(paid|spent|bought|nagbayad|binayaran)\b/.test(t)) return false;
+    return !!this.readDate(text).future || !!Reminders.eventDate(t);
+  },
+
+  /** Split "Jollibee 350 and Grab 180" or "lunch 200, coffee 150" into separate entries. */
+  split(text) {
+    const raw = String(text || '').trim();
+    if (this.amountsIn(raw).length < 2) return [raw];
+    const parts = raw.split(/\s*(?:\n|;|,(?!\d{3})|\band then\b|\bthen\b|\band\b|\bplus\b|\bat saka\b|\btapos\b|\s\+\s|\s&\s)\s*/i).map((s) => s.trim()).filter(Boolean);
+    // Re-attach pieces without an amount to the piece before ("Lunch 200 with Ana and Ben").
+    const merged = [];
+    for (const p of parts) {
+      if (this.amountsIn(p).length || !merged.length) merged.push(p);
+      else merged[merged.length - 1] += ' and ' + p;
+    }
+    // Only split when each piece has exactly its own amount.
+    if (merged.length < 2 || merged.some((p) => this.amountsIn(p).length !== 1)) return [raw];
+    // Shared date ("yesterday") applies to every piece.
+    const dt = this.readDate(raw);
+    return merged.map((p) => (dt.explicit && !this.readDate(p).explicit ? `${p} (${/yesterday|kahapon/i.test(raw) ? 'yesterday' : dt.date})` : p));
+  },
+  parseMany(text) {
+    const pieces = this.split(text);
+    const out = [];
+    let ctx = {};
+    for (const p of pieces) {
+      const r = this.parse(p, ctx);
+      if (!r) continue;
+      if (r.person) ctx = { person: r.person };
+      // A shared verb ("Spent 200 on lunch and 150 on coffee") carries over.
+      if (out.length && !this.INCOME_WORDS.test(p.toLowerCase()) && !this.EXPENSE_WORDS.test(p.toLowerCase()) && !this.classify(p) && out[0].kind === 'income' && r.kind === 'expense' && !this.matchCategory(p, 'expense')) { r.kind = 'income'; r.type = 'income'; r.category = this.matchCategory(p, 'income') || out[0].category; }
+      out.push(r);
+    }
+    if (out.length > 1) out.forEach((r) => { r.description = r.description.replace(/\s*\((?:yesterday|\d{4}-\d{2}-\d{2})\)$/, ''); });
+    return out;
   },
 };
 
@@ -1282,7 +1848,7 @@ const Cloud = {
       const localAt = Store.state.savedAt || 0;
       const remoteAt = data ? (data.data?.savedAt || Date.parse(data.updated_at) || 0) : 0;
       if (data && data.data && remoteAt > localAt) {
-        Store.state = { ...Store.blank(), ...data.data };
+        Store.adopt(data.data);
         Store.saveLocal();
         this.setStatus('synced');
         return true;
@@ -1568,24 +2134,100 @@ const Budgets = {
   /** Money figures for the current month. */
   month() {
     const ym = toISODate(new Date()).slice(0, 7);
-    let startBal = Store.state.initialBalance, income = 0;
-    for (const t of Store.state.transactions) {
-      const signed = t.type === 'income' ? t.amount : -t.amount;
-      if (t.date.slice(0, 7) < ym) startBal += signed;
-      else if (t.date.startsWith(ym) && t.type === 'income') income += t.amount;
-    }
+    const startBal = Accounts.total(ym + '-01');
+    let income = 0;
+    for (const t of Store.state.transactions) if (t.date.startsWith(ym)) income += Money.earn(t);
     return { ym, income: round2(income), available: round2(Math.max(0, startBal) + income) };
   },
 
   stats(b, mon = this.month()) {
     const limit = b.amount != null ? b.amount : round2(((b.percent || 0) / 100) * (b.basis === 'income' ? mon.income : mon.available));
     const spent = round2(Store.state.transactions
-      .filter((t) => t.type === 'expense' && t.category === b.category && t.date.startsWith(mon.ym))
-      .reduce((a, t) => a + t.amount, 0));
+      .filter((t) => t.category === b.category && t.date.startsWith(mon.ym))
+      .reduce((a, t) => a + Money.spend(t), 0));
     return { limit, spent, left: round2(limit - spent), pct: limit ? spent / limit : (spent ? 1.01 : 0) };
   },
 
   describe(b) { return b.percent != null ? `${+b.percent.toFixed(2)}% of ${b.basis === 'income' ? 'income' : 'money'}` : 'fixed'; },
+};
+
+/* =========================================================================
+   5e. FAMILY & FRIEND LOANS — informal IOUs ("I lent Maria ₱2,000")
+   A loan is a "lend" or "borrow" entry. Repayments ("repay_in"/"repay_out")
+   and forgiven amounts ("forgive") are matched to that person's oldest open
+   loan first. Repayments are never counted as income or spending.
+   Extra details live in Store.state.loans: { id: <entry id>, expect, note, reminderId }.
+   ========================================================================= */
+const Loans = {
+  key(name) { return String(name || '').toLowerCase().replace(/^my\s+/, '').replace(/[^a-z0-9]+/g, ' ').trim(); },
+  meta(id) { return (Store.state.loans ||= []).find((m) => m.id === id) || null; },
+  setMeta(id, patch) {
+    let m = this.meta(id);
+    if (!m) { m = { id }; Store.state.loans.push(m); }
+    Object.assign(m, patch);
+    return m;
+  },
+
+  /** Every loan with what's been paid back / forgiven. side: 'theirs' = they owe you, 'mine' = you owe them. */
+  list() {
+    const txs = Store.sorted();
+    const loans = [], byId = {};
+    for (const t of txs) {
+      const k = Money.kind(t);
+      if ((k === 'lend' || k === 'borrow') && t.person) {
+        const l = { id: t.id, tx: t, side: k === 'lend' ? 'theirs' : 'mine', direction: k === 'lend' ? 'lent' : 'borrowed', person: t.person, pkey: this.key(t.person),
+          amount: t.amount, date: t.date, payments: [], repaid: 0, forgiven: 0, ...(this.meta(t.id) || {}), id: t.id };
+        loans.push(l); byId[t.id] = l;
+      }
+    }
+    for (const t of txs) {
+      const k = Money.kind(t);
+      if (!['repay_in', 'repay_out', 'forgive'].includes(k) || !t.person) continue;
+      const side = k === 'repay_in' ? 'theirs' : k === 'repay_out' ? 'mine' : (t.side || 'theirs');
+      const pk = this.key(t.person);
+      let rest = t.amount;
+      const targets = [byId[t.loanId], ...loans.filter((l) => l.pkey === pk && l.side === side && l.date <= t.date && l.id !== t.loanId)].filter(Boolean);
+      for (const l of targets) {
+        if (rest <= 0.004) break;
+        const left = round2(l.amount - l.repaid - l.forgiven);
+        if (left <= 0) continue;
+        const use = Math.min(left, rest);
+        if (k === 'forgive') l.forgiven = round2(l.forgiven + use); else l.repaid = round2(l.repaid + use);
+        l.payments.push({ tx: t, amount: round2(use), forgiven: k === 'forgive' });
+        rest = round2(rest - use);
+      }
+      if (rest > 0.004) {   // paid before the loan was logged, or more than owed: keep it visible
+        const l = targets[0] || loans.filter((x) => x.pkey === pk && x.side === side).at(-1);
+        if (l) { l.extra = round2((l.extra || 0) + rest); l.payments.push({ tx: t, amount: rest, extra: true, forgiven: k === 'forgive' }); if (k !== 'forgive') l.repaid = round2(l.repaid + rest); }
+      }
+    }
+    for (const l of loans) { l.left = Math.max(0, round2(l.amount - l.repaid - l.forgiven)); l.status = l.left > 0 ? 'open' : l.forgiven > 0 && l.repaid === 0 ? 'forgiven' : 'settled'; }
+    return loans;
+  },
+  stats(l) { return { repaid: l.repaid, forgiven: l.forgiven, left: l.left }; },
+
+  /** People with their totals, open balances first. */
+  people() {
+    const map = {};
+    for (const l of this.list()) {
+      const p = map[l.pkey] ||= { key: l.pkey, name: l.person, theyOwe: 0, youOwe: 0, loans: [], last: l.date };
+      p.loans.push(l); p.last = l.date > p.last ? l.date : p.last; p.name = l.person;
+      if (l.side === 'theirs') p.theyOwe = round2(p.theyOwe + l.left); else p.youOwe = round2(p.youOwe + l.left);
+    }
+    for (const t of Store.state.transactions) { const p = t.person && map[this.key(t.person)]; if (p && t.date > p.last) p.last = t.date; }
+    return Object.values(map).sort((a, b) => ((b.theyOwe + b.youOwe > 0) - (a.theyOwe + a.youOwe > 0)) || b.last.localeCompare(a.last));
+  },
+  owedBy(name) { const k = this.key(name); return round2(this.list().filter((l) => l.pkey === k && l.side === 'theirs').reduce((a, l) => a + l.left, 0)); },
+  oweTo(name) { const k = this.key(name); return round2(this.list().filter((l) => l.pkey === k && l.side === 'mine').reduce((a, l) => a + l.left, 0)); },
+  totals() { const ls = this.list(); return { theyOwe: round2(ls.filter((l) => l.side === 'theirs').reduce((a, l) => a + l.left, 0)), youOwe: round2(ls.filter((l) => l.side === 'mine').reduce((a, l) => a + l.left, 0)) }; },
+
+  /** Friendly one-liner after saving: " · Maria still owes you ₱1,500". */
+  toastLine(name) {
+    const a = this.owedBy(name), b = this.oweTo(name);
+    if (a > 0) return ` · ${escapeHTML(name)} still owes you ${fmt(a)}`;
+    if (b > 0) return ` · you still owe ${escapeHTML(name)} ${fmt(b)}`;
+    return ` · all settled with ${escapeHTML(name)} 💛`;
+  },
 };
 
 /* =========================================================================
@@ -1614,11 +2256,12 @@ const Pockets = {
   balance(p) {
     let b = 0;
     for (const m of this.moves()) if (m.pocketId === p.id) b += m.amount;
-    for (const t of Store.state.transactions) if (t.pocketId === p.id) b += t.type === 'income' ? t.amount : -t.amount;
+    for (const t of Store.state.transactions) if (t.pocketId === p.id) b += Money.cash(t);
     return round2(b);
   },
   total() { return round2(this.list().reduce((a, p) => a + this.balance(p), 0)); },
-  free() { return round2(Store.balance() - this.total()); },
+  /** Overspent pockets (negative) don't create extra free money. */
+  free() { return round2(Store.balance() - this.list().reduce((a, p) => a + Math.max(0, this.balance(p)), 0)); },
 
   /** Find a pocket by name ("toys", "my toys account", "Toy"). */
   find(name) {
@@ -1688,6 +2331,8 @@ const Pockets = {
     if (new RegExp(`\\b(?:new|create|make|add|open|start)\\b.*\\b${this.WORDS}\\b|\\b${this.WORDS}\\b.*\\b(?:called|named)\\b`).test(t) && !Parser.extractAmount(t)) return true;
     if (new RegExp(`\\b(?:delete|remove|close)\\b.*\\b${this.WORDS}\\b`).test(t) && !Parser.extractAmount(t)) return true;
     if (!Parser.extractAmount(t)) return false;
+    const c = Parser.classify(text);
+    if (c && !this.mentioned(t) && (c.kind !== 'transfer' || c.from || c.to)) return false;   // investments, loans, account moves
     if (new RegExp(`\\b(?:${this.VERBS_IN})\\b.*\\b(?:to|into|in|for)\\b`).test(t) && !/\b(spent|paid|bought|purchased|received|earned|sold)\b/.test(t)) return true;
     if (new RegExp(`\\b(?:${this.VERBS_OUT})\\b.*\\b(?:out of|from)\\b`).test(t)) return true;
     return false;
@@ -1738,10 +2383,40 @@ const Chime = {
    ========================================================================= */
 const AI = {
   /** Supabase AI is set up and this person is signed in (they may still have it switched off). */
-  available() { return CONFIG.AI_PROVIDER === 'supabase' && !!(Auth.useSupabase() && Auth.user && Auth.user.provider === 'cloud'); },
+  available() {
+    if (CONFIG.AI_PROVIDER === 'puter') return true;   // anyone, guests included: Puter handles its own sign-in
+    return CONFIG.AI_PROVIDER === 'supabase' && !!(Auth.useSupabase() && Auth.user && Auth.user.provider === 'cloud');
+  },
+
+  /* ---------- Puter (free Gemini, no key) ---------- */
+  _puterLoading: null,
+  loadPuter() {
+    if (window.puter) return Promise.resolve();
+    if (!this._puterLoading) {
+      this._puterLoading = new Promise((res, rej) => {
+        const sc = document.createElement('script');
+        sc.src = 'https://js.puter.com/v2/';
+        sc.onload = () => (window.puter ? res() : rej(new Error('Puter missing')));
+        sc.onerror = () => { this._puterLoading = null; rej(new Error('Couldn\'t load Puter')); };
+        document.head.appendChild(sc);
+      });
+    }
+    return this._puterLoading;
+  },
+  async puterSignedIn() { try { await this.loadPuter(); return !!(await window.puter.auth.isSignedIn()); } catch (e) { return false; } },
+  async puterSignIn() { await this.loadPuter(); await window.puter.auth.signIn(); return this.puterSignedIn(); },
+  puterText(r) {
+    if (typeof r === 'string') return r;
+    const c = r && r.message && r.message.content;
+    if (typeof c === 'string') return c;
+    if (Array.isArray(c)) return c.map((x) => (x && (x.text || '')) || '').join('');
+    if (r && typeof r.text === 'string') return r.text;
+    return String(r || '');
+  },
 
   enabled() {
     const p = CONFIG.AI_PROVIDER;
+    if (p === 'puter') return !!(Store.state.settings || {}).aiConsent;
     // Free Gemini via Supabase: signed-in users who have switched AI on (it shares data with Google).
     if (p === 'supabase') return !!(this.available() && (Store.state.settings || {}).aiConsent);
     return p !== 'none' && (p === 'proxy' || !!CONFIG.API_KEY);
@@ -1750,6 +2425,20 @@ const AI = {
   /** Low-level call. `image` is a data URL or null. Returns the model's text. */
   async call({ system, prompt, image = null, task }) {
     const p = CONFIG.AI_PROVIDER;
+    if (p === 'puter') {
+      if (!(await this.puterSignedIn())) { const e = new Error('Puter sign-in needed'); e.code = 'puter_sign_in'; throw e; }
+      const full = `${system}\nAnswer with valid JSON only: no markdown, no code fences, no extra text.\n\n${prompt}`;
+      let last;
+      for (const model of CONFIG.PUTER_MODELS[task === 'parse_note' ? 'fast' : 'full']) {
+        try {
+          const res = image ? await window.puter.ai.chat(full, image, false, { model }) : await window.puter.ai.chat(full, { model });
+          const text = this.puterText(res);
+          if (text && text.includes('{')) return text;
+        } catch (e) { last = e; }
+      }
+      const err = new Error('Free AI is unavailable right now' + (last ? ': ' + (last.message || last.error?.message || '') : ''));
+      err.code = 'puter_failed'; throw err;
+    }
     if (p === 'supabase') {
       // Calls supabase/functions/tiffo-ai — the Claude API key stays on the server.
       const sb = await Auth.supabase();
@@ -1808,11 +2497,17 @@ const AI = {
     const out = await this.call({
       task: 'parse_note',
       system: 'You convert short bookkeeping notes into JSON. Reply with JSON only.',
-      prompt: `Today is ${toISODate(new Date())}. Note: "${text}"\nReturn {"type":"income"|"expense","amount":number,"category":one of [${cats}],"date":"YYYY-MM-DD","description":"short clean description"}`,
+      prompt: `Today is ${toISODate(new Date())}. The user may write English, Filipino or Taglish. Note: "${text}"
+Return {"kind": one of ["expense","income","gift_in","refund","lend","borrow","repay_in","repay_out","forgive","transfer","invest"],
+"amount": number or null if not stated (never guess), "category": one of [${cats}], "person": "name or null",
+"date":"YYYY-MM-DD" (today if not stated), "description":"short clean description"}`,
     });
     const j = this.parseJSON(out);
-    if (!CATEGORIES[j.category]) j.category = j.type === 'income' ? 'Other Income' : 'Other Expense';
-    return { ...j, amount: Math.abs(+j.amount), confidence: 0.95 };
+    if (!KINDS[j.kind]) j.kind = j.type === 'income' ? 'income' : 'expense';
+    if (!CATEGORIES[j.category]) j.category = j.kind === 'income' ? 'Other Income' : 'Other Expense';
+    const amount = Math.abs(+j.amount);
+    // The AI only suggests; the user always confirms (see UI.reviewEntries).
+    return { ...j, amount: amount > 0 ? amount : null, date: /^\d{4}-\d{2}-\d{2}$/.test(j.date || '') ? j.date : null };
   },
 
   /** Document (image and/or text) → plain-English breakdown. */
@@ -1913,14 +2608,24 @@ const LegalAnalyzer = {
 
   receiptInfo(t) {
     const lines = t.split(/\n/).map((l) => l.trim()).filter(Boolean);
-    const merchant = (lines.find((l) => /[a-z]{3,}/i.test(l) && !/receipt|invoice|date|tel|phone|www|http/i.test(l)) || 'Merchant').slice(0, 40);
-    const totalLine = t.match(/\b(?:grand\s+)?total(?:\s+due)?\s*[:\-]?\s*(?:[$€£₱¥₩₹₫฿₦]|[a-z]{2,3}\.?)?\s*(\d{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2})/i)
-                   || t.match(/amount\s+(?:due|paid)\s*[:\-]?\s*(?:[$€£₱¥₩₹₫฿₦]|[a-z]{2,3}\.?)?\s*(\d{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2})/i);
-    let total = totalLine ? parseFloat(totalLine[1].replace(/,/g, '')) : null;
-    if (!total) { const a = this.amounts(t).map((x) => x.value); total = a.length ? Math.max(...a) : null; }
-    const dm = t.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-    let date = toISODate(new Date());
-    if (dm) { const y = dm[3].length === 2 ? 2000 + +dm[3] : +dm[3]; const d = new Date(y, +dm[1] - 1, +dm[2]); if (!isNaN(d)) date = toISODate(d); }
+    const merchant = (lines.find((l) => /[a-z]{3,}/i.test(l) && !/receipt|invoice|date|tel|phone|www|http|total|amount|subtotal|vat|tin\b|cashier|change|^cash\b|^card\b|^visa\b/i.test(l) && !/\d+[.,]\d{2}/.test(l) && !/^(?:\d{1,2}\s+)?(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d/i.test(l)) || 'Merchant').slice(0, 40);
+    const CUR = '(?:[$€£₱¥₩₹₫฿₦]|php\\.?|p\\.?|usd|eur|gbp|jpy|sgd|aud|cad|inr|rs\\.?)?';
+    const NUM = '(\\d{1,3}(?:,\\d{3})+(?:\\.\\d{1,2})?|\\d+(?:\\.\\d{1,2})?)';
+    const totalLine = t.match(new RegExp(`\\b(?:grand\\s+)?total(?:\\s+amount)?(?:\\s+(?:due|paid|sales))?\\s*[:\\-]?\\s*${CUR}\\s*${NUM}`, 'i'))
+                   || t.match(new RegExp(`\\bamount\\s+(?:due|paid)\\s*[:\\-]?\\s*${CUR}\\s*${NUM}`, 'i'));
+    // Safety: only trust an explicit TOTAL / AMOUNT DUE line. Never guess from the biggest number.
+    const total = totalLine ? parseFloat(totalLine[1].replace(/,/g, '')) : null;
+    // Safety: a missing date stays empty (the review form asks for it). Never invent one.
+    let date = null;
+    const iso = t.match(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/);
+    const dm = t.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+    const MON = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+    const md = t.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2}),?\s+(20\d{2})\b/i)
+            || t.match(/\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?,?\s+(20\d{2})\b/i);
+    const ok = (y, m, d) => { const x = new Date(y, m, d); return !isNaN(x) && x.getMonth() === m && x.getDate() === d ? toISODate(x) : null; };
+    if (iso) date = ok(+iso[1], +iso[2] - 1, +iso[3]);
+    else if (dm) { const y = dm[3].length === 2 ? 2000 + +dm[3] : +dm[3]; date = +dm[1] > 12 ? ok(y, +dm[2] - 1, +dm[1]) : ok(y, +dm[1] - 1, +dm[2]); }
+    else if (md) date = isNaN(+md[1]) ? ok(+md[3], MON[md[1].slice(0, 3).toLowerCase()], +md[2]) : ok(+md[3], MON[md[2].slice(0, 3).toLowerCase()], +md[1]);
     const cat = Parser.matchCategory(t);
     const category = cat && CATEGORIES[cat].type === 'expense' ? cat : 'Supplies';
     return { merchant, total, date, category };
@@ -2213,7 +2918,7 @@ const LegalAnalyzer = {
       receipt = this.receiptInfo(t);
       summary = [
         `This is ${aOrAn(docType)} ${docType.toLowerCase()} from ${receipt.merchant}${receipt.date ? ' dated ' + prettyDate(receipt.date) : ''}.`,
-        receipt.total ? `The total is ${fmt(receipt.total)}${docType === 'Invoice' ? ' and it still needs to be paid' : ''}.` : 'No clear total was found — double-check the amount.',
+        receipt.total ? `The total is ${fmt(receipt.total)}${docType === 'Invoice' ? ' and it still needs to be paid' : ''}.` : 'Tiffo couldn\'t find a clear TOTAL line, so it won\'t guess the amount. Check the paper and type it in.',
         `It looks like a "${receipt.category}" business expense; keep it for your tax records.`,
       ];
     } else {
@@ -2306,8 +3011,13 @@ const DocScanner = {
       } catch (e) { console.warn('OCR failed', e); }
     }
     if (text.trim().length < 25) {
-      toast('Couldn\'t read much text from that image — showing a sample analysis. Try a sharper, flatter photo, or paste the text.');
-      text = SAMPLES.receipt;
+      // Safety: never show made-up sample data in place of the user's document.
+      return { failed: true, thumb, text };
+    }
+    if (AI.enabled()) {
+      // AI couldn't take the photo itself, so give it the text we read on this device.
+      try { ui.status('Asking the AI to explain it…', 0.97); return { text, thumb, result: { ...(await AI.analyzeDocument({ text })), source: 'ai' } }; }
+      catch (e) { console.warn('AI text analysis failed, using local rules', e); UI.aiProblem?.(e); }
     }
     return { text, thumb, result: { ...LegalAnalyzer.analyze(text), source: 'ocr' } };
   },
@@ -2315,7 +3025,7 @@ const DocScanner = {
   async analyzeText(text) {
     if (AI.enabled()) {
       try { return { ...(await AI.analyzeDocument({ text })), source: 'ai' }; }
-      catch (e) { console.warn('AI analysis failed, using local rules', e); }
+      catch (e) { console.warn('AI analysis failed, using local rules', e); UI.aiProblem?.(e); }
     }
     return { ...LegalAnalyzer.analyze(text), source: 'local' };
   },
@@ -2391,6 +3101,7 @@ function seedDemoData() {
     [0, 'expense', 650, 'Rent', 'Coworking desk (monthly)'],
   ];
   Store.state = {
+    ...Store.blank(),
     initialBalance: localAmount(2500),
     currency: CURRENCY,
     demoLoaded: true,            // the user asked for demo data (see cleanupAutoDemo)
@@ -2398,7 +3109,7 @@ function seedDemoData() {
     documents: [],
     transactions: rows.map(([ago, type, amount, category, description], i) => ({
       id: uid() + i, createdAt: Date.now() - ago * 864e5 + i, date: d(ago), type, amount: localAmount(amount), category,
-      description: description.replace(/\{(\d+)\}/g, (_, n) => exampleMoney(+n)), demo: true,
+      description: description.replace(/\{(\d+)\}/g, (_, n) => exampleMoney(+n)), demo: true, kind: type, accountId: 'acc_cash',
     })),
   };
   Store.save();
@@ -2428,12 +3139,18 @@ const Charts = {
   renderDonut() {
     if (!window.Chart) return;
     const byCat = {};
+    const sums = {};
+    for (const t of Store.state.transactions) if (Money.spend(t) && this.inRange(t.date, this.donutRange)) sums[t.category] = (sums[t.category] || 0) + Money.spend(t);
+    const order = Object.keys(CATEGORIES);
+    // Top 7 by amount; colour slots follow a fixed category order so a colour means the same thing on every redraw.
+    CHART_CATEGORIES = Object.keys(sums).filter((c) => sums[c] > 0 && CATEGORIES[c]).sort((a, b) => sums[b] - sums[a]).slice(0, 7)
+      .sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
     for (const t of Store.state.transactions) {
-      if (t.type !== 'expense' || !this.inRange(t.date, this.donutRange)) continue;
+      if (!Money.spend(t) || !this.inRange(t.date, this.donutRange)) continue;
       const key = CHART_CATEGORIES.includes(t.category) ? t.category : 'Other';
       byCat[key] = byCat[key] || { total: 0, parts: {} };
-      byCat[key].total += t.amount;
-      byCat[key].parts[t.category] = (byCat[key].parts[t.category] || 0) + t.amount;
+      byCat[key].total += Money.spend(t);
+      byCat[key].parts[t.category] = (byCat[key].parts[t.category] || 0) + Money.spend(t);
     }
     // Fixed order (colour follows the category, never its rank) — "Other" last.
     const keys = [...CHART_CATEGORIES.filter((c) => byCat[c]), ...(byCat.Other ? ['Other'] : [])];
@@ -2486,12 +3203,13 @@ const Charts = {
 
     // Opening balance at the start date.
     const startISO = toISODate(start);
-    let bal = Store.state.initialBalance;
+    let bal = Accounts.openingTotal();
     const daily = {};
     for (const t of txs) {
-      const signed = t.type === 'income' ? t.amount : -t.amount;
+      const signed = Money.cash(t);
+      if (!signed) continue;                               // transfers & write-offs don't change total money
       if (t.date < startISO) bal += signed;
-      else { daily[t.date] = daily[t.date] || { in: 0, out: 0 }; daily[t.date][t.type === 'income' ? 'in' : 'out'] += t.amount; }
+      else { daily[t.date] = daily[t.date] || { in: 0, out: 0 }; daily[t.date][signed > 0 ? 'in' : 'out'] += Math.abs(signed); }
     }
     const labels = [], points = [], meta = [];
     const openBal = bal;
@@ -2573,8 +3291,9 @@ const Charts = {
     }
     for (const t of Store.state.transactions) {
       const b = out.find((x) => t.date >= x.from && t.date <= x.to); if (!b) continue;
-      if (t.type === 'income') b.in += t.amount;
-      else { b.out += t.amount; b.cats[t.category] = (b.cats[t.category] || 0) + t.amount; }
+      b.in += Money.earn(t);
+      const sp = Money.spend(t);
+      if (sp) { b.out += sp; b.cats[t.category] = (b.cats[t.category] || 0) + sp; }
     }
     out.forEach((b) => { b.in = round2(b.in); b.out = round2(b.out); b.profit = round2(b.in - b.out); });
     return out;
@@ -2675,42 +3394,58 @@ const Exporter = {
     const rows = [];
     const push = (...cells) => rows.push(cells.map((c) => this.csvCell(c)).join(','));
     const txs = Store.sorted();
-    let bal = Store.state.initialBalance;
+    const us = CURRENCY === 'USD';
+    let bal = Accounts.openingTotal();
+    const accName = (id) => (Accounts.get(id) || Accounts.def()).name;
 
-    push('TIFFO LEDGER EXPORT'); push('Generated', new Date().toLocaleString()); push('Currency', CURRENCY);
-    push('Starting balance', Store.state.initialBalance.toFixed(2)); push('');
-    push('Date', 'Description', 'Category', 'Type', 'Amount', 'Signed Amount', 'Running Balance', 'Schedule C Line (hint)', 'Pocket');
+    push('TIFFO EXPORT'); push('Generated', new Date().toLocaleString()); push('Currency', CURRENCY);
+    push('Starting money (all accounts)', bal.toFixed(2)); push('');
+    push('Date', 'Description', 'Kind', 'Category', 'Amount', 'Money in/out', 'Running total', 'Account', 'Pocket', 'Person', ...(us ? ['US Schedule C line (hint)'] : []));
     for (const t of txs) {
-      const signed = t.type === 'income' ? t.amount : -t.amount;
+      const k = Money.kind(t), signed = Money.cash(t);
       bal = round2(bal + signed);
-      push(t.date, t.description, t.category, t.type, t.amount.toFixed(2), signed.toFixed(2), bal.toFixed(2), CATEGORIES[t.category]?.schedC || '', (t.pocketId && Pockets.get(t.pocketId)?.name) || '');
+      const acct = k === 'transfer' && t.fromAccountId ? `${accName(t.fromAccountId)} → ${accName(t.toAccountId)}` : accName(Accounts.idOf(t));
+      push(t.date, t.description, KINDS[k].label, t.category || '', t.amount.toFixed(2), signed.toFixed(2), bal.toFixed(2), acct,
+        (t.pocketId && Pockets.get(t.pocketId)?.name) || '', t.person || '', ...(us ? [Money.isIncome(t) || Money.isExpense(t) ? CATEGORIES[t.category]?.schedC || '' : ''] : []));
     }
 
-    // ---- CPA summary, by year ----
+    // ---- Yearly summary: only true income and spending (transfers, loans and repayments excluded) ----
     const years = [...new Set(txs.map((t) => t.date.slice(0, 4)))].sort().reverse();
     for (const y of years) {
       const inYear = txs.filter((t) => t.date.startsWith(y));
       const by = {};
-      for (const t of inYear) { by[t.category] = by[t.category] || { type: t.type, total: 0, count: 0 }; by[t.category].total += t.amount; by[t.category].count++; }
-      const inc = inYear.filter((t) => t.type === 'income').reduce((a, t) => a + t.amount, 0);
-      const exp = inYear.filter((t) => t.type === 'expense').reduce((a, t) => a + t.amount, 0);
-      const meals = by.Meals?.total || 0;
-      push(''); push(`CPA TAX SUMMARY — ${y}`);
-      push('Category', 'Type', 'Entries', 'Total', 'Schedule C Line (hint)');
-      for (const [cat, v] of Object.entries(by).sort((a, b) => (a[1].type === b[1].type ? b[1].total - a[1].total : a[1].type === 'income' ? -1 : 1))) {
-        push(cat, v.type, v.count, v.total.toFixed(2), CATEGORIES[cat]?.schedC || '');
+      for (const t of inYear) {
+        const amt = Money.isIncome(t) ? t.amount : Money.spend(t);
+        if (!amt) continue;
+        const dir = Money.isIncome(t) ? 'income' : 'expense';
+        by[t.category] = by[t.category] || { type: dir, total: 0, count: 0 };
+        by[t.category].total += amt; by[t.category].count++;
       }
-      push(''); push('Gross income', '', '', inc.toFixed(2));
-      push('Total expenses', '', '', exp.toFixed(2));
-      push('Net profit (before adjustments)', '', '', (inc - exp).toFixed(2));
-      if (meals) push('Meals — typically 50% deductible', '', '', (meals / 2).toFixed(2));
+      const inc = inYear.reduce((a, t) => a + Money.earn(t), 0);
+      const exp = inYear.reduce((a, t) => a + Money.spend(t), 0);
+      push(''); push(us ? `YEARLY SUMMARY ${y} (for your CPA)` : `YEARLY SUMMARY ${y} (informational, for your records or bookkeeper)`);
+      push('Category', 'Income or spending', 'Entries', 'Total', ...(us ? ['US Schedule C line (hint)'] : []));
+      for (const [cat, v] of Object.entries(by).sort((a, b) => (a[1].type === b[1].type ? b[1].total - a[1].total : a[1].type === 'income' ? -1 : 1))) {
+        push(cat, v.type, v.count, v.total.toFixed(2), ...(us ? [CATEGORIES[cat]?.schedC || ''] : []));
+      }
+      push(''); push('Total income', '', '', inc.toFixed(2));
+      push('Total spending (after refunds)', '', '', exp.toFixed(2));
+      push('Income minus spending', '', '', (inc - exp).toFixed(2));
     }
+    // ---- Where the money is now ----
+    push(''); push('ACCOUNTS (where your money is)'); push('Account', 'Type', 'Balance now');
+    for (const a of Accounts.list()) push(a.name, (ACCOUNT_TYPES[a.type] || ACCOUNT_TYPES.other).label, Accounts.balance(a).toFixed(2));
     if (Pockets.list().length) {
-      push(''); push('POCKETS (money set aside)'); push('Pocket', 'Balance', 'Goal');
+      push(''); push('POCKETS (what your money is for)'); push('Pocket', 'Balance', 'Goal');
       for (const p of Pockets.list()) push(p.name, Pockets.balance(p).toFixed(2), p.goal ? p.goal.toFixed(2) : '');
       push('Free to use', Pockets.free().toFixed(2));
     }
-    push(''); push('Note: Schedule C lines are hints for US filers. Confirm deductibility with your tax professional.');
+    if (typeof Loans !== 'undefined' && Loans.list().length) {
+      push(''); push('MONEY OWED (family, friends and others)'); push('Person', 'Direction', 'Original', 'Paid back', 'Forgiven', 'Still owed');
+      for (const l of Loans.list()) { const s2 = Loans.stats(l); push(l.person, l.direction === 'lent' ? 'They owe you' : 'You owe them', l.amount.toFixed(2), s2.repaid.toFixed(2), s2.forgiven.toFixed(2), s2.left.toFixed(2)); }
+    }
+    push(''); push(us ? 'Note: Schedule C lines are hints for US filers. Confirm with your tax professional.'
+      : 'Note: these summaries are informational, not tax advice. For BIR filing, confirm with an accountant or the BIR.');
     return '﻿' + rows.join('\r\n'); // BOM so Excel reads UTF-8
   },
 
@@ -2885,7 +3620,8 @@ const UI = {
     ['from-rose-600', 'via-rose-500', 'to-orange-500'].forEach((c) => card.classList.toggle(c, b < 0));
     if (this.lastBalance !== null && this.lastBalance !== b) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
     this.lastBalance = b;
-    $('#balanceSub').textContent = Pockets.list().length ? `${fmt0(Pockets.free())} free · ${fmt0(Pockets.total())} in pockets` : `Started at ${fmt(Store.state.initialBalance)}`;
+    $('#balanceSub').textContent = Pockets.list().length ? `${fmt0(Pockets.free())} free · ${fmt0(Pockets.total())} in pockets`
+      : Accounts.list().length > 1 ? `across ${Accounts.list().length} accounts` : `Started at ${fmt(Store.state.initialBalance)}`;
 
     const ym = toISODate(new Date()).slice(0, 7);
     const m = Store.totals((t) => t.date.startsWith(ym));
@@ -2902,7 +3638,7 @@ const UI = {
   renderLedger() {
     const q = this.search.toLowerCase();
     const list = Store.sorted().reverse().filter((t) =>
-      (this.filter === 'all' || t.type === this.filter) &&
+      (this.filter === 'all' || (this.filter === 'income' ? Money.dir(t) > 0 : this.filter === 'expense' ? Money.dir(t) < 0 : true)) &&
       (!q || t.description.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)));
 
     $$('.filter-btn').forEach((b) => {
@@ -2924,7 +3660,10 @@ const UI = {
 
     let lastDate = null;
     $('#ledgerList').innerHTML = list.map((t) => {
-      const isIn = t.type === 'income';
+      const k = Money.kind(t), dir = Money.dir(t), isIn = dir > 0;
+      const catType = k === 'income' ? 'income' : (k === 'expense' || k === 'refund') ? 'expense' : null;
+      const accName = (id) => escapeHTML(Accounts.get(id)?.name || '?');
+      const label = k === 'transfer' && t.fromAccountId ? `${accName(t.fromAccountId)} → ${accName(t.toAccountId)}` : `${KINDS[k].label}${t.person ? ' · ' + escapeHTML(t.person) : ''}`;
       const header = t.date !== lastDate ? `<li class="px-4 sm:px-5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400 bg-stone-50/60 dark:bg-stone-950/40">${prettyDate(t.date)}</li>` : '';
       lastDate = t.date;
       return header + `
@@ -2935,15 +3674,18 @@ const UI = {
           <div class="flex items-center gap-2 mt-0.5">
             <span class="inline-flex items-center gap-1.5 rounded-full pl-2 pr-1 text-xs font-semibold text-stone-700 dark:text-stone-200" style="background:${catColor(t.category)}24">
             <span class="h-2 w-2 rounded-full" style="background:${catColor(t.category)}"></span>
-            <select class="cat-select cat-chip bg-transparent text-xs border-0 p-0 pr-1 font-semibold cursor-pointer focus:outline-none focus:ring-0" aria-label="Category">
-              ${catOptions(t.category, t.type)}
-            </select><span class="text-[9px] opacity-60 pr-1" aria-hidden="true">▾</span></span>
+            ${catType ? `<select class="cat-select cat-chip bg-transparent text-xs border-0 p-0 pr-1 font-semibold cursor-pointer focus:outline-none focus:ring-0" aria-label="Category">
+              ${catOptions(t.category, catType)}
+            </select><span class="text-[9px] opacity-60 pr-1" aria-hidden="true">▾</span>` : `<span class="pr-1.5">${label}</span>`}</span>
+            ${k === 'refund' ? '<span class="text-[10px] font-semibold text-emerald-600">↩ refund</span>' : ''}${k === 'gift_in' && t.person ? `<span class="text-[10px] font-semibold text-stone-400">from ${escapeHTML(t.person)}</span>` : ''}
+            ${t.repeat ? `<span class="text-[10px] font-semibold text-stone-400" title="Repeats">🔁 ${t.repeat}ly</span>` : ''}
+            ${Accounts.list().length > 1 && k !== 'transfer' ? `<span class="text-[10px] font-semibold text-stone-400">${Accounts.icon(Accounts.get(Accounts.idOf(t)))} ${accName(Accounts.idOf(t))}</span>` : ''}
             ${t.source === 'scan' ? '<span class="text-[10px] font-semibold text-stone-400">📷 from scan</span>' : ''}
             ${t.pocketId && Pockets.get(t.pocketId) ? `<span class="text-[10px] font-semibold rounded-full px-1.5 py-0.5" style="background:${Pockets.get(t.pocketId).color}26">${escapeHTML(Pockets.get(t.pocketId).emoji + ' ' + Pockets.get(t.pocketId).name)}</span>` : ''}
           </div>
         </div>
         <div class="text-right">
-          <div class="tabular font-bold ${isIn ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}">${isIn ? '+' : '−'}${fmt(t.amount)}</div>
+          <div class="tabular font-bold ${dir === 0 ? 'text-stone-500 dark:text-stone-400' : isIn ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}">${dir === 0 ? (k === 'transfer' ? '⇄ ' : '') : isIn ? '+' : '−'}${fmt(t.amount)}</div>
           <button class="del-btn text-xs text-stone-400 hover:text-rose-600 opacity-60 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 transition" aria-label="Delete entry">Delete</button>
         </div>
       </li>`;
@@ -2951,7 +3693,13 @@ const UI = {
     Store.state.transactions.forEach((t) => delete t.fresh);
   },
 
-  renderAll() { this.renderBalance(); this.renderLedger(); Charts.render(); this.renderDocHistory(); this.renderReminders(); this.renderBudgets(); this.renderPockets(); },
+  renderAll() {
+    // Each card draws on its own, so one problem never blanks out the rest of the app.
+    for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.()]) {
+      try { f(); } catch (e) { console.error('Render problem', e); }
+    }
+  },
 
   /* ---------- document card ---------- */
   docStatus(text, progress) {
@@ -2971,15 +3719,16 @@ const UI = {
     const summary = (Array.isArray(r.summary) ? r.summary : [r.summary]).slice(0, 3);
     const flags = r.redFlags || [];
     const obligations = r.obligations || [];
-    const src = { ai: '✨ Read by AI (Gemini)', ocr: 'On-device OCR + rules', local: 'On-device rules' }[r.source] || '';
+    const src = { ai: CONFIG.AI_PROVIDER === 'puter' ? '✨ Read by AI (Gemini via Puter)' : '✨ Read by AI (Gemini)', ocr: 'On-device OCR + rules', local: 'On-device rules' }[r.source] || '';
 
-    const receiptBlock = r.receipt && r.receipt.total ? `
+    const receiptBlock = r.receipt ? `
       <div class="rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-4 flex flex-wrap items-center gap-3">
         <div class="flex-1 min-w-[180px]">
-          <div class="text-sm font-semibold">Add this to your ledger?</div>
-          <div class="text-sm text-stone-600 dark:text-stone-300">${escapeHTML(r.receipt.merchant || 'Purchase')} · <span class="tabular">${fmt(r.receipt.total)}</span> · ${escapeHTML(r.receipt.category || 'Supplies')}</div>
+          <div class="text-sm font-semibold">Add this to your records?</div>
+          <div class="text-sm text-stone-600 dark:text-stone-300">${escapeHTML(r.receipt.merchant || 'Purchase')} · <span class="tabular">${r.receipt.total ? fmt(r.receipt.total) : 'amount not found'}</span>${r.receipt.date ? ' · ' + escapeHTML(prettyDate(r.receipt.date)) : ' · no date found'}</div>
+          <div class="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">You’ll check every detail before it’s saved.</div>
         </div>
-        <button id="addReceiptBtn" class="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2">+ Log as expense</button>
+        <button id="addReceiptBtn" class="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2">Review &amp; log</button>
       </div>` : '';
 
     $('#docOutput').innerHTML = `
@@ -3042,7 +3791,7 @@ const UI = {
                 <p class="mt-1 text-xs italic text-stone-500 dark:text-stone-400 leading-relaxed">${escapeHTML(p.original)}</p></details>` : ''}
             </li>`).join('')}
           </ol>
-          <p class="mt-3 text-[11px] text-stone-500 dark:text-stone-400">${r.source === 'ai' ? 'Rewritten by AI (Google Gemini).' : 'Rewritten with built-in rules: it swaps legal words for everyday ones, so some sentences may still read stiffly.'} Always check the original before signing.</p>
+          <p class="mt-3 text-[11px] text-stone-500 dark:text-stone-400">${r.source === 'ai' ? 'Rewritten by AI (Google Gemini' + (CONFIG.AI_PROVIDER === 'puter' ? ' via Puter' : '') + ').' : 'Rewritten with built-in rules: it swaps legal words for everyday ones, so some sentences may still read stiffly.'} Always check the original before signing.</p>
         </details>` : ''}
         ${receiptBlock}
       </div>`;
@@ -3064,15 +3813,7 @@ const UI = {
         ta.remove();
       }
     });
-    $('#addReceiptBtn')?.addEventListener('click', (e) => {
-      const rc = r.receipt;
-      const cat = CATEGORIES[rc.category]?.type === 'expense' ? rc.category : 'Supplies';
-      const t = Store.addTransaction({ type: 'expense', amount: rc.total, category: cat, date: rc.date || toISODate(new Date()), description: `${rc.merchant || 'Receipt'} (scanned receipt)`, source: 'scan' });
-      t.fresh = true;
-      e.target.disabled = true; e.target.textContent = '✓ Logged';
-      UI.renderAll();
-      toast(`Logged ${fmt(rc.total)} expense from receipt.`);
-    });
+    $('#addReceiptBtn')?.addEventListener('click', (e) => this.receiptForm(r.receipt, e.target));
   },
 
   translatorMe: null,
@@ -3115,6 +3856,42 @@ const UI = {
       </button>`).join('');
   },
 
+  /** Review a scanned receipt before saving. Nothing is saved until the user presses Save. */
+  receiptForm(rc, btn = null) {
+    const cats = Object.keys(CATEGORIES).filter((c) => CATEGORIES[c].type === 'expense');
+    const cat = cats.includes(rc.category) ? rc.category : (cats.includes('Supplies') ? 'Supplies' : cats[0]);
+    const missing = [!rc.total && 'the total', !rc.date && 'the date'].filter(Boolean);
+    this.form({
+      title: 'Check this receipt', save: 'Save expense',
+      sub: missing.length ? `Tiffo couldn’t find ${missing.join(' or ')} on the receipt. Please type ${missing.length > 1 ? 'them' : 'it'} from the paper.` : 'Make sure these match the paper receipt.',
+      fields: [
+        { id: 'merchant', label: 'Store or seller', value: rc.merchant && rc.merchant !== 'Merchant' ? rc.merchant : '' , placeholder: 'e.g. Puregold' },
+        { id: 'amount', label: 'Total paid', type: 'number', value: rc.total ?? '' },
+        { id: 'date', label: 'Date on the receipt', type: 'date', value: rc.date || '' },
+        { id: 'category', label: 'Category', type: 'select', value: cat, options: cats.map((c) => [c, `${CATEGORIES[c].icon || ''} ${c}`.trim()]) },
+        { id: 'account', label: 'Paid from', type: 'select', value: Accounts.DEFAULT, options: Accounts.list().map((a) => [a.id, `${Accounts.icon(a)} ${a.name}`]), show: () => Accounts.list().length > 1 },
+        { id: 'dupe', type: 'note', label: '', html: '', show: () => false },
+      ],
+      onSave: async (v) => {
+        if (!v.amount || v.amount <= 0) return 'Type the total from the receipt.';
+        if (!v.date) return 'Pick the date printed on the receipt.';
+        const name = (v.merchant || 'Receipt').slice(0, 60);
+        const dupe = Store.state.transactions.find((t) => Money.isExpense(t) && Math.abs(t.amount - v.amount) < 0.005
+          && Math.abs(Date.parse(t.date) - Date.parse(v.date)) <= 864e5);
+        if (dupe && !this._form.dupeOk) {
+          this._form.dupeOk = true;
+          return `This might already be saved: “${dupe.description}” · ${fmt(dupe.amount)} on ${prettyDate(dupe.date)}. Press Save again if it’s a different purchase.`;
+        }
+        const t = Store.addTransaction({ type: 'expense', kind: 'expense', amount: round2(v.amount), category: v.category, date: v.date, accountId: v.account || Accounts.DEFAULT,
+          description: `${name} (receipt)`, source: 'scan' });
+        t.fresh = true;
+        if (btn) { btn.disabled = true; btn.textContent = '✓ Logged'; }
+        this.renderAll();
+        toast(`Saved ${fmt(t.amount)} from the receipt.`, { action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id); this.renderAll(); } } });
+      },
+    });
+  },
+
   async handleDocument(source) {
     try {
       this.docStatus('Preparing…', 0.05);
@@ -3123,6 +3900,13 @@ const UI = {
       if (typeof source === 'string') out = { text: source, thumb: null, result: await DocScanner.analyzeText(source) };
       else out = await DocScanner.process(source, { status: (t, p) => this.docStatus(t, p) });
       this.docStatusHide();
+      if (out.failed) {
+        $('#docOutput').innerHTML = `<div class="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4 text-sm animate-in">
+          <div class="font-semibold text-amber-900 dark:text-amber-200">Tiffo couldn’t read this photo.</div>
+          <p class="mt-1 text-amber-900/80 dark:text-amber-200/80">Nothing was saved. Try a sharper, flatter photo in good light, or paste the text instead.${AI.enabled() ? '' : ' Turning on ✨ Free AI can also help with hard-to-read photos.'}</p></div>`;
+        toast('Couldn’t read that photo. Nothing was saved.');
+        return;
+      }
       this.renderDocResult(out.result, { thumb: out.thumb });
       Store.addDocument({ result: out.result, thumb: out.thumb, name: source.name || 'Pasted text' });
       this.renderDocHistory();
@@ -3156,29 +3940,210 @@ const UI = {
       toast(escapeHTML(msg), { duration: 6000 });
       return;
     }
-    let parsed = null;
-    if (AI.enabled()) {
-      try { parsed = await AI.parseNote(text); } catch (e) { console.warn('AI parse failed, using local parser', e); }
+    // A bill that's due later becomes a reminder, not a payment.
+    if (Parser.isBillDue(text)) {
+      const r = Store.addReminder(Reminders.parse(text));
+      $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
+      this.renderReminders();
+      this.afterReminderCreated(r, '');
+      return;
     }
-    parsed = parsed || Parser.parse(text);
-    if (!parsed || !parsed.amount) {
+    const items = Parser.parseMany(text);
+    if (!items.length) return;
+    const first = items[0];
+    if (first.kind === 'statement') { this.handleStatement(text, first); return; }
+    if (items.length === 1 && !first.amount && !(first.kind === 'forgive' && first.person)) {
       toast(`I couldn't find an amount. Try something like “Spent ${exampleMoney(15)} on gas”.`);
       $('#noteInput').focus();
       return;
     }
-    const pk = Pockets.mentioned(text);
-    const t = Store.addTransaction({ ...parsed, source: 'note', ...(pk ? { pocketId: pk.id } : {}) });
+    // "I forgave Pedro's remaining debt" → forgive what Pedro still owes.
+    for (const it of items) if (it.kind === 'forgive' && !it.amount && it.person) {
+      it.amount = (it.side === 'mine' ? Loans.oweTo(it.person) : Loans.owedBy(it.person)) || null;
+      if (!it.amount) { it.needs.push('amount'); it.why.unshift(`${it.person} doesn’t owe anything in Tiffo yet`); }
+    }
+    const sure = (it) => it.confidence >= 0.75 && !it.needs.length && !(it.account && !it.account.id);
+    if (items.every(sure)) {
+      const saved = items.map((it) => this.recordEntry(it, text));
+      $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
+      this.renderAll();
+      this.savedToast(saved, text);
+      return;
+    }
+    // Not sure about something: ask (with the free AI's best guess, if it's on). Nothing is saved yet.
+    if (AI.enabled() && items.length === 1) {
+      try {
+        const ai = await AI.parseNote(text);
+        if (ai && ai.amount) Object.assign(first, { kind: ai.kind || first.kind, amount: ai.amount, category: ai.category || first.category, person: ai.person || first.person, date: ai.date || first.date, description: ai.description || first.description, aiGuess: true });
+      } catch (e) { console.warn('AI parse failed, using local parser', e); this.aiProblem(e); }
+    }
+    this.reviewEntries(items, text);
+  },
+
+  /** Save one parsed entry. Returns the transaction. */
+  recordEntry(it, text = '') {
+    const kind = it.kind;
+    if (kind === 'transfer') {
+      return this.recordTransfer(it.from?.id || Accounts.DEFAULT, it.to?.id, it.amount, it.date, it.description);
+    }
+    let accountId = it.accountId || it.account?.id || Accounts.DEFAULT;
+    if (typeof accountId === 'string' && accountId.startsWith('new:')) {
+      const [, name, type] = accountId.split(':');
+      accountId = (Accounts.find(name, true) || Accounts.create(name, type || 'other')).id;
+    }
+    const pk = ['expense', 'income', 'refund'].includes(kind) && text ? Pockets.mentioned(text) : null;
+    const t = Store.addTransaction({
+      kind, amount: it.amount || 0, category: it.category, date: it.date || toISODate(new Date()), description: it.description, ...(kind === 'forgive' && it.side === 'mine' ? { side: 'mine' } : {}),
+      accountId, source: 'note', ...(it.person ? { person: it.person } : {}), ...(it.repeat ? { repeat: it.repeat } : {}), ...(pk ? { pocketId: pk.id } : {}),
+    });
     t.fresh = true;
-    $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
-    this.renderAll();
-    const bud = t.type === 'expense' && (Store.state.budgets || []).find((b) => b.category === t.category);
+    return t;
+  },
+
+  savedToast(saved, text = '') {
+    const undo = { label: 'Undo', fn: () => { saved.forEach((t) => Store.removeTransaction(t.id)); UI.renderAll(); } };
+    if (saved.length > 1) {
+      const out = saved.reduce((a, t) => a + Money.cash(t), 0);
+      toast(`✓ Saved ${saved.length} entries · ${out >= 0 ? '+' : '−'}${fmt(Math.abs(out))}`, { duration: 5500, action: undo });
+      return;
+    }
+    const t = saved[0];
+    const k = Money.kind(t);
+    const dir = Money.dir(t);
+    const sign = dir > 0 ? '+' : dir < 0 ? '−' : '';
+    let msg = `${({ expense: '💸', income: '💰' })[k] || KINDS[k].icon} ${sign}${fmt(t.amount)} · ${escapeHTML(k === 'income' || k === 'expense' ? t.category : KINDS[k].label)}`;
+    if (t.person) msg += ` · ${escapeHTML(t.person)}`;
+    if (typeof Loans !== 'undefined' && t.person && ['lend', 'borrow', 'repay_in', 'repay_out', 'forgive'].includes(k)) msg += Loans.toastLine?.(t.person) || '';
+    if (Accounts.list().length > 1 && t.accountId && k !== 'transfer') msg += ` · ${escapeHTML(Accounts.get(t.accountId)?.name || '')}`;
+    if (t.repeat) msg += ` · repeats ${({ day: 'daily', week: 'weekly', month: 'monthly', year: 'yearly' })[t.repeat]}`;
+    const pk = t.pocketId && Pockets.get(t.pocketId);
+    if (pk) msg += ` · ${dir > 0 ? 'into' : 'from'} ${escapeHTML(pk.emoji + ' ' + pk.name)} (${fmt0(Pockets.balance(pk))} left)`;
+    const bud = k === 'expense' && (Store.state.budgets || []).find((b) => b.category === t.category);
     const bs = bud && Budgets.stats(bud);
-    const budMsg = bs ? (bs.left >= 0 ? ` · 🎯 ${fmt0(bs.left)} left for ${escapeHTML(bud.name)}` : ` · ⚠️ ${escapeHTML(bud.name)} is ${fmt0(-bs.left)} over budget`) : '';
-    const pkMsg = pk ? ` · ${t.type === 'income' ? 'into' : 'from'} ${escapeHTML(pk.emoji + ' ' + pk.name)} (${fmt0(Pockets.balance(pk))} left)` : '';
-    toast(`${t.type === 'income' ? '💰 +' : '💸 −'}${fmt(t.amount)} · ${escapeHTML(t.category)}${pkMsg}${budMsg}`, {
+    if (bs) msg += bs.left >= 0 ? ` · 🎯 ${fmt0(bs.left)} left for ${escapeHTML(bud.name)}` : ` · ⚠️ ${escapeHTML(bud.name)} is ${fmt0(-bs.left)} over budget`;
+    toast(msg, {
       duration: pk ? 7000 : 4500,
-      actions: pk ? [{ label: 'Not from pocket', fn: () => { delete t.pocketId; Store.save(); UI.renderAll(); } }] : [],
-      action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id); UI.renderAll(); } },
+      actions: [...(pk ? [{ label: 'Not from pocket', fn: () => { delete t.pocketId; Store.save(); UI.renderAll(); } }] : []), { label: 'Edit', fn: () => UI.editEntry?.(t.id) }],
+      action: undo,
+    });
+  },
+
+  KIND_CHOICES: [['expense', '💸 I spent / paid for something'], ['income', '💰 Money came in (pay, sales, salary)'], ['gift_in', '🎁 Someone gave me a gift'], ['refund', '↩ A refund / money back'],
+    ['lend', '🤝 I lent money to someone'], ['borrow', '🤝 I borrowed money'], ['repay_in', '✅ Someone paid me back'], ['repay_out', '✅ I paid someone back'], ['forgive', '🕊️ I forgave a debt'],
+    ['transfer', '⇄ I moved money between my accounts'], ['invest', '📈 I invested it']],
+
+  catOptions(kind) {
+    const type = kind === 'income' ? 'income' : 'expense';
+    return Object.keys(CATEGORIES).filter((c) => CATEGORIES[c].type === type).map((c) => [c, `${CATEGORIES[c].icon} ${c}`]);
+  },
+  accountOptions(it) {
+    const opts = Accounts.list().map((a) => [a.id, `${Accounts.icon(a)} ${a.name}`]);
+    if (it?.account && !it.account.id) opts.push([`new:${it.account.name}:${it.account.type || 'other'}`, `➕ Add ${it.account.name} as an account`]);
+    return opts;
+  },
+
+  /** Confirmation card for anything Tiffo isn't sure about. Nothing is saved until "Save". */
+  reviewEntries(items, text) {
+    const loanKinds = ['lend', 'borrow', 'repay_in', 'repay_out', 'forgive'];
+    const people = [...new Set(Store.state.transactions.filter((t) => t.person).map((t) => t.person))].slice(-30);
+    if (items.length === 1) {
+      const it = items[0];
+      const why = it.why.filter(Boolean);
+      const asks = {
+        gift_or_loan: 'Was this a gift, a loan, or a payment?', who_paid: `Was this pay for work, a gift, or ${it.person || 'someone'} paying you back?`, repay_or_income: `${it.person} owes you money. Is this them paying you back?`,
+        installment: 'Paid in installments? For now, log just today’s payment (the first installment). Installment tracking is coming soon.',
+        credit_card: 'Paying a credit card bill isn’t new spending if you already logged the purchases. Credit card tracking is coming soon.', invest_out: 'Only the gain from an investment is income. Check the type.',
+        accounts: 'Which of your accounts did the money move between?', future: 'This date is in the future. Did it already happen?', big: 'That’s a big amount. Please double-check it.', amount: 'How much was it?', person: 'Who was it with?',
+      };
+      const tips = it.needs.map((n) => asks[n]).filter(Boolean);
+      if (it.account && !it.account.id) tips.push(`${it.account.name} isn’t one of your accounts yet. Pick where the money came from, or add ${it.account.name}.`);
+      const accOpts = this.accountOptions(it);
+      const fields = [
+        { id: 'tip', type: 'note', label: '', html: `<b>Tiffo wasn’t sure.</b> ${escapeHTML(tips[0] || (why.length ? 'It looks like ' + why[0] + '.' : 'Please check the details.'))}${it.aiGuess ? '<br><span class="text-[11px] opacity-80">✨ The free AI suggested these details.</span>' : ''}` },
+        { id: 'kind', label: 'What happened?', type: 'select', value: it.kind || 'expense', options: this.KIND_CHOICES },
+        { id: 'amount', label: 'Amount', type: 'number', value: it.amount ?? '', show: (v) => v.kind !== 'forgive' || true, hint: it.kind === 'forgive' ? 'Leave empty to forgive everything they still owe.' : '' },
+        { id: 'person', label: 'Who?', value: it.person || '', placeholder: 'e.g. Maria, Mom, Kuya', show: (v) => loanKinds.includes(v.kind) || v.kind === 'gift_in', hint: people.length ? `People so far: ${people.slice(0, 8).join(', ')}` : '' },
+        { id: 'catE', label: 'Category', type: 'select', value: CATEGORIES[it.category]?.type === 'expense' ? it.category : 'Other Expense', options: this.catOptions('expense'), show: (v) => ['expense', 'refund'].includes(v.kind) },
+        { id: 'catI', label: 'Category', type: 'select', value: CATEGORIES[it.category]?.type === 'income' ? it.category : 'Other Income', options: this.catOptions('income'), show: (v) => v.kind === 'income' },
+        { id: 'from', label: 'From', type: 'select', value: it.from?.id || Accounts.DEFAULT, options: Accounts.list().map((a) => [a.id, `${Accounts.icon(a)} ${a.name}`]), show: (v) => v.kind === 'transfer' },
+        { id: 'to', label: 'To', type: 'select', value: it.to?.id || (Accounts.list()[1] || Accounts.def()).id, options: Accounts.list().map((a) => [a.id, `${Accounts.icon(a)} ${a.name}`]), show: (v) => v.kind === 'transfer' },
+        { id: 'account', label: 'Which account?', type: 'select', value: it.account?.id || (it.account ? accOpts.at(-1)[0] : Accounts.DEFAULT), options: accOpts, show: (v) => v.kind !== 'transfer' && v.kind !== 'forgive' && accOpts.length > 1 },
+        { id: 'date', label: 'Date', type: 'date', value: it.date },
+        { id: 'description', label: 'Note', value: it.description, advanced: true },
+      ];
+      this.form({
+        title: 'Check this entry', save: 'Save', sub: `“${text.length > 80 ? text.slice(0, 80) + '…' : text}”`,
+        fields,
+        onSave: (v) => {
+          const kind = v.kind;
+          let amount = v.amount;
+          const person = (v.person || '').trim().slice(0, 40);
+          if (loanKinds.includes(kind) && !person) return 'Type who it was with.';
+          if (kind === 'forgive' && !amount) {
+            const owed = typeof Loans !== 'undefined' ? Loans.owedBy?.(person) : 0;
+            if (!owed) return `${person} doesn’t owe you anything in Tiffo yet. Type the amount to forgive.`;
+            amount = owed;
+          }
+          if (!amount || amount <= 0) return 'Type the amount.';
+          if (!v.date) return 'Pick a date.';
+          if (kind === 'transfer' && v.from === v.to) return 'Pick two different accounts.';
+          const cat = kind === 'income' ? v.catI : ['expense', 'refund'].includes(kind) ? v.catE : kind === 'gift_in' ? 'Gifts Received' : kind === 'invest' ? 'Investments' : kind === 'transfer' ? 'Transfer' : 'Loans';
+          const newAcc = String(v.account || '').startsWith('new:') ? v.account.split(':')[1] : null;
+          const t = this.recordEntry({ ...it, kind, amount: round2(amount), person: person || null, category: cat, date: v.date, description: v.description || it.description,
+            accountId: v.account, from: { id: v.from }, to: { id: v.to } }, text);
+          $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
+          this.renderAll();
+          this.savedToast([t], text);
+          if (newAcc) setTimeout(() => toast(`🏦 Added ${escapeHTML(newAcc)}. Set its real balance in Accounts so the total is right.`, { duration: 6500, action: { label: 'Set balance', fn: () => this.accountForm(Accounts.find(newAcc, true)) } }), 400);
+        },
+      });
+      return;
+    }
+    // Several entries in one note
+    const fields = [{ id: 'tip', type: 'note', label: '', html: `<b>Tiffo found ${items.length} entries.</b> Check them, then save.` }];
+    items.forEach((it, i) => {
+      const inc = Money.dir({ kind: it.kind }) > 0;
+      fields.push(
+        { id: `on${i}`, type: 'checkbox', label: `${KINDS[it.kind]?.icon || '•'} ${it.description}`, value: true },
+        { id: `amt${i}`, label: `Amount #${i + 1}`, type: 'number', value: it.amount ?? '' },
+        ...(['income', 'expense', 'refund'].includes(it.kind) ? [{ id: `cat${i}`, label: `Category #${i + 1}`, type: 'select', value: it.category, options: this.catOptions(inc && it.kind !== 'refund' ? 'income' : 'expense') }] : []),
+      );
+    });
+    fields.push({ id: 'date', label: 'Date', type: 'date', value: items[0].date, advanced: true });
+    this.form({
+      title: 'Check these entries', save: 'Save all', sub: `“${text.length > 80 ? text.slice(0, 80) + '…' : text}”`, fields,
+      onSave: (v) => {
+        const chosen = items.map((it, i) => ({ it, i })).filter(({ i }) => v[`on${i}`]);
+        if (!chosen.length) return 'Tick at least one entry.';
+        for (const { i } of chosen) if (!v[`amt${i}`] || v[`amt${i}`] <= 0) return `Type the amount for #${i + 1}.`;
+        for (const { it } of chosen) if (['lend', 'borrow', 'repay_in', 'repay_out'].includes(it.kind) && !it.person) return 'One of these needs a person. Save them one at a time instead.';
+        const saved = chosen.map(({ it, i }) => this.recordEntry({ ...it, amount: round2(v[`amt${i}`]), category: v[`cat${i}`] || it.category, date: it.dateExplicit ? it.date : v.date }, text));
+        $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
+        this.renderAll();
+        this.savedToast(saved, text);
+      },
+    });
+  },
+
+  /** "GCash balance is 2,300" / "I have 5000 in my wallet" → offer to update that account. */
+  handleStatement(text, it) {
+    if (/\bcredit card|\bcc\b|\bloan\b|\butang\b/i.test(text)) {
+      toast('💳 Got it. Tiffo doesn’t count a balance as spending. Credit card and loan tracking is coming soon.', { duration: 6500 });
+      return;
+    }
+    const acc = Parser.accountIn(text.replace(/\b(balance|have|is|my|in|on|sa)\b/gi, ' ')) || { id: Accounts.DEFAULT, name: Accounts.def().name };
+    const a = acc.id ? Accounts.get(acc.id) : null;
+    this.form({
+      title: `Update ${a ? a.name : acc.name} balance?`, save: 'Update balance',
+      sub: a ? `Tiffo says ${fmt(Accounts.balance(a))}. This will set it to the real amount. It isn’t income or spending.` : `${acc.name} isn’t one of your accounts yet. Saving adds it.`,
+      fields: [{ id: 'bal', label: 'Balance right now', type: 'number', value: it.amount ?? '' }],
+      onSave: (v) => {
+        if (v.bal == null || v.bal < 0) return 'Type the balance.';
+        const acct = a || Accounts.create(acc.name, acc.type || 'other');
+        Accounts.setOpening(acct, Accounts.opening(acct) + (v.bal - Accounts.balance(acct)));
+        Store.save(); $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
+        this.renderAll(); toast(`🏦 ${escapeHTML(acct.name)} is now ${fmt(v.bal)}.`);
+      },
     });
   },
 
@@ -3191,13 +4156,246 @@ const UI = {
     }
     if (text.trim() && Pockets.isPocketNote(text)) { $('#parsePreview').innerHTML = this.pocketPreview(text); return; }
     if (text.trim() && Budgets.isBudget(text)) { $('#parsePreview').innerHTML = this.budgetPreview(text); return; }
-    const p = Parser.parse(text);
-    if (!p) { $('#parsePreview').innerHTML = ''; return; }
-    if (!p.amount) { $('#parsePreview').innerHTML = `<span class="text-amber-600">Add an amount, e.g. ${exampleMoney(25)}</span>`; return; }
-    const isIn = p.type === 'income';
-    $('#parsePreview').innerHTML = `Will log: <span class="font-semibold ${isIn ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}">${isIn ? 'Income +' : 'Expense −'}${fmt(p.amount)}</span>
-      · ${CATEGORIES[p.category].icon} ${escapeHTML(p.category)} · ${prettyDate(p.date)}${(() => { const k = Pockets.mentioned(text); return k ? ` · ${isIn ? 'into' : 'from'} ${escapeHTML(k.emoji + ' ' + k.name)}` : ''; })()}
-      <span class="text-stone-400">(new balance ${fmt(Store.balance() + (isIn ? p.amount : -p.amount))})</span>`;
+    if (text.trim() && Parser.isBillDue(text)) { $('#parsePreview').innerHTML = `Will set a <span class="font-semibold text-rose-700 dark:text-rose-400">⏰ reminder</span> for this bill (not a payment yet)`; return; }
+    const items = text.trim() ? Parser.parseMany(text) : [];
+    if (!items.length) { $('#parsePreview').innerHTML = ''; return; }
+    const p = items[0];
+    if (p.kind === 'statement') { $('#parsePreview').innerHTML = `Looks like a balance, not a payment. Press Enter to update an account.`; return; }
+    if (!p.amount && !(p.kind === 'forgive' && p.person)) { $('#parsePreview').innerHTML = `<span class="text-amber-600">Add an amount, e.g. ${exampleMoney(25)}</span>`; return; }
+    const one = (it) => {
+      const d = Money.dir({ kind: it.kind }), col = d > 0 ? 'text-emerald-700 dark:text-emerald-400' : d < 0 ? 'text-rose-700 dark:text-rose-400' : 'text-stone-700 dark:text-stone-200';
+      const what = it.kind === 'income' || it.kind === 'expense' ? `${CATEGORIES[it.category]?.icon || ''} ${escapeHTML(it.category)}` : `${KINDS[it.kind].label}${it.person ? ' · ' + escapeHTML(it.person) : ''}`;
+      const tr = it.kind === 'transfer' ? ` · ${escapeHTML(it.from?.name || '?')} → ${escapeHTML(it.to?.name || '?')}` : '';
+      return `<span class="font-semibold ${col}">${d > 0 ? '+' : d < 0 ? '−' : ''}${it.amount ? fmt(it.amount) : ''}</span> ${what}${tr}`;
+    };
+    const unsure = items.some((it) => it.confidence < 0.75 || it.needs.length || (it.account && !it.account.id));
+    $('#parsePreview').innerHTML = (items.length > 1 ? `Will log ${items.length}: ` : 'Will log: ') + items.map(one).join(' · ')
+      + (items.length === 1 ? ` · ${prettyDate(p.date)}` : '') + (p.repeat ? ` · 🔁 ${p.repeat}ly` : '')
+      + (unsure ? ` <span class="text-amber-600 font-semibold">· you’ll confirm first</span>` : '');
+  },
+
+  /* ---------- generic form ----------
+     fields: [{ id, label, type: text|number|date|select|textarea|checkbox|note, value, options:[[value,label]], placeholder, hint, show:(vals)=>bool, advanced }]
+     onSave(values) → error message string, or nothing to close. */
+  form({ title, sub = '', fields, save = 'Save', onSave, danger = null }) {
+    this._form = { fields, onSave, danger };
+    $('#fmTitle').textContent = title; $('#fmSub').textContent = sub; $('#fmSub').classList.toggle('hidden', !sub);
+    $('#fmSave').textContent = save;
+    $('#fmDanger').classList.toggle('hidden', !danger); if (danger) $('#fmDanger').textContent = danger.label;
+    $('#fmError').classList.add('hidden');
+    const inputCls = 'mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500';
+    const html = (f) => {
+      const v = f.value ?? '';
+      if (f.type === 'note') return `<p data-fid="${f.id}" class="text-sm rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 px-3 py-2">${f.html || escapeHTML(f.label)}</p>`;
+      if (f.type === 'checkbox') return `<label data-fid="${f.id}" class="flex items-start gap-2 text-sm"><input id="fm_${f.id}" type="checkbox" class="mt-0.5 rounded" ${v ? 'checked' : ''}/><span>${escapeHTML(f.label)}</span></label>`;
+      const input = f.type === 'select'
+        ? `<select id="fm_${f.id}" class="${inputCls}">${f.options.map(([ov, ol]) => `<option value="${escapeHTML(ov)}" ${String(ov) === String(v) ? 'selected' : ''}>${escapeHTML(ol)}</option>`).join('')}</select>`
+        : f.type === 'textarea'
+          ? `<textarea id="fm_${f.id}" rows="2" class="${inputCls}" placeholder="${escapeHTML(f.placeholder || '')}">${escapeHTML(v)}</textarea>`
+          : `<input id="fm_${f.id}" type="${f.type || 'text'}" ${f.type === 'number' ? 'step="0.01" min="0" inputmode="decimal"' : ''} class="${inputCls} ${f.type === 'number' ? 'tabular' : ''}" value="${escapeHTML(v)}" placeholder="${escapeHTML(f.placeholder || '')}" />`;
+      return `<label data-fid="${f.id}" class="block"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">${escapeHTML(f.label)}</span>${input}${f.hint ? `<span class="block text-[11px] text-stone-400 mt-1">${escapeHTML(f.hint)}</span>` : ''}</label>`;
+    };
+    const basic = fields.filter((f) => !f.advanced), adv = fields.filter((f) => f.advanced);
+    $('#fmFields').innerHTML = basic.map(html).join('') + (adv.length ? `<details class="rounded-xl border border-stone-200 dark:border-stone-800 px-3 py-2"><summary class="cursor-pointer text-sm font-semibold text-stone-600 dark:text-stone-300">More details (optional)</summary><div class="space-y-3 mt-2">${adv.map(html).join('')}</div></details>` : '');
+    const refresh = () => { const vals = this.formValues(); for (const f of fields) if (f.show) $(`[data-fid="${f.id}"]`)?.classList.toggle('hidden', !f.show(vals)); };
+    $('#fmFields').oninput = refresh; $('#fmFields').onchange = refresh; refresh();
+    $('#formModal').classList.remove('hidden'); $('#formModal').classList.add('flex');
+    setTimeout(() => $('#fmFields input:not([type=checkbox]), #fmFields select')?.focus(), 40);
+  },
+  formValues() {
+    const out = {};
+    for (const f of (this._form?.fields || [])) {
+      const el = $(`#fm_${f.id}`); if (!el) continue;
+      out[f.id] = f.type === 'checkbox' ? el.checked : f.type === 'number' ? (el.value === '' ? null : parseFloat(el.value)) : el.value.trim();
+    }
+    return out;
+  },
+  closeForm() { $('#formModal').classList.add('hidden'); $('#formModal').classList.remove('flex'); this._form = null; },
+  async submitForm() {
+    if (!this._form) return;
+    const err = await this._form.onSave(this.formValues());
+    if (err) { $('#fmError').textContent = err; $('#fmError').classList.remove('hidden'); return; }
+    this.closeForm();
+  },
+
+  /* ---------- family & friends (loans) ---------- */
+  renderLoans() {
+    const people = Loans.people(), tot = Loans.totals();
+    $('#loanTheyOwe').textContent = fmt(tot.theyOwe);
+    $('#loanYouOwe').textContent = fmt(tot.youOwe);
+    $('#loanTotals').classList.toggle('hidden', !people.length);
+    $('#loanEmpty').classList.toggle('hidden', !!people.length);
+    $('#loanEmpty').innerHTML = `Lent money to family or a friend, or borrowed some? Type it like you’d say it: <b>“I lent Maria ${exampleMoney(2000)}”</b>, <b>“Mom lent me ${exampleMoney(5000)}”</b> or <b>“John paid back ${exampleMoney(500)}”</b>.`;
+    $('#loanList').innerHTML = people.map((p) => {
+      const open = p.loans.filter((l) => l.left > 0);
+      const status = p.theyOwe > 0 && p.youOwe > 0 ? `owes you ${fmt(p.theyOwe)} · you owe ${fmt(p.youOwe)}`
+        : p.theyOwe > 0 ? `owes you ${fmt(p.theyOwe)}` : p.youOwe > 0 ? `you owe ${fmt(p.youOwe)}` : 'all settled 💛';
+      const due = open.map((l) => l.expect).filter(Boolean).sort()[0];
+      const sub = `${open.length ? `${open.length} open` : `${p.loans.length} past`} · last activity ${prettyDate(p.last).toLowerCase()}${due ? ` · hoped back by ${prettyDate(due)}` : ''}`;
+      const tone = p.theyOwe > 0 ? 'text-teal-700 dark:text-teal-400' : p.youOwe > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-stone-500';
+      return `<li data-person="${escapeHTML(p.key)}" class="flex items-center gap-3 py-2.5">
+        <span class="h-9 w-9 rounded-full grid place-items-center bg-amber-100 dark:bg-amber-900/40 font-bold text-amber-900 dark:text-amber-200" aria-hidden="true">${escapeHTML(p.name.slice(0, 1).toUpperCase())}</span>
+        <div class="flex-1 min-w-0"><div class="font-semibold truncate">${escapeHTML(p.name)} <span class="font-normal text-sm ${tone}">${status}</span></div>
+          <div class="text-[11px] text-stone-500 dark:text-stone-400 truncate">${sub}</div></div>
+        <button type="button" class="loan-open rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-semibold px-2.5 py-1.5 hover:bg-stone-50 dark:hover:bg-stone-800">${p.theyOwe + p.youOwe > 0 ? 'Record payment' : 'History'}</button>
+      </li>`;
+    }).join('');
+  },
+
+  /** New loan: "I lent" or "I borrowed". */
+  loanForm(kind = 'lend', prefill = {}) {
+    const lend = kind === 'lend';
+    const people = Loans.people().map((p) => p.name);
+    this.form({
+      title: lend ? 'I lent money' : 'I borrowed money', save: 'Save',
+      sub: lend ? 'Only the amount and who are needed. Everything else is optional.' : 'Only the amount and who are needed. Everything else is optional.',
+      fields: [
+        { id: 'person', label: lend ? 'Who did you lend to?' : 'Who lent it to you?', value: prefill.person || '', placeholder: 'e.g. Maria, Mom, Kuya Ben', hint: people.length ? `People so far: ${people.slice(0, 8).join(', ')}` : '' },
+        { id: 'amount', label: 'Amount', type: 'number', value: prefill.amount ?? '' },
+        { id: 'date', label: 'Date', type: 'date', value: prefill.date || toISODate(new Date()) },
+        { id: 'account', label: lend ? 'Paid from' : 'Received in', type: 'select', value: Accounts.DEFAULT, options: Accounts.list().map((a) => [a.id, `${Accounts.icon(a)} ${a.name}`]), show: () => Accounts.list().length > 1 },
+        { id: 'expect', label: lend ? 'When do you hope to get it back? (optional)' : 'When do you plan to pay it back? (optional)', type: 'date', value: '', advanced: true, hint: 'Leave empty if there’s no set date. That’s completely fine.' },
+        { id: 'remind', type: 'checkbox', label: lend ? 'Give me a gentle reminder on that date' : 'Remind me on that date', value: false, advanced: true, show: (v) => !!v.expect },
+        { id: 'note', label: 'Private note (only you see this)', type: 'textarea', value: '', placeholder: 'e.g. for her tuition; she’ll pay little by little', advanced: true },
+      ],
+      onSave: (v) => {
+        const person = (v.person || '').trim().slice(0, 40);
+        if (!person) return lend ? 'Type who you lent it to.' : 'Type who lent it to you.';
+        if (!v.amount || v.amount <= 0) return 'Type the amount.';
+        if (!v.date) return 'Pick a date.';
+        const t = this.recordEntry({ kind, amount: round2(v.amount), person, date: v.date, category: 'Loans', accountId: v.account,
+          description: lend ? `Lent to ${person}` : `Borrowed from ${person}` });
+        const meta = {};
+        if (v.expect) meta.expect = v.expect;
+        if (v.note) meta.note = v.note.slice(0, 500);
+        if (v.expect && v.remind) {
+          const at = new Date(v.expect + 'T09:00:00').getTime();
+          const r = Store.addReminder({ title: lend ? `💛 Maybe check in with ${person} about the ${fmt0(t.amount)} (no pressure)` : `Pay back ${person} ${fmt0(t.amount)}`, remindAt: at, eventDate: v.expect, note: 'From 👥 Family & friends' });
+          meta.reminderId = r.id;
+        }
+        if (Object.keys(meta).length) { Loans.setMeta(t.id, meta); Store.save(); }
+        this.renderAll();
+        this.savedToast([t]);
+      },
+    });
+  },
+
+  /** One person: history, record a payment, forgive. */
+  personView(key) {
+    const p = Loans.people().find((x) => x.key === key);
+    if (!p) return;
+    const row = (l) => {
+      const head = l.side === 'theirs' ? `🤝 You lent ${fmt(l.amount)}` : `🤝 You borrowed ${fmt(l.amount)}`;
+      const pays = l.payments.map((x) => `<div class="pl-5 text-[12px]">${x.forgiven ? '🕊️' : '✅'} ${fmt(x.amount)} ${x.forgiven ? 'forgiven' : l.side === 'theirs' ? 'paid back to you' : 'you paid back'} · ${escapeHTML(prettyDate(x.tx.date))}${x.extra ? ' <span class="opacity-70">(more than this loan)</span>' : ''}</div>`).join('');
+      const left = l.left > 0 ? `<b>${fmt(l.left)} left</b>` : l.status === 'forgiven' ? 'forgiven' : 'paid in full ✓';
+      return `<div class="py-1.5 border-b border-amber-200/60 dark:border-amber-900/40 last:border-0"><div>${head} · ${escapeHTML(prettyDate(l.date))} — ${left}</div>
+        ${l.expect ? `<div class="pl-5 text-[12px] opacity-80">Hoped back by ${escapeHTML(prettyDate(l.expect))}</div>` : ''}${l.note ? `<div class="pl-5 text-[12px] opacity-80">🔒 ${escapeHTML(l.note)}</div>` : ''}${pays}</div>`;
+    };
+    const opts = [];
+    if (p.theyOwe > 0) opts.push(['repay_in', `${p.name} paid me back`]);
+    if (p.youOwe > 0) opts.push(['repay_out', `I paid ${p.name} back`]);
+    if (p.theyOwe > 0) opts.push(['forgive', `Forgive part of what ${p.name} owes`]);
+    if (p.youOwe > 0) opts.push(['forgive_mine', `${p.name} said I don’t need to pay part of it`]);
+    opts.push(['lend', `I lent ${p.name} more`], ['borrow', `I borrowed more from ${p.name}`]);
+    this.form({
+      title: p.name, save: 'Save',
+      sub: p.theyOwe > 0 && p.youOwe > 0 ? `${p.name} owes you ${fmt(p.theyOwe)}, and you owe ${fmt(p.youOwe)}.` : p.theyOwe > 0 ? `${p.name} owes you ${fmt(p.theyOwe)}.` : p.youOwe > 0 ? `You owe ${p.name} ${fmt(p.youOwe)}.` : `You and ${p.name} are all settled. 💛`,
+      fields: [
+        { id: 'hist', type: 'note', label: '', html: p.loans.slice().reverse().map(row).join('') },
+        { id: 'what', label: 'Record something', type: 'select', value: opts[0][0], options: opts },
+        { id: 'amount', label: 'Amount', type: 'number', value: '', hint: p.theyOwe + p.youOwe > 0 ? 'Partial payments are fine.' : '' },
+        { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) },
+        { id: 'account', label: 'Account', type: 'select', value: Accounts.DEFAULT, options: Accounts.list().map((a) => [a.id, `${Accounts.icon(a)} ${a.name}`]), show: (v) => Accounts.list().length > 1 && !String(v.what).startsWith('forgive') },
+      ],
+      danger: p.theyOwe > 0 ? { label: `Forgive all ${fmt0(p.theyOwe)}`, fn: async () => {
+        this.closeForm();
+        if (!(await askConfirm(`Forgive the ${fmt(p.theyOwe)} ${p.name} still owes you? It stays in your history, and it isn’t counted as spending.`, 'Forgive'))) return;
+        const t = this.recordEntry({ kind: 'forgive', amount: p.theyOwe, person: p.name, date: toISODate(new Date()), category: 'Loans', description: `Forgave ${p.name}’s remaining debt` });
+        this.renderAll(); this.savedToast([t]);
+      } } : null,
+      onSave: (v) => {
+        if (!v.amount || v.amount <= 0) return 'Type the amount.';
+        if (!v.date) return 'Pick a date.';
+        let kind = v.what, side;
+        if (kind === 'forgive_mine') { kind = 'forgive'; side = 'mine'; }
+        const max = kind === 'repay_in' || (kind === 'forgive' && side !== 'mine') ? p.theyOwe : kind === 'repay_out' || side === 'mine' ? p.youOwe : Infinity;
+        if (v.amount > max + 0.004 && kind === 'forgive') return `Only ${fmt(max)} is left to forgive.`;
+        const desc = { repay_in: `${p.name} paid back`, repay_out: `Paid back ${p.name}`, forgive: side === 'mine' ? `${p.name} let me off part of it` : `Forgave part of ${p.name}’s debt`, lend: `Lent to ${p.name}`, borrow: `Borrowed from ${p.name}` }[kind];
+        const t = this.recordEntry({ kind, amount: round2(v.amount), person: p.name, date: v.date, category: 'Loans', accountId: v.account, description: desc });
+        if (side) { t.side = side; Store.save(); }
+        if (v.amount > max + 0.004) setTimeout(() => toast(`That’s ${fmt(v.amount - max)} more than what was left. Tiffo kept it in ${escapeHTML(p.name)}’s history.`, { duration: 6500 }), 300);
+        this.renderAll(); this.savedToast([t]);
+      },
+    });
+  },
+
+  /* ---------- accounts ---------- */
+  renderAccounts() {
+    const list = Accounts.list();
+    $('#acctList').innerHTML = list.map((a) => {
+      const b = Accounts.balance(a);
+      return `<li data-aid="${a.id}" class="flex items-center gap-3 py-2.5">
+        <span class="h-9 w-9 rounded-xl grid place-items-center bg-teal-50 dark:bg-teal-950/40 text-lg" aria-hidden="true">${escapeHTML(Accounts.icon(a))}</span>
+        <div class="flex-1 min-w-0"><div class="font-semibold truncate">${escapeHTML(a.name)}</div><div class="text-[11px] text-stone-500 dark:text-stone-400">${(ACCOUNT_TYPES[a.type] || ACCOUNT_TYPES.other).label}</div></div>
+        <div class="tabular font-bold ${b < 0 ? 'text-rose-600 dark:text-rose-400' : ''}">${fmt(b)}</div>
+        <button type="button" class="acct-edit h-7 w-7 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Edit ${escapeHTML(a.name)}">⋯</button>
+      </li>`;
+    }).join('');
+    $('#moveAcctBtn').classList.toggle('hidden', list.length < 2);
+  },
+  accountForm(a = null) {
+    const types = Object.entries(ACCOUNT_TYPES).map(([k, v]) => [k, `${v.icon} ${v.label}`]);
+    this.form({
+      title: a ? `Edit ${a.name}` : 'Add an account',
+      sub: a ? '' : 'Where you keep money, like GCash, Maya, a bank, or cash at home.',
+      fields: [
+        { id: 'name', label: 'Name', value: a?.name || '', placeholder: 'e.g. GCash' },
+        { id: 'type', label: 'Type', type: 'select', value: a?.type || 'ewallet', options: types },
+        { id: 'bal', label: a ? 'Balance right now' : 'How much is in it now?', type: 'number', value: a ? Accounts.balance(a) : '', hint: a ? 'If this doesn’t match your app or bank, type the real amount and Tiffo will adjust.' : 'Leave empty for ₱0.' },
+      ],
+      onSave: (v) => {
+        if (!v.name) return 'Give the account a name.';
+        const dupe = Accounts.find(v.name, true); if (dupe && dupe !== a) return `You already have “${dupe.name}”.`;
+        const acc = a || Accounts.create(v.name, v.type);
+        acc.name = v.name.slice(0, 30); acc.type = v.type;
+        if (v.bal != null) Accounts.setOpening(acc, Accounts.opening(acc) + (v.bal - Accounts.balance(acc)));
+        Store.save(); this.renderAll(); toast(a ? 'Account updated.' : `🏦 Added ${escapeHTML(acc.name)}.`);
+      },
+      danger: a && a.id !== Accounts.DEFAULT ? { label: 'Remove account', fn: async () => {
+        const used = Store.state.transactions.some((t) => t.accountId === a.id || t.fromAccountId === a.id || t.toAccountId === a.id);
+        if (used) { toast('This account has entries, so it can’t be removed. Rename it instead, or move its money first.'); return; }
+        this.closeForm();
+        if (!(await askConfirm(`Remove ${a.name}? Its starting amount (${fmt(Accounts.opening(a))}) will no longer be counted.`, 'Remove'))) return;
+        Store.state.accounts = Accounts.list().filter((x) => x !== a); Store.save(); this.renderAll();
+      } } : null,
+    });
+  },
+  transferForm(prefill = {}) {
+    const opts = Accounts.list().map((a) => [a.id, `${Accounts.icon(a)} ${a.name} (${fmt(Accounts.balance(a))})`]);
+    this.form({
+      title: 'Move money between accounts', sub: 'For example, cashing in to GCash or withdrawing from the bank. This is not income or spending.',
+      fields: [
+        { id: 'from', label: 'From', type: 'select', value: prefill.from || Accounts.list()[0].id, options: opts },
+        { id: 'to', label: 'To', type: 'select', value: prefill.to || (Accounts.list()[1] || Accounts.list()[0]).id, options: opts },
+        { id: 'amount', label: 'Amount', type: 'number', value: prefill.amount ?? '' },
+        { id: 'fee', label: 'Fee (optional)', type: 'number', value: '', advanced: true, hint: 'Counted as a small expense, e.g. a ₱15 cash-in fee.' },
+        { id: 'date', label: 'Date', type: 'date', value: prefill.date || toISODate(new Date()), advanced: true },
+      ],
+      save: 'Move',
+      onSave: (v) => {
+        if (v.from === v.to) return 'Pick two different accounts.';
+        if (!v.amount || v.amount <= 0) return 'Enter an amount.';
+        const t = this.recordTransfer(v.from, v.to, v.amount, v.date, '', v.fee);
+        toast(`⇄ Moved ${fmt(v.amount)}: ${escapeHTML(Accounts.get(v.from).name)} → ${escapeHTML(Accounts.get(v.to).name)}`, { action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id); if (t.feeId) Store.removeTransaction(t.feeId); UI.renderAll(); } } });
+      },
+    });
+  },
+  recordTransfer(from, to, amount, date, note = '', fee = 0) {
+    const a = Accounts.get(from), b = Accounts.get(to);
+    const t = Store.addTransaction({ kind: 'transfer', amount, fromAccountId: from, toAccountId: to, accountId: from, date: date || toISODate(new Date()), category: 'Transfer', description: note || `${a.name} → ${b.name}`, source: 'transfer' });
+    if (fee > 0) { const f = Store.addTransaction({ kind: 'expense', amount: fee, category: 'Bank & Transfer Fees', accountId: from, date: t.date, description: `Transfer fee (${a.name} → ${b.name})` }); t.feeId = f.id; Store.save(); }
+    t.fresh = true; this.renderAll();
+    return t;
   },
 
   /* ---------- pockets ---------- */
@@ -3811,7 +5009,7 @@ const UI = {
       // Same email used for an older "this device only" account here? Bring those books along.
       const oldLocal = Auth.user && Auth.user.provider === 'cloud' && !hadData && LS.getItem(CONFIG.STORAGE_KEY + ':local:' + Auth.user.email);
       if (oldLocal) {
-        try { Store.state = { ...Store.blank(), ...JSON.parse(oldLocal) }; Store.state.savedAt = Date.now(); Store.saveLocal(); hadData = true; toast('📦 Brought over your books from this device.'); } catch (e) {}
+        try { Store.adopt(JSON.parse(oldLocal)); Store.state.savedAt = Date.now(); Store.saveLocal(); hadData = true; toast('📦 Brought over your books from this device.'); } catch (e) {}
       }
       if (migrate && !hadData) { Store.state = guestState; Store.state.transactions.forEach((t) => delete t.demo); Store.state.savedAt = Date.now(); Store.saveLocal(); }
       this.closeAuth();
@@ -3841,8 +5039,42 @@ const UI = {
     t.classList.toggle('hidden', !AI.available());
     const on = AI.enabled();
     t.setAttribute('aria-checked', on);
-    t.innerHTML = `✨ Free AI (Google Gemini): <b class="${on ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-500'}">${on ? 'On' : 'Off'}</b>`;
+    t.innerHTML = `✨ Free AI${CONFIG.AI_PROVIDER === 'puter' ? ' (via Puter)' : ' (Google Gemini)'}: <b class="${on ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-500'}">${on ? 'On' : 'Off'}</b>`;
     this.renderAiLabel();
+  },
+
+  /** Switch free AI on (privacy note → Puter sign-in) or off. */
+  async toggleAI() {
+    const st = (Store.state.settings ||= {});
+    if (st.aiConsent) {
+      st.aiConsent = false; Store.save(); this.renderAccount();
+      toast('AI is off. Tiffo will use its built-in rules.');
+      return;
+    }
+    const puter = CONFIG.AI_PROVIDER === 'puter';
+    if (puter) AI.loadPuter().catch(() => {});        // start loading while the note is read
+    const ok = await askConfirm(puter
+      ? 'Turn on free AI? Tiffo will send the notes you type and the documents you scan to Google\'s Gemini AI through Puter (puter.com) so it can read them. You\'ll sign in to a free Puter account once; your AI use comes out of that account\'s free allowance, so nobody pays. Puter and Google handle what\'s sent under their own privacy policies, so avoid very private documents. You can switch it off any time.'
+      : 'Turn on free AI? Tiffo will send the notes you type and the documents you scan to Google\'s free Gemini AI so it can read them. On the free plan, Google may use this to improve its products, and people at Google may read it. Avoid using AI on very private documents. You can switch it off any time.', 'Turn on AI');
+    if (!ok) return;
+    if (puter) {
+      let signedIn = false;
+      try { signedIn = (await AI.puterSignedIn()) || (await AI.puterSignIn()); } catch (e) { console.warn('Puter sign-in failed', e); }
+      if (!signedIn) { toast('Puter sign-in didn\'t finish, so AI stays off. Try again, and allow pop-ups if your browser blocks them.', { duration: 8000 }); return; }
+    }
+    st.aiConsent = true; Store.save(); this.renderAccount();
+    toast('✨ Free AI is on. Try a messy note or scan a receipt.');
+  },
+
+  /** Explain AI hiccups once in a while (the built-in rules already took over). */
+  aiProblem(e) {
+    if (!e) return;
+    if (e.code === 'puter_sign_in') {
+      toast('✨ Free AI needs you to sign in to Puter again. Used the built-in rules for now.', { duration: 8000, action: { label: 'Reconnect', fn: async () => { try { if (await AI.puterSignIn()) toast('✨ Reconnected.'); } catch (x) {} } } });
+    } else if (Date.now() - (this._aiWarned || 0) > 120000) {
+      this._aiWarned = Date.now();
+      toast('✨ Free AI is busy or unavailable right now, so the built-in rules were used.', { duration: 6000 });
+    }
   },
 
   renderSyncStatus() {
@@ -3850,8 +5082,21 @@ const UI = {
   },
 
   renderAiLabel() {
+    const pill = $('#aiPill');
+    if (pill) {
+      const on = AI.enabled();
+      pill.classList.toggle('hidden', !AI.available());
+      pill.setAttribute('aria-pressed', on);
+      pill.textContent = on ? '✨ Free AI: On' : '✨ Free AI: Off';
+      pill.className = 'rounded-full border px-2.5 py-0.5 font-semibold transition ' + (on
+        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+        : 'bg-white text-stone-600 border-stone-300 hover:border-violet-400 dark:bg-stone-900 dark:text-stone-300 dark:border-stone-700');
+      pill.title = on ? 'AI reads your notes and documents. Click to switch off.' : 'Let free AI read your notes and documents';
+    }
     const el = $('#aiModeLabel'); if (!el) return;
-    if (AI.enabled()) el.textContent = '✨ Free AI (Google Gemini) is on for your notes and documents. Switch it off in your account menu.';
+    if (AI.enabled() && CONFIG.AI_PROVIDER === 'puter') el.textContent = '✨ Free AI is on: Google\'s Gemini (through Puter) reads your notes and documents. Switch it off with the ✨ button under the note box.';
+    else if (AI.available() && CONFIG.AI_PROVIDER === 'puter') el.textContent = '✨ Free AI is available: tap “✨ Free AI: Off” under the note box to switch it on.';
+    else if (AI.enabled()) el.textContent = '✨ Free AI (Google Gemini) is on for your notes and documents. Switch it off in your account menu.';
     else if (AI.available()) el.textContent = '✨ Free AI is available: switch it on in your account menu (top right).';
     else if (CONFIG.AI_PROVIDER === 'supabase') el.textContent = '✨ Sign in to use free AI for your notes and documents.';
     else el.textContent = 'Running fully on-device. Notes and documents are read with built-in rules.';
@@ -3919,6 +5164,18 @@ const UI = {
     });
 
     // Reminders
+    // Generic form
+    onSubmit($('#fmForm'), $('#fmSave'), () => this.submitForm());
+    $('#fmCancel').addEventListener('click', () => this.closeForm());
+    $('#fmDanger').addEventListener('click', () => this._form?.danger?.fn());
+    $('#formModal').addEventListener('click', (e) => { if (e.target.id === 'formModal') this.closeForm(); });
+    // Accounts
+    $('#addAcctBtn').addEventListener('click', () => this.accountForm());
+    $('#lendBtn').addEventListener('click', () => this.loanForm('lend'));
+    $('#borrowBtn').addEventListener('click', () => this.loanForm('borrow'));
+    $('#loanList').addEventListener('click', (e) => { const li = e.target.closest('[data-person]'); if (li) this.personView(li.dataset.person); });
+    $('#moveAcctBtn').addEventListener('click', () => this.transferForm());
+    $('#acctList').addEventListener('click', (e) => { const li = e.target.closest('[data-aid]'); if (li && e.target.closest('.acct-edit')) this.accountForm(Accounts.get(li.dataset.aid)); });
     // Pockets
     $('#newPocketBtn').addEventListener('click', () => this.openPocketForm('new'));
     $('#pocketGrid').addEventListener('click', (e) => {
@@ -4063,19 +5320,8 @@ const UI = {
     $('#authClose').addEventListener('click', () => this.closeAuth());
     $('#authGuest').addEventListener('click', () => { this.closeAuth(); toast('You\'re using Tiffo as a guest. Sign up any time from the top right.'); });
     $('#authModal').addEventListener('click', (e) => { if (e.target.id === 'authModal') this.closeAuth(); });
-    $('#aiToggleBtn').addEventListener('click', async () => {
-      const st = (Store.state.settings ||= {});
-      if (!st.aiConsent) {
-        $('#accountMenu').classList.add('hidden');
-        const ok = await askConfirm('Turn on free AI? Tiffo will send the notes you type and the documents you scan to Google\'s free Gemini AI so it can read them. On the free plan, Google may use this to improve its products, and people at Google may read it. Avoid using AI on very private documents. You can switch it off any time.', 'Turn on AI');
-        if (!ok) return;
-        st.aiConsent = true; Store.save(); this.renderAccount();
-        toast('✨ Free AI is on. Try a messy note or scan a receipt.');
-      } else {
-        st.aiConsent = false; Store.save(); this.renderAccount();
-        toast('AI is off. Tiffo will use its built-in rules.');
-      }
-    });
+    $('#aiToggleBtn').addEventListener('click', () => { $('#accountMenu').classList.add('hidden'); this.toggleAI(); });
+    $('#aiPill').addEventListener('click', () => this.toggleAI());
     $('#signOutBtn').addEventListener('click', async () => {
       $('#accountMenu').classList.add('hidden');
       await Auth.signOut(); this.onUserChanged(); toast('Signed out. You\'re now viewing the guest ledger.');
@@ -4092,7 +5338,7 @@ const UI = {
     $('#balanceModal').addEventListener('click', (e) => { if (e.target.id === 'balanceModal') this.closeBalanceModal(); });
     document.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return;
-      this.closePocketForm?.();
+      this.closePocketForm?.(); if (this._form) this.closeForm();
       if (!$('#remDrawer').classList.contains('hidden')) this.closeRemDrawer();
       if (!$('#tutorialModal').classList.contains('hidden')) this.closeTutorial();
       $('#confirmNo').click?.();
@@ -4102,8 +5348,9 @@ const UI = {
     onSubmit($('#balanceForm'), $('#balanceSave'), () => {
       const v = parseFloat($('#balanceInput').value);
       if (isNaN(v)) return;
-      // "Right now" mode: back-solve the starting balance so current balance === v.
-      Store.state.initialBalance = $('#balanceMode').checked ? round2(v - Store.totals().net) : round2(v);
+      // "Right now" mode: back-solve the Cash account's starting amount so its balance === v.
+      const cash = Accounts.def();
+      Accounts.setOpening(cash, $('#balanceMode').checked ? v - (Accounts.balance(cash) - Accounts.opening(cash)) : v);
       Store.save(); this.closeBalanceModal(); this.renderAll();
       toast('Balance updated.');
     });
