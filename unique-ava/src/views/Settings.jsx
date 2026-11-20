@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useStore } from '../store.jsx';
 import { useAuth, supabase } from '../auth.jsx';
 import { ConfirmButton, useToast } from '../components/common.jsx';
+import TipJar, { tipsOn } from '../components/TipJar.jsx';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut } from '../ai/claude.js';
 
 export function ProfileManager() {
@@ -114,6 +115,8 @@ export default function Settings({ go }) {
           ? <ConfirmButton className="btn" label="Remove all demo items" confirmLabel="Click again to remove demo items" onConfirm={() => { dispatch({ type: 'REMOVE_DEMO' }); toast('Demo items removed'); }} />
           : <button className="btn" onClick={() => { dispatch({ type: 'LOAD_DEMO' }); toast('Demo closet added'); }}>Add the demo closet</button>}
       </section>
+
+      {tipsOn() && <section className="settings-sec"><TipJar compact /></section>}
 
       <section className="settings-sec danger">
         <h2 className="h2">Delete my data</h2>

@@ -10,6 +10,7 @@ import Family from './views/Family.jsx';
 import Settings from './views/Settings.jsx';
 import History from './views/History.jsx';
 import Calendar from './views/Calendar.jsx';
+import { tipsOn } from './components/TipJar.jsx';
 import Insights from './views/Insights.jsx';
 import Inspiration from './views/Inspiration.jsx';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut, loadPuter } from './ai/claude.js';
@@ -164,7 +165,7 @@ export default function App() {
         })}
       </nav>
       <footer className="footer">
-        Wearwise · AI stylist: Google Gemini via Puter (free, no key: sign in), checked by a built-in rules engine that also works on its own · saved in this browser, or to your account when you sign in · <a href="#/settings">Settings &amp; delete my data</a>
+        Wearwise · AI stylist: Google Gemini via Puter (free, no key: sign in), checked by a built-in rules engine that also works on its own · saved in this browser, or to your account when you sign in · <a href="#/settings">Settings &amp; delete my data</a>{tipsOn() && <> · <a href="#/settings">🍩 Treat the developer</a></>}
       </footer>
     </>
   );

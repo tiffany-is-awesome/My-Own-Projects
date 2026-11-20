@@ -604,3 +604,17 @@ img { max-width: 100%; }
 }
 .donut-legend { max-width: 420px; }
 @media (max-width: 760px) { .modal { max-height: calc(100vh - 110px); } .overlay { align-items: start; padding-top: 12px; } }
+
+/* 🍩 Tip jar (like Tiffo) */
+.tip-card { border: 1px solid #F3D3DC; background: linear-gradient(120deg, #FFF4F7, #FFF8EC); padding: 16px 18px; display: grid; gap: 12px; }
+.tip-row { display: flex; gap: 14px; align-items: center; }
+.tip-donut { font-size: 34px; line-height: 1; animation: donutSpin 6s ease-in-out infinite; }
+@keyframes donutSpin { 0%, 80%, 100% { transform: rotate(0); } 88% { transform: rotate(-14deg) scale(1.08); } 94% { transform: rotate(10deg); } }
+.tip-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.tip-gcash { background: #005ce6; border-color: #005ce6; color: #fff; display: inline-flex; gap: 6px; align-items: center; }
+.tip-gcash .g { width: 16px; height: 16px; border-radius: 50%; background: #fff; color: #005ce6; display: grid; place-items: center; font-size: 10px; font-weight: 800; }
+.tip-qr { text-align: center; } .tip-qr img { width: min(260px, 100%); border-radius: 12px; border: 1px solid var(--line); }
+@media (prefers-reduced-motion: reduce) { .tip-donut { animation: none; } }
+.btn.tip-gcash, .btn.tip-gcash:hover, .btn.tip-gcash:focus, .btn.tip-gcash:active { background: #005ce6; border-color: #005ce6; color: #fff; }
+.btn.tip-gcash:hover { filter: brightness(1.1); }
+.tip-actions a.btn { text-decoration: none; }
