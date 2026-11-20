@@ -36,7 +36,10 @@ function persist() { S.savedAt = Math.max(Date.now(), (S.savedAt || 0) + 1); sav
 function applySnapshot(d) {
   if (!d) return;
   if (d.v !== 3) d = migrateV2(d);
-  S.pantry = (d.pantry || []).map(p => E.newItem((p.cooked || (E.ING[p.key] || {}).isCooked) && !p.cookedOn && !p.unknownAge && p.loc !== "freezer" ? { ...p, cookedOn: p.added } : p));
+  // Older saves had no cooking date. Only leftovers the app made itself ("I made this") were really cooked on the day
+  // they were added; anything typed in might be older, so it gets no date and the person is asked.
+  const madeHere = p => p.key === "leftover" && p.unit === "servings" && /^Leftover /.test(p.name || "");
+  S.pantry = (d.pantry || []).map(p => E.newItem((p.cooked || (E.ING[p.key] || {}).isCooked) && !p.cookedOn && !p.unknownAge && p.loc !== "freezer" && madeHere(p) ? { ...p, cookedOn: p.added } : p));
   S.feedback = d.feedback || {};
   S.staples = Array.isArray(d.staples) ? d.staples : E.DEFAULT_STAPLES.slice();
   S.saved = d.saved || []; S.collections = d.collections || []; S.week = d.week || [];
@@ -47,13 +50,14 @@ function applySnapshot(d) {
 }
 /* Older versions stored "days left" as a fixed number. Keep everything, convert it to dates. */
 function migrateV2(d) {
-  const today = E.todayISO();
+  // "days left" in the old format were counted from when it was last saved, not from today
+  const today = d.savedAt > 0 && d.savedAt <= Date.now() ? E.todayISO(new Date(d.savedAt)) : E.todayISO();
   const pantry = (d.pantry || []).map(o => {
     const parts = String(o.qty || "").split(",").map(x => x.trim()).filter(Boolean);
     const tries = (parts.length ? parts : [""]).map(q => E.parseIngredientText((q ? q + " " : "") + o.name).slice(-1)[0] || {});
     const parsed = tries.find(t => ["g", "kg", "ml", "l", "cup"].includes(t.unit)) || tries[0] || {};
     return { name: o.name, key: parsed.key || E.resolveKey(o.name), qty: parsed.qty ?? null, unit: parsed.unit || null, loc: parsed.loc,
-      cooked: parsed.cooked, added: today, est: o.days != null ? E.addDays(today, Math.max(0, o.days)) : null, notes: "" };
+      cooked: parsed.cooked, added: today, est: null, notes: "" }; // the old "days left" was a default, not a date the person chose: use the normal food estimate
   });
   const staples = (d.staples || []).filter(s => s.on).map(s => E.resolveKey(s.name)).filter(Boolean);
   const saved = (d.saved || []).map(z => ({ id: z.id || uid(), col: z.col || "", at: z.at || 0, ...(LIB.find(r => r.title === z.recipe?.title) ? { rid: LIB.find(r => r.title === z.recipe.title).id } : { recipe: legacyRecipe(z.recipe) }) }));
@@ -91,8 +95,10 @@ function seedKitchen() {
 function load() {
   let d = null;
   try { d = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) {}
-  if (!d) { try { const old = JSON.parse(localStorage.getItem("p2p.v2") || "null"); if (old && Array.isArray(old.pantry)) d = migrateV2(old); } catch (e) {} }
+  let migrated = false;
+  if (!d) { try { const old = JSON.parse(localStorage.getItem("p2p.v2") || "null"); if (old && Array.isArray(old.pantry)) { d = migrateV2(old); migrated = true; } } catch (e) {} }
   if (d) applySnapshot(d); else seedKitchen();
+  if (migrated) saveLocal(); // convert old data once, so its dates don't move forward on every visit
 }
 function resetToSample() { try { localStorage.removeItem(STORE_KEY); } catch (e) {} seedKitchen(); S.savedAt = 0; S.owner = null; }
 /* After signing in on a device that had its own kitchen: ask before combining. */

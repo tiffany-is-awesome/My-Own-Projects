@@ -357,7 +357,8 @@ function estimate(item, now) {
     return { group: "first", daysLeft: d, dateISO: date, basis: "estimate", safe: true, note: "Past its usual freshness. Check it carefully before using; if in doubt, throw it out." };
   }
   return { group: groupFor(d, v), daysLeft: d, dateISO: date, basis: "estimate", safe: true,
-    note: (d === 0 ? "Best used today" : "Best used within " + d + " day" + (d === 1 ? "" : "s")) + " (estimate)" };
+    note: (d === 0 ? "Best used today" : "Best used within " + d + " day" + (d === 1 ? "" : "s")) + " (estimate)" +
+      (item.key === "egg" && item.loc === "pantry" ? ". Room temperature is only for eggs sold unrefrigerated; eggs bought from a fridge must stay in the fridge." : "") };
 }
 function groupFor(d, v) { if (d <= 1) return "first"; if (d <= 4) return "soon"; if (d <= 30) return "fresh"; return "long"; }
 const GROUPS = [

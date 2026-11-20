@@ -42,6 +42,8 @@ Also optional: **nicer email links.** In Supabase, go to **Authentication → UR
 | `src/test-engine.js` | The brief's acceptance tests: `node src/test-engine.js` |
 | `src/test-audit.js` | The Phase 1 completion audit (modes, maths, deductions, leftovers, freshness, ranking): `node src/test-audit.js` |
 | `src/test-scenarios.js` | The main-branch review's test scenarios (leftover dates, batches, missing amounts, scaling, best-before vs use-by): `node src/test-scenarios.js` |
+| `src/test-final.js` | Final technical pass: scaling × deductions × unknown amounts, tolerances, leftover dates: `node src/test-final.js` |
+| `src/test-browser-*.py` | Browser tests (Playwright): review scenarios, AI status, click every button on desktop/tablet/phone, old-data conversion, full audit |
 | `src/test-browser-scenarios.py` | The same scenarios clicked through in a real browser with Playwright, on desktop and phone sizes (uses stand-ins for Supabase and Puter) |
 
 After changing anything in `src/`, run `python3 src/build.py` to rebuild `index.html`.
