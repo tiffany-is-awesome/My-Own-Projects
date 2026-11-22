@@ -4289,7 +4289,7 @@ const UI = {
     $('#loanYouOwe').textContent = fmt(tot.youOwe);
     $('#loanTotals').classList.toggle('hidden', !people.length);
     $('#loanEmpty').classList.toggle('hidden', !!people.length);
-    $('#loanEmpty').innerHTML = `Lent money to family or a friend, or borrowed some? Type it like you’d say it: <b>“I lent Maria ${exampleMoney(2000)}”</b>, <b>“Mom lent me ${exampleMoney(5000)}”</b> or <b>“John paid back ${exampleMoney(500)}”</b>.`;
+    $('#loanEmpty').innerHTML = `Lent money to family or a friend, or borrowed some? Type it like you’d say it: <b>“I lent Maria ${fmt0(2000)}”</b>, <b>“Mom lent me ${fmt0(5000)}”</b> or <b>“John paid back ${fmt0(500)}”</b>.`;
     $('#loanList').innerHTML = people.map((p) => {
       const open = p.loans.filter((l) => l.left > 0);
       const status = p.theyOwe > 0 && p.youOwe > 0 ? `owes you ${fmt(p.theyOwe)} · you owe ${fmt(p.youOwe)}`
@@ -4863,7 +4863,7 @@ const UI = {
   /* ---------- tour: spotlights the real buttons ---------- */
   tourSteps() {
     return [
-      { page: 'home', el: '#noteInput', title: 'This is the main thing: the note box', text: `Type what happened, the way you’d text a friend: “Jollibee ${exampleMoney(350)}”, “Sahod ${exampleMoney(18000)}”, “I lent Maria ${exampleMoney(500)}”. Bills and reminders work too: “Meralco due Friday”.` },
+      { page: 'home', el: '#noteInput', title: 'This is the main thing: the note box', text: `Type what happened, the way you’d text a friend: “Jollibee ${fmt0(350)}”, “Sahod ${fmt0(18000)}”, “I lent Maria ${fmt0(500)}”. Bills and reminders work too: “Meralco due Friday”.` },
       { page: 'home', el: '#logBtn', title: 'Press Log (or Enter)', text: 'Tiffo works out what it was. If it isn’t sure, it shows you a quick card to check before saving anything.' },
       { page: 'home', el: 'label[for="fileInput"]', title: 'Scan a receipt or contract', text: 'Tiffo reads it and explains it in plain English. For receipts, you check the amount and date before anything is saved.' },
       { page: 'home', el: '#balanceCard', title: 'Your money right now', text: 'The total in all your accounts: cash, GCash, banks.' },
@@ -4873,7 +4873,7 @@ const UI = {
       { page: 'home', el: '[data-nav="money"]', title: 'Money', text: 'Your accounts, pockets (money set aside, like “toys”), and 👥 family & friends: money you lent or borrowed.' },
       { page: 'home', el: '#remBellBtn', title: 'Reminders bell', text: 'A red number means something is due.' },
       { page: 'home', el: '[data-nav="more"]', title: 'More', text: 'Documents, settings (currency, starting balance, day or night), choosing what you see, and this tour again.' },
-      { page: 'home', el: '#noteInput', title: 'Your turn!', text: `Try typing your first note now, like “Groceries ${exampleMoney(500)}”.`, last: true },
+      { page: 'home', el: '#noteInput', title: 'Your turn!', text: `Try typing your first note now, like “Groceries ${fmt0(500)}”.`, last: true },
     ];
   },
   tourTarget(sel) { return $$(sel).find((x) => x.getClientRects().length && getComputedStyle(x).visibility !== 'hidden') || null; },
