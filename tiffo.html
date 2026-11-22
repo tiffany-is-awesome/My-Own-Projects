@@ -4917,7 +4917,9 @@ const UI = {
     $('#tourNext').textContent = st.last ? 'Start typing' : 'Next';
     if (el) el.scrollIntoView({ block: 'center', behavior: 'auto' });
     this.tourEl = el;
-    requestAnimationFrame(() => { this.tourPlace(); $('#tourNext').focus({ preventScroll: true }); });
+    this.tourPlace();
+    $('#tourNext').focus({ preventScroll: true });
+    setTimeout(() => this.tourPlace(), 80);   // again once the new text has its final size
   },
   tourPlace() {
     const el = this.tourEl, spot = $('#tourSpot'), tip = $('#tourTip');
