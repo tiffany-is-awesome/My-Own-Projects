@@ -346,7 +346,7 @@ about **$0.60**. With try-on (10/month) about **$1.30**. A $4–6/month premium 
 My-Own-Projects/
 ├─ wearwise.html                   ← built, single-file app (served by GitHub Pages)
 ├─ unique-ava.html                 ← old address: forwards to wearwise.html
-└─ unique-ava/
+└─ wearwise/
    ├─ docs/ARCHITECTURE.md      ← this file
    ├─ docs/UX-AND-ROADMAP.md
    ├─ src/

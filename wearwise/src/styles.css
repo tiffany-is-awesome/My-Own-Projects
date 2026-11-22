@@ -606,3 +606,9 @@ img { max-width: 100%; }
 .garment-img.uncut { border-radius: 6px; border: 3px solid #fff; box-shadow: 0 4px 14px rgba(0,0,0,.12); background: #fff; object-fit: cover; }
 .stage-item .garment-img.uncut { object-fit: contain; width: auto; height: auto; max-width: 100%; max-height: 100%; margin: auto; display: block; }
 .stage-item:has(.garment-img.uncut) { display: grid; place-items: center; }
+/* Cloud sync: changed on another device / offline */
+.sync-banner { position: fixed; left: 50%; transform: translateX(-50%); top: 70px; z-index: 70; width: min(640px, calc(100vw - 24px)); background: #fff; border: 1px solid var(--ink); box-shadow: 0 12px 40px rgba(0,0,0,.15); padding: 14px 16px; display: grid; gap: 10px; }
+.sync-banner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.sync-pill { position: fixed; right: 14px; bottom: 14px; z-index: 60; background: var(--ink); color: #fff; font-size: 12px; padding: 8px 12px; }
+.sync-dot.offline, .sync-dot.conflict { background: var(--warn); }
+@media (max-width: 760px) { .sync-pill { bottom: 82px; } .sync-banner { top: 60px; } }

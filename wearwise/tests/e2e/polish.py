@@ -1,0 +1,50 @@
+import sys
+from playwright.sync_api import sync_playwright
+URL='http://localhost:8765/wearwise.html'
+res=[]; errs=[]
+def ok(n,c,d=''): res.append(bool(c)); print('PASS' if c else 'FAIL', n, d)
+with sync_playwright() as p:
+    b=p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox'])
+    for W,H,tag in [(1360,900,'d'),(390,844,'m')]:
+        pg=b.new_page(viewport={'width':W,'height':H}, has_touch=(tag=='m'))
+        pg.on('pageerror', lambda e: errs.append(str(e)))
+        pg.goto(URL); pg.wait_for_timeout(600); pg.evaluate("localStorage.clear()"); pg.reload(); pg.wait_for_timeout(1500)
+        pg.screenshot(path=f'/tmp/wearwise-e2e/p-{tag}-landing.png')
+        ok(f'[{tag}] landing hero animates examples', pg.locator('.hero-showcase .stage-item').count()>0)
+        pg.get_by_role('button', name='Try the demo closet').click(); pg.wait_for_timeout(900)
+        ok(f'[{tag}] home shows Today\'s outfit from the closet', pg.locator('.today-card .stage-item').count()>=3)
+        before=pg.locator('.today-card h2').inner_text()
+        pg.get_by_role('button', name='Another idea').click(); pg.wait_for_timeout(500)
+        ok(f'[{tag}] another idea changes the outfit', pg.locator('.today-card h2').inner_text()!=before)
+        pg.locator('.today-card').get_by_role('button', name='Rainy').click(); pg.wait_for_timeout(400)
+        shoes=pg.locator('.today-card .piece-list').inner_text()
+        ok(f'[{tag}] rainy today avoids suede/sandals', 'Suede' not in shoes and 'Sandals' not in shoes, shoes.split('\n')[-3:])
+        pg.screenshot(path=f'/tmp/wearwise-e2e/p-{tag}-home.png', full_page=True)
+        pg.get_by_role('button', name='Date night').click()
+        pg.wait_for_selector('.outfit-card', timeout=15000); pg.wait_for_timeout(1200)
+        ok(f'[{tag}] quick occasion runs Create for a date', 'Date' in pg.locator('.ctx-summary').inner_text() and pg.locator('.outfit-card').count()>=1)
+        pg.screenshot(path=f'/tmp/wearwise-e2e/p-{tag}-results.png')
+        pg.locator('.outfit-card').nth(0).get_by_role('button', name='Open in builder').click(); pg.wait_for_timeout(600)
+        imp=pg.locator('.improve-btn, .improve-done').count(); ok(f'[{tag}] builder offers Improve this outfit', imp==1)
+        if pg.locator('.improve-btn').count():
+            pg.locator('.improve-btn').click(); pg.wait_for_timeout(400)
+        pg.screenshot(path=f'/tmp/wearwise-e2e/p-{tag}-builder.png', full_page=True)
+        pg.goto(URL+'#/closet'); pg.wait_for_timeout(400)
+        pg.get_by_label('Search the closet').fill('black boots'); pg.wait_for_timeout(300)
+        names=pg.locator('.grid .card-name').all_inner_texts(); ok(f'[{tag}] search "black boots"', names==['Leather Chelsea Boots'], str(names))
+        pg.get_by_label('Search the closet').fill('')
+        pg.screenshot(path=f'/tmp/wearwise-e2e/p-{tag}-closet.png')
+        if tag=='m':
+            ok('[m] tab bar visible', pg.locator('.tabbar').is_visible())
+            pg.locator('.tabbar a', has_text='More').click(); pg.wait_for_timeout(300)
+            ok('[m] More page lists History/Settings', pg.get_by_text('Outfit History').count()>0 and pg.get_by_text('Settings').count()>0)
+            pg.get_by_text('Outfit History').click(); pg.wait_for_timeout(300)
+            ok('[m] More → History works, More tab stays active', 'Outfit History' in pg.locator('h1').inner_text() and 'on' in (pg.locator('.tabbar a', has_text='More').get_attribute('class') or ''))
+            sw=pg.evaluate("document.documentElement.scrollWidth"); ok('[m] no horizontal overflow', sw<=392, f'scrollWidth {sw}')
+            ok('[m] sign-in button fully visible', pg.locator('.topbar').get_by_role('button', name='Sign in').bounding_box()['x']+pg.locator('.topbar').get_by_role('button', name='Sign in').bounding_box()['width']<=390)
+        else:
+            ok('[d] tab bar hidden on desktop', not pg.locator('.tabbar').is_visible())
+        pg.close()
+    ok('no page errors', not errs, '; '.join(errs[:3]))
+    b.close()
+print('SUMMARY', sum(res), '/', len(res))

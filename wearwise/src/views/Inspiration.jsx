@@ -45,7 +45,7 @@ function AddInspiration({ onClose, onAdded }) {
   }
   return (
     <Modal title="Add inspiration" onClose={onClose}>
-      <p className="small muted" style={{ marginTop: 0 }}>Type the pieces of a look you love, or add a photo of it. Typed looks are matched on this device by keywords. A photo is only read by AI if you ask, and the photo is saved with your Wearwise data (this browser, and your account if you're signed in).</p>
+      <p className="small muted" style={{ marginTop: 0 }}>Type the pieces of a look you love, or add a photo of it. Typed looks are matched on this device by keywords (no AI). A photo is only sent to Google Gemini if you tap "Identify the pieces", and the photo is saved with your Wearwise data (this browser, and your account if you're signed in).</p>
       <div className="field"><label className="label">Inspiration photo (optional)</label>
         <div className="context-box" style={{ alignItems: 'center' }}>
           {photo && <img src={photo.dataUrl} alt="" style={{ width: 56, height: 70, objectFit: 'cover' }} />}
@@ -95,7 +95,7 @@ export default function Inspiration({ go }) {
     if (slots.top && owned.find((g) => g.id === slots.top)?.category === 'dress') slots.bottom = null;
     dispatch({ type: 'LOAD_DRAFT', draft: { slots, name: cur.title } });
     toast(cur.match.missing.length ? `Recreated with your pieces. ${cur.match.missing.length} piece${cur.match.missing.length > 1 ? 's are' : ' is'} missing from your closet.` : 'Recreated with your pieces.');
-    go('#/dressing');
+    go('#/builder');
   }
 
   return (
@@ -154,7 +154,7 @@ export default function Inspiration({ go }) {
               ))}
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button className="btn primary" style={{ flex: 1 }} onClick={recreate}>Recreate in dressing room</button>
+              <button className="btn primary" style={{ flex: 1 }} onClick={recreate}>Recreate with my clothes</button>
             </div>
             <p className="tiny" style={{ marginTop: 10 }}>Recreating uses your exact, close and approximate matches; missing pieces stay empty so you can choose what to wear instead.</p>
           </div>

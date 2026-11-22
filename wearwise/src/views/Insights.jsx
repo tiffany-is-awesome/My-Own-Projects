@@ -5,7 +5,7 @@ import Stage from '../components/Stage.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
 import { PieceList, ScoreBadge, useToast } from '../components/common.jsx';
 import { toSlots } from '../components/Choose.jsx';
-import { versatility, rediscover, wearStats, whyHardToStyle, VERSATILITY_CONTEXTS } from '../ai/insights.js';
+import { versatilityAsync, rediscover, wearStats, whyHardToStyle, VERSATILITY_CONTEXTS } from '../ai/insights.js';
 import { missingForOutfit } from '../ai/generator.js';
 import { CATEGORY_LABEL } from '../data/closet.js';
 
@@ -16,14 +16,20 @@ export default function Insights({ go }) {
   const history = useMemo(() => historyOf(profile.id), [historyOf, profile.id]);
   const child = profile.kind === 'child';
 
-  // Computed after first paint (a few hundred ms for a large closet) so the page never freezes.
+  // Rediscover is quick; versatility checks every piece in six situations, so it runs in small batches
+  // with a progress line and the page stays responsive even for a big closet.
+  const [progress, setProgress] = useState(null);
   useEffect(() => {
-    setData(null);
-    const t = setTimeout(() => {
+    setData(null); setProgress(null);
+    let cancelled = false;
+    const t = setTimeout(async () => {
       const ctxP = personal.rated ? personal : null;
-      setData({ v: versatility(owned), r: rediscover(owned, history, { contexts: VERSATILITY_CONTEXTS.slice(0, 2).map((c) => ({ ...c, personal: ctxP })) }), stats: wearStats(history) });
+      const r = rediscover(owned, history, { contexts: VERSATILITY_CONTEXTS.slice(0, 2).map((c) => ({ ...c, personal: ctxP })) });
+      setData({ v: null, r, stats: wearStats(history) });
+      const v = await versatilityAsync(owned, (done, total) => !cancelled && setProgress({ done, total }), VERSATILITY_CONTEXTS, () => cancelled);
+      if (!cancelled && v) setData((d) => ({ ...d, v }));
     }, 30);
-    return () => clearTimeout(t);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [owned, history, personal]);
 
   const missing = missingForOutfit(owned);
@@ -75,9 +81,12 @@ export default function Insights({ go }) {
           <section style={{ marginTop: 36 }}>
             <div className="results-head" style={{ marginTop: 0 }}>
               <h2 className="h2" style={{ margin: 0 }}>Wardrobe versatility</h2>
-              <span className="versatility-score"><b>{data.v.score}</b>/100</span>
+              {data.v && <span className="versatility-score"><b>{data.v.score}</b>/100</span>}
             </div>
             <p className="small muted" style={{ marginTop: 0 }}>How many other pieces each item makes strong outfits with, and in which of six everyday situations (everyday warm and cool, work, date, church, hot-weather vacation). The score is the share of pieces that pair with at least 3 others in at least 2 situations.</p>
+            {!data.v ? (
+              <div className="loading-block"><div className="loading-bar"><i style={progress ? { width: `${Math.round((progress.done / progress.total) * 100)}%`, animation: 'none' } : undefined} /></div><p className="small muted">Checking each piece against the rest of the closet{progress ? ` · ${progress.done} of ${progress.total}` : ''}…</p></div>
+            ) : (<>
             <table className="vtable">
               <thead><tr><th>Piece</th><th>Pairs well with</th><th>Works for</th><th>Worn</th></tr></thead>
               <tbody>
@@ -92,6 +101,7 @@ export default function Insights({ go }) {
               </tbody>
             </table>
             {data.v.hardToStyle.length > 0 && <p className="tiny" style={{ marginTop: 8 }}>{data.v.hardToStyle.length} piece{data.v.hardToStyle.length > 1 ? 's don\'t' : ' doesn\'t'} make a strong outfit with anything else right now. The note says what's missing.</p>}
+            </>)}
           </section>
         </>
       )}

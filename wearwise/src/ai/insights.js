@@ -37,23 +37,48 @@ export function wearStats(history) {
  * across everyday situations, and in which situations it works.
  * @returns {{ items: [{ item, combos, contexts: string[] }], score: number (0-100), hardToStyle: [] }}
  */
-export function versatility(pool, contexts = VERSATILITY_CONTEXTS) {
-  const avail = pool.filter(isAvailable);
-  const items = avail.filter((g) => ['top', 'bottom', 'outer', 'shoes'].includes(slotOf(g))).map((item) => {
-    const partners = new Set();
-    let combos = 0;
-    const where = [];
-    for (const ctx of contexts) {
-      const list = candidates(avail, ctx, item, 400).filter(({ o }) => strong(o, ctx));
-      combos += list.length;
-      for (const { o } of list) for (const k of ['top', 'bottom', 'outer', 'shoes']) if (o[k] && o[k].id !== item.id) partners.add(o[k].id);
-      if (list.length) where.push(ctx.occasionLabel + (ctx.weather === 'Hot' || ctx.weather === 'Cool' ? ` (${ctx.weather.toLowerCase()})` : ''));
-    }
-    return { item, combos, partners: partners.size, contexts: [...new Set(where)] };
-  }).sort((a, b) => b.partners - a.partners || b.combos - a.combos);
+function versatilityOf(item, avail, contexts) {
+  const partners = new Set();
+  let combos = 0;
+  const where = [];
+  for (const ctx of contexts) {
+    const list = candidates(avail, ctx, item, 400).filter(({ o }) => strong(o, ctx));
+    combos += list.length;
+    for (const { o } of list) for (const k of ['top', 'bottom', 'outer', 'shoes']) if (o[k] && o[k].id !== item.id) partners.add(o[k].id);
+    if (list.length) where.push(ctx.occasionLabel + (ctx.weather === 'Hot' || ctx.weather === 'Cool' ? ` (${ctx.weather.toLowerCase()})` : ''));
+  }
+  return { item, combos, partners: partners.size, contexts: [...new Set(where)] };
+}
+const coreOf = (pool) => pool.filter(isAvailable).filter((g) => ['top', 'bottom', 'outer', 'shoes'].includes(slotOf(g)));
+function summarize(rows) {
+  const items = rows.sort((a, b) => b.partners - a.partners || b.combos - a.combos);
   const working = items.filter((x) => x.contexts.length >= 2 && x.partners >= 3).length;
   const score = items.length ? Math.round((working / items.length) * 100) : 0;
   return { items, score, hardToStyle: items.filter((x) => x.contexts.length === 0) };
+}
+
+/**
+ * Versatility of every available piece: how many other pieces it makes strong outfits with, and in which
+ * everyday situations. @returns {{ items: [{ item, combos, partners, contexts }], score: 0-100, hardToStyle }}
+ */
+export function versatility(pool, contexts = VERSATILITY_CONTEXTS) {
+  const avail = pool.filter(isAvailable);
+  return summarize(coreOf(pool).map((item) => versatilityOf(item, avail, contexts)));
+}
+
+/** Same result, computed in small batches so a big closet never freezes the page. onProgress(done, total). */
+export async function versatilityAsync(pool, onProgress = () => {}, contexts = VERSATILITY_CONTEXTS, isCancelled = () => false) {
+  const avail = pool.filter(isAvailable);
+  const core = coreOf(pool);
+  const rows = [];
+  let t = performance.now();
+  for (let i = 0; i < core.length; i++) {
+    if (isCancelled()) return null;
+    rows.push(versatilityOf(core[i], avail, contexts));
+    if (performance.now() - t > 30) { onProgress(i + 1, core.length); await new Promise((r) => setTimeout(r, 0)); t = performance.now(); }
+  }
+  onProgress(core.length, core.length);
+  return summarize(rows);
 }
 
 /** Why a piece is hard to style: the slot that has nothing suitable to pair with it. */

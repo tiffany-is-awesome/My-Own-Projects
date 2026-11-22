@@ -597,7 +597,7 @@ export const CONFIG = {
  FILE: wearwise/src/auth.jsx
 ====================================================================================================
 
-// Accounts (Supabase Auth) + cloud sync of the whole wardrobe to public.unique_ava_data
+// Accounts (Supabase Auth) + cloud sync of the whole wardrobe to public.wearwise_data (formerly unique_ava_data)
 // (the database table keeps its original name; renaming it would break signed-in users mid-session).
 
 // Keep people signed in across the rename: move the old sign-in key once.
@@ -695,65 +695,165 @@ const slim = (state) => ({
   draft: { ...state.draft, stage: { ...state.draft.stage, customBg: null, personPhoto: null } },
 });
 
-/** Keeps the signed-in user's wardrobe in Supabase. Returns { status, message, lastSaved }. */
+// The table was renamed unique_ava_data → wearwise_data. Use whichever exists, so the site works before and after
+// the database change.
+let tableName = null;
+export async function cloudTable() {
+  if (tableName) return tableName;
+  const probe = await supabase.from('wearwise_data').select('user_id', { head: true, count: 'exact' }).limit(1);
+  const missing = probe.error && /PGRST205|42P01|does not exist|schema cache|Could not find/i.test(`${probe.error.code} ${probe.error.message}`);
+  tableName = missing ? 'unique_ava_data' : 'wearwise_data';
+  return tableName;
+}
+
+// Set while "Delete all my data" runs, so nothing is re-uploaded in the meantime.
+export const syncControl = { paused: false };
+
+/**
+ * Keeps the signed-in user's wardrobe in Supabase.
+ * - On sign-in the account copy wins (or is created from this device).
+ * - Saves are debounced and CONDITIONAL: a save only goes through if the account copy is still the version this
+ *   device last saw. If another device saved in between, nothing is overwritten: she chooses which version to keep.
+ * - When this tab comes back into view, newer changes from another device are loaded (if this device has none pending).
+ * - A failed save (e.g. no connection) is retried when the connection returns, and leaving with unsaved changes warns.
+ * Returns { status, message, lastSaved, conflict, useCloudVersion, keepThisVersion }.
+ */
 export function useCloudSync() {
   const { user } = useAuth();
   const { state, dispatch } = useStore();
   const toast = useToast();
-  const [status, setStatus] = useState('off'); // off | loading | synced | saving | error | needs-setup
+  const [status, setStatus] = useState('off'); // off | loading | synced | saving | error | offline | conflict | needs-setup
   const [message, setMessage] = useState('');
   const [lastSaved, setLastSaved] = useState(null);
+  const [conflict, setConflict] = useState(null); // { data, at }
   const readyFor = useRef(null);
   const timer = useRef(null);
   const prevUser = useRef(null);
+  const seen = useRef(null);       // updated_at of the account copy this device last loaded or saved
+  const dirty = useRef(false);     // local changes not yet saved
+  const skipNext = useRef(false);  // don't echo a just-loaded cloud copy straight back
+  const latest = useRef(state);
+  latest.current = state;
 
   const fail = useCallback((error) => {
     const m = String(error?.message || error?.code || '');
-    if (/unique_ava_data|does not exist|PGRST205|42P01|schema cache/i.test(m + (error?.code || ''))) {
+    if (/does not exist|PGRST205|42P01|schema cache/i.test(m + (error?.code || ''))) {
       setStatus('needs-setup'); setMessage('Cloud storage isn\'t set up yet. Run supabase/wearwise.sql once in Supabase.');
+    } else if (typeof navigator !== 'undefined' && navigator.onLine === false || /Failed to fetch|NetworkError|network/i.test(m)) {
+      setStatus('offline'); setMessage('No connection. Your changes are kept on this device and will be saved when you\'re back online.');
     } else { setStatus('error'); setMessage(niceError(error)); }
   }, []);
 
-  // On sign-in: load the cloud copy (cloud wins), or create it from this device.
+  const save = useCallback(async () => {
+    if (!supabase || !user || readyFor.current !== user.id || syncControl.paused) return;
+    const T = await cloudTable();
+    setStatus('saving');
+    const payload = { data: slim(latest.current), updated_at: new Date().toISOString() };
+    let res = seen.current
+      ? await supabase.from(T).update(payload).eq('user_id', user.id).eq('updated_at', seen.current).select('updated_at')
+      : await supabase.from(T).upsert({ user_id: user.id, ...payload }).select('updated_at');
+    if (res.error) { fail(res.error); return; }
+    if (!res.data?.length) {
+      // Nothing matched: the account copy changed on another device, or was deleted.
+      const cur = await supabase.from(T).select('data, updated_at').eq('user_id', user.id).maybeSingle();
+      if (cur.error) { fail(cur.error); return; }
+      if (!cur.data) {
+        res = await supabase.from(T).upsert({ user_id: user.id, ...payload }).select('updated_at');
+        if (res.error) { fail(res.error); return; }
+      } else {
+        setConflict({ data: cur.data.data, at: cur.data.updated_at });
+        setStatus('conflict'); setMessage('Your closet was changed on another device.');
+        return;
+      }
+    }
+    seen.current = res.data[0].updated_at;
+    dirty.current = false;
+    setStatus('synced'); setLastSaved(new Date()); setMessage('');
+  }, [user, fail]);
+
+  // On sign-in: load the account copy (it wins), or create it from this device.
   useEffect(() => {
     if (!supabase) return;
     if (!user) {
       if (prevUser.current) dispatch({ type: 'RESET' }); // signed out: don't leave this closet for the next person
-      prevUser.current = null; readyFor.current = null; setStatus('off');
+      prevUser.current = null; readyFor.current = null; seen.current = null; dirty.current = false; setConflict(null); setStatus('off');
       return;
     }
     if (prevUser.current === user.id) return;
     prevUser.current = user.id;
     setStatus('loading');
     (async () => {
-      const { data, error } = await supabase.from('unique_ava_data').select('data').eq('user_id', user.id).maybeSingle();
+      const T = await cloudTable();
+      const { data, error } = await supabase.from(T).select('data, updated_at').eq('user_id', user.id).maybeSingle();
       if (error) { fail(error); return; }
       if (data?.data && Object.keys(data.data).length) {
+        skipNext.current = true;
         dispatch({ type: 'HYDRATE', state: data.data });
+        seen.current = data.updated_at;
         toast('Your wardrobe is loaded from your account');
+        readyFor.current = user.id;
+        setStatus('synced'); setLastSaved(new Date()); setMessage('');
       } else {
-        const up = await supabase.from('unique_ava_data').upsert({ user_id: user.id, data: slim(state), updated_at: new Date().toISOString() });
-        if (up.error) { fail(up.error); return; }
+        readyFor.current = user.id;
+        seen.current = data?.updated_at || null;
+        await save();
         toast('Your closet is now saved to your account');
       }
-      readyFor.current = user.id;
-      setStatus('synced'); setLastSaved(new Date()); setMessage('');
     })();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // After that: save changes (debounced).
   useEffect(() => {
     if (!supabase || !user || readyFor.current !== user.id) return;
+    if (skipNext.current) { skipNext.current = false; return; }
+    if (conflict) return; // wait for her choice
+    dirty.current = true;
     clearTimeout(timer.current);
     setStatus('saving');
-    timer.current = setTimeout(async () => {
-      const { error } = await supabase.from('unique_ava_data').upsert({ user_id: user.id, data: slim(state), updated_at: new Date().toISOString() });
-      if (error) fail(error); else { setStatus('synced'); setLastSaved(new Date()); setMessage(''); }
-    }, 1500);
+    timer.current = setTimeout(save, 1500);
     return () => clearTimeout(timer.current);
-  }, [state, user, fail]);
+  }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { status, message, lastSaved };
+  // Back online → retry. Back to this tab → pick up changes made on another device.
+  useEffect(() => {
+    if (!supabase || !user) return undefined;
+    const online = () => { if (dirty.current) save(); };
+    const visible = async () => {
+      if (document.visibilityState !== 'visible' || readyFor.current !== user.id || conflict || syncControl.paused) return;
+      const T = await cloudTable();
+      const cur = await supabase.from(T).select('data, updated_at').eq('user_id', user.id).maybeSingle();
+      if (cur.error || !cur.data || cur.data.updated_at === seen.current) return;
+      if (dirty.current) { setConflict({ data: cur.data.data, at: cur.data.updated_at }); setStatus('conflict'); setMessage('Your closet was changed on another device.'); return; }
+      skipNext.current = true;
+      dispatch({ type: 'HYDRATE', state: cur.data.data });
+      seen.current = cur.data.updated_at;
+      setLastSaved(new Date());
+      toast('Updated with changes from your other device');
+    };
+    const leaving = (e) => { if (dirty.current) { e.preventDefault(); e.returnValue = ''; } };
+    window.addEventListener('online', online);
+    document.addEventListener('visibilitychange', visible);
+    window.addEventListener('beforeunload', leaving);
+    return () => { window.removeEventListener('online', online); document.removeEventListener('visibilitychange', visible); window.removeEventListener('beforeunload', leaving); };
+  }, [user, conflict, save]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const useCloudVersion = () => {
+    if (!conflict) return;
+    skipNext.current = true;
+    dispatch({ type: 'HYDRATE', state: conflict.data });
+    seen.current = conflict.at; dirty.current = false;
+    setConflict(null); setStatus('synced'); setMessage(''); setLastSaved(new Date());
+    toast('Loaded the version from your other device');
+  };
+  const keepThisVersion = async () => {
+    if (!conflict) return;
+    seen.current = conflict.at;
+    setConflict(null);
+    await save();
+    toast('Kept this device\'s version');
+  };
+
+  return { status, message, lastSaved, conflict, useCloudVersion, keepThisVersion };
 }
 
 
@@ -2212,23 +2312,48 @@ export function wearStats(history) {
  * across everyday situations, and in which situations it works.
  * @returns {{ items: [{ item, combos, contexts: string[] }], score: number (0-100), hardToStyle: [] }}
  */
-export function versatility(pool, contexts = VERSATILITY_CONTEXTS) {
-  const avail = pool.filter(isAvailable);
-  const items = avail.filter((g) => ['top', 'bottom', 'outer', 'shoes'].includes(slotOf(g))).map((item) => {
-    const partners = new Set();
-    let combos = 0;
-    const where = [];
-    for (const ctx of contexts) {
-      const list = candidates(avail, ctx, item, 400).filter(({ o }) => strong(o, ctx));
-      combos += list.length;
-      for (const { o } of list) for (const k of ['top', 'bottom', 'outer', 'shoes']) if (o[k] && o[k].id !== item.id) partners.add(o[k].id);
-      if (list.length) where.push(ctx.occasionLabel + (ctx.weather === 'Hot' || ctx.weather === 'Cool' ? ` (${ctx.weather.toLowerCase()})` : ''));
-    }
-    return { item, combos, partners: partners.size, contexts: [...new Set(where)] };
-  }).sort((a, b) => b.partners - a.partners || b.combos - a.combos);
+function versatilityOf(item, avail, contexts) {
+  const partners = new Set();
+  let combos = 0;
+  const where = [];
+  for (const ctx of contexts) {
+    const list = candidates(avail, ctx, item, 400).filter(({ o }) => strong(o, ctx));
+    combos += list.length;
+    for (const { o } of list) for (const k of ['top', 'bottom', 'outer', 'shoes']) if (o[k] && o[k].id !== item.id) partners.add(o[k].id);
+    if (list.length) where.push(ctx.occasionLabel + (ctx.weather === 'Hot' || ctx.weather === 'Cool' ? ` (${ctx.weather.toLowerCase()})` : ''));
+  }
+  return { item, combos, partners: partners.size, contexts: [...new Set(where)] };
+}
+const coreOf = (pool) => pool.filter(isAvailable).filter((g) => ['top', 'bottom', 'outer', 'shoes'].includes(slotOf(g)));
+function summarize(rows) {
+  const items = rows.sort((a, b) => b.partners - a.partners || b.combos - a.combos);
   const working = items.filter((x) => x.contexts.length >= 2 && x.partners >= 3).length;
   const score = items.length ? Math.round((working / items.length) * 100) : 0;
   return { items, score, hardToStyle: items.filter((x) => x.contexts.length === 0) };
+}
+
+/**
+ * Versatility of every available piece: how many other pieces it makes strong outfits with, and in which
+ * everyday situations. @returns {{ items: [{ item, combos, partners, contexts }], score: 0-100, hardToStyle }}
+ */
+export function versatility(pool, contexts = VERSATILITY_CONTEXTS) {
+  const avail = pool.filter(isAvailable);
+  return summarize(coreOf(pool).map((item) => versatilityOf(item, avail, contexts)));
+}
+
+/** Same result, computed in small batches so a big closet never freezes the page. onProgress(done, total). */
+export async function versatilityAsync(pool, onProgress = () => {}, contexts = VERSATILITY_CONTEXTS, isCancelled = () => false) {
+  const avail = pool.filter(isAvailable);
+  const core = coreOf(pool);
+  const rows = [];
+  let t = performance.now();
+  for (let i = 0; i < core.length; i++) {
+    if (isCancelled()) return null;
+    rows.push(versatilityOf(core[i], avail, contexts));
+    if (performance.now() - t > 30) { onProgress(i + 1, core.length); await new Promise((r) => setTimeout(r, 0)); t = performance.now(); }
+  }
+  onProgress(core.length, core.length);
+  return summarize(rows);
 }
 
 /** Why a piece is hard to style: the slot that has nothing suitable to pair with it. */
@@ -3149,7 +3274,7 @@ export default function Account() {
   if (!auth?.configured) return null;
   const u = auth.user;
   const name = u?.user_metadata?.name || u?.email?.split('@')[0] || '';
-  const syncText = { loading: 'Loading your closet…', saving: 'Saving…', synced: `☁️ Synced ${ago(sync.lastSaved)}`, error: 'Not synced', 'needs-setup': 'Cloud not set up', off: '' }[sync.status];
+  const syncText = { loading: 'Loading your closet…', saving: 'Saving…', synced: `☁️ Synced ${ago(sync.lastSaved)}`, error: 'Not synced', offline: 'Offline: saved on this device only', conflict: 'Changed on another device', 'needs-setup': 'Cloud not set up', off: '' }[sync.status];
 
   return (
     <div className="account" ref={ref}>
@@ -3165,11 +3290,21 @@ export default function Account() {
         <div className="account-menu" role="menu">
           <div className="small" style={{ fontWeight: 700 }}>{name}</div>
           <div className="tiny">{u.email}</div>
-          <div className="small" style={{ margin: '10px 0', color: sync.status === 'error' || sync.status === 'needs-setup' ? 'var(--warn)' : 'var(--ink-2)' }}>{syncText}</div>
+          <div className="small" style={{ margin: '10px 0', color: sync.status === 'error' || sync.status === 'needs-setup' || sync.status === 'offline' || sync.status === 'conflict' ? 'var(--warn)' : 'var(--ink-2)' }}>{syncText}</div>
           {sync.message && <div className="tiny" style={{ color: 'var(--warn)', marginBottom: 8 }}>{sync.message}</div>}
           <button className="btn sm block" onClick={async () => { setMenu(false); await auth.signOut(); toast('Signed out'); }}>Sign out</button>
         </div>
       )}
+      {sync.conflict && (
+        <div className="sync-banner" role="alertdialog" aria-label="Closet changed on another device">
+          <div><b>Your closet was changed on another device.</b><span className="small"> Nothing has been overwritten. Which version do you want to keep?</span></div>
+          <div className="sync-banner-actions">
+            <button className="btn sm primary" onClick={sync.useCloudVersion}>Use the other device's version</button>
+            <button className="btn sm" onClick={sync.keepThisVersion}>Keep this device's version</button>
+          </div>
+        </div>
+      )}
+      {sync.status === 'offline' && !menu && <div className="sync-pill" role="status">Offline · your changes are kept on this device</div>}
       {open && <AuthModal initial={open} onClose={() => setOpen(null)} />}
       {auth.recovery && u && <NewPasswordModal onClose={() => auth.endRecovery()} />}
     </div>
@@ -5869,6 +6004,12 @@ img { max-width: 100%; }
 .garment-img.uncut { border-radius: 6px; border: 3px solid #fff; box-shadow: 0 4px 14px rgba(0,0,0,.12); background: #fff; object-fit: cover; }
 .stage-item .garment-img.uncut { object-fit: contain; width: auto; height: auto; max-width: 100%; max-height: 100%; margin: auto; display: block; }
 .stage-item:has(.garment-img.uncut) { display: grid; place-items: center; }
+/* Cloud sync: changed on another device / offline */
+.sync-banner { position: fixed; left: 50%; transform: translateX(-50%); top: 70px; z-index: 70; width: min(640px, calc(100vw - 24px)); background: #fff; border: 1px solid var(--ink); box-shadow: 0 12px 40px rgba(0,0,0,.15); padding: 14px 16px; display: grid; gap: 10px; }
+.sync-banner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.sync-pill { position: fixed; right: 14px; bottom: 14px; z-index: 60; background: var(--ink); color: #fff; font-size: 12px; padding: 8px 12px; }
+.sync-dot.offline, .sync-dot.conflict { background: var(--warn); }
+@media (max-width: 760px) { .sync-pill { bottom: 82px; } .sync-banner { top: 60px; } }
 
 
 ====================================================================================================
@@ -7010,7 +7151,7 @@ import Stage from '../components/Stage.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
 import { PieceList, ScoreBadge, useToast } from '../components/common.jsx';
 import { toSlots } from '../components/Choose.jsx';
-import { versatility, rediscover, wearStats, whyHardToStyle, VERSATILITY_CONTEXTS } from '../ai/insights.js';
+import { versatilityAsync, rediscover, wearStats, whyHardToStyle, VERSATILITY_CONTEXTS } from '../ai/insights.js';
 import { missingForOutfit } from '../ai/generator.js';
 import { CATEGORY_LABEL } from '../data/closet.js';
 
@@ -7021,14 +7162,20 @@ export default function Insights({ go }) {
   const history = useMemo(() => historyOf(profile.id), [historyOf, profile.id]);
   const child = profile.kind === 'child';
 
-  // Computed after first paint (a few hundred ms for a large closet) so the page never freezes.
+  // Rediscover is quick; versatility checks every piece in six situations, so it runs in small batches
+  // with a progress line and the page stays responsive even for a big closet.
+  const [progress, setProgress] = useState(null);
   useEffect(() => {
-    setData(null);
-    const t = setTimeout(() => {
+    setData(null); setProgress(null);
+    let cancelled = false;
+    const t = setTimeout(async () => {
       const ctxP = personal.rated ? personal : null;
-      setData({ v: versatility(owned), r: rediscover(owned, history, { contexts: VERSATILITY_CONTEXTS.slice(0, 2).map((c) => ({ ...c, personal: ctxP })) }), stats: wearStats(history) });
+      const r = rediscover(owned, history, { contexts: VERSATILITY_CONTEXTS.slice(0, 2).map((c) => ({ ...c, personal: ctxP })) });
+      setData({ v: null, r, stats: wearStats(history) });
+      const v = await versatilityAsync(owned, (done, total) => !cancelled && setProgress({ done, total }), VERSATILITY_CONTEXTS, () => cancelled);
+      if (!cancelled && v) setData((d) => ({ ...d, v }));
     }, 30);
-    return () => clearTimeout(t);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [owned, history, personal]);
 
   const missing = missingForOutfit(owned);
@@ -7080,9 +7227,12 @@ export default function Insights({ go }) {
           <section style={{ marginTop: 36 }}>
             <div className="results-head" style={{ marginTop: 0 }}>
               <h2 className="h2" style={{ margin: 0 }}>Wardrobe versatility</h2>
-              <span className="versatility-score"><b>{data.v.score}</b>/100</span>
+              {data.v && <span className="versatility-score"><b>{data.v.score}</b>/100</span>}
             </div>
             <p className="small muted" style={{ marginTop: 0 }}>How many other pieces each item makes strong outfits with, and in which of six everyday situations (everyday warm and cool, work, date, church, hot-weather vacation). The score is the share of pieces that pair with at least 3 others in at least 2 situations.</p>
+            {!data.v ? (
+              <div className="loading-block"><div className="loading-bar"><i style={progress ? { width: `${Math.round((progress.done / progress.total) * 100)}%`, animation: 'none' } : undefined} /></div><p className="small muted">Checking each piece against the rest of the closet{progress ? ` · ${progress.done} of ${progress.total}` : ''}…</p></div>
+            ) : (<>
             <table className="vtable">
               <thead><tr><th>Piece</th><th>Pairs well with</th><th>Works for</th><th>Worn</th></tr></thead>
               <tbody>
@@ -7097,6 +7247,7 @@ export default function Insights({ go }) {
               </tbody>
             </table>
             {data.v.hardToStyle.length > 0 && <p className="tiny" style={{ marginTop: 8 }}>{data.v.hardToStyle.length} piece{data.v.hardToStyle.length > 1 ? 's don\'t' : ' doesn\'t'} make a strong outfit with anything else right now. The note says what's missing.</p>}
+            </>)}
           </section>
         </>
       )}
@@ -7157,7 +7308,7 @@ function AddInspiration({ onClose, onAdded }) {
   }
   return (
     <Modal title="Add inspiration" onClose={onClose}>
-      <p className="small muted" style={{ marginTop: 0 }}>Type the pieces of a look you love, or add a photo of it. Typed looks are matched on this device by keywords. A photo is only read by AI if you ask, and the photo is saved with your Wearwise data (this browser, and your account if you're signed in).</p>
+      <p className="small muted" style={{ marginTop: 0 }}>Type the pieces of a look you love, or add a photo of it. Typed looks are matched on this device by keywords (no AI). A photo is only sent to Google Gemini if you tap "Identify the pieces", and the photo is saved with your Wearwise data (this browser, and your account if you're signed in).</p>
       <div className="field"><label className="label">Inspiration photo (optional)</label>
         <div className="context-box" style={{ alignItems: 'center' }}>
           {photo && <img src={photo.dataUrl} alt="" style={{ width: 56, height: 70, objectFit: 'cover' }} />}
@@ -7207,7 +7358,7 @@ export default function Inspiration({ go }) {
     if (slots.top && owned.find((g) => g.id === slots.top)?.category === 'dress') slots.bottom = null;
     dispatch({ type: 'LOAD_DRAFT', draft: { slots, name: cur.title } });
     toast(cur.match.missing.length ? `Recreated with your pieces. ${cur.match.missing.length} piece${cur.match.missing.length > 1 ? 's are' : ' is'} missing from your closet.` : 'Recreated with your pieces.');
-    go('#/dressing');
+    go('#/builder');
   }
 
   return (
@@ -7266,7 +7417,7 @@ export default function Inspiration({ go }) {
               ))}
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button className="btn primary" style={{ flex: 1 }} onClick={recreate}>Recreate in dressing room</button>
+              <button className="btn primary" style={{ flex: 1 }} onClick={recreate}>Recreate with my clothes</button>
             </div>
             <p className="tiny" style={{ marginTop: 10 }}>Recreating uses your exact, close and approximate matches; missing pieces stay empty so you can choose what to wear instead.</p>
           </div>
@@ -7408,7 +7559,7 @@ export function LookbookDetail({ id, go }) {
 
   function edit(o) {
     dispatch({ type: 'LOAD_DRAFT', draft: { slots: o.slots, context: o.context, name: o.name, stage: { mode: o.stage?.mode || 'flatlay', scene: o.stage?.scene || 'studio', customBg: null } } });
-    go('#/dressing');
+    go('#/builder');
   }
 
   return (
@@ -7433,7 +7584,7 @@ export function LookbookDetail({ id, go }) {
       </div>
 
       {outfits.length === 0 ? (
-        <div className="empty">No looks yet. Build one in the dressing room and save it here.<div style={{ marginTop: 12 }}><button className="btn primary sm" onClick={() => go('#/dressing')}>Open dressing room</button></div></div>
+        <div className="empty">No looks yet. Build one in the outfit builder and save it here.<div style={{ marginTop: 12 }}><button className="btn primary sm" onClick={() => go('#/builder')}>Open the outfit builder</button></div></div>
       ) : (
         <div className="grid">
           {outfits.map((o, i) => (
@@ -7628,7 +7779,7 @@ export default function Saved({ go }) {
 // Settings: account, AI stylist, family members, demo data, delete everything.
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
-import { useAuth, supabase } from '../auth.jsx';
+import { useAuth, supabase, cloudTable, syncControl } from '../auth.jsx';
 import { ConfirmButton, useToast } from '../components/common.jsx';
 import TipJar, { tipsOn } from '../components/TipJar.jsx';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut } from '../ai/claude.js';
@@ -7692,7 +7843,7 @@ function LocationManager() {
 
 export default function Settings({ go }) {
   const { state, dispatch, hasDemo } = useStore();
-  const { user } = useAuth() || {};
+  const { user, signOut } = useAuth() || {};
   const toast = useToast();
   const ai = useClaudeStatus();
   const [gem, setGem] = useState(undefined);
@@ -7701,13 +7852,16 @@ export default function Settings({ go }) {
 
   async function deleteEverything() {
     setBusy(true);
-    dispatch({ type: 'DELETE_ALL' });
-    try { localStorage.removeItem('wearwise.v1'); localStorage.removeItem('unique-ava.v1'); } catch { /* ignore */ }
+    syncControl.paused = true; // nothing may be re-uploaded while (or after) the account copy is deleted
     let cloud = '';
     if (supabase && user) {
-      const { error } = await supabase.from('unique_ava_data').delete().eq('user_id', user.id);
-      cloud = error ? ` Your account copy could not be deleted (${error.message}).` : ' Your account copy was deleted too.';
+      const { error } = await supabase.from(await cloudTable()).delete().eq('user_id', user.id);
+      cloud = error ? ` Your account copy could NOT be deleted (${error.message}). Try again when you're online.` : ' Your account copy was deleted too, and you were signed out.';
+      if (!error) await signOut();
     }
+    dispatch({ type: 'DELETE_ALL' });
+    for (const k of ['wearwise.v1', 'unique-ava.v1']) { try { localStorage.removeItem(k); } catch { /* ignore */ } }
+    syncControl.paused = false;
     setBusy(false);
     toast('All Wearwise data on this device was deleted.' + cloud);
     go('#/home');
@@ -7761,6 +7915,17 @@ export default function Settings({ go }) {
         <h2 className="h2">Delete my data</h2>
         <p className="small">Deletes every closet, outfit, lookbook, family member and photo from this browser{user ? ' and from your account' : ''}. This cannot be undone. {user ? 'Your sign-in itself stays; ask us if you want the account removed too.' : ''}</p>
         <ConfirmButton className="btn" label={busy ? 'Deleting…' : 'Delete all my Wearwise data'} confirmLabel="Click again: this cannot be undone" onConfirm={deleteEverything} />
+        {(() => {
+          const total = new Blob([JSON.stringify(state)]).size;
+          const photos = state.garments.reduce((a, g) => a + (g.image ? g.image.length : 0), 0) + state.inspirations.reduce((a, i) => a + (i.image ? i.image.length : 0), 0);
+          const mb = (n) => (n / 1e6).toFixed(n < 1e6 ? 2 : 1);
+          return (
+            <p className="tiny" style={{ marginTop: 8 }}>
+              Your Wearwise data: <b>{mb(total)} MB</b> (photos {mb(photos)} MB).
+              {total > 12e6 ? ' That\'s a lot: saving to your account takes longer on slow connections, and the limit per account is 30 MB. Deleting photos of pieces you no longer own frees space.' : ''}
+            </p>
+          );
+        })()}
         <p className="tiny" style={{ marginTop: 8 }}>{state.garments.length} pieces · {state.outfits.length} outfits · {state.profiles.length} profile{state.profiles.length > 1 ? 's' : ''} stored now.</p>
       </section>
     </div>

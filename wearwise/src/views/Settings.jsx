@@ -1,7 +1,7 @@
 // Settings: account, AI stylist, family members, demo data, delete everything.
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
-import { useAuth, supabase } from '../auth.jsx';
+import { useAuth, supabase, cloudTable, syncControl } from '../auth.jsx';
 import { ConfirmButton, useToast } from '../components/common.jsx';
 import TipJar, { tipsOn } from '../components/TipJar.jsx';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut } from '../ai/claude.js';
@@ -65,7 +65,7 @@ function LocationManager() {
 
 export default function Settings({ go }) {
   const { state, dispatch, hasDemo } = useStore();
-  const { user } = useAuth() || {};
+  const { user, signOut } = useAuth() || {};
   const toast = useToast();
   const ai = useClaudeStatus();
   const [gem, setGem] = useState(undefined);
@@ -74,13 +74,16 @@ export default function Settings({ go }) {
 
   async function deleteEverything() {
     setBusy(true);
-    dispatch({ type: 'DELETE_ALL' });
-    try { localStorage.removeItem('wearwise.v1'); localStorage.removeItem('unique-ava.v1'); } catch { /* ignore */ }
+    syncControl.paused = true; // nothing may be re-uploaded while (or after) the account copy is deleted
     let cloud = '';
     if (supabase && user) {
-      const { error } = await supabase.from('unique_ava_data').delete().eq('user_id', user.id);
-      cloud = error ? ` Your account copy could not be deleted (${error.message}).` : ' Your account copy was deleted too.';
+      const { error } = await supabase.from(await cloudTable()).delete().eq('user_id', user.id);
+      cloud = error ? ` Your account copy could NOT be deleted (${error.message}). Try again when you're online.` : ' Your account copy was deleted too, and you were signed out.';
+      if (!error) await signOut();
     }
+    dispatch({ type: 'DELETE_ALL' });
+    for (const k of ['wearwise.v1', 'unique-ava.v1']) { try { localStorage.removeItem(k); } catch { /* ignore */ } }
+    syncControl.paused = false;
     setBusy(false);
     toast('All Wearwise data on this device was deleted.' + cloud);
     go('#/home');
@@ -134,6 +137,17 @@ export default function Settings({ go }) {
         <h2 className="h2">Delete my data</h2>
         <p className="small">Deletes every closet, outfit, lookbook, family member and photo from this browser{user ? ' and from your account' : ''}. This cannot be undone. {user ? 'Your sign-in itself stays; ask us if you want the account removed too.' : ''}</p>
         <ConfirmButton className="btn" label={busy ? 'Deleting…' : 'Delete all my Wearwise data'} confirmLabel="Click again: this cannot be undone" onConfirm={deleteEverything} />
+        {(() => {
+          const total = new Blob([JSON.stringify(state)]).size;
+          const photos = state.garments.reduce((a, g) => a + (g.image ? g.image.length : 0), 0) + state.inspirations.reduce((a, i) => a + (i.image ? i.image.length : 0), 0);
+          const mb = (n) => (n / 1e6).toFixed(n < 1e6 ? 2 : 1);
+          return (
+            <p className="tiny" style={{ marginTop: 8 }}>
+              Your Wearwise data: <b>{mb(total)} MB</b> (photos {mb(photos)} MB).
+              {total > 12e6 ? ' That\'s a lot: saving to your account takes longer on slow connections, and the limit per account is 30 MB. Deleting photos of pieces you no longer own frees space.' : ''}
+            </p>
+          );
+        })()}
         <p className="tiny" style={{ marginTop: 8 }}>{state.garments.length} pieces · {state.outfits.length} outfits · {state.profiles.length} profile{state.profiles.length > 1 ? 's' : ''} stored now.</p>
       </section>
     </div>

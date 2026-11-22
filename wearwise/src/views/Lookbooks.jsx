@@ -124,7 +124,7 @@ export function LookbookDetail({ id, go }) {
 
   function edit(o) {
     dispatch({ type: 'LOAD_DRAFT', draft: { slots: o.slots, context: o.context, name: o.name, stage: { mode: o.stage?.mode || 'flatlay', scene: o.stage?.scene || 'studio', customBg: null } } });
-    go('#/dressing');
+    go('#/builder');
   }
 
   return (
@@ -149,7 +149,7 @@ export function LookbookDetail({ id, go }) {
       </div>
 
       {outfits.length === 0 ? (
-        <div className="empty">No looks yet. Build one in the dressing room and save it here.<div style={{ marginTop: 12 }}><button className="btn primary sm" onClick={() => go('#/dressing')}>Open dressing room</button></div></div>
+        <div className="empty">No looks yet. Build one in the outfit builder and save it here.<div style={{ marginTop: 12 }}><button className="btn primary sm" onClick={() => go('#/builder')}>Open the outfit builder</button></div></div>
       ) : (
         <div className="grid">
           {outfits.map((o, i) => (

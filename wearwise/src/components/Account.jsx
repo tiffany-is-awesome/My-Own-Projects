@@ -98,7 +98,7 @@ export default function Account() {
   if (!auth?.configured) return null;
   const u = auth.user;
   const name = u?.user_metadata?.name || u?.email?.split('@')[0] || '';
-  const syncText = { loading: 'Loading your closet…', saving: 'Saving…', synced: `☁️ Synced ${ago(sync.lastSaved)}`, error: 'Not synced', 'needs-setup': 'Cloud not set up', off: '' }[sync.status];
+  const syncText = { loading: 'Loading your closet…', saving: 'Saving…', synced: `☁️ Synced ${ago(sync.lastSaved)}`, error: 'Not synced', offline: 'Offline: saved on this device only', conflict: 'Changed on another device', 'needs-setup': 'Cloud not set up', off: '' }[sync.status];
 
   return (
     <div className="account" ref={ref}>
@@ -114,11 +114,21 @@ export default function Account() {
         <div className="account-menu" role="menu">
           <div className="small" style={{ fontWeight: 700 }}>{name}</div>
           <div className="tiny">{u.email}</div>
-          <div className="small" style={{ margin: '10px 0', color: sync.status === 'error' || sync.status === 'needs-setup' ? 'var(--warn)' : 'var(--ink-2)' }}>{syncText}</div>
+          <div className="small" style={{ margin: '10px 0', color: sync.status === 'error' || sync.status === 'needs-setup' || sync.status === 'offline' || sync.status === 'conflict' ? 'var(--warn)' : 'var(--ink-2)' }}>{syncText}</div>
           {sync.message && <div className="tiny" style={{ color: 'var(--warn)', marginBottom: 8 }}>{sync.message}</div>}
           <button className="btn sm block" onClick={async () => { setMenu(false); await auth.signOut(); toast('Signed out'); }}>Sign out</button>
         </div>
       )}
+      {sync.conflict && (
+        <div className="sync-banner" role="alertdialog" aria-label="Closet changed on another device">
+          <div><b>Your closet was changed on another device.</b><span className="small"> Nothing has been overwritten. Which version do you want to keep?</span></div>
+          <div className="sync-banner-actions">
+            <button className="btn sm primary" onClick={sync.useCloudVersion}>Use the other device's version</button>
+            <button className="btn sm" onClick={sync.keepThisVersion}>Keep this device's version</button>
+          </div>
+        </div>
+      )}
+      {sync.status === 'offline' && !menu && <div className="sync-pill" role="status">Offline · your changes are kept on this device</div>}
       {open && <AuthModal initial={open} onClose={() => setOpen(null)} />}
       {auth.recovery && u && <NewPasswordModal onClose={() => auth.endRecovery()} />}
     </div>

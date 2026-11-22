@@ -41,6 +41,57 @@
 
 ---
 
+## 2026-11-22 · Final refinement & functional quality pass
+Owner's brief: *"The goal is not to make Wearwise bigger. The goal is to make it better."* Inspected first, nothing rebuilt.
+
+**Rename finished.** Code folder `unique-ava/` → `wearwise/` (links: `wearwise/ALL-CODE.txt`, `wearwise/CHANGELOG.md`); browser storage `unique-ava.v1` → `wearwise.v1` and sign-in `unique-ava.auth` → `wearwise.auth`, each copied over once so nobody loses a closet or gets signed out; `#/dressing` links → `#/builder`; last "dressing room" wording gone. `unique-ava.html` still forwards to `wearwise.html`. Database table: see *Not yet done* below.
+
+**Found and kept unfinished work** (uncommitted, 2026-11-20): improved background removal (edge-connected flood fill with colour tolerance, gradient backgrounds), "not checked yet" flags, privacy text, consent before sending a whole photo, shared lookbooks that carry the pieces, rewritten Inspiration matcher. Reviewed and covered by tests before building on it.
+
+**1 · Privacy & image processing**
+- Upload: what's sent depends on what happened. A clean cut-out is sent to Gemini; if the cut-out failed, *nothing* is sent unless she taps "Ask Gemini using the whole photo" (the button says so). Settings has a plain "What stays on your device / what is sent to Gemini" section.
+- Inspiration: typed looks are matched on the device by keywords ("no AI"); a photo is sent to Gemini only after she taps "Identify the pieces with Gemini", with a note that nothing has been sent yet.
+- Photos whose background couldn't be removed are kept exactly as taken and shown as a neat photo card (never stretched or recoloured).
+
+**2 · Honest identification**
+- The on-device fallback measures colour only. Type is a guess (file name or outline); fabric is left blank; fit, warmth, formality and rain-readiness are neutral placeholders. All of these are flagged "Not checked yet" on the item and on its card ("Check details"), with one-tap "Everything looks right". Editing any field clears its flag. Gemini results are also flagged unless Gemini is confident (≥ 0.75), and fabric is always flagged.
+- Outfit cards say when they use pieces with unchecked details ("this verdict is less certain"). Guessed fabrics are never used to judge an outfit.
+
+**3 · Outfit intelligence**
+- **Quality bar:** only outfits scoring ≥ 76 with no deal-breaker are shown. A small closet gets one or two good outfits with an honest note ("Only 2 good outfits can be made from this closet for sports, so that's all you're shown"); if none reach the bar, the single closest option is shown, labelled. Gemini picks are held to the same bar.
+- **New taste rules:** fabrics from different worlds (silk/satin with fleece/sweats) flagged; smooth-against-textured praised; same-wash double denim flagged, different washes praised; two different colours at the same depth meeting at the waist flagged ("they compete").
+- Variety: the three outfits share at most one core piece.
+- Transparency: the outfit page says Gemini picks "from the details of your clothes (type, colours, fabric, warmth…), not by looking at your photos".
+
+**4 · Visuals**
+- Cut-outs keep only the garment, cropped tight; failed cut-outs become photo cards.
+- Mannequin captioned "a styling guide, not a virtual try-on"; the old "On you" mode renamed "With your photo" and captioned "Not a try-on: the pieces are shown beside the photo".
+- Swapping a piece re-animates only that piece into place.
+
+**5 · Reliability, sync & security**
+- **Cloud sync rewritten (same table, same architecture):**
+  - Saves are *conditional*: a save only goes through if the account copy is still the version this device last saw. If another device saved in between, nothing is overwritten and she chooses "Use the other device's version" or "Keep this device's version".
+  - Returning to the tab loads newer changes from another device automatically (if this device has nothing unsaved).
+  - No connection → "Offline · your changes are kept on this device", saved automatically when the connection returns; closing the page with unsaved changes warns.
+  - "Delete all my data" now pauses sync, deletes the account copy, signs out, then clears the device, so nothing can be re-uploaded. If the cloud delete fails it says so.
+  - Works with either table name (`wearwise_data`, or the older `unique_ava_data`).
+- **Security review (live database):** RLS is on; read/insert/update/delete are each limited to `auth.uid() = user_id` for signed-in users; anonymous users can't read anything. Found: the table also granted TRUNCATE/REFERENCES/TRIGGER to `anon` and `authenticated` (TRUNCATE ignores RLS; not reachable through the website's API, but unnecessary). Fix prepared in `supabase/wearwise.sql` (see *Not yet done*). Supabase advisor also recommends turning on *leaked password protection* (Auth settings, one switch).
+- **Large wardrobes:** 336 pieces → 3 outfits in ~0.1 s. Wardrobe versatility for 120 pieces takes ~5 s of work, so it now runs in small batches with a progress line and never freezes the page. Settings shows how much data the account holds (photos are stored inside it); above 12 MB it explains the 30 MB limit and slower syncing. *Recommendation for later:* move photos to Supabase Storage so each save only sends text.
+
+**6 · Inspiration**: wider vocabulary (≈100 garment words, ≈50 colour words: "oatmeal", "sage", "cognac"…), matching by type, colour family and shape; each match labelled **Exact / Close / Approximate** with the reason, missing pieces named with the closest thing she owns; "Recreate with my clothes" opens the builder with her matches (missing slots left empty). "Pieces read from the text by keyword matching (no AI)" vs "Pieces identified by Gemini from the photo" is shown on every look.
+
+**7 · Tests (actual results, 2026-11-22)**
+- `npm test`: **58/58** (incl. 5 new fabric/contrast tests, quality-bar test, inspiration matcher tests).
+- Browser tests now live in the repo: `wearwise/tests/e2e/` (`bash wearwise/tests/e2e/run_all.sh`). All pass: cut-outs 6/6 (incl. a white-on-white photo correctly kept as taken), uploads 7/7 (one photo, a broken file, retry, a mixed batch, edit, delete, reload), core flow 25/25, Phase 2 12/12, polish 21/21, calendar/wardrobes 23/23, shared lookbook on a second browser 3/3, old-address forwarding 4/4, storage-name migration 3/3, inspiration 5/5, tip jar hidden 1/1.
+- **Simulated** cloud sync 10/10 (twice: new and old table name). A fake Supabase runs inside the test: two devices, a conflicting edit (nothing overwritten, choice works), going offline and back, picking up another device's change, delete-all (row gone, stays gone, signed out). *This checks Wearwise's logic, not the real Supabase service.*
+
+**Not yet done / still unverified**
+- **Database change awaiting the owner's approval** (twice timed out): rename `unique_ava_data` → `wearwise_data` (0 rows, nobody affected), remove the unneeded TRUNCATE/REFERENCES/TRIGGER grants, add a 30 MB per-account cap and a server-side save timestamp. Until then the site uses the old table name automatically.
+- Real Supabase sign-up, email confirmation, sign-in/out and password recovery; real two-device sync; real Gemini answers; real phone photos. None of these could be run without the owner's sign-ins.
+- Email links still return through `unique-ava.html` (the address approved in Supabase), which forwards to `wearwise.html`.
+
+---
+
 ## 2026-11-20 · Donut chart removed
 - The closet donut chart (a misreading of the owner's "donut", which meant a tip jar) is **removed completely**: `components/ClosetDonut.jsx`, its place in Closet insights and its styles are gone. The 🍩 tip jar stays.
 - Tests: `npm test` 49/49; headless Chrome: calendar/wardrobes flow 23/23 (incl. no chart on Home or Insights), 21/21, 25/25, 12/12, 4/4; tip jar still hidden while unconfigured 1/1.
