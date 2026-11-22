@@ -203,6 +203,46 @@ with sync_playwright() as p:
                                 'g': 1 if not pg.evaluate("Parser.assetIntent('Gas for the car 500')") else 0,
                                 's': 1 if pg.evaluate("Parser.assetIntent('Sold my car for 450k')?.type === 'asset_sell'") else 0}, v=1, b=1, g=1, s=1)
 
+    # ---------- Phase D: investments & retirement ----------
+    # 23. Buying is not spending; selling part uses average cost; dividends are income; values move net worth only
+    reset(100000)
+    form_submit("UI.holdingForm(null, {name:'FMETF', type:'etf', amount:10000})", "document.getElementById('fm_units').value=100;")
+    check('investment buy not spending', {**state(), 'inv': pg.evaluate("Invest.totals().value")}, cash=90000, spent=0, income=0, inv=10000)
+    note('invested 12,000 in FMETF')
+    pg.evaluate("Store.state.transactions.filter(t=>t.holdingId).at(-1).units = 100")
+    check('second buy via note', {**state(), 'cost': pg.evaluate("Invest.calc(Invest.list()[0]).cost")}, cash=78000, spent=0, cost=22000)
+    form_submit("UI.tradeForm(Invest.list()[0], 'sell', {amount: 6000})", "document.getElementById('fm_units').value=50;")
+    c = pg.evaluate("Invest.calc(Invest.list()[0])")
+    check('partial sale average cost', {**c, **state()}, realized=500, cost=16500, units=150, cash=84000, income=0)
+    note('Received ₱300 dividends from FMETF')
+    pg.evaluate("UI.submitForm()"); pg.wait_for_timeout(30)
+    check('dividend is income', state(), income=300, cash=84300)
+    note('FMETF is now worth 19,500'); pg.evaluate("UI.submitForm()"); pg.wait_for_timeout(30)
+    c = pg.evaluate("Invest.calc(Invest.list()[0])")
+    check('value update', {**c, 'income': state()['income'], 'nwInv': nw()['invest']}, value=19500, unrealized=3000, gain=3800, income=300, nwInv=19500)
+
+    # 24. Withdraw part of something with only a typed value (no units)
+    reset(50000)
+    form_submit("UI.holdingForm(null, {name:'Pag-IBIG MP2', type:'retirement', amount:20000})")
+    pg.evaluate("Invest.list()[0].valuations=[{date: toISODate(new Date()), value:22000, how:'manual', at: Date.now() + 1}]")   # typed after buying
+    note('withdrew 11,000 from MP2'); pg.evaluate("UI.submitForm()"); pg.wait_for_timeout(30)
+    pg.evaluate("Store.state.transactions.at(-1).createdAt = Date.now() + 2")   # (the test clock is frozen; real entries are seconds apart)
+    c = pg.evaluate("Invest.calc(Invest.list()[0])")
+    check('partial withdrawal by value', {**c, **state()}, cost=10000, realized=1000, value=11000, cash=41000, income=0)
+
+    # 25. Older "invested" entries become investments (migration v3)
+    pg.evaluate("Store.adopt({v:2, initialBalance:1000, transactions:[{id:'a',date:'2026-05-01',kind:'invest',type:'expense',amount:5000,description:'invested 5000 in MP2'}]})")
+    check('old investments migrated', {'h': pg.evaluate("Invest.list().length"), 'v': pg.evaluate("Store.state.v"), 'inv': pg.evaluate("Invest.totals().value"), 'cash': state()['cash']}, h=1, v=3, inv=5000, cash=-4000)
+
+    # 26. Retirement math
+    r = pg.evaluate("Retire.project({age:30, retireAge:40, lifeTo:60, savings:0, monthly:1000, desired:5000, ret:0, infl:0})")
+    check('retire: no growth', {'n': r['nominal'], 'inc': r['income']}, n=120000, inc=500)
+    r = pg.evaluate("Retire.project({age:30, retireAge:60, lifeTo:85, savings:100000, monthly:2000, desired:20000, ret:6, infl:4})")
+    fv = 100000*(1+0.005)**360 + 2000*((1+0.005)**360-1)/0.005
+    check('retire: compound growth', {'n': r['nominal']}, n=round(fv, 2))
+    r2 = pg.evaluate(f"Retire.project({{age:30, retireAge:60, lifeTo:85, savings:100000, monthly:{r['needMonthly']}, desired:20000, ret:6, infl:4}})")
+    check('retire: needed contribution reaches goal', {'inc': round(r2['income'])}, inc=20000)
+
     b.close()
 
 for f in fails: print('✗', f)

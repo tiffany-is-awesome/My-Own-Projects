@@ -240,6 +240,23 @@
         <p class="mt-2 text-[11px] text-stone-400">Moving money between your own accounts isn't income or spending, so your totals stay the same.</p>
       </section>
 
+      <!-- Investments -->
+      <section data-tool="invest" data-tool-name="📈 Investments" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-cyan-100 dark:bg-cyan-900/40" aria-hidden="true">📈</span>
+            <div><h2 class="font-bold text-lg leading-tight">Investments</h2>
+            <p class="text-xs text-stone-500 dark:text-stone-400">Stocks, funds, bonds, time deposits, MP2 and more.</p></div>
+          </div>
+          <button type="button" id="addHoldingBtn" class="rounded-lg border border-cyan-300 dark:border-cyan-800 text-cyan-900 dark:text-cyan-200 text-sm font-semibold px-3 py-1.5 hover:bg-cyan-50 dark:hover:bg-cyan-950/40">+ Investment</button>
+        </div>
+        <div id="invTiles" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3"></div>
+        <div id="invAlloc" class="mb-3"></div>
+        <ul id="invList" class="divide-y divide-stone-100 dark:divide-stone-800"></ul>
+        <p id="invEmpty" class="rounded-xl border-2 border-dashed border-cyan-200 dark:border-cyan-900/60 p-4 text-sm text-stone-500 dark:text-stone-400"></p>
+        <p class="mt-2 text-[11px] text-stone-400">Tiffo doesn’t fetch live prices. Values are what you type, or estimates marked “estimate”. Past results don’t guarantee future returns.</p>
+      </section>
+
       <!-- Cards, loans & installments -->
       <section data-tool="debts" data-tool-name="💳 Cards & loans" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -386,6 +403,34 @@
           <h3 class="text-xs font-semibold uppercase tracking-wider text-stone-500 dark:text-stone-400 mb-2">Past scans</h3>
           <div id="docHistory" class="flex flex-wrap gap-2"></div>
         </div>
+      </section>
+
+      <!-- Retirement planner (Plan page) -->
+      <section data-tool="retire" data-tool-name="🌅 Retirement planner" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-amber-100 dark:bg-amber-900/40" aria-hidden="true">🌅</span>
+          <div><h2 class="font-bold text-lg leading-tight">Retirement planner</h2>
+          <p class="text-xs text-stone-500 dark:text-stone-400">A rough picture, using the assumptions you set. Not a promise.</p></div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <label class="block min-w-0"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Your age now</span><input id="rt_age" type="number" inputmode="decimal" min="0" step="any" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2 tabular focus:outline-none focus:ring-2 focus:ring-teal-500" /></label>
+          <label class="block min-w-0"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Retire at age</span><input id="rt_retireAge" type="number" inputmode="decimal" min="0" step="any" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2 tabular focus:outline-none focus:ring-2 focus:ring-teal-500" /></label>
+          <label class="block min-w-0"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Plan for money to last until age</span><input id="rt_lifeTo" type="number" inputmode="decimal" min="0" step="any" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2 tabular focus:outline-none focus:ring-2 focus:ring-teal-500" /></label>
+          <label class="block min-w-0"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Saved for retirement now</span><input id="rt_savings" type="number" inputmode="decimal" min="0" step="any" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2 tabular focus:outline-none focus:ring-2 focus:ring-teal-500" /><span class="block text-[11px] text-stone-500 mt-0.5"><button type="button" id="rtUseInv" class="underline">Use my investments</button></span></label>
+          <label class="block min-w-0"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">You add each month</span><input id="rt_monthly" type="number" inputmode="decimal" min="0" step="any" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2 tabular focus:outline-none focus:ring-2 focus:ring-teal-500" /></label>
+          <label class="block min-w-0"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Monthly income you want</span><input id="rt_desired" type="number" inputmode="decimal" min="0" step="any" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2 tabular focus:outline-none focus:ring-2 focus:ring-teal-500" /><span class="block text-[11px] text-stone-500 mt-0.5">In today’s money</span></label>
+        </div>
+        <details class="mt-3 rounded-xl border border-stone-200 dark:border-stone-800 px-3 py-2">
+          <summary class="cursor-pointer text-sm font-semibold">Assumptions (change them to see other outcomes)</summary>
+          <div class="grid grid-cols-2 gap-3 mt-2">
+            <label class="block min-w-0"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Yearly return %</span><input id="rt_ret" type="number" inputmode="decimal" min="0" step="any" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2 tabular focus:outline-none focus:ring-2 focus:ring-teal-500" /><span class="block text-[11px] text-stone-500 mt-0.5">Before inflation. Not guaranteed; can be lower, or negative some years.</span></label>
+            <label class="block min-w-0"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Yearly inflation %</span><input id="rt_infl" type="number" inputmode="decimal" min="0" step="any" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2 tabular focus:outline-none focus:ring-2 focus:ring-teal-500" /><span class="block text-[11px] text-stone-500 mt-0.5">How fast prices rise.</span></label>
+          </div>
+        </details>
+        <div id="rtResult" class="mt-4"></div>
+        <div class="mt-3 fig relative h-48"><svg id="rtChart" class="absolute inset-0 w-full h-full" role="img" aria-label="Projected retirement savings by age"></svg></div>
+        <div id="rtTable" class="mt-3"></div>
+        <p class="mt-2 text-[11px] text-stone-400">Estimates only. Amounts “in today’s money” remove inflation so you can compare with prices now. Real returns go up and down; this assumes a steady average. Tiffo isn’t a financial advisor.</p>
       </section>
 
       <!-- Settings (More page) -->
@@ -1019,12 +1064,14 @@ const CATEGORIES = {
     kw: ['padala from', 'remittance from', 'remittance', 'western union', 'palawan', 'cebuana', 'lbc padala'] },
   'Gifts Received':    { type: 'income',  icon: '🎁', schedC: 'Not business income (gift)',
     kw: ['gift from', 'regalo', 'pamasko', 'aguinaldo', 'ampao', 'angpao', 'birthday money'] },
+  'Dividends':         { type: 'income',  icon: '💹', schedC: 'Investment income (not business)',
+    kw: ['dividend', 'dividends', 'distribution', 'cash dividend', 'mp2 dividend', 'fund distribution', 'coupon payment', 'bond coupon'] },
   'Client Revenue':    { type: 'income',  icon: '💼', schedC: 'Line 1 – Gross receipts',
     kw: ['client', 'invoice', 'paid me', 'payment from', 'retainer', 'project fee', 'commission', 'consulting', 'freelance', 'gig', 'customer', 'deposit from', 'project'] },
   'Sales':             { type: 'income',  icon: '🛍️', schedC: 'Line 1 – Gross receipts',
     kw: ['sold', 'sale', 'sales', 'etsy', 'shopify', 'payout', 'stripe', 'benta', 'nabenta', 'kita sa tindahan', 'tindahan sales', 'shopee payout', 'lazada payout'] },
   'Refunds & Other Income': { type: 'income', icon: '↩️', schedC: 'Line 6 – Other income',
-    kw: ['interest earned', 'interest', 'grant', 'dividend', 'dividends', 'prize', 'winnings', 'raffle', 'cashback'] },
+    kw: ['interest earned', 'interest', 'grant', 'prize', 'winnings', 'raffle', 'cashback'] },
   // ----- expenses (first 8 = fixed chart colours) -----
   'Gas & Auto':        { type: 'expense', icon: '⛽', schedC: 'Line 9 – Car & truck',
     kw: ['gas', 'fuel', 'petrol', 'gasoline', 'diesel', 'parking', 'toll', 'tolls', 'car wash', 'oil change', 'mileage', 'tire', 'tires', 'autosweep', 'easytrip', 'rfid', 'petron', 'shell', 'caltex', 'seaoil', 'gasolina', 'change oil', 'car repair', 'vulcanizing'] },
@@ -1101,7 +1148,7 @@ const CAT_COLORS = {
   'Utilities': '#e87ba4', 'Rent': '#008300', 'Marketing': '#6250d6', 'Equipment': '#e34948',
   'Travel': '#0ea5e9', 'Contractors': '#a855f7', 'Professional Fees': '#64748b', 'Insurance': '#06b6d4',
   'Taxes & Licenses': '#b45309', 'Other Expense': '#a8a29e',
-  'Salary': '#059669', 'Allowance': '#65a30d', 'Remittance Received': '#0d9488', 'Gifts Received': '#db2777',
+  'Salary': '#059669', 'Dividends': '#0891b2', 'Allowance': '#65a30d', 'Remittance Received': '#0d9488', 'Gifts Received': '#db2777',
   'Transport': '#0284c7', 'Groceries': '#16a34a', 'Load & Data': '#7c3aed', 'Health & Medicine': '#dc2626', 'Education': '#2563eb',
   'Household': '#a16207', 'Shopping': '#c026d3', 'Personal Care': '#ec4899', 'Entertainment': '#9333ea', 'Gifts & Donations': '#e11d48',
   'Family Support': '#ea580c', 'Interest & Fees': '#9f1239', "Gov't Contributions": '#475569', 'Bank & Transfer Fees': '#64748b', 'Debt Payments': '#be123c',
@@ -1263,6 +1310,7 @@ const KINDS = {
   repay_out: { dir: -1, report: null,      label: 'You paid back',   icon: '✅' },
   forgive:   { dir: 0,  report: null,      label: 'Forgiven',        icon: '🕊️' },
   invest:    { dir: -1, report: null,      label: 'Invested',        icon: '📈' },
+  invest_out:{ dir: +1, report: null,      label: 'Sold / withdrew investment', icon: '💹' },
   asset_buy: { dir: -1, report: null,      label: 'Bought (asset)',  icon: '🏠' },
   asset_sell:{ dir: +1, report: null,      label: 'Sold (asset)',    icon: '🏷️' },
   transfer:  { dir: 0,  report: null,      label: 'Transfer',        icon: '⇄' },
@@ -1371,8 +1419,8 @@ const Store = {
   /** Each account gets its own storage slot; guests use the base key. */
   keyFor(user) { return CONFIG.STORAGE_KEY + (user ? ':' + user.id : ''); },
   key() { return this.keyFor(Auth.user); },
-  SCHEMA: 2,
-  blank() { return { v: 2, initialBalance: 0, currency: detectCurrency(), accounts: [{ id: 'acc_cash', name: 'Cash', type: 'cash' }], transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], loans: [], plans: [], assets: [], settings: {}, createdAt: Date.now(), savedAt: 0 }; },
+  SCHEMA: 3,
+  blank() { return { v: 3, initialBalance: 0, currency: detectCurrency(), accounts: [{ id: 'acc_cash', name: 'Cash', type: 'cash' }], transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], loans: [], plans: [], assets: [], holdings: [], settings: {}, createdAt: Date.now(), savedAt: 0 }; },
 
   /** Upgrade older saved data in place. Never deletes anything. */
   migrate() {
@@ -1387,6 +1435,10 @@ const Store = {
       st.settings ||= {};
       st.v = 2;
       st.migratedAt = Date.now();
+    }
+    if ((st.v || 1) < 3) {   // v3: investments become holdings
+      Invest.migrateOld(st);
+      st.v = 3;
     }
     st.accounts ||= [{ id: 'acc_cash', name: 'Cash', type: 'cash' }];
     if (!st.accounts.find((a) => a.id === 'acc_cash')) st.accounts.unshift({ id: 'acc_cash', name: 'Cash', type: 'cash' });
@@ -1953,6 +2005,27 @@ const Parser = {
     // Paying a loan or a pay-later plan: "paid 4000 toward my car loan", "SPayLater 650", "Home Credit hulog 1890"
     const acc = Debts.find(raw);
     if (acc && acc.type === 'loan' && amt && !/\b(bought|buy|purchased|borrowed|got a|took)\b/.test(t)) return { type: 'debt_pay', acc, amount: round2(amt.value) };
+    return null;
+  },
+
+  /** Notes about investments. → { type: 'invest_buy' | 'invest_value' | 'invest_div' | 'invest_sell', holding, amount, ... } or null */
+  investIntent(text) {
+    const raw = String(text || '').trim(), t = raw.toLowerCase(), amt = this.extractAmount(raw);
+    if (!amt) return null;
+    const amount = round2(amt.value), holding = Invest.find(raw), invWord = /\b(invest(?:ed|ment|ments|ing)?|portfolio|stocks?|shares|etfs?|mutual funds?|uitf|bonds?|rtb|mp2|pera|time deposits?|crypto|bitcoin|btc|index fund)\b/.test(t);
+    if (/\b(dividends?|distribution|coupon)\b/.test(t) && /\b(received|got|earned|paid|credited|natanggap)\b|^\s*\S+\s+dividends?\b/.test(t) || /\bdividends?\b/.test(t) && holding) {
+      if (holding || Invest.active().length) return { type: 'invest_div', holding: holding || (Invest.active().length === 1 ? Invest.active()[0] : null), amount };
+      return null;   // no investments yet: just income (Dividends)
+    }
+    if ((invWord || holding) && /\b(?:is|are)\s+(?:now\s+)?(?:worth|valued at|at)\b|\bnow worth\b|\bworth now\b|\bvalue (?:is|now)\b/.test(t))
+      return { type: 'invest_value', holding, amount, name: Invest.guessName(raw, Invest.guessType(raw)), invType: Invest.guessType(raw) };
+    if ((invWord || holding) && /\b(sold|sell|cashed out|withdrew|withdraw|redeemed|matured|nag-?withdraw)\b/.test(t))
+      return { type: 'invest_sell', holding, amount, all: /\b(all|everything|lahat|matured)\b/.test(t) };
+    if ((invWord || holding) && /\b(invested|invest|bought|buy|put|added|add|deposited|placed|contributed|nag-?invest|hulog sa)\b/.test(t) && !/\b(installments?|loan)\b/.test(t))
+      return { type: 'invest_buy', holding, amount, name: Invest.guessName(raw, Invest.guessType(raw)), invType: Invest.guessType(raw) };
+    // "time deposit 50,000", "MP2 2,000": naming an investment with an amount means money going in
+    if ((holding || Invest.guessType(raw) !== 'other') && !/\b(paid|spent|fee|interest|tax|loan)\b/.test(t))
+      return { type: 'invest_buy', holding, amount, name: Invest.guessName(raw, Invest.guessType(raw)), invType: Invest.guessType(raw) };
     return null;
   },
 
@@ -2548,6 +2621,160 @@ const Debts = {
 };
 
 /* =========================================================================
+   INVESTMENTS — holdings you own (stocks, funds, bonds, time deposits, MP2…).
+   - Buying = cash → investment (kind 'invest'): not spending.
+   - Selling / withdrawing = investment → cash (kind 'invest_out'): not income;
+     the realized gain or loss is worked out with average cost.
+   - Dividends = income (category 'Dividends').
+   - Values are what you type ('manual'), Tiffo's estimate ('estimate'), or
+     what you put in ('cost'). Tiffo never fetches live prices.
+   ========================================================================= */
+const INVEST_TYPES = {
+  stock: { icon: '📈', label: 'Stocks', re: /\b(stocks?|shares|equities|psei|col financial|gotrade|first metro sec)\b/ },
+  etf: { icon: '🧺', label: 'ETFs', re: /\b(etfs?|index fund|vanguard|s&p 500)\b/ },
+  mutual_fund: { icon: '🏦', label: 'Mutual funds', re: /\b(mutual funds?|sun life fund|philequity|alfm|atram)\b/ },
+  uitf: { icon: '🏦', label: 'UITFs', re: /\b(uitf|unit investment trust)\b/ },
+  bond: { icon: '📜', label: 'Bonds & RTBs', re: /\b(bonds?|rtb|retail treasury|treasury bills?|t-?bills?)\b/ },
+  time_deposit: { icon: '🔒', label: 'Time deposits', re: /\b(time deposits?|td|fixed deposit)\b/ },
+  retirement: { icon: '🌅', label: 'Retirement (MP2, PERA…)', re: /\b(mp2|pera|retirement|sss wisp|wisp|pag-?ibig savings)\b/ },
+  crypto: { icon: '🪙', label: 'Crypto', re: /\b(crypto|bitcoin|btc|eth|ethereum|usdt|coins\.ph)\b/ },
+  other: { icon: '📦', label: 'Other', re: /\b(digital gold|gold savings|investment)\b/ },
+};
+const Invest = {
+  list() { return (Store.state.holdings ||= []); },
+  active() { return this.list().filter((h) => !this.calc(h).closed); },
+  get(id) { return this.list().find((h) => h.id === id) || null; },
+  icon(h) { return (INVEST_TYPES[h.type] || INVEST_TYPES.other).icon; },
+  guessType(text) { const t = String(text).toLowerCase(); for (const [k, v] of Object.entries(INVEST_TYPES)) if (k !== 'other' && v.re.test(t)) return k; return 'other'; },
+  guessName(text, type) {
+    const t = String(text);
+    if (/\bmp2\b/i.test(t)) return 'Pag-IBIG MP2';
+    if (/\bpera\b/i.test(t)) return 'PERA';
+    const named = t.match(/\b(?:in|into|sa)\s+(?:an?\s+|my\s+|the\s+)?([A-Z][\w&.-]*(?:\s+[A-Z][\w&.-]*){0,3})/);
+    if (named && !/^(ETF|UITF|MP2|PERA)$/i.test(named[1])) return named[1];
+    return (INVEST_TYPES[type] || INVEST_TYPES.other).label.replace(/ \(.*\)$/, '').replace(/s$/, '');
+  },
+  /** Find the holding a note means: by name, else the only one of a type, else the only one. */
+  find(text) {
+    const t = String(text).toLowerCase(), act = this.active();
+    const byName = act.find((h) => t.includes(h.name.toLowerCase()));
+    if (byName) return byName;
+    const ty = this.guessType(text);
+    if (ty !== 'other') { const m = act.filter((h) => h.type === ty); if (m.length === 1) return m[0]; if (m.length > 1) return null; }
+    if (/\b(my )?investments?\b/.test(t) && act.length === 1) return act[0];
+    return null;
+  },
+  events(h, iso = '9999-12-31') {
+    const ev = [];
+    if (h.opening && h.opening.date <= iso) ev.push({ date: h.opening.date, type: 'open', amount: h.opening.cost, units: h.opening.units || 0, at: 0 });
+    for (const t of Store.state.transactions) {
+      if (t.holdingId !== h.id || t.date > iso) continue;
+      const k = Money.kind(t);
+      if (k === 'invest') ev.push({ date: t.date, type: 'buy', amount: t.amount, units: t.units || 0, fees: t.fees || 0, t, at: t.createdAt || 0 });
+      else if (k === 'invest_out') ev.push({ date: t.date, type: 'sell', amount: t.amount, units: t.units || 0, fees: t.fees || 0, all: !!t.all, t, at: t.createdAt || 0 });
+      else if (k === 'income') ev.push({ date: t.date, type: 'div', amount: t.amount, t, at: t.createdAt || 0 });
+    }
+    return ev.sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at);
+  },
+  lastValuation(h, iso) { return (h.valuations || []).filter((v) => v.date <= iso).sort((a, b) => a.date.localeCompare(b.date) || (a.at || 0) - (b.at || 0)).at(-1) || null; },
+  /** Everything about one holding on a date. */
+  calc(h, iso = toISODate(new Date())) {
+    let cost = 0, units = 0, invested = 0, withdrawn = 0, realized = 0, dividends = 0, fees = 0, firstDate = null;
+    const ev = this.events(h, iso);
+    const after = (e, v) => e.date > v.date || (e.date === v.date && (e.at || 0) > (v.at || 0));   // same day: whichever happened later
+    const valueBefore = (idx, c) => {   // value just before sale #idx, for sales without units
+      const atIso = ev[idx].date, v = this.lastValuation(h, atIso);
+      if (!v) return c;
+      let x = v.value;
+      for (const e of ev.slice(0, idx)) if (after(e, v)) x += e.type === 'buy' || e.type === 'open' ? e.amount : e.type === 'sell' ? -(e.amount + e.fees) : 0;
+      return Math.max(x, 0.01);
+    };
+    for (const [idx, e] of ev.entries()) {
+      if (e.type === 'open' || e.type === 'buy') { cost += e.amount; units += e.units; invested += e.amount; fees += e.fees || 0; firstDate ||= e.date; }
+      else if (e.type === 'sell') {
+        const frac = e.all ? 1 : e.units && units > 0 ? Math.min(1, e.units / units) : Math.min(1, (e.amount + e.fees) / valueBefore(idx, cost));
+        const removed = cost * frac;
+        realized += e.amount - removed; cost -= removed; units = Math.max(0, units - (e.units || units * frac)); withdrawn += e.amount; fees += e.fees || 0;
+      } else if (e.type === 'div') dividends += e.amount;
+    }
+    cost = round2(Math.max(0, cost));
+    const closed = invested > 0 && cost < 0.01 && (units < 1e-9);
+    // Value: last typed value, adjusted for trades since then (an estimate); else accrued interest (estimate); else what you put in.
+    let value = cost, how = 'cost', asOf = null;
+    const v = this.lastValuation(h, iso);
+    if (closed) { value = 0; how = 'closed'; }
+    else if (v) {
+      value = v.value; how = v.how || 'manual'; asOf = v.date;
+      for (const e of ev) if (after(e, v)) { value += e.type === 'buy' ? e.amount : e.type === 'sell' ? -(e.amount + e.fees) : 0; if (e.type !== 'div') how = 'estimate'; }
+    } else if (h.rate && firstDate) {
+      const days = Math.max(0, (new Date(iso) - new Date(firstDate)) / 864e5);
+      value = cost * (1 + (h.rate / 100) * days / 365); how = 'estimate'; asOf = iso;
+    }
+    value = round2(Math.max(0, value));
+    const unrealized = round2(value - cost), gain = round2(value + withdrawn + dividends - invested);
+    return { cost, units: Math.round(units * 1e6) / 1e6, invested: round2(invested), withdrawn: round2(withdrawn), realized: round2(realized), dividends: round2(dividends), fees: round2(fees),
+      value, how, asOf, unrealized, gain, pct: invested ? gain / invested : 0, closed };
+  },
+  valueAt(iso) { return round2(this.list().reduce((x, h) => x + this.calc(h, iso).value, 0)); },
+  totals() {
+    const cs = this.list().map((h) => ({ h, c: this.calc(h) }));
+    const sum = (f) => round2(cs.reduce((x, { c }) => x + c[f], 0));
+    const byType = {};
+    for (const { h, c } of cs) if (c.value > 0) byType[h.type] = round2((byType[h.type] || 0) + c.value);
+    const invested = sum('invested'), gain = sum('gain');
+    return { value: sum('value'), invested, withdrawn: sum('withdrawn'), cost: sum('cost'), realized: sum('realized'), unrealized: sum('unrealized'), dividends: sum('dividends'), gain, pct: invested ? gain / invested : 0, byType,
+      estimated: cs.some(({ c }) => c.value > 0 && c.how !== 'manual') };
+  },
+  howLabel(c) { return ({ manual: c.asOf ? `typed by you · ${prettyDate(c.asOf)}` : 'typed by you', estimate: 'estimate', cost: 'what you put in (add a value)', closed: 'sold', price: 'price paid' })[c.how] || c.how; },
+  /** Turn older "invested" entries (before holdings existed) into holdings. */
+  migrateOld(st) {
+    const hs = (st.holdings ||= []);
+    for (const t of st.transactions || []) {
+      if ((t.kind === 'invest' || t.kind === 'invest_out') && !t.holdingId) {
+        const type = this.guessType(t.description || ''), name = this.guessName(t.description || '', type);
+        let h = hs.find((x) => x.name.toLowerCase() === name.toLowerCase());
+        if (!h) { h = { id: uid(), name, type, createdAt: Date.now() }; hs.push(h); }
+        t.holdingId = h.id;
+      }
+    }
+  },
+};
+
+/* =========================================================================
+   RETIREMENT — simple projections with labelled assumptions. Never a promise.
+   ========================================================================= */
+const Retire = {
+  DEFAULTS: { age: 30, retireAge: 60, lifeTo: 85, savings: 0, monthly: 2000, desired: 20000, ret: 6, infl: 4 },
+  inputs() { return { ...this.DEFAULTS, ...(Store.state.settings?.retire || {}) }; },
+  save(patch) { (Store.state.settings ||= {}).retire = { ...this.inputs(), ...patch }; Store.save(); },
+  /** Project month by month. Amounts "real" are in today's money. */
+  project(p, monthly = p.monthly) {
+    const years = Math.max(0, p.retireAge - p.age), n = Math.round(years * 12), r = p.ret / 100 / 12, i = p.infl / 100;
+    let bal = p.savings || 0;
+    const path = [{ age: p.age, real: bal }];
+    for (let m = 1; m <= n; m++) { bal = bal * (1 + r) + monthly; if (m % 12 === 0 || m === n) path.push({ age: p.age + m / 12, real: bal / Math.pow(1 + i, m / 12) }); }
+    const real = n ? bal / Math.pow(1 + i, years) : bal;
+    // Spending it down from retirement to lifeTo, growing at the real return.
+    const mPay = Math.max(1, Math.round((p.lifeTo - p.retireAge) * 12)), rr = Math.pow((1 + p.ret / 100) / (1 + i), 1 / 12) - 1;
+    const annuity = (pv) => Math.abs(rr) < 1e-9 ? pv / mPay : (pv * rr) / (1 - Math.pow(1 + rr, -mPay));
+    const income = annuity(real);
+    const needReal = Math.abs(rr) < 1e-9 ? p.desired * mPay : (p.desired * (1 - Math.pow(1 + rr, -mPay))) / rr;
+    // Monthly amount needed now to reach it (same amount every month).
+    const needNominal = needReal * Math.pow(1 + i, years), grown = (p.savings || 0) * Math.pow(1 + r, n);
+    const factor = n ? (r ? (Math.pow(1 + r, n) - 1) / r : n) : 0;
+    const needMonthly = factor ? Math.max(0, (needNominal - grown) / factor) : null;
+    return { years, nominal: round2(bal), real: round2(real), income: round2(income), needReal: round2(needReal), needMonthly: needMonthly == null ? null : round2(needMonthly), path };
+  },
+  check(p) {
+    if (!(p.age > 0 && p.age < 100)) return 'Type your age.';
+    if (!(p.retireAge > p.age)) return 'Retirement age should be later than your age now.';
+    if (!(p.lifeTo > p.retireAge)) return 'The “last until” age should be after retirement.';
+    if (p.ret < 0 || p.ret > 30 || p.infl < 0 || p.infl > 30) return 'Keep the return and inflation between 0% and 30%.';
+    return null;
+  },
+};
+
+/* =========================================================================
    ASSETS & NET WORTH
    Net worth = what you own − what you owe.
    Own:  cash/e-wallet/bank accounts · money people owe you · investments (at cost
@@ -2644,7 +2871,7 @@ const NetWorth = {
    ========================================================================= */
 const Backup = {
   FORMAT: 1,
-  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans', 'assets'],
+  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans', 'assets', 'holdings'],
   lastAt() { return Store.state.settings?.lastBackupAt || 0; },
 
   build() {
@@ -2727,7 +2954,7 @@ const Backup = {
     }
     const byId = (key, fix = (x) => x) => { const have = new Set((st[key] ||= []).map((x) => x.id)); for (const x of d[key]) if (x.id && !have.has(x.id)) st[key].push(fix(x)); };
     byId('pocketMoves', (m) => ({ ...m, pocketId: pocketMap[m.pocketId] || m.pocketId }));
-    byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories'); byId('plans', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('assets');
+    byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories'); byId('plans', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('assets'); byId('holdings');
     Store.adopt(st); Store.save();
     return { added, skipped };
   },
@@ -4060,8 +4287,8 @@ const Exporter = {
 const Nav = {
   PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More' },
   // Which page each card lives on.
-  OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', spending: 'plan', profit: 'plan',
-    networth: 'money', accounts: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
+  OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', retire: 'plan', spending: 'plan', profit: 'plan',
+    networth: 'money', accounts: 'money', invest: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
   page: 'home',
   pageOf(el) { return this.OF[el.dataset.tool] || 'more'; },
   read() { const m = location.hash.match(/^#(home|activity|plan|money|more)\b/); this.page = m ? m[1] : 'home'; },
@@ -4352,7 +4579,7 @@ const UI = {
   renderAll() {
     // Each card draws on its own, so one problem never blanks out the rest of the app.
     for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
-      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderSyncStatus()]) {
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderSyncStatus()]) {
       try { f(); } catch (e) { console.error('Render problem', e); }
     }
   },
@@ -4581,6 +4808,8 @@ const UI = {
     if (di) return this.handleDebtNote(text, di);
     const ai = Parser.assetIntent(text);
     if (ai) return this.handleAssetNote(text, ai);
+    const ii = Parser.investIntent(text);
+    if (ii) return this.handleInvestNote(text, ii);
     if (Reminders.isReminder(text)) {
       const r = Store.addReminder(Reminders.parse(text));
       $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
@@ -4699,7 +4928,7 @@ const UI = {
 
   KIND_CHOICES: [['expense', '💸 I spent / paid for something'], ['income', '💰 Money came in (pay, sales, salary)'], ['gift_in', '🎁 Someone gave me a gift'], ['refund', '↩ A refund / money back'],
     ['lend', '🤝 I lent money to someone'], ['borrow', '🤝 I borrowed money'], ['repay_in', '✅ Someone paid me back'], ['repay_out', '✅ I paid someone back'], ['forgive', '🕊️ I forgave a debt'],
-    ['transfer', '⇄ I moved money between my accounts'], ['invest', '📈 I invested it'], ['asset_buy', '🏠 I bought a house, car or valuable'], ['asset_sell', '🏷️ I sold one']],
+    ['transfer', '⇄ I moved money between my accounts'], ['invest', '📈 I invested it'], ['invest_out', '💹 I sold / withdrew an investment'], ['asset_buy', '🏠 I bought a house, car or valuable'], ['asset_sell', '🏷️ I sold one']],
 
   catOptions(kind) {
     const type = kind === 'income' ? 'income' : 'expense';
@@ -4756,7 +4985,7 @@ const UI = {
           if (!amount || amount <= 0) return 'Type the amount.';
           if (!v.date) return 'Pick a date.';
           if (kind === 'transfer' && v.from === v.to) return 'Pick two different accounts.';
-          const cat = kind === 'income' ? v.catI : ['expense', 'refund'].includes(kind) ? v.catE : kind === 'gift_in' ? 'Gifts Received' : kind === 'invest' ? 'Investments' : /^asset_/.test(kind) ? 'Assets' : kind === 'transfer' ? 'Transfer' : 'Loans';
+          const cat = kind === 'income' ? v.catI : ['expense', 'refund'].includes(kind) ? v.catE : kind === 'gift_in' ? 'Gifts Received' : /^invest/.test(kind) ? 'Investments' : /^asset_/.test(kind) ? 'Assets' : kind === 'transfer' ? 'Transfer' : 'Loans';
           const newAcc = String(v.account || '').startsWith('new:') ? v.account.split(':')[1] : null;
           const t = this.recordEntry({ ...it, kind, amount: round2(amount), person: person || null, category: cat, date: v.date, description: v.description || it.description,
             accountId: v.account, from: { id: v.from }, to: { id: v.to } }, text);
@@ -4835,6 +5064,13 @@ const UI = {
   },
 
   livePreview(text) {
+    const ii = text.trim() && !Parser.debtIntent(text) && !Parser.assetIntent(text) && Parser.investIntent(text);
+    if (ii) {
+      const nm = ii.holding ? escapeHTML(ii.holding.name) : 'an investment';
+      $('#parsePreview').innerHTML = ({ invest_buy: `📈 ${fmt(ii.amount)} into <b>${nm}</b> (not spending)${ii.holding ? '' : ' · you’ll confirm'}`, invest_value: `Will update <b>${nm}</b> to ${fmt(ii.amount)} (net worth, not income)`,
+        invest_div: `💹 Dividend ${fmt(ii.amount)} from <b>${nm}</b> (income)`, invest_sell: `💹 ${fmt(ii.amount)} back from <b>${nm}</b> (not income; gain worked out)` })[ii.type];
+      return;
+    }
     const ai = text.trim() && !Parser.debtIntent(text) && Parser.assetIntent(text);
     if (ai) {
       $('#parsePreview').innerHTML = ({ asset_value: `Will update <b>${escapeHTML(ai.asset?.name || '')}</b> to ${fmt(ai.value)} (net worth, not income)`, asset_new: `Will add <b>${escapeHTML(ai.name || '')}</b> worth ${fmt(ai.value)} to your net worth`,
@@ -5090,7 +5326,7 @@ const UI = {
         const person = (v.person || '').trim().slice(0, 40);
         if (loanKinds.includes(v.kind) && !person) return 'Type who it was with.';
         if (v.kind === 'transfer' && v.from === v.to) return 'Pick two different accounts.';
-        const cat = v.kind === 'income' ? v.catI : ['expense', 'refund'].includes(v.kind) ? v.catE : v.kind === 'gift_in' ? 'Gifts Received' : v.kind === 'invest' ? 'Investments' : /^asset_/.test(v.kind) ? 'Assets' : /^asset_/.test(kind) ? 'Assets' : v.kind === 'transfer' ? 'Transfer' : 'Loans';
+        const cat = v.kind === 'income' ? v.catI : ['expense', 'refund'].includes(v.kind) ? v.catE : v.kind === 'gift_in' ? 'Gifts Received' : /^invest/.test(v.kind) ? 'Investments' : /^asset_/.test(v.kind) ? 'Assets' : v.kind === 'transfer' ? 'Transfer' : 'Loans';
         const patch = { kind: v.kind, amount: round2(v.amount), category: cat, date: v.date, description: (v.description || t.description).slice(0, 120), repeat: v.repeat || undefined,
           person: (loanKinds.includes(v.kind) || v.kind === 'gift_in') ? person || undefined : undefined };
         if (v.kind === 'transfer') Object.assign(patch, { fromAccountId: v.from, toAccountId: v.to, accountId: v.from });
@@ -5129,6 +5365,201 @@ const UI = {
       b.closest('div.flex').remove(); toast('↩ Restored.');
     }, { once: false });
   },
+  /* ---------- retirement planner ---------- */
+  renderRetire() {
+    const p = Retire.inputs();
+    for (const k of Object.keys(Retire.DEFAULTS)) { const el = $(`#rt_${k}`); if (el && document.activeElement !== el) el.value = p[k] ?? ''; }
+    const err = Retire.check(p);
+    if (err) { $('#rtResult').innerHTML = `<p class="text-sm text-amber-700 dark:text-amber-300">${escapeHTML(err)}</p>`; $('#rtChart').innerHTML = ''; $('#rtTable').innerHTML = ''; return; }
+    const base = Retire.project(p);
+    const meets = base.income >= p.desired;
+    $('#rtResult').innerHTML = `<div class="grid sm:grid-cols-3 gap-3">
+      <div class="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/60 px-3 py-2"><div class="text-[11px] font-semibold text-amber-800 dark:text-amber-300">At ${p.retireAge}, you might have</div>
+        <div class="text-xl font-bold tabular">${fmt0(base.real)}</div><div class="text-[11px] text-stone-500">in today’s money (${fmt0(base.nominal)} in future pesos)</div></div>
+      <div class="rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 px-3 py-2"><div class="text-[11px] font-semibold text-stone-600 dark:text-stone-300">That could pay you about</div>
+        <div class="text-xl font-bold tabular ${meets ? 'text-teal-700 dark:text-teal-400' : 'text-orange-700 dark:text-orange-400'}">${fmt0(base.income)}<span class="text-sm font-semibold"> / month</span></div><div class="text-[11px] text-stone-500">until age ${p.lifeTo}, in today’s money</div></div>
+      <div class="rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 px-3 py-2"><div class="text-[11px] font-semibold text-stone-600 dark:text-stone-300">For ${fmt0(p.desired)} a month</div>
+        <div class="text-xl font-bold tabular">${base.needMonthly == null ? '—' : fmt0(base.needMonthly)}<span class="text-sm font-semibold"> / month</span></div><div class="text-[11px] text-stone-500">${meets ? 'is what you’d need to add. You’re on track. 🎉' : `is what you’d need to add (you add ${fmt0(p.monthly)})`}</div></div>
+    </div>`;
+    // Three scenarios: what you add now, a bit more, and what's needed.
+    const opts = [...new Set([p.monthly, Math.round(p.monthly * 1.5 / 100) * 100 || 1000, base.needMonthly != null ? Math.ceil(base.needMonthly / 100) * 100 : null].filter((x) => x != null))].slice(0, 3);
+    const runs = opts.map((m, i) => ({ m, r: Retire.project(p, m), col: ['#b45309', '#0f766e', '#7c3aed'][i] }));
+    $('#rtTable').innerHTML = `<div class="overflow-x-auto"><table class="w-full text-sm tabular"><thead><tr class="text-left text-[11px] text-stone-500"><th class="font-semibold py-1">If you add each month</th><th class="font-semibold text-right">At ${p.retireAge} (today’s money)</th><th class="font-semibold text-right">Monthly income</th></tr></thead>
+      <tbody>${runs.map(({ m, r, col }) => `<tr class="border-t border-stone-100 dark:border-stone-800"><td class="py-1.5"><span class="inline-block h-2 w-2 rounded-full mr-1.5" style="background:${col}"></span>${fmt0(m)}${m === p.monthly ? ' <span class="text-[11px] text-stone-500">(now)</span>' : ''}</td><td class="text-right">${fmt0(r.real)}</td><td class="text-right ${r.income >= p.desired ? 'text-teal-700 dark:text-teal-400 font-semibold' : ''}">${fmt0(r.income)}</td></tr>`).join('')}</tbody></table></div>`;
+    // Chart (today's money), drawn at real size.
+    const svg = $('#rtChart'), W = svg.clientWidth || 600, H = svg.clientHeight || 190, pad = { l: 8, r: 8, t: 10, b: 20 };
+    const maxY = Math.max(base.needReal, ...runs.map(({ r }) => r.real), 1), x0 = p.age, x1 = p.retireAge;
+    const X = (a) => pad.l + ((a - x0) / (x1 - x0)) * (W - pad.l - pad.r), Y = (v) => H - pad.b - (v / maxY) * (H - pad.t - pad.b);
+    const line = (path, col) => `<polyline fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" points="${path.map((q) => `${X(q.age).toFixed(1)},${Y(q.real).toFixed(1)}`).join(' ')}"/>`;
+    const goalY = Y(base.needReal);
+    svg.innerHTML = `<line x1="${pad.l}" x2="${W - pad.r}" y1="${H - pad.b}" y2="${H - pad.b}" stroke="currentColor" opacity=".15"/>
+      <line x1="${pad.l}" x2="${W - pad.r}" y1="${goalY}" y2="${goalY}" stroke="currentColor" stroke-dasharray="4 4" opacity=".45"/>
+      <text x="${pad.l + 2}" y="${Math.max(10, goalY - 4)}" font-size="11" fill="currentColor" opacity=".7">Goal ${fmt0(base.needReal)}</text>
+      ${runs.map(({ r, col }) => line(r.path, col)).join('')}
+      <text x="${pad.l}" y="${H - 5}" font-size="11" fill="currentColor" opacity=".6">Age ${p.age}</text>
+      <text x="${W - pad.r}" y="${H - 5}" font-size="11" text-anchor="end" fill="currentColor" opacity=".6">${p.retireAge}</text>`;
+  },
+  bindRetire() {
+    for (const k of Object.keys(Retire.DEFAULTS)) $(`#rt_${k}`).addEventListener('input', (e) => {
+      const v = e.target.value === '' ? null : parseFloat(e.target.value);
+      if (v != null && !isNaN(v)) { Retire.save({ [k]: v }); this.renderRetire(); }
+    });
+    $('#rtUseInv').addEventListener('click', () => {
+      const ret = Invest.list().filter((h) => h.type === 'retirement').reduce((x, h) => x + Invest.calc(h).value, 0);
+      const all = Invest.totals().value, v = round2(ret || all);
+      if (!v) { toast('Add your investments first (Money → Investments).'); return; }
+      Retire.save({ savings: v }); this.renderRetire();
+      toast(ret ? `Using your retirement investments: ${fmt(v)}` : `Using all your investments: ${fmt(v)}`);
+    });
+    if (window.ResizeObserver) new ResizeObserver(() => { if (!$('[data-tool="retire"]').classList.contains('hidden')) this.renderRetire(); }).observe($('#rtChart'));
+  },
+
+  /* ---------- investments ---------- */
+  renderInvest() {
+    const hs = Invest.list(), T = Invest.totals(), act = hs.filter((h) => !Invest.calc(h).closed);
+    $('#invEmpty').classList.toggle('hidden', !!hs.length);
+    $('#invEmpty').innerHTML = `Track what you’ve invested and how it’s doing. Add one with <b>+ Investment</b>, or type <b>“I invested ${fmt0(5000)} in an ETF”</b>.`;
+    $('#invTiles').classList.toggle('hidden', !hs.length); $('#invAlloc').classList.toggle('hidden', !act.length);
+    const pctTxt = (p) => `${p >= 0 ? '+' : '−'}${Math.abs(p * 100).toFixed(1)}%`;
+    const tile = (label, val, sub = '', tone = '') => `<div class="rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 px-3 py-2 min-w-0"><div class="text-[11px] font-semibold text-stone-500 dark:text-stone-400">${label}</div><div class="font-bold tabular truncate ${tone}">${val}</div>${sub ? `<div class="text-[10px] text-stone-500 truncate">${sub}</div>` : ''}</div>`;
+    $('#invTiles').innerHTML = tile('Worth now', fmt0(T.value), T.estimated ? 'includes estimates' : 'your typed values')
+      + tile('You put in', fmt0(T.invested), T.withdrawn ? `${fmt0(T.withdrawn)} taken out` : '')
+      + tile('Gain or loss', `${T.gain >= 0 ? '+' : '−'}${fmt0(Math.abs(T.gain))}`, T.invested ? pctTxt(T.pct) + ' overall' : '', T.gain >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-rose-600')
+      + tile('Dividends', fmt0(T.dividends), T.realized ? `${T.realized >= 0 ? '+' : '−'}${fmt0(Math.abs(T.realized))} realized from sales` : '');
+    const types = Object.entries(T.byType).sort((a, b) => b[1] - a[1]), tot = T.value || 1;
+    const COL = ['#0f766e', '#0891b2', '#7c3aed', '#c2410c', '#be123c', '#4d7c0f', '#a16207', '#475569', '#db2777'];
+    $('#invAlloc').innerHTML = types.length ? `<div class="flex h-3 rounded-full overflow-hidden bg-stone-100 dark:bg-stone-800" role="img" aria-label="Where your investments are">${types.map(([k, v], i) => `<div style="width:${(v / tot) * 100}%;background:${COL[i % COL.length]}" title="${escapeHTML(INVEST_TYPES[k].label)} ${Math.round((v / tot) * 100)}%"></div>`).join('')}</div>
+      <div class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-stone-600 dark:text-stone-300">${types.map(([k, v], i) => `<span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full" style="background:${COL[i % COL.length]}"></span>${escapeHTML(INVEST_TYPES[k].label)} ${Math.round((v / tot) * 100)}%</span>`).join('')}</div>` : '';
+    $('#invList').innerHTML = hs.slice().sort((a, b) => Invest.calc(b).value - Invest.calc(a).value).map((h) => {
+      const c = Invest.calc(h);
+      return `<li data-hold="${h.id}" class="py-2.5"><button type="button" class="w-full flex items-center gap-3 text-left ${c.closed ? 'opacity-60' : ''}">
+        <span class="h-9 w-9 rounded-xl grid place-items-center bg-cyan-50 dark:bg-cyan-950/40 text-lg" aria-hidden="true">${Invest.icon(h)}</span>
+        <span class="flex-1 min-w-0"><span class="block font-semibold truncate">${escapeHTML(h.name)}</span>
+          <span class="block text-[11px] text-stone-500 dark:text-stone-400 truncate">${escapeHTML((INVEST_TYPES[h.type] || INVEST_TYPES.other).label)}${h.platform ? ' · ' + escapeHTML(h.platform) : ''} · ${escapeHTML(Invest.howLabel(c))}</span></span>
+        <span class="text-right"><span class="block tabular font-bold">${c.closed ? 'Sold' : fmt(c.value)}</span>
+          <span class="block text-[11px] tabular ${c.gain >= 0 ? 'text-teal-700 dark:text-teal-400' : 'text-rose-600'}">${c.invested ? `${c.gain >= 0 ? '+' : '−'}${fmt0(Math.abs(c.gain))} (${pctTxt(c.pct)})` : ''}</span></span>
+      </button></li>`;
+    }).join('');
+  },
+
+  /** New investment: either a purchase now (cash → investment) or one you already have. */
+  holdingForm(h = null, pre = {}) {
+    const types = Object.entries(INVEST_TYPES).map(([k, v]) => [k, `${v.icon} ${v.label}`]);
+    const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name} (${fmt0(Accounts.balance(x))})`]);
+    this.form({
+      title: h ? `Edit ${h.name}` : 'Add an investment', save: 'Save',
+      sub: h ? '' : 'Buying moves money from your account into the investment. It isn’t spending.',
+      fields: [
+        { id: 'name', label: 'Name', value: h?.name || pre.name || '', placeholder: 'e.g. FMETF, Pag-IBIG MP2, BDO time deposit' },
+        { id: 'type', label: 'Type', type: 'select', value: h?.type || pre.type || 'etf', options: types },
+        { id: 'platform', label: 'Where (broker, bank or app, optional)', value: h?.platform || '', placeholder: 'e.g. COL Financial, GInvest, BDO' },
+        { id: 'how', label: 'Is this…', type: 'select', value: pre.how || 'buy', options: [['buy', 'Something I’m buying now (money comes from my account)'], ['have', 'Something I already had before using Tiffo']], show: () => !h },
+        { id: 'amount', label: 'Amount (including fees)', type: 'number', value: pre.amount ?? '', show: () => !h },
+        { id: 'from', label: 'Paid from', type: 'select', value: Accounts.DEFAULT, options: cashOpts, show: (v) => !h && v.how === 'buy' && cashOpts.length > 1 },
+        { id: 'value', label: 'What it’s worth now (optional)', type: 'number', value: '', show: (v) => !h && v.how === 'have', hint: 'From your app or statement. Leave empty to use what you put in.' },
+        { id: 'units', label: 'Units or shares (optional)', type: 'number', value: '', show: () => !h, advanced: true, hint: 'Helps work out gains when you sell part of it.' },
+        { id: 'fees', label: 'Fees included in the amount (optional)', type: 'number', value: '', show: () => !h, advanced: true },
+        { id: 'rate', label: 'Interest rate per year, % (optional)', type: 'number', value: h?.rate ?? '', show: (v) => ['time_deposit', 'bond'].includes(v.type), advanced: true, hint: 'Lets Tiffo estimate its value as interest builds (before tax).' },
+        { id: 'date', label: 'Date', type: 'date', value: pre.date || toISODate(new Date()), show: () => !h, advanced: true },
+        { id: 'note', label: 'Private note (optional)', type: 'textarea', value: h?.note || '', advanced: true },
+      ],
+      danger: h ? { label: 'Remove', fn: async () => {
+        this.closeForm();
+        if (Store.state.transactions.some((t) => t.holdingId === h.id)) { toast('This investment has buys or sales. Delete those entries first, or record selling it.'); return; }
+        if (!(await askConfirm(`Remove ${h.name}?`, 'Remove'))) return;
+        Store.state.holdings = Invest.list().filter((x) => x !== h); Store.save(); this.renderAll();
+      } } : null,
+      onSave: (v) => {
+        if (!v.name) return 'Give it a name.';
+        if (!h && (!v.amount || v.amount <= 0)) return 'Type the amount.';
+        if (!h && v.fees && v.fees >= v.amount) return 'Fees should be less than the amount.';
+        const x = h || { id: uid(), createdAt: Date.now() };
+        x.name = v.name.slice(0, 40); x.type = v.type; if (v.platform) x.platform = v.platform.slice(0, 40); else delete x.platform;
+        if (v.rate) x.rate = round2(v.rate); else delete x.rate; if (v.note) x.note = v.note.slice(0, 500); else delete x.note;
+        if (!h) {
+          Invest.list().push(x);
+          if (v.how === 'have') {
+            x.opening = { date: v.date || toISODate(new Date()), cost: round2(v.amount), units: v.units || 0 };
+            if (v.value != null) x.valuations = [{ date: v.date || toISODate(new Date()), value: round2(v.value), how: 'manual', at: Date.now() }];
+          } else Store.addTransaction({ kind: 'invest', amount: round2(v.amount), units: v.units || undefined, fees: v.fees || undefined, category: 'Investments', date: v.date || toISODate(new Date()), accountId: v.from || Accounts.DEFAULT, holdingId: x.id, description: `Invested in ${x.name}`, source: 'invest' });
+        }
+        Store.save(); this.renderAll();
+        toast(h ? 'Saved.' : `${Invest.icon(x)} ${escapeHTML(x.name)} added${v.how === 'buy' ? ` · ${fmt(v.amount)} moved from your account (not spending)` : ''}.`);
+      },
+    });
+  },
+
+  /** Buy more, sell/withdraw, dividend, or update the value. */
+  tradeForm(h, mode = 'buy', pre = {}) {
+    const c = Invest.calc(h);
+    const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]);
+    const titles = { buy: `Add to ${h.name}`, sell: `Sell or withdraw · ${h.name}`, div: `Dividend from ${h.name}`, value: `What’s ${h.name} worth now?` };
+    const subs = { buy: 'Money moves from your account into this investment. Not spending.', sell: `Money comes back to your account. Not income; the gain or loss is worked out for you. Worth about ${fmt(c.value)}.`,
+      div: 'Dividends and distributions count as income.', value: `Now ${fmt(c.value)} (${Invest.howLabel(c)}). A new value changes your net worth, not your income.` };
+    this.form({
+      title: titles[mode], sub: subs[mode], save: 'Save',
+      fields: [
+        { id: 'amount', label: { buy: 'Amount (including fees)', sell: 'Amount you received', div: 'Amount received', value: 'Worth now' }[mode], type: 'number', value: pre.amount ?? '' },
+        { id: 'all', type: 'checkbox', label: 'I sold or withdrew all of it', value: false, show: () => mode === 'sell' },
+        { id: 'units', label: 'Units or shares (optional)', type: 'number', value: '', show: (v) => ['buy', 'sell'].includes(mode) && !v.all, hint: mode === 'sell' && c.units ? `You have ${c.units}.` : '' },
+        { id: 'fees', label: 'Fees (optional)', type: 'number', value: '', show: () => ['buy', 'sell'].includes(mode), advanced: true, hint: mode === 'sell' ? 'Already taken out of the amount you received.' : 'Included in the amount.' },
+        { id: 'acc', label: mode === 'buy' ? 'Paid from' : 'Went into', type: 'select', value: Accounts.DEFAULT, options: cashOpts, show: () => mode !== 'value' && cashOpts.length > 1 },
+        { id: 'reinvest', type: 'checkbox', label: 'It was reinvested (added back into this investment)', value: false, show: () => mode === 'div' },
+        { id: 'date', label: 'Date', type: 'date', value: pre.date || toISODate(new Date()), advanced: mode !== 'value' },
+      ],
+      onSave: (v) => {
+        if (v.amount == null || v.amount < 0 || (mode !== 'value' && v.amount === 0)) return 'Type the amount.';
+        if (mode === 'sell' && v.units && c.units && v.units > c.units + 1e-9) return `You only have ${c.units} units.`;
+        const date = v.date || toISODate(new Date()), acc = v.acc || Accounts.DEFAULT, made = [];
+        if (mode === 'value') {
+          (h.valuations ||= []).push({ date, value: round2(v.amount), how: 'manual', at: Date.now() });
+          Store.save(); this.renderAll();
+          const c2 = Invest.calc(h);
+          toast(`${Invest.icon(h)} ${escapeHTML(h.name)} is worth ${fmt(v.amount)} · ${c2.gain >= 0 ? '+' : '−'}${fmt(Math.abs(c2.gain))} overall`);
+          return;
+        }
+        if (mode === 'buy') made.push(Store.addTransaction({ kind: 'invest', amount: round2(v.amount), units: v.units || undefined, fees: v.fees || undefined, category: 'Investments', date, accountId: acc, holdingId: h.id, description: `Invested in ${h.name}`, source: 'invest' }));
+        if (mode === 'sell') made.push(Store.addTransaction({ kind: 'invest_out', amount: round2(v.amount), units: v.all ? undefined : v.units || undefined, all: v.all || undefined, fees: v.fees || undefined, category: 'Investments', date, accountId: acc, holdingId: h.id, description: `${v.all ? 'Sold all of' : 'Sold part of'} ${h.name}`, source: 'invest' }));
+        if (mode === 'div') {
+          made.push(Store.addTransaction({ kind: 'income', amount: round2(v.amount), category: 'Dividends', date, accountId: acc, holdingId: h.id, description: `Dividend · ${h.name}`, source: 'invest' }));
+          if (v.reinvest) made.push(Store.addTransaction({ kind: 'invest', amount: round2(v.amount), category: 'Investments', date, accountId: acc, holdingId: h.id, description: `Reinvested dividend · ${h.name}`, source: 'invest' }));
+        }
+        Store.save(); this.renderAll();
+        const c2 = Invest.calc(h);
+        const msg = mode === 'sell' ? `💹 ${fmt(v.amount)} back to your account · ${c2.realized - c.realized >= 0 ? 'gain' : 'loss'} of ${fmt(Math.abs(round2(c2.realized - c.realized)))} on what you sold`
+          : mode === 'div' ? `💹 Dividend ${fmt(v.amount)} from ${escapeHTML(h.name)}${v.reinvest ? ' · reinvested' : ''}` : `${Invest.icon(h)} ${fmt(v.amount)} into ${escapeHTML(h.name)} (not spending)`;
+        toast(msg, { duration: 6500, action: { label: 'Undo', fn: () => { made.forEach((t) => Store.removeTransaction(t.id, true)); UI.renderAll(); } } });
+      },
+    });
+  },
+
+  holdingView(h) {
+    const c = Invest.calc(h);
+    const pct = (p) => `${p >= 0 ? '+' : '−'}${Math.abs(p * 100).toFixed(1)}%`;
+    const hist = Invest.events(h).slice(-10).reverse().map((e) => `<div class="flex justify-between gap-2"><span>${({ open: '📥 Already had', buy: '➕ Bought', sell: '➖ Sold', div: '💹 Dividend' })[e.type]}${e.units ? ` · ${e.units} units` : ''}</span><span class="tabular whitespace-nowrap">${escapeHTML(new Date(e.date + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' }))} · ${fmt0(e.amount)}</span></div>`).join('');
+    const vals = (h.valuations || []).slice(-6).reverse().map((v) => `<div class="flex justify-between"><span>✍️ ${escapeHTML(prettyDate(v.date))}</span><span class="tabular">${fmt(v.value)}</span></div>`).join('');
+    this.form({
+      title: `${Invest.icon(h)} ${h.name}`, save: 'Update value', sub: `${(INVEST_TYPES[h.type] || INVEST_TYPES.other).label}${h.platform ? ' · ' + h.platform : ''}`,
+      fields: [
+        { id: 'sum', type: 'note', label: '', html: `<div class="grid grid-cols-2 gap-x-4 gap-y-0.5">
+          <span>Worth now</span><b class="text-right tabular">${c.closed ? 'Sold' : fmt(c.value)}</b>
+          <span class="col-span-2 text-[11px] opacity-75 -mt-0.5">${escapeHTML(Invest.howLabel(c))}</span>
+          <span>You put in</span><span class="text-right tabular">${fmt(c.invested)}</span>
+          ${c.withdrawn ? `<span>Taken out</span><span class="text-right tabular">${fmt(c.withdrawn)}</span>` : ''}
+          <span>Still invested (cost)</span><span class="text-right tabular">${fmt(c.cost)}</span>
+          <span>Not sold yet: gain/loss</span><span class="text-right tabular">${c.unrealized >= 0 ? '+' : '−'}${fmt(Math.abs(c.unrealized))}</span>
+          ${c.realized ? `<span>From sales: gain/loss</span><span class="text-right tabular">${c.realized >= 0 ? '+' : '−'}${fmt(Math.abs(c.realized))}</span>` : ''}
+          ${c.dividends ? `<span>Dividends</span><span class="text-right tabular">${fmt(c.dividends)}</span>` : ''}
+          <span class="font-semibold">Overall</span><b class="text-right tabular">${c.gain >= 0 ? '+' : '−'}${fmt(Math.abs(c.gain))} (${pct(c.pct)})</b>
+          ${c.units ? `<span>Units</span><span class="text-right tabular">${c.units}</span>` : ''}</div>` },
+        { id: 'acts', type: 'note', label: '', html: `<div class="flex flex-wrap gap-2"><button type="button" data-mode="buy" class="inv-act rounded-lg bg-white/70 dark:bg-stone-900/60 border px-2.5 py-1.5 font-semibold">➕ Add more</button><button type="button" data-mode="sell" class="inv-act rounded-lg bg-white/70 dark:bg-stone-900/60 border px-2.5 py-1.5 font-semibold">➖ Sell / withdraw</button><button type="button" data-mode="div" class="inv-act rounded-lg bg-white/70 dark:bg-stone-900/60 border px-2.5 py-1.5 font-semibold">💹 Dividend</button><button type="button" data-mode="edit" class="inv-act rounded-lg bg-white/70 dark:bg-stone-900/60 border px-2.5 py-1.5 font-semibold">✏️ Edit</button></div>` },
+        { id: 'hist', type: 'note', label: '', html: `<div class="font-semibold mb-0.5">History</div>${hist || '—'}${vals ? `<div class="font-semibold mt-2 mb-0.5">Values you typed</div>${vals}` : ''}`, advanced: true },
+      ],
+      onSave: () => setTimeout(() => this.tradeForm(h, 'value'), 0),
+    });
+    $('#fmFields').querySelectorAll('.inv-act').forEach((b) => b.onclick = () => { this.closeForm(); b.dataset.mode === 'edit' ? this.holdingForm(h) : this.tradeForm(h, b.dataset.mode); });
+  },
+
   /* ---------- net worth & assets ---------- */
   renderNetWorth() {
     const now = NetWorth.at(), ser = NetWorth.series(12);
@@ -5146,7 +5577,7 @@ const UI = {
     $('#nwOwnList').innerHTML = [
       li('💵', 'Cash, e-wallets & banks', now.cash),
       now.theyOwe ? li('👥', 'Owed to you', now.theyOwe) : '',
-      now.invest ? li('📈', 'Investments', now.invest, '', typeof Invest === 'undefined' ? '(what you put in)' : '') : '',
+      now.invest ? li('📈', 'Investments', now.invest, '', Invest.totals().estimated ? '(includes estimates)' : '') : '',
       ...Assets.active().map((a) => li(Assets.icon(a), a.name, Assets.value(a), `data-asset="${a.id}"`, a.history?.length ? `(${escapeHTML(prettyDate(a.history.at(-1).date).toLowerCase())})` : '')),
     ].join('');
     $('#nwOweList').innerHTML = [
@@ -5283,6 +5714,28 @@ const UI = {
         <div class="tabular text-sm font-bold whitespace-nowrap">${done ? '✓' : fmt0(st.left) + ' left'}</div>
       </li>`;
     }).join('');
+  },
+
+  /** Investment notes. A clear buy into a known investment saves right away (with Undo); everything else asks first. */
+  handleInvestNote(text, ii) {
+    const clear = () => { $('#noteInput').value = ''; $('#parsePreview').innerHTML = ''; };
+    const h = ii.holding;
+    if (ii.type === 'invest_buy' && h) {
+      const t = Store.addTransaction({ kind: 'invest', amount: ii.amount, category: 'Investments', date: Parser.readDate(text).date, accountId: Parser.accountFor(text)?.id || Accounts.DEFAULT, holdingId: h.id, description: `Invested in ${h.name}`, source: 'note' });
+      t.fresh = true; clear(); this.renderAll();
+      toast(`${Invest.icon(h)} ${fmt(ii.amount)} into ${escapeHTML(h.name)} (not spending)`, { duration: 5500, action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id, true); UI.renderAll(); } } });
+      return;
+    }
+    if (!h && (ii.type === 'invest_sell' || ii.type === 'invest_value' || ii.type === 'invest_div') && Invest.active().length > 1) {
+      toast('Which investment? Include its name, like “MP2 is now worth 25,000”. Or open it in Money → Investments.', { duration: 6000 });
+      return;
+    }
+    const one = h || Invest.active()[0];
+    if (ii.type === 'invest_buy' || !one) this.holdingForm(null, { name: ii.name, type: ii.invType, amount: ii.amount, how: ii.type === 'invest_buy' ? 'buy' : 'have' });
+    else if (ii.type === 'invest_value') this.tradeForm(one, 'value', { amount: ii.amount });
+    else if (ii.type === 'invest_div') this.tradeForm(one, 'div', { amount: ii.amount });
+    else if (ii.type === 'invest_sell') { this.tradeForm(one, 'sell', { amount: ii.amount }); if (ii.all) setTimeout(() => { const b = $('#fm_all'); if (b) { b.checked = true; b.dispatchEvent(new Event('change', { bubbles: true })); } }, 0); }
+    this._afterForm = clear;
   },
 
   /** "My car is worth ₱500,000", "Bought a lot for ₱1.2M", "Sold my motorcycle for ₱40,000". Nothing is saved without a check. */
@@ -6349,6 +6802,9 @@ const UI = {
     $('#lendBtn').addEventListener('click', () => this.loanForm('lend'));
     $('#addCardBtn').addEventListener('click', () => this.accountForm(null, 'credit'));
     $('#addAssetBtn').addEventListener('click', () => this.assetForm());
+    $('#addHoldingBtn').addEventListener('click', () => this.holdingForm());
+    this.bindRetire();
+    $('#invList').addEventListener('click', (e) => { const li = e.target.closest('[data-hold]'); const h = li && Invest.get(li.dataset.hold); if (h) this.holdingView(h); });
     $('#nwOwnList').addEventListener('click', (e) => { const li = e.target.closest('[data-asset]'); const a = li && Assets.get(li.dataset.asset); if (a) this.assetView(a); });
     $('#addLoanBtn').addEventListener('click', () => this.accountForm(null, 'loan'));
     $('#addPlanBtn').addEventListener('click', () => this.installmentForm());

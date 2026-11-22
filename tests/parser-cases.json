@@ -61,9 +61,7 @@
 },
 {
 "t": "I bought ₱3,000 worth of mutual funds.",
-"kind": "invest",
-"amount": 3000,
-"fast": true
+"route": "invest_buy"
 },
 {
 "t": "John borrowed ₱500.",
@@ -692,33 +690,23 @@
 },
 {
 "t": "invested 5000 in MP2",
-"kind": "invest",
-"amount": 5000,
-"fast": true
+"route": "invest_buy"
 },
 {
 "t": "bought stocks 10k",
-"kind": "invest",
-"amount": 10000,
-"fast": true
+"route": "invest_buy"
 },
 {
 "t": "put 2000 in UITF",
-"kind": "invest",
-"amount": 2000,
-"fast": true
+"route": "invest_buy"
 },
 {
 "t": "time deposit 50,000",
-"kind": "invest",
-"amount": 50000,
-"fast": true
+"route": "invest_buy"
 },
 {
 "t": "sold my stocks for 12000",
-"kind": "income",
-"amount": 12000,
-"fast": false
+"route": "invest_sell"
 },
 {
 "t": "paid credit card 5000",
@@ -1187,7 +1175,8 @@
 "kind": "income",
 "amount": 1000,
 "fast": true,
-"src": "blueprint §16"
+"src": "blueprint §16",
+"category": "Dividends"
 },
 {
 "t": "My insurance is due next month.",
@@ -1253,6 +1242,28 @@
 },
 {
 "t": "My investment is now worth ₱6,200",
-"route": "money"
+"route": "invest_value"
+},
+{
+"t": "I invested ₱5,000 in an ETF.",
+"route": "invest_buy",
+"src": "brief 06"
+},
+{
+"t": "I received ₱300 in dividends.",
+"kind": "income",
+"amount": 300,
+"category": "Dividends",
+"fast": true,
+"src": "brief 06 (no investments yet)"
+},
+{
+"t": "withdrew 10k from MP2",
+"route": "invest_sell"
+},
+{
+"t": "withdrew 3000 from BDO",
+"kind": "transfer",
+"amount": 3000
 }
 ]
