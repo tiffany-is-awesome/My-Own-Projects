@@ -627,7 +627,7 @@ function submitCooked() {
 /* ----- "This didn't work": recipe feedback ----- */
 function openFeedback(afterCook) {
   const r = getRecipe(S.ui.currentId); if (!r) return;
-  openModal(`<h2 id="authTitle">How did ${esc(r.title)} go?</h2><p>Your answer shapes what I suggest next${Cloud.user ? " and helps fix the recipe" : ""}.</p>
+  openModal(`<h2 id="authTitle">How did ${esc(r.title)} go?</h2><p>Your answer shapes what I suggest next${CLOUD_OK ? " and is sent to the site owner to help fix the recipe" : ""}.</p>
     <form id="feedbackForm"><div class="fb-grid">${Object.entries(FB).map(([k, [label]], i) => `<label class="fb-opt fb-${k}"><input type="radio" name="fbReason" value="${k}"${(afterCook ? k === "good" : i === 0) ? " checked" : ""}><span>${icon(k === "good" ? "star" : k === "changed" ? "spark" : k === "bad" ? "stop" : "info")}${esc(label)}</span></label>`).join("")}</div>
     <label for="fbNote">Anything to add? (optional)<input type="text" id="fbNote" maxlength="300" placeholder="e.g. used lime instead of calamansi; needed 10 more minutes"></label>
     <div class="form-actions"><button class="btn primary" type="submit">Save</button><button class="linkbtn" type="button" data-act="auth-close">${afterCook ? "Skip" : "Cancel"}</button></div></form>`);
@@ -637,7 +637,7 @@ async function submitFeedback() {
   const kind = (document.querySelector('input[name="fbReason"]:checked') || {}).value || "bad", reason = FB[kind][0], note = $("#fbNote").value.trim().slice(0, 300);
   S.feedback = S.feedback || {}; S.feedback[r.id] = { kind, reason, note, at: Date.now() }; persist(); closeAuth(); if (S.tab === "cook") renderIdeas();
   let sent = false;
-  if (Cloud.user) { try { const sb = await Cloud.client(); const { error } = await sb.from("pantry_feedback").insert({ user_id: Cloud.user.id, recipe_id: r.id, recipe_title: r.title, reason, note, ai: !!r.ai }); sent = !error; } catch (e) {} }
+  if (CLOUD_OK && navigator.onLine) sent = await sendFeedback({ recipe_id: r.id, recipe_title: r.title, reason, note, ai: !!r.ai });
   const effect = FB[kind][1] > 0 ? "I'll suggest it more often." : FB[kind][1] < 0 ? "It's ranked lower for you now." : "Noted.";
   toast(`Thanks! ${effect}${sent ? " Your note was sent to the site owner." : ""}`);
 }
@@ -806,8 +806,8 @@ document.addEventListener("click", e => {
   if (act === "tab") { e.preventDefault(); setTab(t.dataset.tab); return; }
   if (act === "ai-info") { openAiInfo(); return; }
   if (act === "puter-connect") { t.disabled = true; t.textContent = "Waiting for Puter…";
-    AI.puterSignIn().then(async () => { S.puterConnected = await AI.puterSignedIn(); closeAuth(); toast(S.puterConnected ? "Free AI is connected. Enjoy!" : "Puter didn't confirm the sign-in. Try again."); renderAiStatus(); const f = S.afterPuter; S.afterPuter = null; if (f) f(); })
-      .catch(() => { t.disabled = false; t.textContent = "Connect free AI"; toast("Sign-in didn't finish. If nothing opened, allow pop-ups for this site and try again."); });
+    Cloud.signIn().then(() => { if (!$("#authBox [data-act=merge-yes]")) closeAuth(); celebrate(); toast(Cloud.user ? `Signed in as ${Cloud.user.name}. Your kitchen is saved to your account and the free AI is on.` : "The free AI is on. Saving your kitchen to your account didn't work yet; it stays saved on this device."); renderAiStatus(); const f = S.afterPuter; S.afterPuter = null; if (f) f(); })
+      .catch(() => { t.disabled = false; t.textContent = "Sign in with Puter"; toast("Sign-in didn't finish. If nothing opened, allow pop-ups for this site and try again."); });
     return; }
   if (act === "account") { Cloud.user ? openAuth("account") : openAuth("signin"); return; }
   if (act === "auth-mode") { openAuth(t.dataset.m); return; }

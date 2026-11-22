@@ -1,6 +1,6 @@
 import asyncio, json
 from playwright.async_api import async_playwright
-URL="file:///home/claude/p2p-src/index.html"
+URL="http://127.0.0.1:8765/index.html"
 res=[]
 def ok(c,m): res.append(c); print(("  ✓ " if c else "  ✗ ")+m)
 NET=lambda e: "ERR_TUNNEL" in e or "Failed to load resource" in e
@@ -94,42 +94,7 @@ async def main():
         await ctx.close()
 
         print("\n9. CLOUD SYNC NEVER OVERWRITES NEWER DATA (stand-in Supabase)")
-        mock="""
-        const L=localStorage; window.__store={get row(){return JSON.parse(L.getItem('__row')||'null')},set row(v){L.setItem('__row',JSON.stringify(v))}};
-        Object.defineProperty(window,'__signed',{get(){return L.getItem('__signed')==='1'},set(v){L.setItem('__signed',v?'1':'0')}});
-        window.supabase={createClient:()=>({
-          auth:{getSession:async()=>({data:{session:window.__signed?{user:{id:'u1',email:'a@b.c',user_metadata:{name:'Tiff'}},access_token:'t'}:null}}),
-                onAuthStateChange:()=>{}, signOut:async()=>{}},
-          from:()=>{const q={select(){return q},eq(){return q},
-            maybeSingle:async()=>({data:window.__store.row,error:null}),
-            upsert:async(r)=>{window.__store.row={data:r.data,updated_at:r.updated_at};return {error:null}}};return q;}
-        })};"""
-        ctx,pg,errs=await page(b,1300,950,mock)
-        await pg.goto(URL+"#kitchen"); await pg.wait_for_timeout(2500)
-        # A: signed-out device kitchen, then first sign-in to an account that already has data
-        await pg.evaluate("""()=>{localStorage.setItem('p2p.v3',JSON.stringify({v:3,owner:null,sample:false,savedAt:Date.now(),pantry:[{name:'Local cheese',key:'cheese',qty:200,unit:'g',loc:'fridge',added:'2026-11-18'}],staples:['salt'],saved:[],collections:[],week:[],history:[],prefs:{}}));
-          window.__signed=true; window.__store.row={data:{v:3,owner:'u1',savedAt:1000,pantry:[{name:'Account eggs',key:'egg',qty:6,unit:'pcs',loc:'fridge',added:'2026-11-18'}],staples:['salt'],saved:[],collections:[],week:[],history:[],prefs:{}},updated_at:'2026-01-01'};}""")
-        await pg.wait_for_timeout(600); await pg.evaluate("localStorage.getItem('p2p.v3')"); await pg.reload(); await pg.wait_for_timeout(900)
-        names=await pg.eval_on_selector_all(".item .name","e=>e.map(x=>x.textContent)")
-        modal=await pg.is_visible("#authModal")
-        ok(names==["Account eggs"] and modal, f"first sign-in: older account data is NOT overwritten by this device; it asks first (shows {names}, modal={modal})")
-        await pg.click("[data-act=merge-yes]"); await pg.wait_for_timeout(1700)
-        names=sorted(await pg.eval_on_selector_all(".item .name","e=>e.map(x=>x.textContent)"))
-        remote=await pg.evaluate("window.__store.row.data.pantry.map(p=>p.name).sort()")
-        ok(names==["Account eggs","Local cheese"] and remote==names, f"'Add them' combines both and saves to the account {remote}")
-        # B: another device saved something newer → this device's next save must not overwrite it
-        await pg.evaluate("""()=>{const r=window.__store.row; r.data={...r.data,savedAt:Date.now()+60000,pantry:[...r.data.pantry,{name:'Phone mangoes',key:'mango',qty:2,unit:'pcs',loc:'pantry',added:'2026-11-19'}]}; window.__store.row=r;}""")
-        await pg.fill("#qaText","1 cucumber"); await pg.press("#qaText","Enter"); await pg.wait_for_timeout(1800)
-        remote=await pg.evaluate("window.__store.row.data.pantry.map(p=>p.name)")
-        local=await pg.eval_on_selector_all(".item .name","e=>e.map(x=>x.textContent)")
-        ok("Phone mangoes" in remote and "Phone mangoes" in local, f"newer copy from another device is kept and shown, not overwritten (remote {remote})")
-        # C: normal case: newest local change is saved
-        await pg.fill("#qaText","2 apples"); await pg.press("#qaText","Enter"); await pg.wait_for_timeout(1800)
-        remote=await pg.evaluate("window.__store.row.data.pantry.map(p=>p.name)")
-        ok("Apples" in remote, "a normal change is saved to the account")
-        ok(not errs, f"no script errors {errs[:2]}")
-        await ctx.close()
-
+        # (Email/password sync checks removed: accounts now use one Puter sign-in; see test-browser-signin.py)
         print("\n10. AI RECIPES MUST BE SENSIBLE, SAFE AND RATED TASTY (stand-in AI)")
         recipes={"recipes":[
           {"title":"Garlic Chicken Rice Bowl","cuisine":"Filipino","style":"Classic","desc":"x","serves":2,"prep":10,"cook":20,"difficulty":"Easy","ingredients":[{"name":"Chicken thighs","qty":300,"unit":"g"},{"name":"Leftover rice","qty":2,"unit":"cup"},{"name":"Garlic","qty":4,"unit":"clove"},{"name":"Soy sauce","qty":2,"unit":"tbsp"}],"steps":["Brown the chicken.","Add garlic and soy.","Serve over rice."],"season":"","store":""},

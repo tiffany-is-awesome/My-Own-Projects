@@ -72,10 +72,9 @@ const AI={
       }
       throw {code:"puter_failed",message:lastErr&&(lastErr.message||lastErr.error&&lastErr.error.message)};
     }
-    let session=null;
-    try{ if(Cloud.user){ session=(await (await Cloud.client()).auth.getSession()).data.session; } }catch(e){}
-    if(!session) throw {code:"sign_in"};
-    const r=await fetch(this.FUNCTION_URL,{method:"POST",headers:{"Content-Type":"application/json",apikey:CONFIG.SUPABASE_KEY,Authorization:"Bearer "+session.access_token},body:JSON.stringify({prompt,fast:!!fast})});
+    // Backup route (only used if a server AI key is ever set up): website accounts are now Puter
+    // sign-ins, so the server is called with the site's public key.
+    const r=await fetch(this.FUNCTION_URL,{method:"POST",headers:{"Content-Type":"application/json",apikey:CONFIG.SUPABASE_KEY,Authorization:"Bearer "+CONFIG.SUPABASE_KEY},body:JSON.stringify({prompt,fast:!!fast})});
     const j=await r.json().catch(()=>({}));
     if(!r.ok) throw {code:r.status===429?"rate_limited":r.status===401?"sign_in":"server",message:j.error};
     return parseJSON(j.text);
@@ -92,12 +91,7 @@ function puterText(r){
 /* One tap to turn on the free AI. Signing in opens Puter's pop-up, so it must follow a click. */
 function openPuterConnect(then){
   S.afterPuter=then||null;
-  $("#authBox").innerHTML=`<h2 id="authTitle">Turn on the free AI</h2>
-    <p>Recipe ideas and dish fixes come from Google's Gemini through Puter, so there's no key and nothing to pay on this site.</p>
-    <p>Sign in to a free Puter account once. Your AI use comes out of that account's free allowance, and it remembers you next time.</p>
-    <button class="btn primary" data-act="puter-connect">Connect free AI</button>
-    <button class="linkbtn" data-act="auth-close" style="align-self:center">Not now</button>`;
-  $("#authModal").hidden=false; $("#authBox").querySelector(".btn").focus();
+  openAuth("signin");
 }
 function parseJSON(t){
   t=String(t||"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```\s*$/,"").trim();

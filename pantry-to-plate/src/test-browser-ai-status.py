@@ -1,6 +1,6 @@
 import asyncio, json
 from playwright.async_api import async_playwright
-URL="file:///home/claude/p2p-src/index.html"
+URL="http://127.0.0.1:8765/index.html"
 res=[]
 def ok(c,m): res.append(bool(c)); print(("  ✓ " if c else "  ✗ ")+m)
 recipes={"recipes":[{"title":"Garlic Chicken Rice Bowl","cuisine":"Filipino","style":"Classic","desc":"x","serves":2,"prep":10,"cook":20,"difficulty":"Easy","ingredients":[{"name":"Chicken thighs","qty":300,"unit":"g"},{"name":"Leftover rice","qty":2,"unit":"cup"},{"name":"Garlic","qty":4,"unit":"clove"},{"name":"Soy sauce","qty":2,"unit":"tbsp"}],"steps":["Brown the chicken until cooked through, no pink.","Add garlic and soy.","Serve over rice."]}]}

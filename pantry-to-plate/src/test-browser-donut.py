@@ -6,7 +6,7 @@ async def main():
     async with async_playwright() as p:
         b=await p.chromium.launch()
         pg=await (await b.new_context(viewport={"width":1300,"height":900})).new_page(); errs=[]; pg.on("pageerror",lambda e:errs.append(str(e)))
-        await pg.goto("file:///home/claude/p2p-src/index.html#home"); await pg.wait_for_timeout(1200)
+        await pg.goto("http://127.0.0.1:8765/index.html#home"); await pg.wait_for_timeout(1200)
         n=await pg.eval_on_selector_all(".tipjar","e=>e.length"); ok(n==0,"no QR or link set → donut card hidden (no dead buttons)")
         pg2=await (await b.new_context(viewport={"width":1300,"height":900})).new_page(); pg2.on("pageerror",lambda e:errs.append(str(e)))
         await pg2.goto("file:///tmp/tiptest.html#home"); await pg2.wait_for_timeout(1200)

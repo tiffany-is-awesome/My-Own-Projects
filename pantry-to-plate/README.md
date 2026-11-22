@@ -4,7 +4,13 @@ Recipes from every cuisine, made **only** from what's already in your kitchen. N
 
 Live site: https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/
 
-## Sign-up
+## Signing in
+
+There is **one sign-in: "Sign in with Puter"**. It turns on the free AI *and* saves the kitchen, basics, plan and saved recipes to the person's own Puter account (Puter's private storage for this app), so it follows them to other devices. No email, password or confirmation email is involved, and nothing is stored on Supabase.
+
+Recipe reports ("How did it go?") are still sent to the `pantry_feedback` table in Supabase without an account: insert-only and size-limited, and nobody can read them through the site.
+
+## Old Supabase sign-up (no longer used)
 
 **"Confirm email" is turned off** (Authentication → Sign In / Providers), so anyone can create an account and sign in straight away.
 

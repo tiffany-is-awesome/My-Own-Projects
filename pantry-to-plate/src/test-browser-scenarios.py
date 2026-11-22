@@ -1,6 +1,6 @@
 import asyncio, json
 from playwright.async_api import async_playwright
-URL="file:///home/claude/p2p-src/index.html"
+URL="http://127.0.0.1:8765/index.html"
 res=[]
 def ok(c,m): res.append(bool(c)); print(("  ✓ " if c else "  ✗ ")+m)
 NET=lambda e: "ERR_TUNNEL" in e or "Failed to load resource" in e

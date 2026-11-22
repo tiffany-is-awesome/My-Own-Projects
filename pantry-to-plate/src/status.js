@@ -4,7 +4,6 @@ function aiState(){
   if(S.aiChecking) return "checking";
   if(!AI.ready) return "none";
   if(AI.mode==="puter"&&!S.puterConnected) return "signin";
-  if(AI.mode==="server"&&!Cloud.user) return "signin";
   if(S.aiError) return "error";
   return "live";
 }
