@@ -74,6 +74,11 @@
   .tool-bar { position: absolute; top: -12px; right: 14px; z-index: 5; opacity: 0; transform: translateY(2px); transition: opacity .15s, transform .15s; }
   [data-tool]:hover > .tool-bar, [data-tool]:focus-within > .tool-bar, .tool-bar:focus-within { opacity: 1; transform: none; }
   @media (hover: none) { .tool-bar { opacity: .9; transform: none; } }
+  .page-off { display: none !important; }
+  .tour-move { transition: all .25s ease; }
+  @media (prefers-reduced-motion: reduce) { .tour-move { transition: none; } }
+  .nav-tab[aria-current="page"] { color: #0f766e; background: rgba(20, 184, 166, .12); }
+  .dark .nav-tab[aria-current="page"] { color: #5eead4; background: rgba(45, 212, 191, .14); }
   .tool-collapsed > *:not(:first-child):not(.tool-bar) { display: none !important; }
   .tool-collapsed > :first-child { margin-bottom: 0 !important; border-bottom: 0 !important; }
   #focusBody [data-tool] > .tool-bar { display: none; }
@@ -105,32 +110,9 @@
         <div id="balanceDisplay" class="text-2xl sm:text-3xl font-extrabold tabular leading-tight">$0.00</div>
         <div id="balanceSub" class="text-[11px] text-white/75 tabular"></div>
       </div>
-      <label for="currencySelect" class="sr-only">Currency</label>
-      <select id="currencySelect" title="Currency" class="rounded-xl border border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-200 text-sm font-semibold pl-2.5 pr-8 py-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500"></select>
-      <button id="setBalanceBtn" class="rounded-xl border border-violet-200 dark:border-violet-900 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 px-3 py-2 text-sm font-semibold hover:bg-violet-100 dark:hover:bg-violet-900/50 transition">
-        Set balance
-      </button>
-      <div class="relative">
-        <button type="button" id="toolsBtn" class="rounded-xl border border-stone-200 dark:border-stone-700 h-10 px-3 flex items-center gap-1.5 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800 transition" aria-haspopup="menu" title="Show, hide or open tools">
-          🧩 <span class="hidden sm:inline">Tools</span><span id="toolsHiddenCount" class="hidden min-w-[18px] h-[18px] px-1 rounded-full bg-stone-900 text-white dark:bg-white dark:text-stone-900 text-[10px] font-bold place-items-center"></span>
-        </button>
-        <div id="toolsMenu" class="hidden absolute right-0 mt-2 w-80 rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xl p-2 animate-in z-40" role="menu">
-          <div class="px-3 pt-2 pb-1">
-            <div class="font-bold">Your tools</div>
-            <div class="text-xs text-stone-500 dark:text-stone-400">Switch tools on or off, or open one by itself.</div>
-          </div>
-          <ul id="toolsList" class="py-1"></ul>
-          <hr class="my-1 border-stone-200 dark:border-stone-800" />
-          <button type="button" id="toolsReset" class="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800">↺ Show everything again</button>
-        </div>
-      </div>
       <button type="button" id="remBellBtn" class="relative rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 h-10 w-10 grid place-items-center hover:bg-rose-100 dark:hover:bg-rose-900/50 transition" aria-label="Open reminders" title="Reminders">
         <span aria-hidden="true">🔔</span>
         <span id="remBadge" class="hidden absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full text-white text-[11px] font-bold place-items-center ring-2 ring-white dark:ring-stone-900"></span>
-      </button>
-      <button type="button" class="open-tutorial rounded-xl border border-stone-200 dark:border-stone-700 h-10 w-10 grid place-items-center hover:bg-stone-100 dark:hover:bg-stone-800 transition font-bold text-violet-700 dark:text-violet-300" aria-label="How to use Tiffo" title="How to use Tiffo">?</button>
-      <button id="themeToggle" class="rounded-xl border border-stone-200 dark:border-stone-700 h-10 w-10 grid place-items-center hover:bg-stone-100 dark:hover:bg-stone-800 transition" aria-label="Switch between day and night mode" title="Day / Night mode">
-        <span class="dark:hidden">🌙</span><span class="hidden dark:inline">☀️</span>
       </button>
 
       <!-- Account -->
@@ -153,9 +135,11 @@
       </div>
     </div>
   </div>
+  <nav id="topNav" class="hidden sm:block max-w-7xl mx-auto px-4 sm:px-6 pb-2" aria-label="Sections"><div class="flex gap-1"><button type="button" data-nav="home" class="nav-tab rounded-lg px-3.5 py-2 text-sm font-semibold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Home"><span aria-hidden="true">🏠</span> Home</button><button type="button" data-nav="activity" class="nav-tab rounded-lg px-3.5 py-2 text-sm font-semibold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Activity"><span aria-hidden="true">📒</span> Activity</button><button type="button" data-nav="plan" class="nav-tab rounded-lg px-3.5 py-2 text-sm font-semibold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Plan"><span aria-hidden="true">🎯</span> Plan</button><button type="button" data-nav="money" class="nav-tab rounded-lg px-3.5 py-2 text-sm font-semibold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Money"><span aria-hidden="true">👛</span> Money</button><button type="button" data-nav="more" class="nav-tab rounded-lg px-3.5 py-2 text-sm font-semibold text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="More"><span aria-hidden="true">☰</span> More</button></div></nav>
 </header>
+<nav id="bottomNav" class="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-stone-200 dark:border-stone-800 bg-white/95 dark:bg-stone-900/95 backdrop-blur flex pb-[env(safe-area-inset-bottom)]" aria-label="Sections"><button type="button" data-nav="home" class="nav-tab flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold text-stone-500 dark:text-stone-400" aria-label="Home"><span class="text-lg leading-none" aria-hidden="true">🏠</span>Home</button><button type="button" data-nav="activity" class="nav-tab flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold text-stone-500 dark:text-stone-400" aria-label="Activity"><span class="text-lg leading-none" aria-hidden="true">📒</span>Activity</button><button type="button" data-nav="plan" class="nav-tab flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold text-stone-500 dark:text-stone-400" aria-label="Plan"><span class="text-lg leading-none" aria-hidden="true">🎯</span>Plan</button><button type="button" data-nav="money" class="nav-tab flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold text-stone-500 dark:text-stone-400" aria-label="Money"><span class="text-lg leading-none" aria-hidden="true">👛</span>Money</button><button type="button" data-nav="more" class="nav-tab flex-1 flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold text-stone-500 dark:text-stone-400" aria-label="More"><span class="text-lg leading-none" aria-hidden="true">☰</span>More</button></nav>
 
-<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-24 sm:pb-6 space-y-6">
   <div id="soloBanner" class="hidden rounded-xl border border-violet-200 dark:border-violet-900 bg-violet-50 dark:bg-violet-950/40 text-violet-900 dark:text-violet-200 px-4 py-2.5 text-sm flex items-center justify-between gap-3">
     <span>Showing only <b id="soloName"></b>.</span>
     <a id="soloExit" href="#" class="font-semibold underline">Show the full app</a>
@@ -171,7 +155,7 @@
       <label for="noteInput" class="sr-only">Type a money note</label>
       <input id="noteInput" type="text"
         class="flex-1 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-4 py-3 text-base placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        placeholder="Type a note (e.g., 'Spent $15 on gas' or 'Client paid $400')" />
+        placeholder="What happened? e.g. “Jollibee 350” or “Sahod 18,000”" />
       <div class="flex gap-3">
         <button type="button" id="logBtn" class="flex-1 md:flex-none rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-semibold px-5 py-3 shadow-md shadow-emerald-500/25 transition">Log it</button>
         <label for="fileInput" class="flex-1 md:flex-none cursor-pointer rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:brightness-110 text-white font-semibold px-5 py-3 text-center shadow-md shadow-fuchsia-500/25 transition whitespace-nowrap">
@@ -344,9 +328,53 @@
           <div id="docHistory" class="flex flex-wrap gap-2"></div>
         </div>
       </section>
+
+      <!-- Settings (More page) -->
+      <section data-tool="settings" data-tool-name="⚙️ Settings" data-tool-nocollapse class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <h2 class="font-bold text-lg mb-1">Settings</h2>
+        <div class="divide-y divide-stone-100 dark:divide-stone-800">
+          <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div><div class="font-semibold text-sm">Money</div><div class="text-xs text-stone-500 dark:text-stone-400">The currency Tiffo shows.</div></div>
+            <div class="flex items-center gap-2">
+      <label for="currencySelect" class="sr-only">Currency</label>
+      <select id="currencySelect" title="Currency" class="rounded-xl border border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-200 text-sm font-semibold pl-2.5 pr-8 py-2 cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500"></select>
+      <button id="setBalanceBtn" class="rounded-xl border border-violet-200 dark:border-violet-900 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 px-3 py-2 text-sm font-semibold hover:bg-violet-100 dark:hover:bg-violet-900/50 transition">
+        Set balance
+      </button>
+            </div></div>
+          <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div><div class="font-semibold text-sm">Day or night</div><div class="text-xs text-stone-500 dark:text-stone-400">Switch the colours.</div></div>
+      <button id="themeToggle" class="rounded-xl border border-stone-200 dark:border-stone-700 h-10 w-10 grid place-items-center hover:bg-stone-100 dark:hover:bg-stone-800 transition" aria-label="Switch between day and night mode" title="Day / Night mode">
+        <span class="dark:hidden">🌙</span><span class="hidden dark:inline">☀️</span>
+      </button>
+
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div><div class="font-semibold text-sm">Choose what you see</div><div class="text-xs text-stone-500 dark:text-stone-400">Hide cards you don’t use, or open one by itself.</div></div>
+      <div class="relative">
+        <button type="button" id="toolsBtn" class="rounded-xl border border-stone-200 dark:border-stone-700 h-10 px-3 flex items-center gap-1.5 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800 transition" aria-haspopup="menu" title="Show, hide or open tools">
+          🧩 <span class="hidden sm:inline">Tools</span><span id="toolsHiddenCount" class="hidden min-w-[18px] h-[18px] px-1 rounded-full bg-stone-900 text-white dark:bg-white dark:text-stone-900 text-[10px] font-bold place-items-center"></span>
+        </button>
+        <div id="toolsMenu" class="hidden absolute left-0 mt-2 w-80 max-w-[calc(100vw-3rem)] rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-xl p-2 animate-in z-40" role="menu">
+          <div class="px-3 pt-2 pb-1">
+            <div class="font-bold">Your tools</div>
+            <div class="text-xs text-stone-500 dark:text-stone-400">Switch tools on or off, or open one by itself.</div>
+          </div>
+          <ul id="toolsList" class="py-1"></ul>
+          <hr class="my-1 border-stone-200 dark:border-stone-800" />
+          <button type="button" id="toolsReset" class="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800">↺ Show everything again</button>
+        </div>
+      </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div><div class="font-semibold text-sm">Your records</div><div class="text-xs text-stone-500 dark:text-stone-400">A spreadsheet of everything, for you or your accountant.</div></div>
+            <button type="button" id="exportBtn2" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">⬇ Download CSV</button>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div><div class="font-semibold text-sm">How Tiffo works</div><div class="text-xs text-stone-500 dark:text-stone-400">A short tour that points at the real buttons.</div></div>
+            <button type="button" class="open-tutorial rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">📖 Take the tour</button>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- ---------------------------- RIGHT ---------------------------- -->
+
     <div id="colRight" class="lg:col-span-2 space-y-6">
 
       <!-- Reminders -->
@@ -639,25 +667,19 @@
   </div>
 </div>
 
-<!-- ============================ MODAL: Tutorial ============================ -->
-<div id="tutorialModal" class="fixed inset-0 z-[55] hidden items-center justify-center bg-stone-950/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="tutTitle">
-  <div class="w-full max-w-lg rounded-3xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-2xl overflow-hidden animate-in">
-    <div id="tutHero" class="relative px-6 pt-6 pb-5 text-white bg-gradient-to-br from-emerald-500 to-sky-600">
-      <button type="button" id="tutClose" class="absolute top-3 right-3 h-8 w-8 rounded-lg hover:bg-white/20 grid place-items-center" aria-label="Close tutorial">✕</button>
-      <div id="tutStepLabel" class="text-xs font-semibold uppercase tracking-wider text-white/80"></div>
-      <div class="flex items-center gap-3 mt-1">
-        <div id="tutEmoji" class="text-4xl" aria-hidden="true"></div>
-        <h3 id="tutTitle" class="text-xl font-extrabold leading-tight"></h3>
-      </div>
-    </div>
-    <div class="px-6 py-5">
-      <div id="tutBody" class="text-sm text-stone-700 dark:text-stone-200 space-y-3 min-h-[170px]"></div>
-      <div class="mt-5 flex items-center justify-between gap-3">
-        <div id="tutDots" class="flex gap-1.5"></div>
-        <div class="flex gap-2">
-          <button type="button" id="tutBack" class="rounded-lg px-4 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Back</button>
-          <button type="button" id="tutNext" class="rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:brightness-110 text-white px-4 py-2 text-sm font-semibold">Next</button>
-        </div>
+<!-- ============================ TOUR: points at the real buttons ============================ -->
+<div id="tour" class="hidden fixed inset-0 z-[58]">
+  <div id="tourBlock" class="absolute inset-0"></div>
+  <div id="tourSpot" class="tour-move absolute rounded-xl pointer-events-none" style="box-shadow:0 0 0 9999px rgba(12,10,9,.62),0 0 0 3px #2dd4bf"></div>
+  <div id="tourTip" role="dialog" aria-modal="true" aria-labelledby="tourTitle" class="tour-move absolute w-[min(22rem,calc(100vw-2rem))] rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 shadow-2xl p-4">
+    <div id="tourCount" class="text-[11px] font-semibold text-teal-700 dark:text-teal-300"></div>
+    <h3 id="tourTitle" class="mt-0.5 font-bold text-base leading-snug"></h3>
+    <p id="tourText" class="mt-1 text-sm text-stone-600 dark:text-stone-300"></p>
+    <div class="mt-4 flex items-center justify-between gap-2">
+      <button type="button" id="tourSkip" class="text-sm font-semibold text-stone-500 hover:text-stone-800 dark:hover:text-white px-1 py-2">Skip tour</button>
+      <div class="flex gap-2">
+        <button type="button" id="tourBack" class="rounded-lg px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Back</button>
+        <button type="button" id="tourNext" class="rounded-lg bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 text-sm font-semibold">Next</button>
       </div>
     </div>
   </div>
@@ -1730,6 +1752,7 @@ const Parser = {
       const knownCat = kind === 'income' ? !!incCat : !!expCat;
       conf = 0.45 + Math.min(margin, 4) * 0.08 + (knownCat ? 0.2 : 0);
       if (kind === 'expense' && knownCat && inc === 0) conf = Math.max(conf, 0.8);   // "Jollibee 350"
+      if (kind === 'expense' && exp >= 2 && inc === 0 && typeof Pockets !== 'undefined' && Pockets.mentioned(raw)) conf = Math.max(conf, 0.8);   // "Bought toys 30" from the toys pocket
       if (kind === 'income' && inc >= 3 && knownCat) conf = Math.max(conf, 0.85);
       if (kind === 'income' && exp === 0 && /\b(got paid|get paid|been paid|received|natanggap|sahod|sweldo)\b/.test(lower)) { conf = Math.max(conf, 0.8); if (!knownCat && /\bpaid for\b|\bfor (?:the|a|my)\b/.test(lower)) category = 'Client Revenue'; }
       why.push(kind === 'income' ? 'money coming in' : 'money going out');
@@ -3465,6 +3488,42 @@ const Exporter = {
    11b. LAYOUT — hide / collapse / focus / open-alone for each tool card
    Saved per account in Store.state.layout = { hidden: [], collapsed: [] }.
    ========================================================================= */
+/* =========================================================================
+   NAV — five pages. Home stays simple: the note box, this month, two charts.
+   ========================================================================= */
+const Nav = {
+  PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More' },
+  // Which page each card lives on.
+  OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', spending: 'plan', profit: 'plan',
+    accounts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
+  page: 'home',
+  pageOf(el) { return this.OF[el.dataset.tool] || 'more'; },
+  read() { const m = location.hash.match(/^#(home|activity|plan|money|more)\b/); this.page = m ? m[1] : 'home'; },
+  go(page, { scroll = true } = {}) {
+    if (!this.PAGES[page]) page = 'home';
+    this.page = page;
+    if (!/solo=/.test(location.hash)) history.replaceState(null, '', page === 'home' ? location.pathname + location.search : '#' + page);
+    Layout.apply();
+    if (scroll) window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  },
+  paint() {
+    for (const b of $$('[data-nav]')) {
+      const on = b.dataset.nav === this.page;
+      b.setAttribute('aria-current', on ? 'page' : 'false');
+      b.classList.toggle('nav-on', on);
+    }
+    // The note box lives on Home and Activity.
+    $('#dropzone').classList.toggle('page-off', !Layout.solo && !['home', 'activity'].includes(this.page));
+    $('#tipCard')?.classList.toggle('page-off', this.page !== 'more');
+    document.title = (this.page === 'home' || Layout.solo ? '' : this.PAGES[this.page] + ' · ') + 'Tiffo';
+  },
+  bind() {
+    this.read();
+    for (const b of $$('[data-nav]')) b.addEventListener('click', () => this.go(b.dataset.nav));
+    window.addEventListener('hashchange', () => { const before = this.page; this.read(); if (before !== this.page) Layout.apply(); });
+  },
+};
+
 const Layout = {
   focused: null,      // { el, placeholder }
   solo: null,         // tool id when opened as #solo=<id>
@@ -3477,14 +3536,14 @@ const Layout = {
   /** Add the floating ⤢ — ✕ toolbar to every tool card (once). */
   decorate() {
     for (const el of this.tools()) {
-      if (el.querySelector(':scope > .tool-bar')) continue;
+      if (el.querySelector(':scope > .tool-bar') || el.dataset.tool === 'settings') continue;   // Settings can't be hidden (it holds the way back)
       const bar = document.createElement('div');
       bar.className = 'tool-bar flex items-center gap-0.5 rounded-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shadow-md px-1 py-0.5';
       const btn = 'h-6 w-6 rounded-full grid place-items-center text-xs text-stone-500 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-700 hover:text-stone-900 dark:hover:text-white';
       bar.innerHTML = `
         <button type="button" data-act="focus" class="${btn}" title="Open full screen" aria-label="Open ${this.name(el)} full screen">⤢</button>
         ${el.hasAttribute('data-tool-nocollapse') ? '' : `<button type="button" data-act="collapse" class="${btn}" title="Collapse" aria-label="Collapse ${this.name(el)}">—</button>`}
-        <button type="button" data-act="hide" class="${btn} hover:!text-rose-600" title="Hide (bring it back from 🧩 Tools)" aria-label="Hide ${this.name(el)}">✕</button>`;
+        <button type="button" data-act="hide" class="${btn} hover:!text-rose-600" title="Hide (bring it back from More → Choose what you see)" aria-label="Hide ${this.name(el)}">✕</button>`;
       bar.addEventListener('click', (e) => {
         const act = e.target.closest('[data-act]')?.dataset.act; if (!act) return;
         if (act === 'focus') this.focus(el.dataset.tool);
@@ -3499,13 +3558,14 @@ const Layout = {
     const st = this.state();
     for (const el of this.tools()) {
       const id = el.dataset.tool;
-      const hidden = this.solo ? id !== this.solo : st.hidden.includes(id);
+      const hidden = this.solo ? id !== this.solo : (st.hidden.includes(id) || Nav.pageOf(el) !== Nav.page);
       el.classList.toggle('hidden', hidden);
       el.classList.toggle('tool-collapsed', !this.solo && st.collapsed.includes(id));
       const c = el.querySelector(':scope > .tool-bar [data-act="collapse"]');
       if (c) { c.textContent = st.collapsed.includes(id) ? '▢' : '—'; c.title = st.collapsed.includes(id) ? 'Expand' : 'Collapse'; }
     }
     // If one column is empty, let the other use the full width.
+    Nav.paint();
     const visible = (col) => [...$(col).querySelectorAll(':scope > [data-tool]')].some((x) => !x.classList.contains('hidden'));
     const L = visible('#colLeft'), R = visible('#colRight');
     $('#colLeft').classList.toggle('hidden', !L);
@@ -3513,7 +3573,7 @@ const Layout = {
     $('#colRight').classList.toggle('lg:col-span-2', L && R); $('#colRight').classList.toggle('lg:col-span-5', !L && R);
     // Right column without tools: keep tip card visible beneath left content
     // Keep the right column only if it has a visible tool, or the tip card is switched on (not in solo view).
-    const tipOn = $('#tipCard') && !$('#tipCard').classList.contains('hidden') && !this.solo;
+    const tipOn = $('#tipCard') && !$('#tipCard').classList.contains('hidden') && !$('#tipCard').classList.contains('page-off') && !this.solo;
     $('#colRight').classList.toggle('hidden', !R && !tipOn);
     // Solo mode banner
     $('#soloBanner').classList.toggle('hidden', !this.solo);
@@ -3527,9 +3587,13 @@ const Layout = {
 
   renderMenu() {
     const st = this.state();
-    $('#toolsList').innerHTML = this.tools().map((el) => {
+    let lastPage = null;
+    $('#toolsList').innerHTML = this.tools().slice().sort((a, b) => Object.keys(Nav.PAGES).indexOf(Nav.pageOf(a)) - Object.keys(Nav.PAGES).indexOf(Nav.pageOf(b))).map((el) => {
       const id = el.dataset.tool, on = !st.hidden.includes(id);
-      return `<li class="flex items-center gap-2 rounded-lg px-3 py-1.5 hover:bg-stone-50 dark:hover:bg-stone-800/60">
+      if (id === 'settings') return '';
+      const pg = Nav.pageOf(el), head = pg !== lastPage ? `<li class="px-3 pt-2 pb-0.5 text-[11px] font-bold text-stone-400">${Nav.PAGES[pg]}</li>` : '';
+      lastPage = pg;
+      return head + `<li class="flex items-center gap-2 rounded-lg px-3 py-1.5 hover:bg-stone-50 dark:hover:bg-stone-800/60">
         <button type="button" role="switch" aria-checked="${on}" data-toggle="${id}" class="relative h-5 w-9 shrink-0 rounded-full transition ${on ? 'bg-emerald-500' : 'bg-stone-300 dark:bg-stone-600'}" aria-label="Show ${escapeHTML(this.name(el))}">
           <span class="absolute top-0.5 ${on ? 'left-[18px]' : 'left-0.5'} h-4 w-4 rounded-full bg-white shadow transition-all"></span></button>
         <span class="flex-1 text-sm truncate ${on ? '' : 'text-stone-400'}">${escapeHTML(this.name(el))}</span>
@@ -3547,7 +3611,7 @@ const Layout = {
     this.save();
     if (withUndo) {
       const el = $(`[data-tool="${id}"]`);
-      toast(`Hid ${escapeHTML(this.name(el))}. Bring it back from 🧩 Tools.`, { action: { label: 'Undo', fn: () => this.show(id) } });
+      toast(`Hid ${escapeHTML(this.name(el))}. Bring it back from ☰ More → Choose what you see.`, { action: { label: 'Undo', fn: () => this.show(id) } });
     }
   },
   show(id) { const st = this.state(); st.hidden = st.hidden.filter((x) => x !== id); st.collapsed = st.collapsed.filter((x) => x !== id); this.save(); },
@@ -4796,95 +4860,88 @@ const UI = {
     let f = false; this.titleTimer = setInterval(() => { f = !f; document.title = f ? '⏰ Reminder!' : this.baseTitle; }, 1000);
   },
 
-  /* ---------- tutorial ---------- */
-  tutStep: 0,
-  tutorialSteps() {
-    const ex = (txt) => `<button type="button" class="tut-try w-full text-left rounded-xl border border-violet-200 dark:border-violet-900 bg-violet-50 dark:bg-violet-950/40 px-3 py-2 font-medium text-violet-900 dark:text-violet-200 hover:brightness-95">“${escapeHTML(txt)}” <span class="float-right text-xs font-semibold opacity-70">Try it →</span></button>`;
+  /* ---------- tour: spotlights the real buttons ---------- */
+  tourSteps() {
     return [
-      { emoji: '👋', title: 'Welcome to Tiffo', hero: 'from-emerald-500 to-sky-600', body: `
-        <p>Tiffo keeps your business money, reminders and paperwork in one place, and you mostly just <b>type like you're texting</b>.</p>
-        <ul class="space-y-1.5">
-          <li>💸 <b>Log money</b> by typing what happened</li>
-          <li>⏰ <b>Set alarms</b> for deadlines the same way</li>
-          <li>🎯 <b>Make budgets</b> like “15% goes to toys” and see what's left</li>
-          <li>👛 <b>Pockets</b>: send money to mini accounts like “toys” or “necessities”</li>
-          <li>📷 <b>Scan</b> receipts & contracts into plain English</li>
-          <li>📊 <b>See</b> where your money goes, then <b>export</b> it for taxes</li>
-        </ul>
-        <p class="text-stone-500 dark:text-stone-400">Takes about a minute. You can reopen this anytime with the <b>?</b> button at the top.</p>` },
-      { emoji: '💰', title: 'Set your balance & currency', hero: 'from-indigo-600 to-fuchsia-600', body: `
-        <p>Pick your money at the top (it's set to <b>${CURRENCY}</b>), then tap <b>Set balance</b> and enter how much cash your business has right now.</p>
-        <p>From then on, Tiffo keeps the big number at the top up to date for you: <b>balance + money in − money out</b>.</p>
-        <p class="text-stone-500 dark:text-stone-400">Changing currency relabels your amounts; it doesn't convert them.</p>` },
-      { emoji: '💸', title: 'Log money by typing', hero: 'from-emerald-500 to-teal-600', body: `
-        <p>Type what happened in the box at the top and press <b>Log it</b> (or Enter). Tiffo works out if it's money <span class="text-emerald-700 dark:text-emerald-400 font-semibold">in</span> or <span class="text-rose-700 dark:text-rose-400 font-semibold">out</span>, the amount, and a category.</p>
-        ${ex(`Spent ${exampleMoney(15)} on gas`)}
-        ${ex(`Client paid ${exampleMoney(400)} for the logo`)}
-        ${ex(`Canva subscription ${exampleMoney(13)} yesterday`)}
-        <p class="text-stone-500 dark:text-stone-400">Wrong category? Tap the colored tag on the entry to change it. Hover an entry to delete it.</p>` },
-      { emoji: '⏰', title: 'Set reminders & alarms', hero: 'from-rose-500 to-orange-500', body: `
-        <p>Mention a <b>reminder</b>, <b>alarm</b> or <b>deadline</b> and Tiffo makes an alarm instead of a money entry.</p>
-        ${ex('Deadline is on Sunday, make an alarm for the day before')}
-        ${ex('Remind me to send the invoice tomorrow at 10am')}
-        ${ex('Meeting with Ana on Friday 3pm, alert me 1 hour before')}
-        <p>Tap the <b>🔔 bell</b> at the top any time to see all your reminders, add new ones and tick them off. In the bell panel you can also choose to <b>add every new reminder to your calendar automatically</b>.</p>
-        <p class="text-stone-500 dark:text-stone-400">Alarms ring while Tiffo is open. Tap 📅 on a reminder to add it to your phone's calendar so it rings even when Tiffo is closed.</p>` },
-      { emoji: '🎯', title: 'Budgets by typing', hero: 'from-emerald-500 to-lime-600', body: `
-        <p>Tell Tiffo how much should go where. It tracks this month's spending in that category and shows <b>how much is left</b> in the 🎯 Budgets pie chart.</p>
-        ${ex('15% of the money should go to toys')}
-        ${ex(`Budget ${exampleMoney(100)} for marketing`)}
-        ${ex('20% for toys and 10% for snacks')}
-        ${ex('How much is left for toys?')}
-        <p class="text-stone-500 dark:text-stone-400">Change one with “change toys to 20%” and remove one with “remove toys budget”. Spending like “Bought toys ${exampleMoney(20)}” counts automatically. “% of the money” means what you had this month (start-of-month balance + money in); say “% of income” to use only what you earned.</p>` },
-      { emoji: '👛', title: 'Pockets: set money aside', hero: 'from-fuchsia-500 to-violet-600', body: `
-        <p>Split your cash into <b>mini accounts</b>, like a pocket for toys and one for necessities. Your total stays the same; pockets just keep track of what each part is for.</p>
-        ${ex(`Send ${exampleMoney(10)} to my toys account`)}
-        ${ex(`Move ${exampleMoney(5)} from toys to necessities`)}
-        ${ex(`Take ${exampleMoney(2)} out of toys`)}
-        <p class="text-stone-500 dark:text-stone-400">Spending that mentions a pocket, like “Bought toys ${exampleMoney(3)}”, comes out of it automatically. The <b>👛 Pockets</b> card shows what's free to use and what's in each pocket.</p>` },
-      { emoji: '📷', title: 'Scan receipts & contracts', hero: 'from-violet-600 to-fuchsia-600', body: `
-        <p>Tap <b>📷 Scan Receipt / Contract</b> (or drag a photo onto the page). You'll get:</p>
-        <ul class="space-y-1.5">
-          <li><b class="text-sky-700 dark:text-sky-300">a)</b> a 3-sentence plain-English summary</li>
-          <li><b class="text-amber-700 dark:text-amber-300">b)</b> what you'll pay and what you must do</li>
-          <li><b class="text-rose-700 dark:text-rose-300">c)</b> 🚩 red flags like auto-renewals and penalty fees</li>
-          <li><b class="text-emerald-700 dark:text-emerald-300">d)</b> 📖 the whole document rewritten in plain English, part by part</li>
-        </ul>
-        <p>For receipts, tap <b>+ Log as expense</b> to add it to your books in one go. No photo handy? Try <b>Sample contract</b>.</p>` },
-      { emoji: '📊', title: 'Charts, export & your account', hero: 'from-sky-600 to-indigo-600', body: `
-        <p><b>Where the money went</b> shows spending by category, <b>Cash balance over time</b> shows the trend, and <b>💰 Profit</b> and <b>💸 Spending</b> compare weeks or months side by side. Hover or tap any bar for details.</p>
-        <p><b>⬇ Download CSV</b> gives you a spreadsheet with a tax summary to hand to your accountant.</p>
-        <p>Too busy a screen? Hover any card for <b>⤢</b> (full screen), <b>—</b> (collapse) and <b>✕</b> (hide). The <b>🧩 Tools</b> button brings tools back or opens one by itself ↗.</p>
-        <p><b>Sign in</b> (top right) to keep separate books for each person or business on this device. Everything stays in your browser.</p>` },
+      { page: 'home', el: '#noteInput', title: 'This is the main thing: the note box', text: `Type what happened, the way you’d text a friend: “Jollibee ${exampleMoney(350)}”, “Sahod ${exampleMoney(18000)}”, “I lent Maria ${exampleMoney(500)}”. Bills and reminders work too: “Meralco due Friday”.` },
+      { page: 'home', el: '#logBtn', title: 'Press Log (or Enter)', text: 'Tiffo works out what it was. If it isn’t sure, it shows you a quick card to check before saving anything.' },
+      { page: 'home', el: 'label[for="fileInput"]', title: 'Scan a receipt or contract', text: 'Tiffo reads it and explains it in plain English. For receipts, you check the amount and date before anything is saved.' },
+      { page: 'home', el: '#balanceCard', title: 'Your money right now', text: 'The total in all your accounts: cash, GCash, banks.' },
+      { page: 'home', el: '[data-tool="summary"]', title: 'This month at a glance', text: 'Money in, money out, and what’s left. The charts below show where it went.' },
+      { page: 'home', el: '[data-nav="activity"]', title: 'Activity', text: 'Every entry, newest first. Tap a category to change it, or delete a mistake.' },
+      { page: 'home', el: '[data-nav="plan"]', title: 'Plan', text: `Budgets and reminders. You can type these too: “15% for groceries” or “remind me to pay rent on the 30th”.` },
+      { page: 'home', el: '[data-nav="money"]', title: 'Money', text: 'Your accounts, pockets (money set aside, like “toys”), and 👥 family & friends: money you lent or borrowed.' },
+      { page: 'home', el: '#remBellBtn', title: 'Reminders bell', text: 'A red number means something is due.' },
+      { page: 'home', el: '[data-nav="more"]', title: 'More', text: 'Documents, settings (currency, starting balance, day or night), choosing what you see, and this tour again.' },
+      { page: 'home', el: '#noteInput', title: 'Your turn!', text: `Try typing your first note now, like “Groceries ${exampleMoney(500)}”.`, last: true },
     ];
   },
+  tourTarget(sel) { return $$(sel).find((x) => x.getClientRects().length && getComputedStyle(x).visibility !== 'hidden') || null; },
   openTutorial(step = 0) {
-    this.tutStep = step; this.renderTutorial();
-    $('#tutorialModal').classList.remove('hidden'); $('#tutorialModal').classList.add('flex');
+    this.tourI = step;
+    $('#tour').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    this._tourKey ||= (e) => {
+      if ($('#tour').classList.contains('hidden')) return;
+      if (e.key === 'Escape') this.closeTutorial();
+      if (e.key === 'ArrowRight') this.tourMove(1);
+      if (e.key === 'ArrowLeft') this.tourMove(-1);
+    };
+    this._tourPos ||= () => this.tourPlace();
+    document.addEventListener('keydown', this._tourKey);
+    window.addEventListener('resize', this._tourPos);
+    this.tourShow();
   },
   closeTutorial() {
-    $('#tutorialModal').classList.add('hidden'); $('#tutorialModal').classList.remove('flex');
+    $('#tour').classList.add('hidden');
+    document.body.style.overflow = '';
+    window.removeEventListener('resize', this._tourPos);
     try { LS.setItem('tiffo.tutorialSeen', '1'); } catch (e) {}
-    $('#newHereLink')?.classList.add('hidden');   // the guide is for first-timers; ? button still reopens it
+    $('#newHereLink')?.classList.add('hidden');   // the tour is for first-timers; More → Take the tour reopens it
   },
-  renderTutorial() {
-    const steps = this.tutorialSteps(), st = steps[this.tutStep], last = this.tutStep === steps.length - 1;
-    $('#tutHero').className = 'relative px-6 pt-6 pb-5 text-white bg-gradient-to-br ' + st.hero;
-    $('#tutStepLabel').textContent = `Step ${this.tutStep + 1} of ${steps.length}`;
-    $('#tutEmoji').textContent = st.emoji; $('#tutTitle').textContent = st.title;
-    $('#tutBody').innerHTML = st.body;
-    $('#tutDots').innerHTML = steps.map((_, i) => `<button type="button" data-step="${i}" class="tut-dot h-2 rounded-full transition-all ${i === this.tutStep ? 'w-6 bg-violet-600' : 'w-2 bg-stone-300 dark:bg-stone-700'}" aria-label="Step ${i + 1}"></button>`).join('');
-    $('#tutBack').classList.toggle('invisible', this.tutStep === 0);
-    $('#tutNext').textContent = last ? "Let's go! 🎉" : 'Next';
+  tourMove(d) {
+    const steps = this.tourSteps();
+    if (this.tourI + d >= steps.length) { this.closeTutorial(); Nav.go('home'); setTimeout(() => $('#noteInput').focus(), 50); return; }
+    this.tourI = Math.max(0, this.tourI + d);
+    this.tourShow(d);
+  },
+  tourShow(dir = 1) {
+    const steps = this.tourSteps(), st = steps[this.tourI];
+    if (Nav.page !== st.page) Nav.go(st.page, { scroll: false });
+    const el = this.tourTarget(st.el);
+    if (!el && this.tourI > 0 && this.tourI < steps.length - 1) { this.tourI += dir; return this.tourShow(dir); }   // card was hidden by the user: skip it
+    $('#tourCount').textContent = `${this.tourI + 1} of ${steps.length}`;
+    $('#tourTitle').textContent = st.title;
+    $('#tourText').textContent = st.text;
+    $('#tourBack').classList.toggle('invisible', this.tourI === 0);
+    $('#tourNext').textContent = st.last ? 'Start typing' : 'Next';
+    if (el) el.scrollIntoView({ block: 'center', behavior: 'auto' });
+    this.tourEl = el;
+    requestAnimationFrame(() => { this.tourPlace(); $('#tourNext').focus({ preventScroll: true }); });
+  },
+  tourPlace() {
+    const el = this.tourEl, spot = $('#tourSpot'), tip = $('#tourTip');
+    const W = innerWidth, H = innerHeight, tw = tip.offsetWidth, th = tip.offsetHeight, gap = 12;
+    if (!el) {   // nothing to point at: centre the card
+      Object.assign(spot.style, { left: W / 2 + 'px', top: H / 2 + 'px', width: '0px', height: '0px' });
+      Object.assign(tip.style, { left: (W - tw) / 2 + 'px', top: (H - th) / 2 + 'px' });
+      return;
+    }
+    const r = el.getBoundingClientRect(), pad = 6;
+    Object.assign(spot.style, { left: r.left - pad + 'px', top: r.top - pad + 'px', width: r.width + pad * 2 + 'px', height: r.height + pad * 2 + 'px' });
+    let top = r.bottom + pad + gap;
+    if (top + th > H - 8) top = r.top - pad - gap - th;          // no room below: go above
+    if (top < 8) top = Math.min(H - th - 8, Math.max(8, r.bottom + pad + gap));
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), W - tw - 8);
+    Object.assign(tip.style, { left: left + 'px', top: top + 'px' });
   },
 
-  /* ---------- currency ---------- */
   applyCurrency() {
     setCurrency(Store.state.currency || detectCurrency());
     $('#currencySelect').innerHTML = CURRENCIES.map(([c, flag, name]) =>
       `<option value="${c}" ${c === CURRENCY ? 'selected' : ''} title="${name}">${flag} ${c}</option>`).join('');
     $$('.currency-symbol').forEach((el) => (el.textContent = CURRENCY_SYMBOL));
-    $('#noteInput').placeholder = `Type a note (e.g., 'Spent ${exampleMoney(15)} on gas' or 'Client paid ${exampleMoney(400)}')`;
+    $('#noteInput').placeholder = CURRENCY === 'PHP' ? 'What happened? e.g. “Jollibee 350” or “Sahod 18,000”' : `What happened? e.g. “Lunch ${exampleMoney(12)}” or “Client paid ${exampleMoney(400)}”`;
   },
 
   async changeCurrency(code) {
@@ -5149,19 +5206,9 @@ const UI = {
     $('#noteInput').addEventListener('input', (e) => this.livePreview(e.target.value));
     // Tutorial
     $$('.open-tutorial').forEach((b) => b.addEventListener('click', () => this.openTutorial(0)));
-    $('#tutClose').addEventListener('click', () => this.closeTutorial());
-    $('#tutBack').addEventListener('click', () => { if (this.tutStep > 0) { this.tutStep--; this.renderTutorial(); } });
-    $('#tutNext').addEventListener('click', () => {
-      if (this.tutStep < this.tutorialSteps().length - 1) { this.tutStep++; this.renderTutorial(); } else this.closeTutorial();
-    });
-    $('#tutDots').addEventListener('click', (e) => { const d = e.target.closest('.tut-dot'); if (d) { this.tutStep = +d.dataset.step; this.renderTutorial(); } });
-    $('#tutorialModal').addEventListener('click', (e) => { if (e.target.id === 'tutorialModal') this.closeTutorial(); });
-    const tryNote = (txt) => { $('#noteInput').value = txt; this.livePreview(txt); $('#noteInput').focus(); $('#noteInput').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
-    $('#tutBody').addEventListener('click', (e) => {
-      const b = e.target.closest('.tut-try'); if (!b) return;
-      this.closeTutorial(); tryNote(b.textContent.replace(/^“|”.*$/gs, '').trim());
-      toast('Press <b>Log it</b> to add it, or edit it first.');
-    });
+    $('#tourNext').addEventListener('click', () => this.tourMove(1));
+    $('#tourBack').addEventListener('click', () => this.tourMove(-1));
+    $('#tourSkip').addEventListener('click', () => this.closeTutorial());
 
     // Reminders
     // Generic form
@@ -5293,6 +5340,7 @@ const UI = {
     $('#ledgerSearch').addEventListener('input', (e) => { this.search = e.target.value; this.renderLedger(); });
 
     $('#exportBtn').addEventListener('click', () => Exporter.download());
+    $('#exportBtn2').addEventListener('click', () => Exporter.download());
     $('#loadDemoBtn').addEventListener('click', async () => {
       if (Store.state.transactions.length && !(await askConfirm('Replace your current entries with demo data?', 'Replace'))) return;
       seedDemoData(); Budgets.registerCategories(); this.applyCurrency(); this.renderAll(); toast('Demo data loaded.');
@@ -5340,7 +5388,7 @@ const UI = {
       if (e.key !== 'Escape') return;
       this.closePocketForm?.(); if (this._form) this.closeForm();
       if (!$('#remDrawer').classList.contains('hidden')) this.closeRemDrawer();
-      if (!$('#tutorialModal').classList.contains('hidden')) this.closeTutorial();
+      if (!$('#tour').classList.contains('hidden')) this.closeTutorial();
       $('#confirmNo').click?.();
       this.closeBalanceModal(); $('#accountMenu').classList.add('hidden');
       if (!$('#authModal').classList.contains('hidden')) this.closeAuth();
@@ -5386,6 +5434,7 @@ const UI = {
     Budgets.registerCategories();
     this.applyCurrency();
     this.setupTips();
+    Nav.bind();
     Layout.bind();
     this.renderAccount();
     this.bind();
