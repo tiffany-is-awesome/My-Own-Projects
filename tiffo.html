@@ -285,8 +285,9 @@
         </div>
         <ul id="ledgerList" class="divide-y divide-stone-100 dark:divide-stone-800 max-h-[520px] overflow-y-auto scroll-thin"></ul>
         <div class="p-3 border-t border-stone-200 dark:border-stone-800 flex justify-between items-center text-xs text-stone-500 dark:text-stone-400">
-          <span>🔒 Saved only in this browser (localStorage).</span>
+          <span class="save-status">Saved on this device</span>
           <div class="flex gap-3">
+            <button id="trashBtn" class="hover:underline">🗑 Recently deleted</button>
             <button id="loadDemoBtn" class="hover:underline">Load demo data</button>
             <button id="clearAllBtn" class="hover:underline text-rose-600 dark:text-rose-400">Clear all</button>
           </div>
@@ -362,6 +363,13 @@
           <button type="button" id="toolsReset" class="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800">↺ Show everything again</button>
         </div>
       </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div class="min-w-0"><div class="font-semibold text-sm">Backup</div><div class="save-status text-xs text-stone-500 dark:text-stone-400">Saved on this device</div></div>
+            <div class="flex gap-2">
+              <button type="button" id="backupBtn" class="rounded-xl bg-teal-700 hover:bg-teal-800 text-white px-3 py-2 text-sm font-semibold">💾 Download backup</button>
+              <label for="restoreInput" class="cursor-pointer rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Restore…</label>
+              <input type="file" id="restoreInput" accept=".json,application/json" class="sr-only" />
+            </div>
           </div>
           <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div><div class="font-semibold text-sm">Your records</div><div class="text-xs text-stone-500 dark:text-stone-400">A spreadsheet of everything, for you or your accountant.</div></div>
             <button type="button" id="exportBtn2" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">⬇ Download CSV</button>
@@ -893,6 +901,7 @@ const toISODate = (d) => {
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
 };
 const parseISODate = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const ordinal = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] || 'th');
 const daysAgo = (n) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - n); return d; };
 const prettyDate = (iso) => {
   const d = parseISODate(iso);
@@ -1210,7 +1219,11 @@ const Money = {
 
 /* Accounts = WHERE money is (Cash, GCash, Maya, bank). Pockets = WHAT it's for.
    The default "Cash" account's starting amount is the old "starting balance". */
-const ACCOUNT_TYPES = { cash: { icon: '💵', label: 'Cash' }, ewallet: { icon: '📱', label: 'E-wallet' }, bank: { icon: '🏦', label: 'Bank' }, other: { icon: '👝', label: 'Other' } };
+// owe: true = a debt account. Its balance goes below zero as you owe more (a card purchase), and back toward zero as you pay it.
+const ACCOUNT_TYPES = {
+  cash: { icon: '💵', label: 'Cash' }, ewallet: { icon: '📱', label: 'E-wallet' }, bank: { icon: '🏦', label: 'Bank' }, other: { icon: '👝', label: 'Other' },
+  credit: { icon: '💳', label: 'Credit card', owe: true }, loan: { icon: '🧾', label: 'Loan (bank, car, home…)', owe: true },
+};
 const Accounts = {
   DEFAULT: 'acc_cash',
   list() { return (Store.state.accounts ||= [{ id: this.DEFAULT, name: 'Cash', type: 'cash' }]); },
@@ -1232,8 +1245,23 @@ const Accounts = {
     for (const t of Store.state.transactions) if (!upTo || t.date < upTo) b += this.delta(t, a.id);
     return round2(b);
   },
-  total(upTo = null) { return round2(this.list().reduce((x, a) => x + this.balance(a, upTo), 0)); },
-  openingTotal() { return round2(this.list().reduce((x, a) => x + this.opening(a), 0)); },
+  owes(a) { return !!(ACCOUNT_TYPES[a?.type] || {}).owe; },
+  cashList() { return this.list().filter((a) => !this.owes(a)); },
+  oweList() { return this.list().filter((a) => this.owes(a)); },
+  /** Money you actually have: cash, e-wallets, banks. Debts (cards, loans) are kept separate. */
+  total(upTo = null) { return round2(this.cashList().reduce((x, a) => x + this.balance(a, upTo), 0)); },
+  openingTotal() { return round2(this.cashList().reduce((x, a) => x + this.opening(a), 0)); },
+  /** How much you owe on one debt account (positive number). */
+  /** How one entry changes the cash you have (0 for a card purchase; −amount for paying the card from cash). */
+  cashDelta(t) { return round2(this.cashList().reduce((x, a) => x + this.delta(t, a.id), 0)); },
+  owedOn(a, upTo = null) { return Math.max(0, round2(-this.balance(a, upTo))); },
+  owed(upTo = null) { return round2(this.oweList().reduce((x, a) => x + this.owedOn(a, upTo), 0)); },
+  /** "credit card" / "my BPI card" → the card account, if it's clear which one. */
+  cardIn(text) {
+    const cards = this.list().filter((a) => a.type === 'credit');
+    if (!cards.length || !/\b(credit\s*card|card|cc)\b/i.test(text)) return null;
+    return this.mentioned(text) && this.owes(this.mentioned(text)) ? this.mentioned(text) : cards.length === 1 ? cards[0] : null;
+  },
   norm(x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]/g, ''); },
   KNOWN: { gcash: ['GCash', 'ewallet'], maya: ['Maya', 'ewallet'], paymaya: ['Maya', 'ewallet'], gotyme: ['GoTyme', 'bank'], bdo: ['BDO', 'bank'], bpi: ['BPI', 'bank'],
     metrobank: ['Metrobank', 'bank'], landbank: ['Landbank', 'bank'], unionbank: ['UnionBank', 'bank'], securitybank: ['Security Bank', 'bank'], pnb: ['PNB', 'bank'],
@@ -1302,7 +1330,7 @@ const Store = {
   },
 
   /** Take saved data (from this device, the cloud or a backup) and upgrade it safely. */
-  adopt(saved) { this.state = { ...this.blank(), ...saved, v: saved.v || 1 }; this.migrate(); return this.state; },
+  adopt(saved) { this.state = { ...this.blank(), ...saved, v: saved.v || 1 }; this.migrate(); this.emptyOldTrash(); return this.state; },
 
   load() {
     this.state = this.blank();
@@ -1336,13 +1364,24 @@ const Store = {
     this.save();
     return t;
   },
-  removeTransaction(id) {
+  /** Deleted entries go to a 30-day "Recently deleted" bin (pass forever=true to skip it, e.g. Undo of a just-added entry). */
+  removeTransaction(id, forever = false) {
     const i = this.state.transactions.findIndex((t) => t.id === id);
     if (i < 0) return null;
     const [removed] = this.state.transactions.splice(i, 1);
+    if (!forever) { (this.state.trash ||= []).push({ t: removed, at: Date.now() }); this.state.trash = this.state.trash.slice(-200); }
     this.save();
     return removed;
   },
+  restoreTransaction(id) {
+    const i = (this.state.trash || []).findIndex((x) => x.t.id === id);
+    if (i < 0) return null;
+    const [{ t }] = this.state.trash.splice(i, 1);
+    if (!this.state.transactions.some((x) => x.id === t.id)) this.state.transactions.push(t);
+    this.save();
+    return t;
+  },
+  emptyOldTrash() { const cut = Date.now() - 30 * 864e5; this.state.trash = (this.state.trash || []).filter((x) => x.at > cut); },
   /** Edit a record, keeping a short history of what changed (audit trail). */
   updateTransaction(id, patch) {
     const t = this.state.transactions.find((x) => x.id === id);
@@ -1365,6 +1404,17 @@ const Store = {
   addReminder(r) {
     const x = { id: uid(), createdAt: Date.now(), done: false, rung: false, ...r };
     (this.state.reminders ||= []).push(x); this.save(); return x;
+  },
+  /** A monthly reminder that's finished schedules next month's (same day, clamped to short months). */
+  repeatReminder(r) {
+    if (r.repeat !== 'month' || r.repeated) return null;
+    const d = new Date(r.remindAt), day = r.repeatDay || d.getDate();
+    const y = d.getFullYear(), m = d.getMonth() + 1, last = new Date(y, m + 1, 0).getDate();
+    const next = new Date(y, m, Math.min(day, last), d.getHours(), d.getMinutes());
+    r.repeated = true;
+    const x = this.addReminder({ title: r.title, remindAt: next.getTime(), eventDate: toISODate(next), note: r.note, repeat: 'month', repeatDay: day });
+    for (const a of this.state.accounts || []) if (a.reminderId === r.id) a.reminderId = x.id;
+    return x;
   },
 
   /** Earlier versions auto-filled sample entries on first visit. Remove those
@@ -1646,9 +1696,17 @@ const Parser = {
     // Installments: don't silently log the whole price as paid today
     if (/\b(installments?|instal(?:l)?ments?|hulugan|hulog|monthly payments?|0% for \d+|\d+\s*(?:months?|mos?)\s+to pay)\b/i.test(raw) && /\b(bought|buy|purchased|got)\b/i.test(raw))
       return hit('expense', 0.55, 'a purchase paid in installments', { ask: 'installment' });
-    // Credit card payments aren't new spending
-    if (/\b(paid|pay|bayad)\b.*\b(credit card|cc bill|card bill)\b|\b(credit card|cc)\s+payment\b/i.test(raw))
+    // Paying a credit card bill isn't new spending: it moves money from cash to the card.
+    const usingCard = /\b(with|using|via|on|thru|through|gamit)\s+(?:my\s+|the\s+)?(?:[\w-]+\s+)?(?:credit\s*card|card|cc)\b/i.test(raw);
+    if (!usingCard && /\b(paid|pay|bayad)\s+(?:(?:my|the)\s+)?(?:[\w-]+\s+)?(?:credit\s*card|cc)(?:\s+bill)?\b|\b(?:toward|towards|to|for|sa)\s+(?:my\s+|the\s+)?(?:[\w-]+\s+)?(?:credit\s*card|cc)(?:\s+bill)?\b|\b(?:credit\s*card|cc|card)\s+(?:bill|payment)\b/i.test(raw)) {
+      const card = Accounts.cardIn(raw.replace(/\b(cc)\b/i, 'credit card'));
+      if (card) {
+        const via = this.accountFor(raw.replace(new RegExp(card.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), ' '));
+        const from = via && via.id && !Accounts.owes(Accounts.get(via.id)) ? via : { id: Accounts.DEFAULT, name: Accounts.def().name };
+        return hit('transfer', 0.9, 'paying your credit card (not new spending)', { from, to: { id: card.id, name: card.name } });
+      }
       return hit('expense', 0.6, 'a credit card payment', { category: 'Debt Payments', ask: 'credit_card' });
+    }
 
     return null;
   },
@@ -1690,6 +1748,11 @@ const Parser = {
 
   /** Which of your accounts a payment used ("via GCash", "from my BDO"). */
   accountFor(raw) {
+    if (/\b(with|using|via|on|thru|through|gamit)\s+(?:my\s+|the\s+)?(?:[\w-]+\s+)?(?:credit\s*card|card|cc)\b/i.test(raw)) {
+      const card = Accounts.cardIn(raw.replace(/\bcc\b/i, 'credit card'));
+      if (card) return { id: card.id, name: card.name };
+      if (/credit\s*card|\bcc\b/i.test(raw)) return { name: 'Credit card', type: 'credit' };
+    }
     const m = raw.match(/\b(?:via|using|thru|through|with|from|on|sa|gamit)\s+(?:my\s+)?([a-z][\w.\- ]{1,20}?)(?=[\s.,!]|$)/i);
     const viaTxt = m && m[1];
     const viaAcc = viaTxt && this.accountIn(viaTxt);
@@ -2172,6 +2235,102 @@ const Budgets = {
   },
 
   describe(b) { return b.percent != null ? `${+b.percent.toFixed(2)}% of ${b.basis === 'income' ? 'income' : 'money'}` : 'fixed'; },
+};
+
+/* =========================================================================
+   BACKUP — a JSON file of everything, and a careful restore.
+   Restore always checks the file first, shows what's inside, and keeps a
+   safety copy of the current data so it can be undone.
+   ========================================================================= */
+const Backup = {
+  FORMAT: 1,
+  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash'],
+  lastAt() { return Store.state.settings?.lastBackupAt || 0; },
+
+  build() {
+    return { app: 'Tiffo', format: this.FORMAT, schema: Store.SCHEMA, exportedAt: new Date().toISOString(), currency: CURRENCY, data: JSON.parse(JSON.stringify(Store.state)) };
+  },
+  download() {
+    const json = JSON.stringify(this.build(), null, 1);
+    const name = `tiffo-backup-${toISODate(new Date())}.json`;
+    try {
+      const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      (Store.state.settings ||= {}).lastBackupAt = Date.now(); Store.save();
+      toast(`💾 Backup saved as ${escapeHTML(name)}. Keep it somewhere safe, like Google Drive or email it to yourself.`, { duration: 7000 });
+    } catch (e) { toast('This browser blocked the download. Try the app at its normal web address.'); }
+    UI.renderSyncStatus();
+  },
+
+  /** Check a backup file. → { ok, error?, data, summary, dropped } */
+  validate(obj) {
+    if (!obj || typeof obj !== 'object') return { ok: false, error: 'That file isn’t a Tiffo backup.' };
+    const raw = obj.app === 'Tiffo' && obj.data ? obj.data : obj;
+    if (!Array.isArray(raw.transactions)) return { ok: false, error: 'That file isn’t a Tiffo backup (no entries found).' };
+    if (obj.format && obj.format > this.FORMAT) return { ok: false, error: 'This backup was made by a newer Tiffo. Update Tiffo, then try again.' };
+    const data = { ...raw };
+    for (const k of this.ARRAYS) data[k] = Array.isArray(raw[k]) ? raw[k].filter((x) => x && typeof x === 'object') : [];
+    let dropped = 0;
+    data.transactions = data.transactions.filter((t) => {
+      const good = typeof t.id === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t.date || '') && Number.isFinite(+t.amount) && +t.amount >= 0 && typeof t.description === 'string';
+      if (!good) dropped++;
+      else t.amount = round2(+t.amount);
+      return good;
+    });
+    data.settings = raw.settings && typeof raw.settings === 'object' ? raw.settings : {};
+    data.initialBalance = Number.isFinite(+raw.initialBalance) ? +raw.initialBalance : 0;
+    const dates = data.transactions.map((t) => t.date).sort();
+    return { ok: true, data, dropped, exportedAt: obj.exportedAt || null,
+      summary: { entries: data.transactions.length, accounts: data.accounts.length, pockets: data.pockets.length, budgets: data.budgets.length, reminders: data.reminders.length, from: dates[0], to: dates.at(-1) } };
+  },
+
+  /** Same entry? (different id, but same day, amount, kind and wording) */
+  sig(t) { return [t.date, round2(+t.amount).toFixed(2), Money.kind(t), String(t.description || '').toLowerCase().replace(/\s+/g, ' ').trim()].join('|'); },
+
+  /** Keep a copy of the current data so a restore / clear / demo can be undone. */
+  safety() { this.safe = JSON.stringify(Store.state); try { LS.setItem(Store.key() + '.safety', this.safe); } catch (e) {} },
+  undo() {
+    const s = this.safe || LS.getItem(Store.key() + '.safety');
+    if (!s) return false;
+    Store.adopt(JSON.parse(s)); Store.save(); Budgets.registerCategories(); UI.applyCurrency(); UI.renderAll();
+    return true;
+  },
+
+  /** mode: 'merge' adds what's missing (skipping duplicates); 'replace' swaps everything. → { added, skipped } */
+  restore(v, mode = 'merge') {
+    this.safety();
+    if (mode === 'replace') {
+      Store.adopt(JSON.parse(JSON.stringify(v.data)));
+      Store.save();
+      return { added: v.summary.entries, skipped: 0 };
+    }
+    const st = Store.state, d = JSON.parse(JSON.stringify(v.data));
+    // Accounts: same id or same name = same account; remember id changes for entries.
+    const accMap = {};
+    for (const a of d.accounts) {
+      const same = Accounts.list().find((x) => x.id === a.id) || Accounts.find(a.name, true);
+      if (same) accMap[a.id] = same.id; else { st.accounts.push(a); accMap[a.id] = a.id; }
+    }
+    const pocketMap = {};
+    for (const p of d.pockets) {
+      const same = Pockets.list().find((x) => x.id === p.id) || Pockets.find(p.name, true);
+      if (same) pocketMap[p.id] = same.id; else { (st.pockets ||= []).push(p); pocketMap[p.id] = p.id; }
+    }
+    const ids = new Set(st.transactions.map((t) => t.id)), sigs = new Set(st.transactions.map((t) => this.sig(t)));
+    let added = 0, skipped = 0;
+    for (const t of d.transactions) {
+      if (ids.has(t.id) || sigs.has(this.sig(t))) { skipped++; continue; }
+      for (const f of ['accountId', 'fromAccountId', 'toAccountId']) if (t[f] && accMap[t[f]]) t[f] = accMap[t[f]];
+      if (t.pocketId && pocketMap[t.pocketId]) t.pocketId = pocketMap[t.pocketId];
+      st.transactions.push(t); ids.add(t.id); sigs.add(this.sig(t)); added++;
+    }
+    const byId = (key, fix = (x) => x) => { const have = new Set((st[key] ||= []).map((x) => x.id)); for (const x of d[key]) if (x.id && !have.has(x.id)) st[key].push(fix(x)); };
+    byId('pocketMoves', (m) => ({ ...m, pocketId: pocketMap[m.pocketId] || m.pocketId }));
+    byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories');
+    Store.adopt(st); Store.save();
+    return { added, skipped };
+  },
 };
 
 /* =========================================================================
@@ -3229,8 +3388,8 @@ const Charts = {
     let bal = Accounts.openingTotal();
     const daily = {};
     for (const t of txs) {
-      const signed = Money.cash(t);
-      if (!signed) continue;                               // transfers & write-offs don't change total money
+      const signed = Accounts.cashDelta(t);
+      if (!signed) continue;                               // moves between your own cash accounts, card purchases (owed, not paid yet) & write-offs
       if (t.date < startISO) bal += signed;
       else { daily[t.date] = daily[t.date] || { in: 0, out: 0 }; daily[t.date][signed > 0 ? 'in' : 'out'] += Math.abs(signed); }
     }
@@ -3422,10 +3581,10 @@ const Exporter = {
     const accName = (id) => (Accounts.get(id) || Accounts.def()).name;
 
     push('TIFFO EXPORT'); push('Generated', new Date().toLocaleString()); push('Currency', CURRENCY);
-    push('Starting money (all accounts)', bal.toFixed(2)); push('');
+    push('Starting cash (cash, e-wallets, banks)', bal.toFixed(2)); push('');
     push('Date', 'Description', 'Kind', 'Category', 'Amount', 'Money in/out', 'Running total', 'Account', 'Pocket', 'Person', ...(us ? ['US Schedule C line (hint)'] : []));
     for (const t of txs) {
-      const k = Money.kind(t), signed = Money.cash(t);
+      const k = Money.kind(t), signed = Accounts.cashDelta(t);
       bal = round2(bal + signed);
       const acct = k === 'transfer' && t.fromAccountId ? `${accName(t.fromAccountId)} → ${accName(t.toAccountId)}` : accName(Accounts.idOf(t));
       push(t.date, t.description, KINDS[k].label, t.category || '', t.amount.toFixed(2), signed.toFixed(2), bal.toFixed(2), acct,
@@ -3685,7 +3844,7 @@ const UI = {
     if (this.lastBalance !== null && this.lastBalance !== b) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
     this.lastBalance = b;
     $('#balanceSub').textContent = Pockets.list().length ? `${fmt0(Pockets.free())} free · ${fmt0(Pockets.total())} in pockets`
-      : Accounts.list().length > 1 ? `across ${Accounts.list().length} accounts` : `Started at ${fmt(Store.state.initialBalance)}`;
+      : Accounts.oweList().length ? `cash only · you owe ${fmt0(Accounts.owed())} on cards & loans` : Accounts.cashList().length > 1 ? `across ${Accounts.cashList().length} accounts` : `Started at ${fmt(Store.state.initialBalance)}`;
 
     const ym = toISODate(new Date()).slice(0, 7);
     const m = Store.totals((t) => t.date.startsWith(ym));
@@ -3714,6 +3873,19 @@ const UI = {
       b.classList.toggle('text-stone-500', !on);
     });
     $('#ledgerCount').textContent = `${list.length} of ${Store.state.transactions.length} entries`;
+    // Pocket moves are internal (not income or spending) but should still be visible in Activity.
+    if (this.filter === 'all') {
+      const groups = {};
+      for (const m of Pockets.moves()) (groups[m.group] ||= { pm: true, group: m.group, date: m.date, createdAt: m.createdAt, note: m.note, legs: [] }).legs.push(m);
+      const pname = (id) => { const p = id && Pockets.get(id); return p ? `${p.emoji} ${p.name}` : '💵 Free money'; };
+      for (const g of Object.values(groups)) {
+        const out = g.legs.find((l) => l.amount < 0), inn = g.legs.find((l) => l.amount > 0);
+        g.amount = Math.abs((inn || out).amount); g.from = pname(out?.pocketId); g.to = pname(inn?.pocketId);
+        g.description = `${g.from} → ${g.to}`;
+        if (!q || g.description.toLowerCase().includes(q) || 'pocket'.includes(q)) list.push(g);
+      }
+      list.sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+    }
 
     if (!list.length) {
       $('#ledgerList').innerHTML = `<li class="p-8 text-center text-sm text-stone-500">${Store.state.transactions.length ? 'No entries match.' : `No entries yet. Type a note above, like “Spent ${exampleMoney(15)} on gas”, or <button class="underline font-semibold" onclick="document.getElementById(\'loadDemoBtn\').click()">load demo data</button> to explore.`}</li>`;
@@ -3724,6 +3896,17 @@ const UI = {
 
     let lastDate = null;
     $('#ledgerList').innerHTML = list.map((t) => {
+      if (t.pm) {
+        const header = t.date !== lastDate ? `<li class="px-4 sm:px-5 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-stone-400 bg-stone-50/60 dark:bg-stone-950/40">${prettyDate(t.date)}</li>` : '';
+        lastDate = t.date;
+        return header + `<li class="group flex items-center gap-3 px-4 sm:px-5 py-2.5 hover:bg-stone-50 dark:hover:bg-stone-800/40" data-group="${t.group}">
+          <div class="h-9 w-9 shrink-0 rounded-xl grid place-items-center text-base bg-fuchsia-50 dark:bg-fuchsia-950/40" aria-hidden="true">👛</div>
+          <div class="flex-1 min-w-0"><div class="truncate font-medium">${escapeHTML(t.description)}</div>
+            <div class="text-[11px] text-stone-500 dark:text-stone-400">Pocket move · not income or spending${t.note ? ' · ' + escapeHTML(t.note) : ''}</div></div>
+          <div class="text-right"><div class="tabular font-bold text-stone-500 dark:text-stone-400">⇄ ${fmt(t.amount)}</div>
+            <button class="pm-undo text-xs text-stone-400 hover:text-rose-600 opacity-70 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 transition" aria-label="Undo this pocket move">Undo move</button></div>
+        </li>`;
+      }
       const k = Money.kind(t), dir = Money.dir(t), isIn = dir > 0;
       const catType = k === 'income' ? 'income' : (k === 'expense' || k === 'refund') ? 'expense' : null;
       const accName = (id) => escapeHTML(Accounts.get(id)?.name || '?');
@@ -3734,7 +3917,7 @@ const UI = {
       <li class="group flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-stone-50 dark:hover:bg-stone-800/40 ${t.fresh ? 'animate-in' : ''}" data-id="${t.id}">
         <div class="h-9 w-9 shrink-0 rounded-xl grid place-items-center text-base" style="background:${catColor(t.category)}26;box-shadow:inset 0 0 0 1px ${catColor(t.category)}40" aria-hidden="true">${CATEGORIES[t.category]?.icon || '•'}</div>
         <div class="flex-1 min-w-0">
-          <div class="truncate font-medium">${escapeHTML(t.description)}</div>
+          <button type="button" class="edit-btn block w-full text-left truncate font-medium hover:underline decoration-stone-300 underline-offset-2" title="Edit">${escapeHTML(t.description)}</button>
           <div class="flex items-center gap-2 mt-0.5">
             <span class="inline-flex items-center gap-1.5 rounded-full pl-2 pr-1 text-xs font-semibold text-stone-700 dark:text-stone-200" style="background:${catColor(t.category)}24">
             <span class="h-2 w-2 rounded-full" style="background:${catColor(t.category)}"></span>
@@ -3750,7 +3933,9 @@ const UI = {
         </div>
         <div class="text-right">
           <div class="tabular font-bold ${dir === 0 ? 'text-stone-500 dark:text-stone-400' : isIn ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}">${dir === 0 ? (k === 'transfer' ? '⇄ ' : '') : isIn ? '+' : '−'}${fmt(t.amount)}</div>
-          <button class="del-btn text-xs text-stone-400 hover:text-rose-600 opacity-60 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 transition" aria-label="Delete entry">Delete</button>
+          <span class="inline-flex gap-2 opacity-70 sm:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition">
+            <button class="edit-btn text-xs text-stone-500 hover:text-teal-700" aria-label="Edit entry">Edit</button>
+            <button class="del-btn text-xs text-stone-400 hover:text-rose-600" aria-label="Delete entry">Delete</button></span>
         </div>
       </li>`;
     }).join('');
@@ -3760,7 +3945,7 @@ const UI = {
   renderAll() {
     // Each card draws on its own, so one problem never blanks out the rest of the app.
     for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
-      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.()]) {
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderSyncStatus()]) {
       try { f(); } catch (e) { console.error('Render problem', e); }
     }
   },
@@ -3952,7 +4137,7 @@ const UI = {
         t.fresh = true;
         if (btn) { btn.disabled = true; btn.textContent = '✓ Logged'; }
         this.renderAll();
-        toast(`Saved ${fmt(t.amount)} from the receipt.`, { action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id); this.renderAll(); } } });
+        toast(`Saved ${fmt(t.amount)} from the receipt.`, { action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id, true); this.renderAll(); } } });
       },
     });
   },
@@ -4066,7 +4251,7 @@ const UI = {
   },
 
   savedToast(saved, text = '') {
-    const undo = { label: 'Undo', fn: () => { saved.forEach((t) => Store.removeTransaction(t.id)); UI.renderAll(); } };
+    const undo = { label: 'Undo', fn: () => { saved.forEach((t) => Store.removeTransaction(t.id, true)); UI.renderAll(); } };
     if (saved.length > 1) {
       const out = saved.reduce((a, t) => a + Money.cash(t), 0);
       toast(`✓ Saved ${saved.length} entries · ${out >= 0 ? '+' : '−'}${fmt(Math.abs(out))}`, { duration: 5500, action: undo });
@@ -4076,10 +4261,18 @@ const UI = {
     const k = Money.kind(t);
     const dir = Money.dir(t);
     const sign = dir > 0 ? '+' : dir < 0 ? '−' : '';
+    const toAcc = k === 'transfer' && Accounts.get(t.toAccountId);
+    if (toAcc && Accounts.owes(toAcc)) {
+      const left = Accounts.owedOn(toAcc);
+      toast(`${Accounts.icon(toAcc)} Paid ${fmt(t.amount)} to ${escapeHTML(toAcc.name)} · ${left > 0 ? fmt(left) + ' still owed' : 'all paid off 🎉'}`, { duration: 5000, action: undo });
+      return;
+    }
+    const onCard = Accounts.owes(Accounts.get(Accounts.idOf(t))) && k === 'expense';
     let msg = `${({ expense: '💸', income: '💰' })[k] || KINDS[k].icon} ${sign}${fmt(t.amount)} · ${escapeHTML(k === 'income' || k === 'expense' ? t.category : KINDS[k].label)}`;
     if (t.person) msg += ` · ${escapeHTML(t.person)}`;
     if (typeof Loans !== 'undefined' && t.person && ['lend', 'borrow', 'repay_in', 'repay_out', 'forgive'].includes(k)) msg += Loans.toastLine?.(t.person) || '';
-    if (Accounts.list().length > 1 && t.accountId && k !== 'transfer') msg += ` · ${escapeHTML(Accounts.get(t.accountId)?.name || '')}`;
+    if (onCard) msg += ` · on ${escapeHTML(Accounts.get(t.accountId).name)} (you owe ${fmt0(Accounts.owedOn(Accounts.get(t.accountId)))})`;
+    else if (Accounts.list().length > 1 && t.accountId && k !== 'transfer') msg += ` · ${escapeHTML(Accounts.get(t.accountId)?.name || '')}`;
     if (t.repeat) msg += ` · repeats ${({ day: 'daily', week: 'weekly', month: 'monthly', year: 'yearly' })[t.repeat]}`;
     const pk = t.pocketId && Pockets.get(t.pocketId);
     if (pk) msg += ` · ${dir > 0 ? 'into' : 'from'} ${escapeHTML(pk.emoji + ' ' + pk.name)} (${fmt0(Pockets.balance(pk))} left)`;
@@ -4117,7 +4310,7 @@ const UI = {
       const asks = {
         gift_or_loan: 'Was this a gift, a loan, or a payment?', who_paid: `Was this pay for work, a gift, or ${it.person || 'someone'} paying you back?`, repay_or_income: `${it.person} owes you money. Is this them paying you back?`,
         installment: 'Paid in installments? For now, log just today’s payment (the first installment). Installment tracking is coming soon.',
-        credit_card: 'Paying a credit card bill isn’t new spending if you already logged the purchases. Credit card tracking is coming soon.', invest_out: 'Only the gain from an investment is income. Check the type.',
+        credit_card: 'Paying a credit card bill isn’t new spending. Add your card in Money → Accounts (type: Credit card), and Tiffo will count card purchases as spending and payments as paying off the card.', invest_out: 'Only the gain from an investment is income. Check the type.',
         accounts: 'Which of your accounts did the money move between?', future: 'This date is in the future. Did it already happen?', big: 'That’s a big amount. Please double-check it.', amount: 'How much was it?', person: 'Who was it with?',
       };
       const tips = it.needs.map((n) => asks[n]).filter(Boolean);
@@ -4192,8 +4385,26 @@ const UI = {
 
   /** "GCash balance is 2,300" / "I have 5000 in my wallet" → offer to update that account. */
   handleStatement(text, it) {
-    if (/\bcredit card|\bcc\b|\bloan\b|\butang\b/i.test(text)) {
-      toast('💳 Got it. Tiffo doesn’t count a balance as spending. Credit card and loan tracking is coming soon.', { duration: 6500 });
+    if (/\bcredit\s*card|\bcc\b|\bcard\b|\bloan\b/i.test(text)) {
+      const isCard = !/\bloan\b/i.test(text);
+      const acc = isCard ? Accounts.cardIn(text.replace(/\bcc\b/i, 'credit card')) : (Accounts.mentioned(text) && Accounts.owes(Accounts.mentioned(text)) ? Accounts.mentioned(text) : (Accounts.list().filter((a) => a.type === 'loan').length === 1 ? Accounts.list().find((a) => a.type === 'loan') : null));
+      if (!acc) {
+        toast(isCard ? '💳 Add your card first, so Tiffo can track what you owe.' : '🧾 Add the loan first, so Tiffo can track what you owe.', { duration: 4500 });
+        this.accountForm(null, isCard ? 'credit' : 'loan');
+        if (it.amount) $('#fm_owed').value = it.amount;
+        return;
+      }
+      this.form({
+        title: `Update what you owe on ${acc.name}?`, save: 'Update',
+        sub: `Tiffo says you owe ${fmt(Accounts.owedOn(acc))}. This sets it to the real amount. It isn’t new spending.`,
+        fields: [{ id: 'owed', label: 'You owe right now', type: 'number', value: it.amount ?? '' }],
+        onSave: (v) => {
+          if (v.owed == null || v.owed < 0) return 'Type how much you owe.';
+          Accounts.setOpening(acc, Accounts.opening(acc) + (-v.owed - Accounts.balance(acc)));
+          Store.save(); $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
+          this.renderAll(); toast(`${Accounts.icon(acc)} You owe ${fmt(v.owed)} on ${escapeHTML(acc.name)}.`);
+        },
+      });
       return;
     }
     const acc = Parser.accountIn(text.replace(/\b(balance|have|is|my|in|on|sa)\b/gi, ' ')) || { id: Accounts.DEFAULT, name: Accounts.def().name };
@@ -4394,37 +4605,163 @@ const UI = {
     });
   },
 
+  /** Show what's in a backup before restoring it. */
+  restoreForm(v, fileName = '') {
+    if (!v.ok) { toast(v.error); return; }
+    const sm = v.summary, cur = Store.state.transactions.length;
+    const when = v.exportedAt ? new Date(v.exportedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'unknown date';
+    this.form({
+      title: 'Restore a backup', save: 'Restore',
+      sub: `${escapeHTML(fileName)} · made ${escapeHTML(when)}`,
+      fields: [
+        { id: 'what', type: 'note', label: '', html: `<div><b>In this backup:</b> ${sm.entries} entries${sm.from ? ` (${escapeHTML(prettyDate(sm.from))} to ${escapeHTML(prettyDate(sm.to))})` : ''}, ${sm.accounts} accounts, ${sm.pockets} pockets, ${sm.budgets} budgets, ${sm.reminders} reminders.</div>
+          ${v.dropped ? `<div class="mt-1">⚠️ ${v.dropped} damaged entr${v.dropped === 1 ? 'y' : 'ies'} will be skipped.</div>` : ''}
+          <div class="mt-1"><b>On this device now:</b> ${cur} entries.</div>` },
+        { id: 'mode', label: 'How?', type: 'select', value: cur ? 'merge' : 'replace', options: [['merge', 'Add what’s missing (keep my current data, skip duplicates)'], ['replace', 'Replace everything with the backup']] },
+        { id: 'warn', type: 'note', label: '', html: '⚠️ Replacing removes what’s on this device now. You can undo right after.', show: (x) => x.mode === 'replace' && cur > 0 },
+      ],
+      onSave: (x) => {
+        const r = Backup.restore(v, x.mode);
+        Budgets.registerCategories(); this.applyCurrency(); this.renderAll();
+        toast(x.mode === 'replace' ? `✅ Restored ${r.added} entries.` : `✅ Added ${r.added} entries${r.skipped ? `, skipped ${r.skipped} already here` : ''}.`,
+          { duration: 9000, action: { label: 'Undo', fn: () => { if (Backup.undo()) toast('↩ Back to how it was.'); } } });
+      },
+    });
+  },
+
+  /* ---------- edit any entry ---------- */
+  editEntry(id) {
+    const t = Store.state.transactions.find((x) => x.id === id);
+    if (!t) return;
+    const k = Money.kind(t);
+    const loanKinds = ['lend', 'borrow', 'repay_in', 'repay_out', 'forgive'];
+    const accOpts = Accounts.list().map((a) => [a.id, `${Accounts.icon(a)} ${a.name}`]);
+    const hist = (t.history || []).slice(-5).reverse().map((h) => {
+      const what = Object.entries(h.was).map(([f, v]) => `${({ amount: 'amount', date: 'date', category: 'category', kind: 'type', description: 'note', accountId: 'account', person: 'person', fromAccountId: 'from', toAccountId: 'to', repeat: 'repeats' })[f] || f} was ${escapeHTML(f === 'amount' ? fmt(v) : f.endsWith('ccountId') ? (Accounts.get(v)?.name || '?') : String(v ?? '—'))}`).join(', ');
+      return `<div class="text-[12px]">• ${escapeHTML(new Date(h.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }))}: ${what}</div>`;
+    }).join('');
+    this.form({
+      title: 'Edit entry', save: 'Save changes',
+      sub: `Added ${t.source === 'scan' ? 'from a scan' : t.source === 'note' ? 'from a note' : ''} · ${prettyDate(t.date)}`.replace(' ·', t.source ? ' ·' : ''),
+      fields: [
+        { id: 'kind', label: 'What happened?', type: 'select', value: k, options: this.KIND_CHOICES },
+        { id: 'amount', label: 'Amount', type: 'number', value: t.amount },
+        { id: 'catE', label: 'Category', type: 'select', value: CATEGORIES[t.category]?.type === 'expense' ? t.category : 'Other Expense', options: this.catOptions('expense'), show: (v) => ['expense', 'refund'].includes(v.kind) },
+        { id: 'catI', label: 'Category', type: 'select', value: CATEGORIES[t.category]?.type === 'income' ? t.category : 'Other Income', options: this.catOptions('income'), show: (v) => v.kind === 'income' },
+        { id: 'person', label: 'Who?', value: t.person || '', show: (v) => loanKinds.includes(v.kind) || v.kind === 'gift_in' },
+        { id: 'from', label: 'From', type: 'select', value: t.fromAccountId || Accounts.idOf(t), options: accOpts, show: (v) => v.kind === 'transfer' },
+        { id: 'to', label: 'To', type: 'select', value: t.toAccountId || (Accounts.list().find((a) => a.id !== Accounts.idOf(t)) || Accounts.def()).id, options: accOpts, show: (v) => v.kind === 'transfer' },
+        { id: 'account', label: 'Account', type: 'select', value: Accounts.idOf(t), options: accOpts, show: (v) => v.kind !== 'transfer' && v.kind !== 'forgive' && accOpts.length > 1 },
+        { id: 'date', label: 'Date', type: 'date', value: t.date },
+        { id: 'description', label: 'Note', value: t.description },
+        { id: 'repeat', label: 'Repeats', type: 'select', value: t.repeat || '', options: [['', 'No'], ['week', 'Every week'], ['month', 'Every month'], ['year', 'Every year']], advanced: true },
+        ...(hist ? [{ id: 'hist', type: 'note', label: '', html: `<div class="font-semibold text-[12px] mb-1">Changes so far</div>${hist}`, advanced: true }] : []),
+      ],
+      danger: { label: 'Delete', fn: () => { this.closeForm(); this.deleteEntry(id); } },
+      onSave: (v) => {
+        if (!v.amount || v.amount <= 0) return 'Type the amount.';
+        if (!v.date) return 'Pick a date.';
+        const person = (v.person || '').trim().slice(0, 40);
+        if (loanKinds.includes(v.kind) && !person) return 'Type who it was with.';
+        if (v.kind === 'transfer' && v.from === v.to) return 'Pick two different accounts.';
+        const cat = v.kind === 'income' ? v.catI : ['expense', 'refund'].includes(v.kind) ? v.catE : v.kind === 'gift_in' ? 'Gifts Received' : v.kind === 'invest' ? 'Investments' : v.kind === 'transfer' ? 'Transfer' : 'Loans';
+        const patch = { kind: v.kind, amount: round2(v.amount), category: cat, date: v.date, description: (v.description || t.description).slice(0, 120), repeat: v.repeat || undefined,
+          person: (loanKinds.includes(v.kind) || v.kind === 'gift_in') ? person || undefined : undefined };
+        if (v.kind === 'transfer') Object.assign(patch, { fromAccountId: v.from, toAccountId: v.to, accountId: v.from });
+        else Object.assign(patch, { accountId: v.account || Accounts.idOf(t), fromAccountId: undefined, toAccountId: undefined });
+        const before = Store.updateTransaction(id, patch);
+        for (const f of Object.keys(patch)) if (patch[f] === undefined) delete t[f];
+        Store.save();
+        this.renderAll();
+        if (before && before !== t && Object.keys(before).length) toast('✏️ Saved. The old values are kept in this entry’s history.', { action: { label: 'Undo', fn: () => {
+          Object.assign(t, before); for (const f of Object.keys(before)) if (before[f] === undefined) delete t[f];
+          t.type = Money.typeFor(Money.kind(t)); t.history?.pop(); Store.save(); UI.renderAll();
+        } } });
+      },
+    });
+  },
+
+  /** Deleting never loses anything right away: entries go to Recently deleted for 30 days. */
+  deleteEntry(id) {
+    const removed = Store.removeTransaction(id);
+    if (!removed) return;
+    this.renderAll();
+    toast(`🗑 Deleted “${escapeHTML(removed.description.slice(0, 40))}”. It’s in Recently deleted for 30 days.`, { duration: 6000, action: { label: 'Undo', fn: () => { Store.restoreTransaction(id); UI.renderAll(); } } });
+  },
+  trashView() {
+    const items = (Store.state.trash || []).slice().reverse();
+    this.form({
+      title: 'Recently deleted', save: 'Done', sub: items.length ? 'Kept for 30 days. Restore anything you deleted by mistake.' : 'Nothing here. Deleted entries stay here for 30 days.',
+      fields: [{ id: 'list', type: 'note', label: '', html: items.map(({ t, at }) => `<div class="flex items-center gap-2 py-1.5 border-b border-amber-200/50 dark:border-amber-900/40 last:border-0">
+        <div class="flex-1 min-w-0"><div class="truncate font-medium">${escapeHTML(t.description)}</div><div class="text-[11px] opacity-75">${fmt(t.amount)} · ${escapeHTML(prettyDate(t.date))} · deleted ${escapeHTML(new Date(at).toLocaleDateString())}</div></div>
+        <button type="button" data-restore="${t.id}" class="rounded-lg bg-teal-700 text-white text-xs font-semibold px-2.5 py-1.5">Restore</button></div>`).join('') || '—' }],
+      onSave: () => {},
+    });
+    $('#fmFields').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-restore]'); if (!b) return;
+      Store.restoreTransaction(b.dataset.restore); this.renderAll();
+      b.closest('div.flex').remove(); toast('↩ Restored.');
+    }, { once: false });
+  },
   /* ---------- accounts ---------- */
   renderAccounts() {
-    const list = Accounts.list();
-    $('#acctList').innerHTML = list.map((a) => {
-      const b = Accounts.balance(a);
+    const row = (a) => {
+      const b = Accounts.balance(a), owe = Accounts.owes(a), t = ACCOUNT_TYPES[a.type] || ACCOUNT_TYPES.other;
+      let sub = t.label, amt = fmt(b), tone = b < 0 ? 'text-rose-600 dark:text-rose-400' : '';
+      if (owe) {
+        const o = Accounts.owedOn(a);
+        amt = b > 0 ? `${fmt(b)} credit` : fmt(o);
+        tone = o > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-stone-500';
+        if (a.type === 'credit' && a.limit) sub += ` · ${fmt0(Math.max(0, a.limit - o))} available of ${fmt0(a.limit)}`;
+        if (a.dueDay) sub += ` · due every ${ordinal(a.dueDay)}`;
+      }
+      const bar = owe && a.type === 'credit' && a.limit ? `<div class="mt-1 h-1.5 rounded-full bg-stone-100 dark:bg-stone-800 overflow-hidden"><div class="h-full rounded-full ${Accounts.owedOn(a) / a.limit > 0.8 ? 'bg-rose-500' : 'bg-orange-400'}" style="width:${Math.min(100, Math.round((Accounts.owedOn(a) / a.limit) * 100))}%"></div></div>` : '';
       return `<li data-aid="${a.id}" class="flex items-center gap-3 py-2.5">
-        <span class="h-9 w-9 rounded-xl grid place-items-center bg-teal-50 dark:bg-teal-950/40 text-lg" aria-hidden="true">${escapeHTML(Accounts.icon(a))}</span>
-        <div class="flex-1 min-w-0"><div class="font-semibold truncate">${escapeHTML(a.name)}</div><div class="text-[11px] text-stone-500 dark:text-stone-400">${(ACCOUNT_TYPES[a.type] || ACCOUNT_TYPES.other).label}</div></div>
-        <div class="tabular font-bold ${b < 0 ? 'text-rose-600 dark:text-rose-400' : ''}">${fmt(b)}</div>
+        <span class="h-9 w-9 rounded-xl grid place-items-center ${owe ? 'bg-orange-50 dark:bg-orange-950/40' : 'bg-teal-50 dark:bg-teal-950/40'} text-lg" aria-hidden="true">${escapeHTML(Accounts.icon(a))}</span>
+        <div class="flex-1 min-w-0"><div class="font-semibold truncate">${escapeHTML(a.name)}</div><div class="text-[11px] text-stone-500 dark:text-stone-400 truncate">${sub}</div>${bar}</div>
+        <div class="tabular font-bold whitespace-nowrap ${tone}">${amt}</div>
         <button type="button" class="acct-edit h-7 w-7 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Edit ${escapeHTML(a.name)}">⋯</button>
       </li>`;
-    }).join('');
-    $('#moveAcctBtn').classList.toggle('hidden', list.length < 2);
+    };
+    const has = Accounts.cashList(), owes = Accounts.oweList();
+    const head = (label, total, tone) => `<li class="pt-3 pb-1 flex justify-between text-[11px] font-bold ${tone}"><span>${label}</span><span class="tabular">${total}</span></li>`;
+    $('#acctList').innerHTML = (owes.length ? head('What you have', fmt(Accounts.total()), 'text-teal-700 dark:text-teal-400') : '') + has.map(row).join('')
+      + (owes.length ? head('What you owe', fmt(Accounts.owed()), 'text-orange-700 dark:text-orange-400') + owes.map(row).join('') : '');
+    $('#moveAcctBtn').classList.toggle('hidden', Accounts.list().length < 2);
+    $('#moveAcctBtn').textContent = owes.length ? '⇄ Move money / pay a card' : '⇄ Move money';
   },
-  accountForm(a = null) {
+  accountForm(a = null, presetType = null) {
     const types = Object.entries(ACCOUNT_TYPES).map(([k, v]) => [k, `${v.icon} ${v.label}`]);
+    const isOwe = (v) => !!(ACCOUNT_TYPES[v.type] || {}).owe;
     this.form({
       title: a ? `Edit ${a.name}` : 'Add an account',
-      sub: a ? '' : 'Where you keep money, like GCash, Maya, a bank, or cash at home.',
+      sub: a ? '' : 'Where you keep money (GCash, Maya, a bank, cash at home), or something you owe on (a credit card or a loan).',
       fields: [
-        { id: 'name', label: 'Name', value: a?.name || '', placeholder: 'e.g. GCash' },
-        { id: 'type', label: 'Type', type: 'select', value: a?.type || 'ewallet', options: types },
-        { id: 'bal', label: a ? 'Balance right now' : 'How much is in it now?', type: 'number', value: a ? Accounts.balance(a) : '', hint: a ? 'If this doesn’t match your app or bank, type the real amount and Tiffo will adjust.' : 'Leave empty for ₱0.' },
+        { id: 'name', label: 'Name', value: a?.name || '', placeholder: 'e.g. GCash, BPI credit card' },
+        { id: 'type', label: 'Type', type: 'select', value: a?.type || presetType || 'ewallet', options: types },
+        { id: 'bal', label: a ? 'Balance right now' : 'How much is in it now?', type: 'number', value: a && !Accounts.owes(a) ? Accounts.balance(a) : '', show: (v) => !isOwe(v),
+          hint: a ? 'If this doesn’t match your app or bank, type the real amount and Tiffo will adjust.' : 'Leave empty for ₱0.' },
+        { id: 'owed', label: a ? 'How much you owe right now' : 'How much do you owe on it now?', type: 'number', value: a && Accounts.owes(a) ? Accounts.owedOn(a) : '', show: isOwe,
+          hint: 'Check your app or latest statement. Leave empty for ₱0.' },
+        { id: 'limit', label: 'Credit limit (optional)', type: 'number', value: a?.limit ?? '', show: (v) => v.type === 'credit' },
+        { id: 'dueDay', label: 'Payment due day of the month (optional)', type: 'number', value: a?.dueDay ?? '', show: isOwe, hint: 'e.g. 25 for the 25th. Tiffo can remind you.' },
       ],
       onSave: (v) => {
         if (!v.name) return 'Give the account a name.';
         const dupe = Accounts.find(v.name, true); if (dupe && dupe !== a) return `You already have “${dupe.name}”.`;
+        if (v.dueDay != null && (v.dueDay < 1 || v.dueDay > 31 || !Number.isInteger(v.dueDay))) return 'The due day should be a number from 1 to 31.';
+        if (a && Accounts.owes(a) !== isOwe(v) && Store.state.transactions.some((t) => t.accountId === a.id || t.fromAccountId === a.id || t.toAccountId === a.id))
+          return 'This account already has entries, so it can’t switch between money you have and money you owe. Add a new account instead.';
         const acc = a || Accounts.create(v.name, v.type);
         acc.name = v.name.slice(0, 30); acc.type = v.type;
-        if (v.bal != null) Accounts.setOpening(acc, Accounts.opening(acc) + (v.bal - Accounts.balance(acc)));
-        Store.save(); this.renderAll(); toast(a ? 'Account updated.' : `🏦 Added ${escapeHTML(acc.name)}.`);
+        if (isOwe(v)) {
+          if (v.owed != null) Accounts.setOpening(acc, Accounts.opening(acc) + (-v.owed - Accounts.balance(acc)));
+          if (v.type === 'credit') { if (v.limit) acc.limit = round2(v.limit); else delete acc.limit; }
+          const hadDue = acc.dueDay;
+          if (v.dueDay) acc.dueDay = v.dueDay; else delete acc.dueDay;
+          if (v.dueDay && v.dueDay !== hadDue) this.dueReminder(acc);
+        } else if (v.bal != null) Accounts.setOpening(acc, Accounts.opening(acc) + (v.bal - Accounts.balance(acc)));
+        Store.save(); this.renderAll(); toast(a ? 'Account updated.' : `${Accounts.icon(acc)} Added ${escapeHTML(acc.name)}.`);
       },
       danger: a && a.id !== Accounts.DEFAULT ? { label: 'Remove account', fn: async () => {
         const used = Store.state.transactions.some((t) => t.accountId === a.id || t.fromAccountId === a.id || t.toAccountId === a.id);
@@ -4434,6 +4771,17 @@ const UI = {
         Store.state.accounts = Accounts.list().filter((x) => x !== a); Store.save(); this.renderAll();
       } } : null,
     });
+  },
+  /** A monthly reminder for a card or loan due date (next occurrence). */
+  dueReminder(acc) {
+    const now = new Date();
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    let d = new Date(now.getFullYear(), now.getMonth(), Math.min(acc.dueDay, last), 9);
+    if (d < now) d = new Date(now.getFullYear(), now.getMonth() + 1, Math.min(acc.dueDay, new Date(now.getFullYear(), now.getMonth() + 2, 0).getDate()), 9);
+    if (acc.reminderId) Store.state.reminders = (Store.state.reminders || []).filter((r) => r.id !== acc.reminderId);
+    const r = Store.addReminder({ title: `${Accounts.icon(acc)} ${acc.name} payment due`, remindAt: d.getTime(), eventDate: toISODate(d), note: `Due every ${ordinal(acc.dueDay)} · from Accounts`, repeat: 'month', repeatDay: acc.dueDay });
+    acc.reminderId = r.id;
+    this.renderReminders?.();
   },
   transferForm(prefill = {}) {
     const opts = Accounts.list().map((a) => [a.id, `${Accounts.icon(a)} ${a.name} (${fmt(Accounts.balance(a))})`]);
@@ -4451,7 +4799,7 @@ const UI = {
         if (v.from === v.to) return 'Pick two different accounts.';
         if (!v.amount || v.amount <= 0) return 'Enter an amount.';
         const t = this.recordTransfer(v.from, v.to, v.amount, v.date, '', v.fee);
-        toast(`⇄ Moved ${fmt(v.amount)}: ${escapeHTML(Accounts.get(v.from).name)} → ${escapeHTML(Accounts.get(v.to).name)}`, { action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id); if (t.feeId) Store.removeTransaction(t.feeId); UI.renderAll(); } } });
+        toast(`⇄ Moved ${fmt(v.amount)}: ${escapeHTML(Accounts.get(v.from).name)} → ${escapeHTML(Accounts.get(v.to).name)}`, { action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id, true); if (t.feeId) Store.removeTransaction(t.feeId, true); UI.renderAll(); } } });
       },
     });
   },
@@ -4849,7 +5197,7 @@ const UI = {
     Chime.stop(); this.flashTitle(false);
     $('#alarmModal').classList.add('hidden'); $('#alarmModal').classList.remove('flex');
     if (action === 'snooze') { r.remindAt = Date.now() + 10 * 60e3; r.rung = false; toast('😴 Snoozed for 10 minutes.'); }
-    else { r.rung = true; r.done = true; }
+    else { r.rung = true; r.done = true; Store.repeatReminder(r); }
     Store.save(); this.ringing = null; this.renderReminders();
     setTimeout(() => this.checkAlarms(), 500);   // more than one due? ring the next
   },
@@ -5137,8 +5485,16 @@ const UI = {
     }
   },
 
+  /** Honest save status: never says "backed up" when it's only on this device. */
+  saveLabel() {
+    if (Cloud.on()) return Cloud.label() || '☁️ Cloud account';
+    if (!LS.persistent) return '⚠️ Not saved: this preview can’t keep data after you close it';
+    const b = Backup.lastAt();
+    return `💾 Saved on this device only${b ? ` · last backup ${new Date(b).toLocaleDateString()}` : ' · no backup yet'}`;
+  },
   renderSyncStatus() {
     if (Auth.user && Auth.user.provider === 'cloud') $('#menuProvider').textContent = Cloud.label() || '☁️ Cloud account';
+    for (const el of $$('.save-status')) el.textContent = this.saveLabel();
   },
 
   renderAiLabel() {
@@ -5266,7 +5622,7 @@ const UI = {
       if (e.target.closest('.rem-example')) { $('#remQuickInput').value = e.target.closest('.rem-example').textContent; $('#remQuickInput').dispatchEvent(new Event('input')); return $('#remQuickInput').focus(); }
       const li = e.target.closest('[data-rid]'); if (!li) return;
       const r = (Store.state.reminders || []).find((x) => x.id === li.dataset.rid); if (!r) return;
-      if (e.target.closest('.rem-done')) { r.done = !r.done; if (r.done) r.rung = true; Store.save(); this.renderReminders(); }
+      if (e.target.closest('.rem-done')) { r.done = !r.done; if (r.done) { r.rung = true; Store.repeatReminder(r); } Store.save(); this.renderReminders(); }
       else if (e.target.closest('.rem-del')) {
         Store.state.reminders = Store.state.reminders.filter((x) => x.id !== r.id); Store.save(); this.renderReminders();
         toast('Reminder deleted.', { action: { label: 'Undo', fn: () => { Store.state.reminders.push(r); Store.save(); UI.renderReminders(); } } });
@@ -5328,11 +5684,16 @@ const UI = {
 
     // Ledger interactions (event delegation)
     $('#ledgerList').addEventListener('click', (e) => {
-      if (!e.target.classList.contains('del-btn')) return;
-      const id = e.target.closest('[data-id]').dataset.id;
-      const removed = Store.removeTransaction(id);
-      this.renderAll();
-      toast('Entry deleted.', { action: { label: 'Undo', fn: () => { Store.state.transactions.push(removed); Store.save(); UI.renderAll(); } } });
+      const pm = e.target.closest('.pm-undo');
+      if (pm) {
+        const g = pm.closest('[data-group]').dataset.group, legs = Pockets.moves().filter((m) => m.group === g).map((m) => ({ ...m }));
+        Pockets.undoGroup(g); this.renderAll();
+        toast('↩ Pocket move undone.', { action: { label: 'Redo', fn: () => { Store.state.pocketMoves.push(...legs); Store.save(); UI.renderAll(); } } });
+        return;
+      }
+      const row = e.target.closest('[data-id]'); if (!row) return;
+      if (e.target.closest('.del-btn')) this.deleteEntry(row.dataset.id);
+      else if (e.target.closest('.edit-btn')) this.editEntry(row.dataset.id);
     });
     $('#ledgerList').addEventListener('change', (e) => {
       if (!e.target.classList.contains('cat-select')) return;
@@ -5344,14 +5705,27 @@ const UI = {
 
     $('#exportBtn').addEventListener('click', () => Exporter.download());
     $('#exportBtn2').addEventListener('click', () => Exporter.download());
+    $('#trashBtn').addEventListener('click', () => this.trashView());
+    $('#backupBtn').addEventListener('click', () => Backup.download());
+    $('#restoreInput').addEventListener('change', async (e) => {
+      const f = e.target.files[0]; e.target.value = '';
+      if (!f) return;
+      if (f.size > 25 * 1024 * 1024) return toast('That file is too big to be a Tiffo backup.');
+      let obj; try { obj = JSON.parse(await f.text()); } catch (err) { return toast('That file couldn’t be read. Pick the .json file Tiffo downloaded.'); }
+      this.restoreForm(Backup.validate(obj), f.name);
+    });
+    const undoSafety = { label: 'Undo', fn: () => { if (Backup.undo()) toast('↩ Your data is back.'); } };
     $('#loadDemoBtn').addEventListener('click', async () => {
-      if (Store.state.transactions.length && !(await askConfirm('Replace your current entries with demo data?', 'Replace'))) return;
-      seedDemoData(); Budgets.registerCategories(); this.applyCurrency(); this.renderAll(); toast('Demo data loaded.');
+      if (Store.state.transactions.length && !(await askConfirm('Replace your current entries with demo data? You can undo this right after.', 'Replace'))) return;
+      Backup.safety();
+      seedDemoData(); Budgets.registerCategories(); this.applyCurrency(); this.renderAll(); toast('Demo data loaded.', { duration: 8000, action: undoSafety });
     });
     $('#clearAllBtn').addEventListener('click', async () => {
-      if (!(await askConfirm('Delete ALL entries and scans? Export a CSV first if you need it.', 'Delete all'))) return;
-      Store.state = { ...Store.blank(), currency: CURRENCY }; Budgets.registerCategories();
-      Store.save(); this.renderAll(); this.renderEmptyDoc(); toast('All data cleared.');
+      const n = Store.state.transactions.length;
+      if (!(await askConfirm(`Delete ALL ${n} entries, accounts, pockets, budgets and scans? Tip: download a backup first (More → Settings). You can undo this right after.`, 'Delete everything'))) return;
+      Backup.safety();
+      Store.state = { ...Store.blank(), currency: CURRENCY, settings: Store.state.settings }; Budgets.registerCategories();
+      Store.save(); this.renderAll(); this.renderEmptyDoc(); toast('All data cleared.', { duration: 10000, action: undoSafety });
     });
 
     // Accounts
