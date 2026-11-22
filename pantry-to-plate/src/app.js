@@ -149,7 +149,28 @@ function stepNotes(step, m) {
   }
   return out;
 }
-function amountLabel(p) { return p.qty == null ? "Amount not recorded" : E.fmtAmount(p.qty, p.unit) + (p.unit === "pcs" || !p.unit ? "" : ""); }
+/* Seasonings, sauces and other jars: tracked by how full the container is. */
+const JARS = /^(cinnamon|cumin|paprika|pepper|chili_flakes|curry_powder|baking_powder|bay_leaf)$/, BOTTLES = /^(soy_sauce|vinegar|fish_sauce|oyster_sauce|sesame_oil|oil|ketchup|mayonnaise|honey|gochujang|peanut_butter|bagoong)$/;
+function containerWord(k) { return JARS.test(k) ? "jar" : BOTTLES.test(k) ? (/mayonnaise|peanut_butter|bagoong|gochujang/.test(k) ? "jar" : "bottle") : "pack"; }
+function isCondiment(p) { const v = E.ING[p.key] || {}; return !!v.pk && (v.c === "condiment" || ["flour", "butter"].includes(p.key)) && p.key !== "tamarind_mix"; }
+/* How full a condiment is: fraction of one typical container, or null if unknown. */
+function fillLevel(p) {
+  if (!isCondiment(p) || p.qty == null) return null;
+  const g = E.toGrams(p.key, p.qty, p.unit), pk = E.ING[p.key].pk;
+  return g == null ? null : g / pk;
+}
+const LEVELS = [[1, "Full"], [0.75, "¾"], [0.5, "Half"], [0.25, "¼"], [0.1, "Almost out"]];
+function levelWord(f) { if (f >= 0.95) return "Full"; if (f <= 0.12) return "Almost out"; const q = Math.round(f * 4) / 4; return ({ 0.25: "¼", 0.5: "Half", 0.75: "¾" })[q] || ""; }
+function amountLabel(p) {
+  if (p.qty == null) return "Amount not recorded";
+  const f = fillLevel(p);
+  if (f != null && p.unit === "pack") {
+    const w = containerWord(p.key), g = E.toGrams(p.key, p.qty, p.unit);
+    const n = f > 1.05 ? `${E.fmtAmount(Math.round(f * 4) / 4, "pcs")} ${w}s` : `${levelWord(f) || E.fmtAmount(Math.round(f * 4) / 4, "pcs")} ${w}`;
+    return `${n} · about ${g >= 100 ? Math.round(g / 10) * 10 : Math.round(g)} g`;
+  }
+  return E.fmtAmount(p.qty, p.unit);
+}
 /* Four-pointed twinkle stars: the "shine" used for every success. */
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C12.8 7.2 16.8 11.2 24 12 16.8 12.8 12.8 16.8 12 24 11.2 16.8 7.2 12.8 0 12 7.2 11.2 11.2 7.2 12 0Z"/></svg>';
 const STAR_COLS = ["#F4B400", "#FFD35C", "#9BB8AC", "#2E6B5A", "#FFFFFF"];
@@ -277,8 +298,10 @@ function renderKitchen() {
       <button class="item-main" data-act="item-edit" data-id="${p.id}" aria-label="Edit ${esc(p.name)}">
         <span class="item-top">${foodArt(p)}<span class="item-id"><span class="name">${esc(p.name)}</span><span class="amt${p.qty == null ? " unknown" : ""}">${esc(amountLabel(p))}</span></span></span>
         <span class="fresh">${freshBadge(f)} <span class="fnote">${esc(f.note)}</span></span>
+        ${isCondiment(p) ? (() => { const lv = fillLevel(p); return lv == null ? "" : `<span class="level" title="About ${Math.round(Math.min(lv, 1) * 100)}% of a ${containerWord(p.key)}"><i style="width:${Math.max(4, Math.min(lv, 1) * 100)}%"></i></span>`; })() : ""}
         <span class="tags">${tags.map(t => `<i>${esc(t)}</i>`).join("")}</span>
       </button>
+      ${isCondiment(p) && f.group !== "check" ? `<button class="btn small" data-act="level" data-id="${p.id}">${icon("jar")}How full?</button>` : ""}
       ${f.group === "check" ? `<button class="btn small danger" data-act="item-toss" data-id="${p.id}">Throw out</button>`
         : f.group === "first" || f.group === "soon" ? `<button class="btn small pinbtn" data-act="rescue-item" data-id="${p.id}">${icon("rescue")}Rescue it</button>`
         : p.loc === "freezer" ? `<button class="btn small pinbtn" data-act="thaw" data-id="${p.id}">Thaw in the fridge</button>`
@@ -594,9 +617,10 @@ function openCooked() {
   openModal(`<h2 id="authTitle">Did you make ${esc(r.title)}?</h2>
     <p>Check how much you used, then I'll update your kitchen. Nothing changes until you confirm.</p>
     <form id="cookedForm">
-      <div class="cooked-rows">${rows.map((x, i) => `<div class="crow"><span class="cname">${esc(x.name)}<small>${x.qty != null ? "You have " + esc(E.fmtAmount(x.qty, x.unit)) : "Amount not recorded"}</small></span>
-        ${x.qty != null ? `<label class="sr" for="take${i}">Amount of ${esc(x.name)} used</label><input type="number" id="take${i}" min="0" step="any" value="${x.take ?? ""}"><span class="u">${esc(x.unit === "pcs" ? "" : x.unit || "")}</span>` : `<span></span><span></span>`}
-        <label class="check"><input type="checkbox" id="all${i}"${x.all ? " checked" : ""}> Used it all</label></div>`).join("") || `<p class="muted">This recipe only used staples.</p>`}</div>
+      <div class="cooked-rows">${rows.map((x, i) => { const p = S.pantry.find(q => q.id === x.id) || x, jar = x.unit === "pack" && isCondiment(p), pk = jar ? E.ING[p.key].pk : 1;
+        return `<div class="crow"><span class="cname">${esc(x.name)}<small>${x.qty != null ? "You have " + esc(jar ? amountLabel(p) : E.fmtAmount(x.qty, x.unit)) : "Amount not recorded"}</small></span>
+        ${x.qty != null ? `<label class="sr" for="take${i}">Amount of ${esc(x.name)} used</label><input type="number" id="take${i}" min="0" step="any" value="${x.take == null ? "" : jar ? Math.round(x.take * pk * 10) / 10 : x.take}" data-pk="${pk}"><span class="u">${esc(jar ? "g" : x.unit === "pcs" ? "" : x.unit || "")}</span>` : `<span></span><span></span>`}
+        <label class="check"><input type="checkbox" id="all${i}"${x.all ? " checked" : ""}> Used it all</label></div>`; }).join("") || `<p class="muted">This recipe only used staples.</p>`}</div>
       <label for="leftServ">Servings left over to keep<input type="number" id="leftServ" min="0" max="50" step="1" value="0"></label>
       <p class="hint">Leftovers go in your fridge with their own safe-to-eat window${r.ingredients.some(i => i.k === "rice_cooked" || i.k === "rice_raw") ? " (24 hours, because they contain rice)" : " (3 days)"}.</p>
       <div class="form-actions"><button class="btn primary" type="submit">Yes, update my kitchen</button><button class="linkbtn" type="button" data-act="auth-close">Not yet</button></div>
@@ -608,7 +632,7 @@ function submitCooked() {
   const rows = c.rows.map((x, i) => {
     const all = document.getElementById("all" + i).checked;
     const el = document.getElementById("take" + i);
-    let take = el ? Number(el.value) : null;
+    let take = el ? Number(el.value) / (Number(el.dataset.pk) || 1) : null;  // jars and bottles are typed in grams
     if (el && (!(take >= 0) || el.value === "")) take = 0;
     return { ...x, all, take };
   });
@@ -846,6 +870,16 @@ document.addEventListener("click", e => {
     case "cook-pins": S.ui.focus = S.ui.pins.slice(); S.ui.pins = []; S.ui.mode = "most"; S.ui.currentId = null; setTab("cook"); break;
     case "focus-clear": S.ui.focus = []; renderCook(); break;
     case "mode": S.ui.mode = t.dataset.mode; S.ui.currentId = null; renderCook(); break;
+    case "level": { const p = S.pantry.find(x => x.id === t.dataset.id); if (!p) break; const w = containerWord(p.key), cur = fillLevel(p);
+      openModal(`<h2 id="authTitle">How much ${esc(p.name.toLowerCase())} is left?</h2><p class="muted">Tap the closest. No need to weigh it: recipes take off just what they use, and the level goes down by itself.</p>
+        <div class="levels">${LEVELS.map(([v, l]) => `<button class="lvl${cur != null && Math.abs(Math.min(cur, 1) - v) < 0.07 ? " on" : ""}" data-act="set-level" data-id="${p.id}" data-v="${v}"><span class="jarvis"><i style="height:${v * 100}%"></i></span><b>${l}</b></button>`).join("")}
+        <button class="lvl out" data-act="set-level" data-id="${p.id}" data-v="0"><span class="jarvis jar-empty"></span><b>Used up</b></button></div>
+        <p class="small muted">A typical ${w} of ${esc(p.name.toLowerCase())} is about ${E.ING[p.key].pk} g. If you have more than one, set the amount with “Add with details”.</p>
+        <div class="form-actions"><button class="linkbtn" data-act="auth-close">Cancel</button></div>`); break; }
+    case "set-level": { const p = S.pantry.find(x => x.id === t.dataset.id); if (!p) break; const v = Number(t.dataset.v);
+      if (v <= 0) { S.pantry = S.pantry.filter(x => x !== p); toast(`${p.name} marked as used up and removed. Add it again when you buy more.`); }
+      else { p.qty = v; p.unit = "pack"; toast(`${p.name}: ${levelWord(v).toLowerCase()} ${containerWord(p.key)} left.`); }
+      persist(); closeAuth(); rerender(); renderNavCounts(); break; }
     case "rescue-item": S.ui.rescueId = t.dataset.id; setTab("rescue"); break;
     case "focus-add": { const q = $("#qaText"); if (q) { q.focus(); q.scrollIntoView({ behavior: "smooth", block: "center" }); } break; }
     case "basics-done": S.prefs.staplesChosen = true; persist(); rerender(); toast(S.staples.length ? `Got it: ${S.staples.length} basic${S.staples.length > 1 ? "s" : ""} recipes can count on.` : "Got it: recipes will only use the food you've added."); break;

@@ -95,5 +95,20 @@ console.log("\nF. Recipes only use what's listed and what you have");
   const withB = E.matchRecipe(R("garlic-greens"), p, ["garlic", "oil", "oyster_sauce"], {}, now);
   ok(withB.ok && withB.lines.filter(l => l.src === "staple").every(l => ["garlic", "oil", "oyster_sauce", "water"].includes(l.ing.k)), "once you tick garlic, oil and oyster sauce, it is offered, using only those basics (plus tap water)");
 }
+
+console.log("\nG. Seasonings: a recipe only takes what it uses");
+{
+  ok(Math.abs(E.toGrams("cinnamon", 1, "tsp") - 2.6) < 0.1 && Math.abs(E.toGrams("salt", 1, "tsp") - 6) < 0.1, "real spoon weights: cinnamon 2.6 g/tsp, salt 6 g/tsp");
+  const r = { id: "t", title: "T", serves: 2, cuisine: "x", prep: 1, cook: 1, difficulty: "Easy", equip: [], steps: ["Mix the egg with cinnamon."], ingredients: [{ k: "egg", q: 1, u: "pcs" }, { k: "cinnamon", q: 10, u: "g" }] };
+  for (const [label, item] of [["100 g of cinnamon", { name: "Cinnamon", key: "cinnamon", qty: 100, unit: "g", loc: "pantry" }], ["a jar of cinnamon", E.parseIngredientText("a jar of cinnamon")[0]]]) {
+    const p = K([{ name: "Eggs", key: "egg", qty: 6, unit: "pcs" }, item]);
+    const m = E.matchRecipe(r, p, [], {}, now), rows = E.planDeductions(m), c = rows.find(x => /innamon/.test(x.name));
+    const left = E.applyDeductions(p, rows).pantry.find(x => x.key === "cinnamon");
+    const g0 = E.toGrams("cinnamon", item.qty, item.unit), g1 = left ? E.toGrams("cinnamon", left.qty, left.unit) : 0;
+    ok(m.ok && !c.all && Math.abs(g0 - g1 - 10) < 0.01, `${label}: a 10 g recipe leaves ${Math.round(g1)} g, not "used it all"`);
+  }
+  const soy = E.parseIngredientText("half a bottle of soy sauce")[0];
+  ok(soy.qty === 0.5 && Math.round(E.toGrams("soy_sauce", soy.qty, soy.unit)) === 205, "half a bottle of soy sauce ≈ 205 g (typical 385 ml bottle)");
+}
 console.log(`\n${count - fails}/${count} final checks passed`);
 process.exit(fails ? 1 : 0);
