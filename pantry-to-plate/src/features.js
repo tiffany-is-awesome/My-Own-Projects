@@ -582,9 +582,44 @@ JSON only: {"items":[{"name":"plain food name","qty":number or null,"unit":"pcs|
 /* ---------- small helpers ---------- */
 function flash(sel) { requestAnimationFrame(() => { const el = document.querySelector(sel); if (el) { el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash"); } }); }
 
+
+/* =====================================================================
+   DONUT TIP JAR (like Tiffo). Hidden until CONFIG.GCASH_QR or CONFIG.TIP_URL is set.
+   ===================================================================== */
+const DONUT_ART = `<svg viewBox="0 0 64 64" aria-hidden="true" class="donut-art"><ellipse cx="32" cy="55" rx="20" ry="3.5" fill="#2A2B29" opacity=".08"/>
+  <circle cx="32" cy="32" r="22" fill="#E3B47A"/><path d="M12.5 30c1.5-11 10-18 19.5-18s18.5 7 19.5 18c-2.5 3-5 1-7.5 3.5S40 39 36.5 37s-5.5 3-9 1.5-4-4.5-7.5-3.5-5 .5-7.5-5z" fill="#F7A8C4"/>
+  <circle cx="32" cy="32" r="7" fill="#FFFFFF"/><circle cx="32" cy="32" r="7" fill="none" stroke="#E3B47A" stroke-width="2"/>
+  <g stroke-width="2.4" stroke-linecap="round"><path d="M21 22l3 2" stroke="#2E6B5A"/><path d="M38 18l3-1" stroke="#F4B400"/><path d="M44 27l1 3" stroke="#FFFFFF"/><path d="M24 31l-1 3" stroke="#F4B400"/><path d="M30 19l2 2" stroke="#FFFFFF"/><path d="M40 33l3 1" stroke="#2E6B5A"/></g></svg>`;
+function tipsOn() { return !!(CONFIG.GCASH_QR || CONFIG.TIP_URL); }
+function renderTipJar() {
+  const cooked = S.history.length;
+  const html = tipsOn() ? `<aside class="tipjar" aria-label="Support Pantry to Plate">
+    <div class="tj-art">${DONUT_ART}</div>
+    <div class="tj-text"><b>Saved you time? Buy the developer a donut!</b>
+      <span>${cooked ? `${cooked} meal${cooked > 1 ? "s" : ""} cooked from your own kitchen so far. ` : ""}Pantry → Plate is free, with no ads.</span></div>
+    <div class="tj-btns">${CONFIG.GCASH_QR ? `<button class="btn tj-gcash" data-act="tip-gcash"><span class="g" aria-hidden="true">G</span>GCash / QR Ph</button>` : ""}
+      ${CONFIG.TIP_URL ? `<a class="btn" href="${esc(CONFIG.TIP_URL)}" target="_blank" rel="noopener" data-act="tip-link">${icon("star")}Card / PayPal</a>` : ""}</div></aside>` : "";
+  document.querySelectorAll(".tipjar-slot").forEach(el => { el.innerHTML = html; });
+}
+function openGcash() {
+  openModal(`<div class="tip-modal"><div class="tj-art lg">${DONUT_ART}</div><h2 id="authTitle">Treat the developer to a donut</h2>
+    <p class="muted">${CONFIG.GCASH_NAME ? "GCash · " + esc(CONFIG.GCASH_NAME) : "GCash · Maya · any PH bank"}</p>
+    <img class="qr" src="${esc(CONFIG.GCASH_QR)}" alt="GCash QR code" width="224" height="224">
+    <p>Scan with <b>GCash</b>, <b>Maya</b>, or any bank app that supports <b>QR Ph</b>. Any amount is appreciated. Thank you!</p>
+    <div class="form-actions"><button class="btn primary" data-act="auth-close">Close</button></div></div>`);
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-act]"); if (!t) return;
+  if (t.dataset.act === "tip-gcash") { openGcash(); sparkle(t, 4); }
+  else if (t.dataset.act === "tip-link") sparkle(t, 4);
+});
+
 /* ---------- wire up ---------- */
 TABS.push("plan", "rescue");
 RENDER.plan = renderPlan;
+const _home = RENDER.home, _saved = RENDER.saved;
+RENDER.home = () => { _home(); renderTipJar(); };
+RENDER.saved = () => { _saved(); renderTipJar(); };
 RENDER.rescue = () => { renderRescue(); afterRescuePaint(); };
 document.addEventListener("click", e => {
   const t = e.target.closest("[data-act]"); if (!t) return;

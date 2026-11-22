@@ -63,3 +63,10 @@ To add your own photo instead: put it in `img/` (about 800×1000, WebP or JPG, u
 After cooking (or any time), **How did it go?** offers: it turned out well, it needs improvement, I changed an ingredient, the quantities were wrong, the instructions were unclear, or it didn't work. "Turned out well" ranks a recipe up for that person; problems rank it down.
 
 The **This didn't work** button on a recipe saves the reason on the device and, when signed in, to the `pantry_feedback` table in Supabase (people can add reports but can't read anyone's). Recipes reported as not working are ranked lower for that person.
+
+## Donut tip jar 🍩
+
+"Saved you time? Buy the developer a donut!" appears at the bottom of Home and Saved recipes, the same way as in Tiffo. It stays **hidden** until you fill in at least one setting in `CONFIG` at the top of `src/ai.js` (then run `python3 src/build.py`):
+- `GCASH_QR`: your GCash QR image (in GCash: QR → Receive → save image). Put the file next to `index.html` (e.g. `gcash-qr.png`) or use an image URL.
+- `GCASH_NAME`: optional name shown under the QR.
+- `TIP_URL`: your Ko-fi or PayPal page.

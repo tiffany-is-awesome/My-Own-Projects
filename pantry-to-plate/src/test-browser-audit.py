@@ -109,7 +109,7 @@ async def main():
         # A: signed-out device kitchen, then first sign-in to an account that already has data
         await pg.evaluate("""()=>{localStorage.setItem('p2p.v3',JSON.stringify({v:3,owner:null,sample:false,savedAt:Date.now(),pantry:[{name:'Local cheese',key:'cheese',qty:200,unit:'g',loc:'fridge',added:'2026-11-18'}],staples:['salt'],saved:[],collections:[],week:[],history:[],prefs:{}}));
           window.__signed=true; window.__store.row={data:{v:3,owner:'u1',savedAt:1000,pantry:[{name:'Account eggs',key:'egg',qty:6,unit:'pcs',loc:'fridge',added:'2026-11-18'}],staples:['salt'],saved:[],collections:[],week:[],history:[],prefs:{}},updated_at:'2026-01-01'};}""")
-        await pg.reload(); await pg.wait_for_timeout(900)
+        await pg.wait_for_timeout(600); await pg.evaluate("localStorage.getItem('p2p.v3')"); await pg.reload(); await pg.wait_for_timeout(900)
         names=await pg.eval_on_selector_all(".item .name","e=>e.map(x=>x.textContent)")
         modal=await pg.is_visible("#authModal")
         ok(names==["Account eggs"] and modal, f"first sign-in: older account data is NOT overwritten by this device; it asks first (shows {names}, modal={modal})")
