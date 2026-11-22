@@ -159,6 +159,50 @@ with sync_playwright() as p:
     note('Bought shoes 2,000 using my credit card'); note('card interest 150 on my credit card')
     check('card interest is spending', state(), spent=2150, owed=2150, cash=10000)
 
+    # ---------- Phase C: assets & net worth ----------
+    def nw(date=None):
+        return pg.evaluate("d => NetWorth.at(d || undefined)", date)
+
+    # 18. Net worth adds cash, money owed to you, assets; subtracts debts and family borrowing
+    reset(20000)
+    pg.evaluate("Accounts.create('BPI Card','credit')")
+    note('Bought shoes 2,000 using my credit card')
+    note('I lent Maria ₱3,000'); note('Mom lent me ₱5,000')
+    form_submit("UI.assetForm(null, {name:'Toyota Vios', type:'vehicle', value: 450000})")
+    n = nw()
+    check('net worth parts', n, cash=20000 - 3000 + 5000, theyOwe=3000, assets=450000, debts=2000, youOwe=5000)
+    check('net worth total', n, net=22000 + 3000 + 450000 - 2000 - 5000)
+
+    # 19. Revaluation changes net worth, not income
+    before = state()
+    form_submit("UI.assetView(Assets.list()[0])", "document.getElementById('fm_value').value=420000;")
+    check('revaluation not income', {**state(), 'net': nw()['net']}, income=before['income'], spent=before['spent'], net=22000 + 3000 + 420000 - 7000)
+
+    # 20. Buying an asset with cash: cash → asset, not spending; selling: asset → cash, not income
+    reset(100000)
+    form_submit("UI.assetForm(null, {name:'Lot', type:'property', value: 80000, price: 80000, bought: true})")
+    check('asset bought with cash', {**state(), 'net': nw()['net'], 'assets': nw()['assets']}, cash=20000, spent=0, income=0, net=100000, assets=80000)
+    form_submit("UI.assetSellForm(Assets.list()[0])", "document.getElementById('fm_price').value=95000;")
+    check('asset sold', {**state(), 'net': nw()['net'], 'assets': nw()['assets']}, cash=115000, income=0, assets=0, net=115000)
+
+    # 21. Net worth on a past date uses what was true then
+    reset(10000)
+    pg.evaluate("""() => { Store.addTransaction({kind:'income', amount:5000, category:'Salary', date:'2026-09-15', description:'old pay'});
+      const a = { id:'h1', name:'House', type:'property', since:'2026-10-01', history:[] }; Assets.list().push(a);
+      Assets.setValue(a, 1000000, '2026-10-01'); Assets.setValue(a, 1100000, '2026-11-10'); }""")
+    check('net worth in Sept', nw('2026-09-30'), net=15000, assets=0)
+    check('net worth in Oct', nw('2026-10-31'), net=1015000)
+    check('net worth now', nw(), net=1115000)
+    check('12-month series', {'n': len(pg.evaluate("NetWorth.series(12)")), 'last': pg.evaluate("NetWorth.series(12).at(-1).net")}, n=12, last=1115000)
+
+    # 22. Asset notes
+    reset(50000)
+    form_submit("UI.assetForm(null, {name:'Car', type:'vehicle', value: 500000})")
+    check('asset note intent', {'v': 1 if pg.evaluate("Parser.assetIntent('My car is now worth ₱480,000')?.type === 'asset_value'") else 0,
+                                'b': 1 if pg.evaluate("Parser.assetIntent('Bought a lot for 1.2M')?.type === 'asset_buy'") else 0,
+                                'g': 1 if not pg.evaluate("Parser.assetIntent('Gas for the car 500')") else 0,
+                                's': 1 if pg.evaluate("Parser.assetIntent('Sold my car for 450k')?.type === 'asset_sell'") else 0}, v=1, b=1, g=1, s=1)
+
     b.close()
 
 for f in fails: print('✗', f)

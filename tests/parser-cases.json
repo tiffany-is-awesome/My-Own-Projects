@@ -1225,5 +1225,34 @@
 "amount": 500,
 "category": "Interest & Fees",
 "fast": true
+},
+{
+"t": "My house is worth ₱3,500,000",
+"route": "asset_new"
+},
+{
+"t": "Bought a lot for 1.2M",
+"route": "asset_buy"
+},
+{
+"t": "bought a second-hand motorcycle for 45,000",
+"route": "asset_buy"
+},
+{
+"t": "Gas for the car 500",
+"kind": "expense",
+"amount": 500,
+"category": "Gas & Auto"
+},
+{
+"t": "car wash 250",
+"kind": "expense",
+"amount": 250,
+"category": "Gas & Auto",
+"fast": true
+},
+{
+"t": "My investment is now worth ₱6,200",
+"route": "money"
 }
 ]

@@ -195,6 +195,34 @@
         </div>
       </section>
 
+      <!-- Net worth -->
+      <section data-tool="networth" data-tool-name="📊 Net worth" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="font-bold text-lg leading-tight">Net worth</h2>
+            <p class="text-xs text-stone-500 dark:text-stone-400">Everything you own minus everything you owe.</p>
+          </div>
+          <button type="button" id="addAssetBtn" class="rounded-lg border border-teal-300 dark:border-teal-800 text-teal-900 dark:text-teal-200 text-sm font-semibold px-3 py-1.5 hover:bg-teal-50 dark:hover:bg-teal-950/40">+ House, car or valuable</button>
+        </div>
+        <div class="mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
+          <div id="nwTotal" class="text-3xl font-bold tabular tracking-tight">₱0</div>
+          <div id="nwChange" class="text-sm font-semibold pb-1"></div>
+        </div>
+        <div id="nwBars" class="mt-3 h-24 flex items-end gap-1" role="img" aria-label="Net worth over the last 12 months"></div>
+        <div id="nwBarLabels" class="mt-1 flex gap-1 text-[10px] text-stone-400"></div>
+        <div class="mt-4 grid sm:grid-cols-2 gap-3">
+          <div class="rounded-xl bg-teal-50/70 dark:bg-teal-950/25 border border-teal-200/70 dark:border-teal-900/50 p-3">
+            <div class="flex justify-between text-sm font-bold text-teal-800 dark:text-teal-300"><span>You own</span><span id="nwOwn" class="tabular">₱0</span></div>
+            <ul id="nwOwnList" class="mt-1 text-sm space-y-1"></ul>
+          </div>
+          <div class="rounded-xl bg-orange-50/70 dark:bg-orange-950/25 border border-orange-200/70 dark:border-orange-900/50 p-3">
+            <div class="flex justify-between text-sm font-bold text-orange-800 dark:text-orange-300"><span>You owe</span><span id="nwOwe" class="tabular">₱0</span></div>
+            <ul id="nwOweList" class="mt-1 text-sm space-y-1"></ul>
+          </div>
+        </div>
+        <p class="mt-2 text-[11px] text-stone-400">Values you type for things like a house or car are your estimates. Changing a value isn’t income or spending.</p>
+      </section>
+
       <!-- Accounts: WHERE your money is -->
       <section data-tool="accounts" data-tool-name="🏦 Accounts" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -1064,6 +1092,7 @@ const CATEGORIES = {
   'Loans':             { type: 'move', icon: '🤝', schedC: '', kw: [] },
   'Transfer':          { type: 'move', icon: '⇄', schedC: '', kw: [] },
   'Investments':       { type: 'move', icon: '📈', schedC: '', kw: [] },
+  'Assets':            { type: 'move', icon: '🏠', schedC: '', kw: [] },
 };
 // One colour per category (chips, icons). The first 8 expense categories match the chart palette.
 const CAT_COLORS = {
@@ -1076,7 +1105,7 @@ const CAT_COLORS = {
   'Transport': '#0284c7', 'Groceries': '#16a34a', 'Load & Data': '#7c3aed', 'Health & Medicine': '#dc2626', 'Education': '#2563eb',
   'Household': '#a16207', 'Shopping': '#c026d3', 'Personal Care': '#ec4899', 'Entertainment': '#9333ea', 'Gifts & Donations': '#e11d48',
   'Family Support': '#ea580c', 'Interest & Fees': '#9f1239', "Gov't Contributions": '#475569', 'Bank & Transfer Fees': '#64748b', 'Debt Payments': '#be123c',
-  'Loans': '#0f766e', 'Transfer': '#57534e', 'Investments': '#15803d',
+  'Loans': '#0f766e', 'Transfer': '#57534e', 'Investments': '#15803d', 'Assets': '#78716c',
 };
 const catColor = (c) => CAT_COLORS[c] || '#a8a29e';
 // The donut shows your 7 biggest spending categories (+ Other). Set per render in Charts.renderDonut.
@@ -1234,6 +1263,8 @@ const KINDS = {
   repay_out: { dir: -1, report: null,      label: 'You paid back',   icon: '✅' },
   forgive:   { dir: 0,  report: null,      label: 'Forgiven',        icon: '🕊️' },
   invest:    { dir: -1, report: null,      label: 'Invested',        icon: '📈' },
+  asset_buy: { dir: -1, report: null,      label: 'Bought (asset)',  icon: '🏠' },
+  asset_sell:{ dir: +1, report: null,      label: 'Sold (asset)',    icon: '🏷️' },
   transfer:  { dir: 0,  report: null,      label: 'Transfer',        icon: '⇄' },
 };
 const Money = {
@@ -1341,7 +1372,7 @@ const Store = {
   keyFor(user) { return CONFIG.STORAGE_KEY + (user ? ':' + user.id : ''); },
   key() { return this.keyFor(Auth.user); },
   SCHEMA: 2,
-  blank() { return { v: 2, initialBalance: 0, currency: detectCurrency(), accounts: [{ id: 'acc_cash', name: 'Cash', type: 'cash' }], transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], loans: [], plans: [], settings: {}, createdAt: Date.now(), savedAt: 0 }; },
+  blank() { return { v: 2, initialBalance: 0, currency: detectCurrency(), accounts: [{ id: 'acc_cash', name: 'Cash', type: 'cash' }], transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], loans: [], plans: [], assets: [], settings: {}, createdAt: Date.now(), savedAt: 0 }; },
 
   /** Upgrade older saved data in place. Never deletes anything. */
   migrate() {
@@ -1925,6 +1956,29 @@ const Parser = {
     return null;
   },
 
+  /** Notes about big things you own. → { type: 'asset_value' | 'asset_new' | 'asset_buy' | 'asset_sell', ... } or null */
+  assetIntent(text) {
+    const raw = String(text || '').trim(), t = raw.toLowerCase(), amt = this.extractAmount(raw);
+    if (!amt) return null;
+    const value = round2(amt.value);
+    if (/\b(invest|stock|shares|fund|mp2|crypto|bitcoin|etf|uitf|bond|portfolio|time deposit)\b/.test(t)) return null;   // investments (Phase D)
+    let m = raw.match(/\b(?:my|our|the)\s+([a-z][\w' -]{1,30}?)\s+(?:is|are)\s+(?:now\s+)?(?:worth|valued at|nagkakahalaga ng|worth about|worth around)\b/i)
+      || raw.match(/\b(?:value of|halaga ng)\s+(?:my|our|the)?\s*([a-z][\w' -]{1,30}?)\s+(?:is|=|:)/i);
+    if (m) {
+      const subj = m[1].trim(), a = Assets.find(subj);
+      if (a) return { type: 'asset_value', asset: a, value };
+      const ty = Assets.typeIn(subj);
+      if (ty) return { type: 'asset_new', name: subj.replace(/^./, (c) => c.toUpperCase()), assetType: ty, value };
+      return null;
+    }
+    if (/\b(installments?|hulog|hulugan|loan|financing|downpayment|down payment|dp)\b/.test(t)) return null;   // handled by Cards & loans
+    m = raw.replace(/[₱$]\s?[\d,.]+\s*[km]?\b|\b\d[\d,.]*\s*[km]?\b/gi, ' ').match(/\b(?:bought|purchased|binili|nakabili(?:\s+ng)?)\s+(?:a|an|the|my|our)?\s*((?:new\s+|used\s+|second-?hand\s+|brand-?new\s+)?(?:house(?:\s+and\s+lot)?|house|lot|land|condo(?:\s+unit)?|townhouse|apartment|car|kotse|motorcycle|motor|scooter|van|truck|suv|tricycle|e-?bike|gold\s+\w+|jewelry|ring|necklace|watch)(?:\s+[a-z][\w-]*){0,2}?)(?=\s+(?:for|worth|at|from|in|na|sa)\b|[.,!]|\s*$)/i);
+    if (m) return { type: 'asset_buy', name: m[1].trim().replace(/^./, (c) => c.toUpperCase()), assetType: Assets.typeIn(m[1]) || 'other', price: value };
+    m = raw.match(/\b(?:sold|nabenta|binenta)\s+(?:my|our|the)?\s*([a-z][\w' -]{1,30}?)\s+(?:for|at|sa)\b/i);
+    if (m) { const a = Assets.find(m[1]); if (a) return { type: 'asset_sell', asset: a, price: value }; }
+    return null;
+  },
+
   /** "Meralco 2,800 due Friday" → a reminder, not a payment. */
   isBillDue(text) {
     const t = text.toLowerCase();
@@ -2494,13 +2548,103 @@ const Debts = {
 };
 
 /* =========================================================================
+   ASSETS & NET WORTH
+   Net worth = what you own − what you owe.
+   Own:  cash/e-wallet/bank accounts · money people owe you · investments (at cost
+         until you add values) · assets you track (house, car, jewelry…).
+   Owe:  cards, loans, installments · money you borrowed from family & friends.
+   Changing an asset's value is not income. Bank/e-wallet accounts can't be
+   added as assets (they're already counted), so nothing is counted twice.
+   ========================================================================= */
+const ASSET_TYPES = {
+  property: { icon: '🏠', label: 'House, condo or land' }, vehicle: { icon: '🚗', label: 'Car or motorcycle' },
+  valuables: { icon: '💍', label: 'Jewelry & valuables' }, gadgets: { icon: '💻', label: 'Gadgets & equipment' },
+  business: { icon: '🏪', label: 'Business (your share)' }, other: { icon: '📦', label: 'Something else' },
+};
+const Assets = {
+  list() { return (Store.state.assets ||= []); },
+  active() { return this.list().filter((a) => !a.soldAt); },
+  get(id) { return this.list().find((a) => a.id === id) || null; },
+  icon(a) { return (ASSET_TYPES[a.type] || ASSET_TYPES.other).icon; },
+  /** Value on a date: the latest valuation on or before it (0 before it was owned or after it was sold). */
+  valueAt(a, iso = toISODate(new Date())) {
+    if (a.since && a.since > iso) return 0;
+    if (a.soldAt && a.soldAt <= iso) return 0;
+    const h = (a.history || []).filter((x) => x.date <= iso).sort((x, y) => x.date.localeCompare(y.date));
+    return h.length ? h.at(-1).value : 0;
+  },
+  value(a) { return this.valueAt(a); },
+  setValue(a, value, date = toISODate(new Date()), how = 'manual') {
+    (a.history ||= []).push({ date, value: round2(value), how, at: Date.now() });
+    a.history.sort((x, y) => x.date.localeCompare(y.date) || x.at - y.at);
+    Store.save();
+  },
+  find(text) {
+    const t = String(text).toLowerCase();
+    const named = this.active().find((a) => t.includes(a.name.toLowerCase()));
+    if (named) return named;
+    const words = { property: /\b(house|bahay|home|condo|lot|land|lupa|property|apartment)\b/, vehicle: /\b(car|kotse|auto|motorcycle|motor|scooter|vehicle|van|truck|suv)\b/,
+      valuables: /\b(jewelry|jewellery|gold|ring|necklace|watch|alahas)\b/, gadgets: /\b(laptop|computer|camera|phone|equipment)\b/ };
+    for (const [type, re] of Object.entries(words)) if (re.test(t)) { const m = this.active().filter((a) => a.type === type); if (m.length === 1) return m[0]; }
+    return null;
+  },
+  typeIn(text) {
+    const t = String(text).toLowerCase();
+    if (/\b(house|bahay|home|condo|lot|land|lupa|property|apartment|townhouse)\b/.test(t)) return 'property';
+    if (/\b(car|kotse|motorcycle|motor|scooter|vehicle|van|truck|suv|tricycle|e-?bike)\b/.test(t)) return 'vehicle';
+    if (/\b(jewelry|jewellery|gold|ring|necklace|bracelet|alahas|watch|rolex)\b/.test(t)) return 'valuables';
+    if (/\b(business|store|sari-?sari|carinderia|shop)\b/.test(t)) return 'business';
+    return null;
+  },
+};
+
+const NetWorth = {
+  /** Money people owe you / you owe them on a date (simple sums per person, never below zero). */
+  peopleAt(iso) {
+    const per = {};
+    for (const t of Store.state.transactions) {
+      if (t.date > iso || !t.person) continue;
+      const k = Money.kind(t), key = Loans.key(t.person);
+      const p = per[key] ||= { theirs: 0, mine: 0 };
+      if (k === 'lend') p.theirs += t.amount; else if (k === 'repay_in') p.theirs -= t.amount; else if (k === 'forgive' && t.side !== 'mine') p.theirs -= t.amount;
+      else if (k === 'borrow') p.mine += t.amount; else if (k === 'repay_out') p.mine -= t.amount; else if (k === 'forgive' && t.side === 'mine') p.mine -= t.amount;
+    }
+    const v = Object.values(per);
+    return { theyOwe: round2(v.reduce((x, p) => x + Math.max(0, p.theirs), 0)), youOwe: round2(v.reduce((x, p) => x + Math.max(0, p.mine), 0)) };
+  },
+  /** Investments: current values if you've added them (Phase D), otherwise what you put in. */
+  investmentsAt(iso) {
+    if (typeof Invest !== 'undefined') return Invest.valueAt(iso);
+    return round2(Store.state.transactions.filter((t) => t.date <= iso && Money.kind(t) === 'invest').reduce((x, t) => x + t.amount, 0));
+  },
+  at(iso = toISODate(new Date())) {
+    const upTo = Debts.dayAfter(iso), people = this.peopleAt(iso);
+    const cash = round2(Accounts.cashList().reduce((x, a) => x + Accounts.balance(a, upTo), 0));
+    const owedDebts = Accounts.owed(upTo);
+    const invest = this.investmentsAt(iso);
+    const assets = round2(Assets.list().reduce((x, a) => x + Assets.valueAt(a, iso), 0));
+    const own = round2(cash + people.theyOwe + invest + assets), owe = round2(owedDebts + people.youOwe);
+    return { date: iso, cash, theyOwe: people.theyOwe, invest, assets, own, debts: owedDebts, youOwe: people.youOwe, owe, net: round2(own - owe) };
+  },
+  /** Month-end net worth for the last n months (this month = today). */
+  series(n = 12) {
+    const out = [], now = new Date();
+    for (let k = n - 1; k >= 0; k--) {
+      const d = k === 0 ? now : new Date(now.getFullYear(), now.getMonth() - k + 1, 0);
+      out.push({ label: d.toLocaleDateString([], { month: 'short' }), ...this.at(toISODate(d)) });
+    }
+    return out;
+  },
+};
+
+/* =========================================================================
    BACKUP — a JSON file of everything, and a careful restore.
    Restore always checks the file first, shows what's inside, and keeps a
    safety copy of the current data so it can be undone.
    ========================================================================= */
 const Backup = {
   FORMAT: 1,
-  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans'],
+  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans', 'assets'],
   lastAt() { return Store.state.settings?.lastBackupAt || 0; },
 
   build() {
@@ -2583,7 +2727,7 @@ const Backup = {
     }
     const byId = (key, fix = (x) => x) => { const have = new Set((st[key] ||= []).map((x) => x.id)); for (const x of d[key]) if (x.id && !have.has(x.id)) st[key].push(fix(x)); };
     byId('pocketMoves', (m) => ({ ...m, pocketId: pocketMap[m.pocketId] || m.pocketId }));
-    byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories'); byId('plans', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId }));
+    byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories'); byId('plans', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('assets');
     Store.adopt(st); Store.save();
     return { added, skipped };
   },
@@ -3882,6 +4026,13 @@ const Exporter = {
       push(''); push('MONEY OWED (family, friends and others)'); push('Person', 'Direction', 'Original', 'Paid back', 'Forgiven', 'Still owed');
       for (const l of Loans.list()) { const s2 = Loans.stats(l); push(l.person, l.direction === 'lent' ? 'They owe you' : 'You owe them', l.amount.toFixed(2), s2.repaid.toFixed(2), s2.forgiven.toFixed(2), s2.left.toFixed(2)); }
     }
+    const nw = NetWorth.at();
+    push(''); push('NET WORTH (today, estimates)'); push('Item', 'Amount');
+    push('Cash, e-wallets & banks', nw.cash.toFixed(2)); if (nw.theyOwe) push('Owed to you', nw.theyOwe.toFixed(2)); if (nw.invest) push('Investments', nw.invest.toFixed(2));
+    for (const x of Assets.active()) push(x.name, Assets.value(x).toFixed(2));
+    for (const x of Accounts.oweList()) if (Accounts.owedOn(x)) push(`Owed: ${x.name}`, (-Accounts.owedOn(x)).toFixed(2));
+    if (nw.youOwe) push('Owed: family & friends', (-nw.youOwe).toFixed(2));
+    push('Net worth', nw.net.toFixed(2));
     push(''); push(us ? 'Note: Schedule C lines are hints for US filers. Confirm with your tax professional.'
       : 'Note: these summaries are informational, not tax advice. For BIR filing, confirm with an accountant or the BIR.');
     return '﻿' + rows.join('\r\n'); // BOM so Excel reads UTF-8
@@ -3910,7 +4061,7 @@ const Nav = {
   PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More' },
   // Which page each card lives on.
   OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', spending: 'plan', profit: 'plan',
-    accounts: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
+    networth: 'money', accounts: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
   page: 'home',
   pageOf(el) { return this.OF[el.dataset.tool] || 'more'; },
   read() { const m = location.hash.match(/^#(home|activity|plan|money|more)\b/); this.page = m ? m[1] : 'home'; },
@@ -4201,7 +4352,7 @@ const UI = {
   renderAll() {
     // Each card draws on its own, so one problem never blanks out the rest of the app.
     for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
-      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderSyncStatus()]) {
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderSyncStatus()]) {
       try { f(); } catch (e) { console.error('Render problem', e); }
     }
   },
@@ -4428,6 +4579,8 @@ const UI = {
   async submitNote(text) {
     const di = Parser.debtIntent(text);
     if (di) return this.handleDebtNote(text, di);
+    const ai = Parser.assetIntent(text);
+    if (ai) return this.handleAssetNote(text, ai);
     if (Reminders.isReminder(text)) {
       const r = Store.addReminder(Reminders.parse(text));
       $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
@@ -4546,7 +4699,7 @@ const UI = {
 
   KIND_CHOICES: [['expense', '💸 I spent / paid for something'], ['income', '💰 Money came in (pay, sales, salary)'], ['gift_in', '🎁 Someone gave me a gift'], ['refund', '↩ A refund / money back'],
     ['lend', '🤝 I lent money to someone'], ['borrow', '🤝 I borrowed money'], ['repay_in', '✅ Someone paid me back'], ['repay_out', '✅ I paid someone back'], ['forgive', '🕊️ I forgave a debt'],
-    ['transfer', '⇄ I moved money between my accounts'], ['invest', '📈 I invested it']],
+    ['transfer', '⇄ I moved money between my accounts'], ['invest', '📈 I invested it'], ['asset_buy', '🏠 I bought a house, car or valuable'], ['asset_sell', '🏷️ I sold one']],
 
   catOptions(kind) {
     const type = kind === 'income' ? 'income' : 'expense';
@@ -4603,7 +4756,7 @@ const UI = {
           if (!amount || amount <= 0) return 'Type the amount.';
           if (!v.date) return 'Pick a date.';
           if (kind === 'transfer' && v.from === v.to) return 'Pick two different accounts.';
-          const cat = kind === 'income' ? v.catI : ['expense', 'refund'].includes(kind) ? v.catE : kind === 'gift_in' ? 'Gifts Received' : kind === 'invest' ? 'Investments' : kind === 'transfer' ? 'Transfer' : 'Loans';
+          const cat = kind === 'income' ? v.catI : ['expense', 'refund'].includes(kind) ? v.catE : kind === 'gift_in' ? 'Gifts Received' : kind === 'invest' ? 'Investments' : /^asset_/.test(kind) ? 'Assets' : kind === 'transfer' ? 'Transfer' : 'Loans';
           const newAcc = String(v.account || '').startsWith('new:') ? v.account.split(':')[1] : null;
           const t = this.recordEntry({ ...it, kind, amount: round2(amount), person: person || null, category: cat, date: v.date, description: v.description || it.description,
             accountId: v.account, from: { id: v.from }, to: { id: v.to } }, text);
@@ -4682,6 +4835,12 @@ const UI = {
   },
 
   livePreview(text) {
+    const ai = text.trim() && !Parser.debtIntent(text) && Parser.assetIntent(text);
+    if (ai) {
+      $('#parsePreview').innerHTML = ({ asset_value: `Will update <b>${escapeHTML(ai.asset?.name || '')}</b> to ${fmt(ai.value)} (net worth, not income)`, asset_new: `Will add <b>${escapeHTML(ai.name || '')}</b> worth ${fmt(ai.value)} to your net worth`,
+        asset_buy: `<b>${escapeHTML(ai.name || '')}</b> · ${fmt(ai.price)} from cash into something you own (not spending) · you’ll confirm`, asset_sell: `Sold <b>${escapeHTML(ai.asset?.name || '')}</b> for ${fmt(ai.price)} · you’ll confirm` })[ai.type];
+      return;
+    }
     const di = text.trim() && Parser.debtIntent(text);
     if (di) {
       $('#parsePreview').innerHTML = ({ card_due: `Will set your <b>credit card due date</b> to the ${ordinal(di.day || 1)}`, installment: `<b>🧾 Installment purchase</b>${di.name ? ': ' + escapeHTML(di.name) : ''}${di.count ? ` · ${di.count} payments` : ''} · you’ll confirm the details`,
@@ -4931,7 +5090,7 @@ const UI = {
         const person = (v.person || '').trim().slice(0, 40);
         if (loanKinds.includes(v.kind) && !person) return 'Type who it was with.';
         if (v.kind === 'transfer' && v.from === v.to) return 'Pick two different accounts.';
-        const cat = v.kind === 'income' ? v.catI : ['expense', 'refund'].includes(v.kind) ? v.catE : v.kind === 'gift_in' ? 'Gifts Received' : v.kind === 'invest' ? 'Investments' : v.kind === 'transfer' ? 'Transfer' : 'Loans';
+        const cat = v.kind === 'income' ? v.catI : ['expense', 'refund'].includes(v.kind) ? v.catE : v.kind === 'gift_in' ? 'Gifts Received' : v.kind === 'invest' ? 'Investments' : /^asset_/.test(v.kind) ? 'Assets' : /^asset_/.test(kind) ? 'Assets' : v.kind === 'transfer' ? 'Transfer' : 'Loans';
         const patch = { kind: v.kind, amount: round2(v.amount), category: cat, date: v.date, description: (v.description || t.description).slice(0, 120), repeat: v.repeat || undefined,
           person: (loanKinds.includes(v.kind) || v.kind === 'gift_in') ? person || undefined : undefined };
         if (v.kind === 'transfer') Object.assign(patch, { fromAccountId: v.from, toAccountId: v.to, accountId: v.from });
@@ -4970,6 +5129,111 @@ const UI = {
       b.closest('div.flex').remove(); toast('↩ Restored.');
     }, { once: false });
   },
+  /* ---------- net worth & assets ---------- */
+  renderNetWorth() {
+    const now = NetWorth.at(), ser = NetWorth.series(12);
+    $('#nwTotal').textContent = fmt(now.net);
+    $('#nwTotal').classList.toggle('text-rose-600', now.net < 0);
+    const prev = ser.at(-2), first = ser.find((x) => x.own || x.owe) || ser[0];
+    const ch = (a, b, label) => { const d = round2(a - b); return d ? `<span class="${d > 0 ? 'text-teal-700 dark:text-teal-400' : 'text-rose-600'}">${d > 0 ? '▲' : '▼'} ${fmt0(Math.abs(d))}</span> <span class="font-normal text-stone-500">${label}</span>` : ''; };
+    $('#nwChange').innerHTML = [ch(now.net, prev.net, 'since last month'), first !== prev ? ch(now.net, first.net, `since ${first.label}`) : ''].filter(Boolean).join(' · ') || '<span class="font-normal text-stone-500">Add accounts, debts or assets to see how it changes.</span>';
+    const max = Math.max(1, ...ser.map((x) => Math.abs(x.net)));
+    $('#nwBars').innerHTML = ser.map((x, i) => `<div class="flex-1 h-full flex flex-col justify-end" title="${escapeHTML(x.label)}: ${escapeHTML(fmt(x.net))}">
+      <div class="rounded-t ${x.net < 0 ? 'bg-rose-400' : i === ser.length - 1 ? 'bg-teal-600' : 'bg-teal-300 dark:bg-teal-700'}" style="height:${Math.max(2, Math.round((Math.abs(x.net) / max) * 100))}%"></div></div>`).join('');
+    $('#nwBarLabels').innerHTML = ser.map((x, i) => `<div class="flex-1 text-center ${i % 2 && ser.length > 8 ? 'hidden sm:block' : ''}">${escapeHTML(x.label)}</div>`).join('');
+    $('#nwOwn').textContent = fmt(now.own); $('#nwOwe').textContent = fmt(now.owe);
+    const li = (icon, label, amt, attrs = '', sub = '') => `<li ${attrs} class="flex justify-between gap-2 ${attrs ? 'cursor-pointer hover:underline' : ''}"><span class="truncate">${icon} ${escapeHTML(label)}${sub ? ` <span class="text-[11px] text-stone-500">${sub}</span>` : ''}</span><span class="tabular whitespace-nowrap">${fmt(amt)}</span></li>`;
+    $('#nwOwnList').innerHTML = [
+      li('💵', 'Cash, e-wallets & banks', now.cash),
+      now.theyOwe ? li('👥', 'Owed to you', now.theyOwe) : '',
+      now.invest ? li('📈', 'Investments', now.invest, '', typeof Invest === 'undefined' ? '(what you put in)' : '') : '',
+      ...Assets.active().map((a) => li(Assets.icon(a), a.name, Assets.value(a), `data-asset="${a.id}"`, a.history?.length ? `(${escapeHTML(prettyDate(a.history.at(-1).date).toLowerCase())})` : '')),
+    ].join('');
+    $('#nwOweList').innerHTML = [
+      ...Accounts.oweList().filter((a) => Accounts.owedOn(a) > 0).map((a) => li(Accounts.icon(a), a.name, Accounts.owedOn(a))),
+      now.youOwe ? li('👥', 'Family & friends', now.youOwe) : '',
+    ].join('') || '<li class="text-stone-500">Nothing. 🎉</li>';
+  },
+
+  assetForm(a = null, pre = {}) {
+    const types = Object.entries(ASSET_TYPES).map(([k, v]) => [k, `${v.icon} ${v.label}`]);
+    const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name} (${fmt0(Accounts.balance(x))})`]);
+    this.form({
+      title: a ? `Edit ${a.name}` : 'Add something you own',
+      sub: a ? '' : 'A house, land, car, jewelry… Money in banks and e-wallets goes in Accounts instead, so it isn’t counted twice.',
+      fields: [
+        { id: 'name', label: 'Name', value: a?.name || pre.name || '', placeholder: 'e.g. Our house, Toyota Vios' },
+        { id: 'type', label: 'Type', type: 'select', value: a?.type || pre.type || 'property', options: types },
+        { id: 'value', label: 'What it’s worth now (your estimate)', type: 'number', value: a ? Assets.value(a) : (pre.value ?? ''), show: () => !a },
+        { id: 'bought', type: 'checkbox', label: 'I just bought it with money from my account', value: !!pre.bought, show: () => !a },
+        { id: 'price', label: 'Price you paid from your account', type: 'number', value: pre.price ?? '', show: (v) => !a && v.bought, hint: 'Cash goes down, and this asset goes up. It isn’t spending. If you paid with a loan, add the loan in Cards & loans instead.' },
+        { id: 'from', label: 'Paid from', type: 'select', value: Accounts.DEFAULT, options: cashOpts, show: (v) => !a && v.bought && cashOpts.length > 1 },
+        { id: 'since', label: 'Since (date bought)', type: 'date', value: a?.since || pre.date || toISODate(new Date()), advanced: true },
+        { id: 'note', label: 'Private note (optional)', type: 'textarea', value: a?.note || '', advanced: true },
+      ],
+      danger: a ? { label: 'Remove', fn: async () => {
+        this.closeForm();
+        if (Store.state.transactions.some((t) => t.assetId === a.id)) { toast('This has a purchase or sale linked to it. Use “Sold it” instead, or delete those entries first.'); return; }
+        if (!(await askConfirm(`Remove ${a.name} from your net worth?`, 'Remove'))) return;
+        Store.state.assets = Assets.list().filter((x) => x !== a); Store.save(); this.renderAll();
+      } } : null,
+      onSave: (v) => {
+        if (!v.name) return 'Give it a name.';
+        if (/^(bdo|bpi|gcash|maya|metrobank|landbank|pnb|security bank|unionbank|cash|savings|bank|e-?wallet)$/i.test(v.name.trim())) return 'Bank and e-wallet money goes in Accounts, so it isn’t counted twice.';
+        if (!a && (v.value == null || v.value < 0)) return 'Type what it’s worth now. A rough estimate is fine.';
+        if (!a && v.bought && (!v.price || v.price <= 0)) return 'Type the price you paid.';
+        const x = a || { id: uid(), history: [] };
+        x.name = v.name.slice(0, 40); x.type = v.type; x.since = v.since || toISODate(new Date()); if (v.note) x.note = v.note.slice(0, 500); else delete x.note;
+        if (!a) {
+          Assets.list().push(x);
+          Assets.setValue(x, v.value, x.since, v.bought ? 'price' : 'manual');
+          if (v.bought) Store.addTransaction({ kind: 'asset_buy', amount: round2(v.price), category: 'Assets', date: x.since, accountId: v.from || Accounts.DEFAULT, assetId: x.id, description: `Bought ${x.name}`, source: 'asset' });
+        }
+        Store.save(); this.renderAll();
+        toast(a ? 'Saved.' : `${Assets.icon(x)} Added ${escapeHTML(x.name)} · worth ${fmt(Assets.value(x))}${v.bought ? ` · ${fmt(v.price)} from your account (not spending)` : ''}`);
+      },
+    });
+  },
+  assetView(a) {
+    const hist = (a.history || []).slice().reverse().slice(0, 12).map((h) => `<div class="flex justify-between"><span>${escapeHTML(prettyDate(h.date))}${h.how === 'price' ? ' · price paid' : ''}</span><span class="tabular">${fmt(h.value)}</span></div>`).join('');
+    const firstV = a.history?.[0]?.value, nowV = Assets.value(a), d = firstV != null ? round2(nowV - firstV) : 0;
+    this.form({
+      title: `${Assets.icon(a)} ${a.name}`, save: 'Update value', sub: `${(ASSET_TYPES[a.type] || ASSET_TYPES.other).label}${a.since ? ` · since ${prettyDate(a.since)}` : ''}`,
+      fields: [
+        { id: 'sum', type: 'note', label: '', html: `<div><b>Worth now: ${fmt(nowV)}</b>${d ? ` (${d > 0 ? '▲' : '▼'} ${fmt(Math.abs(d))} since you added it)` : ''}</div>${a.note ? `<div class="mt-1 opacity-80">🔒 ${escapeHTML(a.note)}</div>` : ''}<div class="mt-2 font-semibold">Value history</div>${hist}` },
+        { id: 'value', label: 'New value (your estimate)', type: 'number', value: '' },
+        { id: 'date', label: 'As of', type: 'date', value: toISODate(new Date()), advanced: true },
+        { id: 'edit', type: 'note', label: '', html: `<button type="button" class="asset-edit underline font-semibold">Edit name or details</button> · <button type="button" class="asset-sell underline font-semibold">I sold it</button>` },
+      ],
+      onSave: (v) => {
+        if (v.value == null || v.value < 0) return 'Type the new value.';
+        Assets.setValue(a, v.value, v.date || toISODate(new Date())); this.renderAll();
+        toast(`${Assets.icon(a)} ${escapeHTML(a.name)} is now worth ${fmt(v.value)}. That changes your net worth, not your income.`);
+      },
+    });
+    $('#fmFields .asset-edit').onclick = () => { this.closeForm(); this.assetForm(a); };
+    $('#fmFields .asset-sell').onclick = () => { this.closeForm(); this.assetSellForm(a); };
+  },
+  assetSellForm(a, pre = {}) {
+    const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]);
+    this.form({
+      title: `Sold ${a.name}`, save: 'Save sale', sub: `It was worth about ${fmt(Assets.value(a))}. Selling it moves that value into cash. It isn’t counted as income.`,
+      fields: [
+        { id: 'price', label: 'Sold for', type: 'number', value: pre.price ?? '' },
+        { id: 'into', label: 'Money went into', type: 'select', value: Accounts.DEFAULT, options: cashOpts, show: () => cashOpts.length > 1 },
+        { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) },
+      ],
+      onSave: (v) => {
+        if (!v.price || v.price < 0) return 'Type the price.';
+        const t = Store.addTransaction({ kind: 'asset_sell', amount: round2(v.price), category: 'Assets', date: v.date, accountId: v.into || Accounts.DEFAULT, assetId: a.id, description: `Sold ${a.name}`, source: 'asset' });
+        a.soldAt = v.date; a.soldFor = round2(v.price); Store.save(); this.renderAll();
+        const g = round2(v.price - (a.history?.[0]?.value ?? v.price));
+        toast(`🏷️ Sold ${escapeHTML(a.name)} for ${fmt(v.price)}${g ? ` (${g > 0 ? 'gain' : 'loss'} of ${fmt(Math.abs(g))} vs. what you first recorded)` : ''}`, { duration: 7000,
+          action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id, true); delete a.soldAt; delete a.soldFor; Store.save(); UI.renderAll(); } } });
+      },
+    });
+  },
+
   /* ---------- cards, loans & installments ---------- */
   renderDebts() {
     const owe = Accounts.oweList(), plans = Debts.plans(), ps = Debts.planStatus(), up = Debts.upcoming(60);
@@ -5019,6 +5283,20 @@ const UI = {
         <div class="tabular text-sm font-bold whitespace-nowrap">${done ? '✓' : fmt0(st.left) + ' left'}</div>
       </li>`;
     }).join('');
+  },
+
+  /** "My car is worth ₱500,000", "Bought a lot for ₱1.2M", "Sold my motorcycle for ₱40,000". Nothing is saved without a check. */
+  handleAssetNote(text, ai) {
+    this._afterForm = null;
+    const clear = () => { $('#noteInput').value = ''; $('#parsePreview').innerHTML = ''; };
+    if (ai.type === 'asset_value') {
+      this.form({ title: `Update ${ai.asset.name}?`, save: 'Update value', sub: `Now ${fmt(Assets.value(ai.asset))}. Changing it moves your net worth, not your income.`,
+        fields: [{ id: 'value', label: 'Worth now', type: 'number', value: ai.value }],
+        onSave: (v) => { if (v.value == null || v.value < 0) return 'Type the value.'; Assets.setValue(ai.asset, v.value); this.renderAll(); toast(`${Assets.icon(ai.asset)} ${escapeHTML(ai.asset.name)}: ${fmt(v.value)}`); } });
+    } else if (ai.type === 'asset_new') this.assetForm(null, { name: ai.name, type: ai.assetType, value: ai.value });
+    else if (ai.type === 'asset_buy') this.assetForm(null, { name: ai.name, type: ai.assetType, value: ai.price, price: ai.price, bought: true });
+    else if (ai.type === 'asset_sell') this.assetSellForm(ai.asset, { price: ai.price });
+    this._afterForm = clear;
   },
 
   /** Notes about cards, loans and installments open the right short form, already filled in. */
@@ -6070,6 +6348,8 @@ const UI = {
     $('#addAcctBtn').addEventListener('click', () => this.accountForm());
     $('#lendBtn').addEventListener('click', () => this.loanForm('lend'));
     $('#addCardBtn').addEventListener('click', () => this.accountForm(null, 'credit'));
+    $('#addAssetBtn').addEventListener('click', () => this.assetForm());
+    $('#nwOwnList').addEventListener('click', (e) => { const li = e.target.closest('[data-asset]'); const a = li && Assets.get(li.dataset.asset); if (a) this.assetView(a); });
     $('#addLoanBtn').addEventListener('click', () => this.accountForm(null, 'loan'));
     $('#addPlanBtn').addEventListener('click', () => this.installmentForm());
     $('#debtList').addEventListener('click', (e) => {
