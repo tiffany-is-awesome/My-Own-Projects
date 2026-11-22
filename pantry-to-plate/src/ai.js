@@ -7,7 +7,15 @@ const CONFIG={
   SUPABASE_URL:"https://hvhbygkgvxdpvwvclyns.supabase.co",
   SUPABASE_KEY:"sb_publishable_t8Zf_XjZPrRZB9piISZOhQ_FXdNja7h",
   TABLE:"pantry_data",
-  LIVE_SITE:"https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/"
+  LIVE_SITE:"https://tiffany-is-awesome.github.io/My-Own-Projects/pantry-to-plate/",
+  /* DONUT TIP JAR (same as Tiffo). It stays hidden until at least one is filled in.
+     GCASH_QR: your GCash QR image: a file in this folder (e.g. "gcash-qr.png"), an image URL, or a data: URL.
+               In GCash: QR → "Receive" → save the image.
+     GCASH_NAME: optional label under the title, e.g. "Tiffany P."
+     TIP_URL: your Ko-fi / PayPal page, e.g. "https://ko-fi.com/yourname" */
+  GCASH_QR:"",
+  GCASH_NAME:"",
+  TIP_URL:""
 };
 /* The claude.ai preview blocks calls to other servers, so accounts only run on the published site. */
 const CLOUD_OK=!/claude|anthropic/i.test(location.hostname);

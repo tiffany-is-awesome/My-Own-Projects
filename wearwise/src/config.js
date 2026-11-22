@@ -21,6 +21,6 @@ export const CONFIG = {
   // 🍩 "Treat the developer" tip jar (same as Tiffo). Hidden until at least one of these is filled in.
   GCASH_QR: '',    // your GCash / QR Ph image: a file next to wearwise.html (e.g. 'gcash-qr.png') or an image URL.
                    // In GCash: Profile → QR → "Receive" → save image.
-  GCASH_NAME: '',  // optional name shown under the title, e.g. 'Tiffany P.'
+  GCASH_NAME: '',  // optional name shown under the title, e.g. 'J. Dela Cruz'
   TIP_URL: '',     // optional card / PayPal / Ko-fi page, e.g. 'https://ko-fi.com/yourname'
 };
