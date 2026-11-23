@@ -243,6 +243,64 @@ with sync_playwright() as p:
     r2 = pg.evaluate(f"Retire.project({{age:30, retireAge:60, lifeTo:85, savings:100000, monthly:{r['needMonthly']}, desired:20000, ret:6, infl:4}})")
     check('retire: needed contribution reaches goal', {'inc': round(r2['income'])}, inc=20000)
 
+    # ---------- Phase E: bills, insurance, timeline, records ----------
+    def bill(**kw):
+        js = "o => { const b = { id: 'b' + Math.random().toString(36).slice(2), freq:'month', category:'Utilities', kind:'bill', ...o }; b.day = +b.nextDue.slice(8,10); Bills.list().push(b); Bills.syncReminder(b); Store.save(); return b.id; }"
+        return pg.evaluate(js, kw)
+    def nextDue(bid): return pg.evaluate("id => Bills.get(id).nextDue", bid)
+
+    # 27. Paying a bill: spending + due date moves; late and early payments handled; undo restores
+    reset(20000)
+    bid = bill(name='Meralco', amount=2800, nextDue='2026-11-25', variable=True)
+    note('Meralco 2,950')
+    check('bill auto-matched', {**state(), 'linked': 1 if pg.evaluate("!!Store.state.transactions.at(-1).billId") else 0}, spent=2950, linked=1)
+    check('next due moved', {'d': 1 if nextDue(bid) == '2026-12-25' else 0}, d=1)
+    pg.evaluate("id => Bills.pay(Bills.get(id), {amount: 2800, date: '2027-01-02'})", bid)   # paid late (was due Dec 25)
+    check('late payment → next month', {'d': 1 if nextDue(bid) == '2027-01-25' else 0}, d=1)
+    bid2 = bill(name='Rent', amount=8000, nextDue='2026-11-30', category='Rent', kind='rent', day=30)
+    pg.evaluate("id => Bills.pay(Bills.get(id), {date: '2026-11-20'})", bid2)                   # paid early
+    check('early payment → next cycle', {'d': 1 if nextDue(bid2) == '2026-12-30' else 0}, d=1)
+    bid3 = bill(name='Tuition', amount=15000, nextDue='2027-01-31', freq='month', category='Education')
+    pg.evaluate("id => Bills.pay(Bills.get(id), {date: '2027-01-31'})", bid3)
+    check('month-end clamps (Feb)', {'d': 1 if nextDue(bid3) == '2027-02-28' else 0}, d=1)
+    pg.evaluate("id => Bills.pay(Bills.get(id), {date: '2027-02-28'})", bid3)
+    check('…and comes back to the 31st', {'d': 1 if nextDue(bid3) == '2027-03-31' else 0}, d=1)
+
+    # 28. Repeating spending is suggested (not added) and dismissals stick
+    reset(20000)
+    pg.evaluate("""() => { for (const d of ['2026-08-03','2026-09-03','2026-10-03','2026-11-03']) Store.addTransaction({kind:'expense', amount:549, category:'Entertainment', date:d, description:'Netflix'}); }""")
+    sug = pg.evaluate("Bills.detect()")
+    check('subscription detected', {'n': len(sug), 'monthly': 1 if sug and sug[0]['freq'] == 'month' else 0, 'bills': pg.evaluate("Bills.list().length")}, n=1, monthly=1, bills=0)
+    pg.evaluate("Bills.dismiss(Bills.detect()[0].key)")
+    check('dismissed stays dismissed', {'n': len(pg.evaluate("Bills.detect()"))}, n=0)
+
+    # 29. Duplicate subscriptions and double charges are flagged
+    reset(20000)
+    bill(name='Spotify', amount=149, nextDue='2026-12-01', kind='subscription', category='Entertainment')
+    bill(name='Spotify Premium', amount=149, nextDue='2026-12-05', kind='subscription', category='Entertainment')
+    pg.evaluate("""() => { Store.addTransaction({kind:'expense', amount:799, category:'Shopping', date:'2026-11-18', description:'Shopee order'}); Store.addTransaction({kind:'expense', amount:799, category:'Shopping', date:'2026-11-19', description:'Shopee order'}); }""")
+    d = pg.evaluate("Bills.duplicates().map(x => x.type)")
+    check('duplicates flagged', {'bills': d.count('bills'), 'charge': d.count('charge')}, bills=1, charge=1)
+
+    # 30. Insurance premium: spending, linked, next due moves; timeline includes everything
+    reset(20000)
+    pg.evaluate("""() => { Policies.list().push({id:'p1', type:'health', provider:'Maxicare', name:'Family HMO', premium:2500, freq:'month', nextDue:'2026-11-28', renewal:'2026-12-10', policyNo:'MX-0099123'}); Store.save(); }""")
+    note('I paid ₱2,500 for insurance')
+    check('premium linked', {**state(), 'p': 1 if pg.evaluate("Store.state.transactions.at(-1).policyId === 'p1'") else 0, 'next': 1 if pg.evaluate("Policies.get('p1').nextDue === '2026-12-28'") else 0}, spent=2500, p=1, next=1)
+    check('policy number masked', {'m': 1 if pg.evaluate("Policies.masked(Policies.get('p1')) === '•••• 9123'") else 0, 'csv': 0 if 'MX-0099123' in pg.evaluate("Exporter.build()") else 1}, m=1, csv=1)
+    bill(name='PLDT', amount=1699, nextDue='2026-11-27')
+    pg.evaluate("() => { const c = Accounts.create('Card','credit'); Object.assign(c,{dueDay:25}); Store.addTransaction({kind:'expense', amount:1000, category:'Shopping', date:'2026-11-10', accountId:c.id, description:'x'}); }")
+    types = pg.evaluate("Timeline.items(45).map(i => i.type)")
+    check('timeline has bills, cards, premiums, renewals', {'bill': types.count('bill'), 'debt': types.count('debt'), 'renewal': types.count('renewal'), 'premium': types.count('premium')}, bill=1, debt=1, renewal=1, premium=1)
+
+    # 31. Records: government contributions, business vs personal
+    reset(20000)
+    note('SSS contribution 1,350'); note('PhilHealth 500'); note('Pag-IBIG 200'); note('Sahod 18,000')
+    pg.evaluate("() => { const t = Store.addTransaction({kind:'income', amount:5000, category:'Sales', date: toISODate(new Date()), description:'cake orders'}); t.business = true; }")
+    r = pg.evaluate("Records.year(String(new Date().getFullYear()))")
+    check('records gov contributions', {'sss': r['gov'].get('SSS', 0), 'ph': r['gov'].get('PhilHealth', 0), 'pi': r['gov'].get('Pag-IBIG', 0)}, sss=1350, ph=500, pi=200)
+    check('records business vs personal', {'b': r['business']['income'], 'p': r['personal']['income']}, b=5000, p=18000)
+
     b.close()
 
 for f in fails: print('✗', f)
