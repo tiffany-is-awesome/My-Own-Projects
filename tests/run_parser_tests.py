@@ -10,6 +10,8 @@ cases = json.load(open(here / 'parser-cases.json'))
 stub = "window.Chart=class{constructor(){}update(){}destroy(){}};Chart.defaults={font:{},color:''};"
 ROUTE = """(t) => {
   const di = Parser.debtIntent(t); if (di) return { route: di.type };
+  const ai = Parser.assetIntent(t); if (ai) return { route: ai.type };
+  const ii = Parser.investIntent(t); if (ii) return { route: ii.type };
   if (Reminders.isReminder(t) || Parser.isBillDue?.(t)) return { route: 'reminder' };
   if (Pockets.isPocketNote(t)) return { route: 'pocket' };
   if (Budgets.isBudget(t)) return { route: 'budget' };
