@@ -9,6 +9,7 @@ chrome = sys.argv[sys.argv.index('--chrome') + 1] if '--chrome' in sys.argv else
 cases = json.load(open(here / 'parser-cases.json'))
 stub = "window.Chart=class{constructor(){}update(){}destroy(){}};Chart.defaults={font:{},color:''};"
 ROUTE = """(t) => {
+  const di = Parser.debtIntent(t); if (di) return { route: di.type };
   if (Reminders.isReminder(t) || Parser.isBillDue?.(t)) return { route: 'reminder' };
   if (Pockets.isPocketNote(t)) return { route: 'pocket' };
   if (Budgets.isBudget(t)) return { route: 'budget' };

@@ -212,6 +212,36 @@
         <p class="mt-2 text-[11px] text-stone-400">Moving money between your own accounts isn't income or spending, so your totals stay the same.</p>
       </section>
 
+      <!-- Cards, loans & installments -->
+      <section data-tool="debts" data-tool-name="💳 Cards & loans" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-orange-100 dark:bg-orange-900/40" aria-hidden="true">💳</span>
+            <div><h2 class="font-bold text-lg leading-tight">Cards &amp; loans</h2>
+            <p class="text-xs text-stone-500 dark:text-stone-400">What you owe, what’s due, and when it’ll be paid off.</p></div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="addCardBtn" class="rounded-lg border border-orange-300 dark:border-orange-800 text-orange-900 dark:text-orange-200 text-sm font-semibold px-3 py-1.5 hover:bg-orange-50 dark:hover:bg-orange-950/40">+ Card</button>
+            <button type="button" id="addLoanBtn" class="rounded-lg border border-orange-300 dark:border-orange-800 text-orange-900 dark:text-orange-200 text-sm font-semibold px-3 py-1.5 hover:bg-orange-50 dark:hover:bg-orange-950/40">+ Loan</button>
+            <button type="button" id="addPlanBtn" class="rounded-lg border border-orange-300 dark:border-orange-800 text-orange-900 dark:text-orange-200 text-sm font-semibold px-3 py-1.5 hover:bg-orange-50 dark:hover:bg-orange-950/40">+ Installment</button>
+          </div>
+        </div>
+        <div id="debtTotals" class="grid grid-cols-2 gap-3 mb-3">
+          <div class="rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200/70 dark:border-orange-900/60 px-3 py-2">
+            <div class="text-[11px] font-semibold text-orange-800 dark:text-orange-300">You owe in total</div>
+            <div id="debtTotal" class="text-lg font-bold tabular">₱0</div>
+          </div>
+          <div class="rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 px-3 py-2 min-w-0">
+            <div class="text-[11px] font-semibold text-stone-600 dark:text-stone-300">Next payment</div>
+            <div id="debtNext" class="text-sm font-bold truncate">—</div>
+          </div>
+        </div>
+        <ul id="debtList" class="divide-y divide-stone-100 dark:divide-stone-800"></ul>
+        <div id="planWrap" class="hidden mt-3"><div class="text-[11px] font-bold text-stone-500 dark:text-stone-400 mb-1">Installments</div><ul id="planList" class="divide-y divide-stone-100 dark:divide-stone-800"></ul></div>
+        <p id="debtEmpty" class="rounded-xl border-2 border-dashed border-orange-200 dark:border-orange-900/60 p-4 text-sm text-stone-500 dark:text-stone-400"></p>
+        <p class="mt-2 text-[11px] text-stone-400">Interest splits are estimates using the usual declining-balance method. Your lender’s numbers win: type them when you pay.</p>
+      </section>
+
       <!-- Pockets (mini accounts) -->
       <section data-tool="pockets" data-tool-name="👛 Pockets" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
@@ -1010,7 +1040,8 @@ const CATEGORIES = {
   'Household':         { type: 'expense', icon: '🏠', schedC: 'Personal (not deductible)',
     kw: ['laundry', 'labada', 'detergent', 'toiletries', 'shampoo', 'soap', 'sabon', 'toothpaste', 'tissue', 'diapers', 'diaper', 'household', 'cleaning', 'kasambahay', 'helper salary', 'yaya', 'repairs', 'plumber', 'electrician', 'furniture', 'appliance', 'kitchenware'] },
   'Shopping':          { type: 'expense', icon: '🛍️', schedC: 'Personal (not deductible)',
-    kw: ['shopee', 'lazada', 'tiktok shop', 'zalora', 'clothes', 'damit', 'shoes', 'sapatos', 'bag', 'shirt', 'dress', 'pants', 'mall', 'uniqlo', 'h&m', 'penshoppe', 'bench', 'online purchase', 'online order', 'gadget', 'accessories', 'steam'] },
+    kw: ['shopee', 'lazada', 'tiktok shop', 'zalora', 'clothes', 'damit', 'shoes', 'sapatos', 'bag', 'shirt', 'dress', 'pants', 'mall', 'uniqlo', 'h&m', 'penshoppe', 'bench', 'online purchase', 'online order', 'gadget', 'accessories', 'steam',
+      'phone', 'cellphone', 'smartphone', 'iphone', 'android phone', 'tablet', 'ipad', 'tv', 'television', 'refrigerator', 'ref', 'aircon', 'air conditioner', 'washing machine', 'electric fan', 'speaker', 'headphones', 'earphones', 'watch', 'appliance'] },
   'Personal Care':     { type: 'expense', icon: '💇', schedC: 'Personal (not deductible)',
     kw: ['haircut', 'gupit', 'barber', 'barbershop', 'salon', 'spa', 'massage', 'hilot', 'nails', 'manicure', 'pedicure', 'skincare', 'makeup', 'perfume', 'gym', 'gym membership'] },
   'Entertainment':     { type: 'expense', icon: '🎬', schedC: 'Personal (not deductible)',
@@ -1023,6 +1054,8 @@ const CATEGORIES = {
     kw: ['sss', 'philhealth', 'phil health', 'pag-ibig', 'pagibig', 'pag ibig', 'hdmf', 'contribution', 'contributions'] },
   'Bank & Transfer Fees': { type: 'expense', icon: '🏦', schedC: 'Line 27a – Other expenses',
     kw: ['transfer fee', 'instapay fee', 'pesonet fee', 'cash in fee', 'cash-in fee', 'cash out fee', 'withdrawal fee', 'atm fee', 'service charge', 'bank charge', 'convenience fee', 'remittance fee'] },
+  'Interest & Fees':   { type: 'expense', icon: '📉', schedC: 'Line 16b – Interest (business part only)',
+    kw: ['interest charge', 'finance charge', 'card interest', 'credit card interest', 'loan interest', 'late fee', 'late payment fee', 'annual fee', 'membership fee card', 'overlimit fee', 'processing fee', 'penalty fee', 'add-on interest'] },
   'Debt Payments':     { type: 'expense', icon: '💳', schedC: 'Not an expense (debt)',
     kw: ['credit card payment', 'cc payment', 'amortization', 'amortisation', 'loan payment', 'installment', 'hulugan', 'hulog', 'home credit', 'billease', 'atome', 'spaylater', 'ggives', 'gloan', 'sloan', 'car loan', 'housing loan'] },
   'Other Expense':     { type: 'expense', icon: '🧩', schedC: 'Line 27a – Other expenses', kw: [] },
@@ -1042,7 +1075,7 @@ const CAT_COLORS = {
   'Salary': '#059669', 'Allowance': '#65a30d', 'Remittance Received': '#0d9488', 'Gifts Received': '#db2777',
   'Transport': '#0284c7', 'Groceries': '#16a34a', 'Load & Data': '#7c3aed', 'Health & Medicine': '#dc2626', 'Education': '#2563eb',
   'Household': '#a16207', 'Shopping': '#c026d3', 'Personal Care': '#ec4899', 'Entertainment': '#9333ea', 'Gifts & Donations': '#e11d48',
-  'Family Support': '#ea580c', "Gov't Contributions": '#475569', 'Bank & Transfer Fees': '#64748b', 'Debt Payments': '#be123c',
+  'Family Support': '#ea580c', 'Interest & Fees': '#9f1239', "Gov't Contributions": '#475569', 'Bank & Transfer Fees': '#64748b', 'Debt Payments': '#be123c',
   'Loans': '#0f766e', 'Transfer': '#57534e', 'Investments': '#15803d',
 };
 const catColor = (c) => CAT_COLORS[c] || '#a8a29e';
@@ -1308,7 +1341,7 @@ const Store = {
   keyFor(user) { return CONFIG.STORAGE_KEY + (user ? ':' + user.id : ''); },
   key() { return this.keyFor(Auth.user); },
   SCHEMA: 2,
-  blank() { return { v: 2, initialBalance: 0, currency: detectCurrency(), accounts: [{ id: 'acc_cash', name: 'Cash', type: 'cash' }], transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], loans: [], settings: {}, createdAt: Date.now(), savedAt: 0 }; },
+  blank() { return { v: 2, initialBalance: 0, currency: detectCurrency(), accounts: [{ id: 'acc_cash', name: 'Cash', type: 'cash' }], transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], loans: [], plans: [], settings: {}, createdAt: Date.now(), savedAt: 0 }; },
 
   /** Upgrade older saved data in place. Never deletes anything. */
   migrate() {
@@ -1858,6 +1891,40 @@ const Parser = {
     };
   },
 
+  /** Notes about formal debts. → { type: 'card_due' | 'loan_new' | 'installment' | 'debt_pay', ... } or null */
+  debtIntent(text) {
+    const raw = String(text || '').trim(), t = raw.toLowerCase();
+    const amt = this.extractAmount(raw);
+    const NUMW = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, eighteen: 18, 'twenty-four': 24, 'thirty-six': 36 };
+    // "My credit card bill is due on the 25th"
+    let m = t.match(/\b(?:credit\s*card|card|cc)\b[^.]*?\bdue\b[^.]*?\b(?:on\s+)?(?:the\s+|every\s+)?(\d{1,2})(?:st|nd|rd|th)?\b/);
+    if (m && +m[1] >= 1 && +m[1] <= 31 && !/\b(paid|spent|bought)\b/.test(t)) return { type: 'card_due', day: +m[1], card: Accounts.cardIn(raw.replace(/\bcc\b/i, 'credit card')) };
+    // Bought something on installments
+    if (/\b(installments?|instal(?:l)?ments?|hulugan|hulog|gives|0%\s*for|months?\s+to\s+pay|monthly\s+payments?)\b/.test(t) && /\b(bought|buy|got|purchased|binili|kinuha)\b/.test(t)) {
+      const cm = t.match(/\b(\d{1,3}|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|eighteen|twenty-four|thirty-six)\s*(?:-|\s)?(?:monthly\s+|equal\s+)?(?:installments?|instalments?|months?|payments?|gives|hulog)\b/);
+      const count = cm ? (/^\d+$/.test(cm[1]) ? +cm[1] : NUMW[cm[1]]) : null;
+      const nm = raw.replace(/[₱$]\s?[\d,.]+k?|\b\d[\d,.]*k?\b/gi, ' ').match(/\b(?:bought|buy|got|purchased|binili|kinuha)\s+(?:a|an|the|my|new|ng)?\s*(?:new\s+)?(?:worth\s+of\s+)?([a-z][\w'-]*(?:\s+(?!in\b|on\b|for\b|via\b|using\b|with\b|thru\b|through\b|from\b|at\b|sa\b|worth\b|na\b)[a-z][\w'-]*){0,3})/i);
+      const name = nm ? nm[1].replace(/\b(?:monthly|installments?|months?)\b/gi, '').trim().replace(/^./, (c) => c.toUpperCase()) : '';
+      const lenderM = raw.match(/\b(home\s*credit|spaylater|s-?paylater|shopee\s*paylater|ggives|gloan|atome|billease|tendopay|lazpaylater|cashalo|juanhand|maya\s*credit|akulaku)\b/i);
+      const card = Accounts.cardIn(raw.replace(/\bcc\b/i, 'credit card'));
+      return { type: 'installment', name, total: amt ? round2(amt.value) : null, count, card, lender: lenderM ? lenderM[1].replace(/\b\w/g, (c) => c.toUpperCase()).replace(/Spaylater|S-paylater/i, 'SPayLater').replace(/Ggives/i, 'GGives') : null,
+        category: ((c) => (!c || ['Debt Payments', 'Interest & Fees', 'Bank & Transfer Fees'].includes(c) ? 'Shopping' : c))(this.matchCategory(raw.replace(/\b(installments?|hulog|hulugan)\b/gi, '').replace(lenderM ? lenderM[0] : /^$/, ' '), 'expense')) };
+    }
+    // A new formal loan: "Got a ₱100,000 personal loan from BDO", "borrowed 50k from SSS"
+    const lenderTxt = (raw.match(/\bfrom\s+(?:the\s+|my\s+)?([A-Za-z][\w.&-]*(?:\s+[A-Z][\w.&-]*)?)/) || [])[1];
+    const isLender = lenderTxt && (Accounts.known(lenderTxt)?.[1] === 'bank' || /^(sss|gsis|pag-?ibig|hdmf|bank|landbank|cooperative|coop|lending|tonik|cimb|seabank|gotyme|maya|gcash|home\s*credit|cashalo|billease|juanhand)$/i.test(lenderTxt.trim()));
+    if ((/\b(personal|car|auto|home|housing|salary|business|cash|multi-?purpose|calamity|sss|pag-?ibig|gsis|bank|motor(?:cycle)?)\s+loan\b/.test(t) && /\b(got|took|take|took out|approved|received|availed|kumuha|nag-?loan|new)\b/.test(t))
+      || (isLender && /\b(borrowed|loan|nag-?loan|umutang|utang)\b/.test(t) && !/\b(paid|pay|payment|bayad)\b/.test(t))) {
+      const kind = (t.match(/\b(personal|car|auto|home|housing|salary|business|cash|multi-?purpose|calamity|motor(?:cycle)?)\s+loan\b/) || [])[1];
+      const lender = lenderTxt ? (Accounts.known(lenderTxt)?.[0] || lenderTxt.trim().replace(/\b\w/g, (c) => c.toUpperCase())) : '';
+      return { type: 'loan_new', amount: amt ? round2(amt.value) : null, name: [lender, kind ? kind.replace(/^./, (c) => c.toUpperCase()) + ' loan' : 'loan'].filter(Boolean).join(' ').replace(/^loan$/, 'Loan') };
+    }
+    // Paying a loan or a pay-later plan: "paid 4000 toward my car loan", "SPayLater 650", "Home Credit hulog 1890"
+    const acc = Debts.find(raw);
+    if (acc && acc.type === 'loan' && amt && !/\b(bought|buy|purchased|borrowed|got a|took)\b/.test(t)) return { type: 'debt_pay', acc, amount: round2(amt.value) };
+    return null;
+  },
+
   /** "Meralco 2,800 due Friday" → a reminder, not a payment. */
   isBillDue(text) {
     const t = text.toLowerCase();
@@ -2238,13 +2305,202 @@ const Budgets = {
 };
 
 /* =========================================================================
+   DEBTS — credit card statements, formal loans and installment plans.
+   Built on Accounts: a debt account's balance is what you owe (negative).
+   - Loan payment = principal (cash → loan, lowers the debt) + interest (an expense).
+   - Card installment: the full price is owed on the card at once (like your
+     credit limit), but only one installment is billed per statement.
+   - Pay-later / lender installment: a debt account of its own; each payment
+     pays down the plan, any add-on is counted as interest.
+   Interest splits are estimates (declining balance); the user can always type
+   the exact numbers from their statement.
+   ========================================================================= */
+const Debts = {
+  PER_YEAR: { month: 12, semimonth: 24, week: 52, quarter: 4 },
+  FREQ_LABEL: { month: 'monthly', semimonth: 'twice a month', week: 'weekly', quarter: 'every 3 months' },
+  today() { return toISODate(new Date()); },
+  /** iso date + n periods (months clamp to the month's last day). */
+  addPeriods(iso, n, freq = 'month', day = null) {
+    const d = new Date(iso + 'T00:00:00');
+    if (freq === 'week') { d.setDate(d.getDate() + 7 * n); return toISODate(d); }
+    if (freq === 'semimonth') { d.setDate(d.getDate() + 15 * n); return toISODate(d); }
+    const months = n * (freq === 'quarter' ? 3 : 1), want = day || d.getDate();
+    const y = d.getFullYear(), m = d.getMonth() + months, last = new Date(y, m + 1, 0).getDate();
+    return toISODate(new Date(y, m, Math.min(want, last)));
+  },
+  /** The next date (today or later) that falls on `day` of a month. */
+  nextDay(day, from = this.today()) {
+    const f = new Date(from + 'T00:00:00');
+    for (let k = 0; k < 2; k++) {
+      const last = new Date(f.getFullYear(), f.getMonth() + k + 1, 0).getDate();
+      const d = toISODate(new Date(f.getFullYear(), f.getMonth() + k, Math.min(day, last)));
+      if (d >= from) return d;
+    }
+    return null;
+  },
+  /** The most recent date (today or earlier) that falls on `day` of a month. */
+  lastDay(day, from = this.today()) {
+    const f = new Date(from + 'T00:00:00');
+    for (let k = 0; k < 2; k++) {
+      const last = new Date(f.getFullYear(), f.getMonth() - k + 1, 0).getDate();
+      const d = toISODate(new Date(f.getFullYear(), f.getMonth() - k, Math.min(day, last)));
+      if (d <= from) return d;
+    }
+    return null;
+  },
+  dayAfter(iso) { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + 1); return toISODate(d); },
+
+  /* ----- loans ----- */
+  periodRate(a) { return (a.rate || 0) / 100 / (this.PER_YEAR[a.freq || 'month'] || 12); },
+  /** Regular payment: what the user typed, or the standard amortized payment from the original amount, rate and term. */
+  payment(a) {
+    if (a.payment) return a.payment;
+    const P = a.principal || Accounts.owedOn(a), n = a.term || 0, r = this.periodRate(a);
+    if (!P || !n) return null;
+    return round2(r ? (r * P) / (1 - Math.pow(1 + r, -n)) : P / n);
+  },
+  /** Split a payment into interest and principal (interest = what's owed × period rate). */
+  split(a, amount, upTo = null) {
+    const owed = Accounts.owedOn(a, upTo), interest = Math.min(round2(owed * this.periodRate(a)), amount);
+    const principal = round2(Math.min(amount - interest, owed));
+    return { interest: round2(interest), principal, over: round2(Math.max(0, amount - interest - principal)), short: amount <= interest && interest > 0 };
+  },
+  nextDue(a) {
+    if (a.dueDay) return this.nextDay(a.dueDay);
+    if (a.startDate && a.freq) { let d = a.startDate, k = 0; while (d < this.today() && k < 1200) d = this.addPeriods(a.startDate, ++k, a.freq); return d; }
+    return null;
+  },
+  /** Future payments from today until it's paid off. → { rows, payoff, interest, never } */
+  schedule(a, max = 600) {
+    let left = Accounts.owedOn(a);
+    const pay = this.payment(a), r = this.periodRate(a), rows = [];
+    if (!left || !pay) return { rows, payoff: left ? null : this.today(), interest: 0 };
+    if (r && pay <= round2(left * r)) return { rows, never: true, interest: 0 };
+    let date = this.nextDue(a) || this.addPeriods(this.today(), 1, a.freq || 'month'), total = 0;
+    for (let n = 1; left > 0.004 && n <= max; n++) {
+      const interest = round2(left * r), p = Math.min(pay, round2(left + interest)), principal = round2(p - interest);
+      left = round2(left - principal); total += interest;
+      rows.push({ n, date, payment: p, interest, principal, left: Math.max(0, left) });
+      date = this.addPeriods(date, 1, a.freq || 'month', a.dueDay);
+    }
+    return { rows, payoff: rows.at(-1)?.date || null, interest: round2(total) };
+  },
+  /** Payments into a debt account and the interest/fees linked to it. */
+  history(a) {
+    const out = [];
+    for (const t of Store.sorted()) {
+      if (Money.kind(t) === 'transfer' && t.toAccountId === a.id) out.push({ t, type: 'payment', principal: t.amount });
+      else if (t.debtId === a.id) out.push({ t, type: 'interest', interest: t.amount });
+      else if (Accounts.idOf(t) === a.id && Money.kind(t) !== 'transfer') out.push({ t, type: Money.dir(t) < 0 ? 'charge' : 'credit' });
+      else if (Money.kind(t) === 'transfer' && t.fromAccountId === a.id) out.push({ t, type: 'drawdown' });
+    }
+    return out;
+  },
+  paidSoFar(a) {
+    const h = this.history(a);
+    return { principal: round2(h.reduce((x, e) => x + (e.principal || 0), 0)), interest: round2(h.reduce((x, e) => x + (e.interest || 0), 0)) };
+  },
+
+  /* ----- credit card statements ----- */
+  statement(a) {
+    if (a.type !== 'credit' || !a.statementDay) return null;
+    const date = this.lastDay(a.statementDay), upTo = this.dayAfter(date);
+    const balance = Accounts.owedOn(a, upTo), unbilled = this.unbilledOn(a.id, date);
+    const billed = Math.max(0, round2(balance - unbilled));
+    let paidSince = 0;
+    for (const t of Store.state.transactions) if (t.date > date && Money.kind(t) === 'transfer' && t.toAccountId === a.id) paidSince += t.amount;
+    const due = Math.max(0, round2(billed - paidSince));
+    const dueDate = a.dueDay ? this.nextDay(a.dueDay, this.dayAfter(date)) : null;
+    let minDue = null, minEstimated = false;
+    if (a.minDue != null && a.minDueFor === date) minDue = Math.min(a.minDue, due);
+    else if (billed > 0) { minDue = Math.min(due, round2(Math.max(a.minFloor ?? 500, billed * (a.minPct ?? 3) / 100))); minEstimated = true; }
+    return { date, balance, unbilled, billed, paidSince: round2(paidSince), due, dueDate, minDue, minEstimated, overdue: !!(dueDate && dueDate < this.today() && due > 0) };
+  },
+
+  /* ----- installment plans ----- */
+  plans() { return (Store.state.plans ||= []); },
+  planDates(p) { return Array.from({ length: p.count }, (_, k) => this.addPeriods(p.firstDue, k, p.freq || 'month')); },
+  /** Card plans: the part of the price not billed yet on `iso`. */
+  unbilledOn(accId, iso) {
+    let x = 0;
+    for (const p of this.plans()) {
+      if (p.accountId !== accId || p.via !== 'card' || p.date > iso) continue;
+      const billedN = this.planDates(p).filter((d) => d <= iso).length;
+      x += Math.max(0, p.total - (p.total / p.count) * billedN);
+    }
+    return round2(x);
+  },
+  /** Status of every plan: paid/billed count, remaining, next date. Lender payments are matched oldest plan first. */
+  planStatus() {
+    const out = {}, today = this.today();
+    const byAcc = {};
+    for (const p of this.plans()) (byAcc[p.accountId] ||= []).push(p);
+    for (const [accId, plans] of Object.entries(byAcc)) {
+      plans.sort((a, b) => a.date.localeCompare(b.date));
+      if (plans[0].via === 'card') {
+        for (const p of plans) {
+          const dates = this.planDates(p), n = dates.filter((d) => d <= today).length;
+          out[p.id] = { done: n, left: round2(p.total - (p.total / p.count) * n), next: dates.find((d) => d > today) || null, perPay: p.perPay, word: 'billed' };
+        }
+        continue;
+      }
+      let pool = 0;
+      for (const t of Store.state.transactions) if (Money.kind(t) === 'transfer' && t.toAccountId === accId) pool += t.amount;
+      for (const p of plans) {
+        const principalEach = p.total / p.count, use = Math.min(pool, p.total); pool = round2(pool - use);
+        const n = Math.min(p.count, Math.floor((use + 0.01) / principalEach)), dates = this.planDates(p);
+        out[p.id] = { done: n, left: round2(p.total - use), next: n < p.count ? dates[n] : null, perPay: p.perPay, word: 'paid', overdue: n < p.count && dates[n] < today };
+      }
+    }
+    return out;
+  },
+  /** For a payment into a lender plan: the add-on part counts as interest. */
+  planInterestPerPay(p) { return Math.max(0, round2(p.perPay - p.total / p.count)); },
+
+  /** Everything coming up in the next `days` days (used by the overview and the debts card). */
+  upcoming(days = 40) {
+    const end = toISODate(new Date(Date.now() + days * 864e5)), out = [];
+    for (const a of Accounts.oweList()) {
+      if (a.type === 'credit') {
+        const st = this.statement(a);
+        if (st && st.dueDate && st.due > 0 && st.dueDate <= end) out.push({ date: st.dueDate, title: `${a.name} bill`, amount: st.due, min: st.minDue, acc: a, overdue: st.overdue });
+        else if (!st && a.dueDay && Accounts.owedOn(a) > 0) out.push({ date: this.nextDay(a.dueDay), title: `${a.name} bill`, amount: Accounts.owedOn(a), acc: a });
+      } else if (Accounts.owedOn(a) > 0 && !this.plans().some((p) => p.accountId === a.id)) {
+        const d = this.nextDue(a);
+        if (d && d <= end) out.push({ date: d, title: `${a.name} payment`, amount: Math.min(this.payment(a) || Accounts.owedOn(a), Accounts.owedOn(a) + round2(Accounts.owedOn(a) * this.periodRate(a))), acc: a });
+      }
+    }
+    const ps = this.planStatus();
+    for (const p of this.plans()) {
+      const s = ps[p.id];
+      if (p.via !== 'card' && s && s.next && s.next <= end) out.push({ date: s.next, title: `${p.name} (${s.done + 1} of ${p.count})`, amount: p.perPay, acc: Accounts.get(p.accountId), plan: p, overdue: s.overdue });
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date));
+  },
+
+  /** "car loan", "my BPI card", "SPayLater" → the debt account meant, if it's clear. */
+  find(text) {
+    const m = Accounts.mentioned(text);
+    if (m && Accounts.owes(m)) return m;
+    const owe = Accounts.oweList();
+    if (/\b(credit\s*card|card|cc)\b/i.test(text)) { const c = Accounts.cardIn(text.replace(/\bcc\b/i, 'credit card')); if (c) return c; }
+    const words = String(text).toLowerCase().match(/[a-z][a-z-]{2,}/g) || [];
+    const hits = owe.filter((a) => a.type === 'loan' && a.name.toLowerCase().split(/[^a-z-]+/).some((w) => w.length >= 3 && !['loan', 'the', 'and'].includes(w) && words.includes(w)));
+    if (hits.length === 1) return hits[0];
+    const loans = owe.filter((a) => a.type === 'loan');
+    if (/\bloan\b/i.test(text) && loans.length === 1) return loans[0];
+    return null;
+  },
+};
+
+/* =========================================================================
    BACKUP — a JSON file of everything, and a careful restore.
    Restore always checks the file first, shows what's inside, and keeps a
    safety copy of the current data so it can be undone.
    ========================================================================= */
 const Backup = {
   FORMAT: 1,
-  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash'],
+  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans'],
   lastAt() { return Store.state.settings?.lastBackupAt || 0; },
 
   build() {
@@ -2327,7 +2583,7 @@ const Backup = {
     }
     const byId = (key, fix = (x) => x) => { const have = new Set((st[key] ||= []).map((x) => x.id)); for (const x of d[key]) if (x.id && !have.has(x.id)) st[key].push(fix(x)); };
     byId('pocketMoves', (m) => ({ ...m, pocketId: pocketMap[m.pocketId] || m.pocketId }));
-    byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories');
+    byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories'); byId('plans', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId }));
     Store.adopt(st); Store.save();
     return { added, skipped };
   },
@@ -3654,7 +3910,7 @@ const Nav = {
   PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More' },
   // Which page each card lives on.
   OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', spending: 'plan', profit: 'plan',
-    accounts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
+    accounts: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
   page: 'home',
   pageOf(el) { return this.OF[el.dataset.tool] || 'more'; },
   read() { const m = location.hash.match(/^#(home|activity|plan|money|more)\b/); this.page = m ? m[1] : 'home'; },
@@ -3945,7 +4201,7 @@ const UI = {
   renderAll() {
     // Each card draws on its own, so one problem never blanks out the rest of the app.
     for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
-      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderSyncStatus()]) {
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderSyncStatus()]) {
       try { f(); } catch (e) { console.error('Render problem', e); }
     }
   },
@@ -4170,6 +4426,8 @@ const UI = {
 
   /* ---------- note submission ---------- */
   async submitNote(text) {
+    const di = Parser.debtIntent(text);
+    if (di) return this.handleDebtNote(text, di);
     if (Reminders.isReminder(text)) {
       const r = Store.addReminder(Reminders.parse(text));
       $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
@@ -4424,6 +4682,12 @@ const UI = {
   },
 
   livePreview(text) {
+    const di = text.trim() && Parser.debtIntent(text);
+    if (di) {
+      $('#parsePreview').innerHTML = ({ card_due: `Will set your <b>credit card due date</b> to the ${ordinal(di.day || 1)}`, installment: `<b>🧾 Installment purchase</b>${di.name ? ': ' + escapeHTML(di.name) : ''}${di.count ? ` · ${di.count} payments` : ''} · you’ll confirm the details`,
+        loan_new: `<b>🧾 New loan</b>${di.amount ? ' of ' + fmt(di.amount) : ''} · you’ll confirm the details`, debt_pay: `<b>Payment</b> to ${escapeHTML(di.acc?.name || '')} · you’ll check the interest split` })[di.type];
+      return;
+    }
     if (text.trim() && Reminders.isReminder(text)) {
       const r = Reminders.parse(text);
       $('#parsePreview').innerHTML = `Will set: <span class="font-semibold text-rose-700 dark:text-rose-400">⏰ ${escapeHTML(Reminders.whenLabel(r.remindAt))}</span> · ${escapeHTML(r.title)}
@@ -4486,12 +4750,15 @@ const UI = {
     }
     return out;
   },
-  closeForm() { $('#formModal').classList.add('hidden'); $('#formModal').classList.remove('flex'); this._form = null; },
+  closeForm() { $('#formModal').classList.add('hidden'); $('#formModal').classList.remove('flex'); this._form = null; this._afterForm = null; },
+  // (cancelling a form leaves the note box as it was, so nothing typed is lost)
   async submitForm() {
     if (!this._form) return;
     const err = await this._form.onSave(this.formValues());
     if (err) { $('#fmError').textContent = err; $('#fmError').classList.remove('hidden'); return; }
+    const after = this._afterForm; this._afterForm = null;
     this.closeForm();
+    if (after) after();
   },
 
   /* ---------- family & friends (loans) ---------- */
@@ -4703,6 +4970,211 @@ const UI = {
       b.closest('div.flex').remove(); toast('↩ Restored.');
     }, { once: false });
   },
+  /* ---------- cards, loans & installments ---------- */
+  renderDebts() {
+    const owe = Accounts.oweList(), plans = Debts.plans(), ps = Debts.planStatus(), up = Debts.upcoming(60);
+    $('#debtTotal').textContent = fmt(Accounts.owed());
+    const nx = up[0];
+    $('#debtNext').innerHTML = nx ? `<span class="${nx.overdue ? 'text-rose-600' : ''}">${escapeHTML(prettyDate(nx.date))} · ${fmt0(nx.amount)}</span> <span class="font-normal text-stone-500">${escapeHTML(nx.title)}</span>` : '<span class="font-normal text-stone-500">Nothing due soon</span>';
+    $('#debtTotals').classList.toggle('hidden', !owe.length);
+    $('#debtEmpty').classList.toggle('hidden', !!owe.length);
+    $('#debtEmpty').innerHTML = 'Have a credit card, a bank or car loan, or something on installments (Home Credit, SPayLater, GGives)? Add it here so payments aren’t counted as spending twice, and Tiffo shows what’s due.';
+    const bar = (pct, tone) => `<div class="mt-1.5 h-1.5 rounded-full bg-stone-100 dark:bg-stone-800 overflow-hidden"><div class="h-full rounded-full ${tone}" style="width:${Math.max(0, Math.min(100, Math.round(pct)))}%"></div></div>`;
+    $('#debtList').innerHTML = owe.map((a) => {
+      const o = Accounts.owedOn(a);
+      let sub = '', prog = '';
+      if (a.type === 'credit') {
+        const st = Debts.statement(a);
+        if (st) sub = st.due > 0 ? `<span class="${st.overdue ? 'text-rose-600 font-semibold' : ''}">${fmt0(st.due)} due ${escapeHTML(prettyDate(st.dueDate || st.date))}${st.overdue ? ' (overdue)' : ''}</span>${st.minDue ? ` · minimum ${fmt0(st.minDue)}${st.minEstimated ? ' (estimate)' : ''}` : ''}` : 'Statement paid ✓';
+        else sub = a.dueDay ? `Due every ${ordinal(a.dueDay)}` : 'Add the statement date to see what’s due';
+        if (a.limit) { sub += ` · ${fmt0(Math.max(0, a.limit - o))} available`; prog = bar((o / a.limit) * 100, o / a.limit > 0.8 ? 'bg-rose-500' : 'bg-orange-400'); }
+      } else {
+        const pay = Debts.payment(a), nd = Debts.nextDue(a), sch = o ? Debts.schedule(a) : null;
+        const parts = [];
+        if (pay && !plans.some((p) => p.accountId === a.id)) parts.push(`${fmt0(pay)} ${Debts.FREQ_LABEL[a.freq || 'month']}`);
+        if (nd && o) parts.push(`next ${prettyDate(nd)}`);
+        if (sch?.never) parts.push('<span class="text-rose-600">payment doesn’t cover the interest</span>');
+        else if (sch?.payoff && o) parts.push(`paid off ${new Date(sch.payoff + 'T00:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' })}`);
+        if (!o) parts.push('paid off 🎉');
+        if (a.rate) parts.push(`${a.rate}% a year`);
+        sub = parts.join(' · ');
+        if (a.principal) prog = bar(((a.principal - o) / a.principal) * 100, 'bg-teal-500');
+      }
+      return `<li data-debt="${a.id}" class="flex items-center gap-3 py-2.5">
+        <span class="h-9 w-9 rounded-xl grid place-items-center bg-orange-50 dark:bg-orange-950/40 text-lg" aria-hidden="true">${escapeHTML(Accounts.icon(a))}</span>
+        <button type="button" class="debt-open flex-1 min-w-0 text-left"><div class="font-semibold truncate">${escapeHTML(a.name)}</div><div class="text-[11px] text-stone-500 dark:text-stone-400 truncate">${sub}</div>${prog}</button>
+        <div class="text-right"><div class="tabular font-bold whitespace-nowrap ${o > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-stone-400'}">${fmt(o)}</div>
+          ${o > 0 ? '<button type="button" class="debt-pay text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline">Pay</button>' : ''}</div>
+      </li>`;
+    }).join('');
+    $('#planWrap').classList.toggle('hidden', !plans.length);
+    $('#planList').innerHTML = plans.map((p) => {
+      const st = ps[p.id] || { done: 0, left: p.total }, acc = Accounts.get(p.accountId);
+      const done = st.done >= p.count;
+      return `<li data-plan="${p.id}" class="flex items-center gap-3 py-2">
+        <span class="h-8 w-8 rounded-lg grid place-items-center bg-stone-100 dark:bg-stone-800 text-base" aria-hidden="true">🧾</span>
+        <button type="button" class="plan-open flex-1 min-w-0 text-left"><div class="text-sm font-semibold truncate">${escapeHTML(p.name)} <span class="font-normal text-stone-500">· ${escapeHTML(acc?.name || '')}</span></div>
+          <div class="text-[11px] text-stone-500 dark:text-stone-400 truncate">${st.done} of ${p.count} ${st.word || 'paid'} · ${fmt0(p.perPay)} ${Debts.FREQ_LABEL[p.freq || 'month']}${done ? ' · done 🎉' : st.next ? ` · next ${escapeHTML(prettyDate(st.next))}` : ''}${st.overdue ? ' · <span class="text-rose-600 font-semibold">overdue</span>' : ''}</div>
+          ${bar((st.done / p.count) * 100, 'bg-teal-500')}</button>
+        <div class="tabular text-sm font-bold whitespace-nowrap">${done ? '✓' : fmt0(st.left) + ' left'}</div>
+      </li>`;
+    }).join('');
+  },
+
+  /** Notes about cards, loans and installments open the right short form, already filled in. */
+  handleDebtNote(text, di) {
+    const clear = () => { $('#noteInput').value = ''; $('#parsePreview').innerHTML = ''; };
+    if (di.type === 'card_due') {
+      if (di.card) {
+        di.card.dueDay = di.day; this.dueReminder(di.card); Store.save(); this.renderAll(); clear();
+        toast(`💳 ${escapeHTML(di.card.name)} is due every ${ordinal(di.day)}. Tiffo will remind you.`);
+        return;
+      }
+      const cards = Accounts.list().filter((a) => a.type === 'credit');
+      if (cards.length > 1) { toast('Which card? Open it in Money → Cards & loans → Edit details and set the due day there.'); return; }
+      this.accountForm(null, 'credit', { name: 'Credit card', dueDay: di.day });
+      return;
+    }
+    if (di.type === 'installment') {
+      this.installmentForm({ name: di.name, total: di.total, count: di.count, category: di.category,
+        via: di.card ? di.card.id : (di.lender ? (Accounts.find(di.lender, true)?.id || 'new') : undefined), lender: di.lender || '' });
+      this._afterForm = clear;
+      return;
+    }
+    if (di.type === 'loan_new') { this.accountForm(null, 'loan', { name: di.name, owed: di.amount, drawdown: true }); this._afterForm = clear; return; }
+    if (di.type === 'debt_pay') { this.payDebtForm(di.acc, { amount: di.amount }); this._afterForm = clear; }
+  },
+
+  /** Pay a card, loan or installment. Loans split into principal (not spending) and interest (spending). */
+  payDebtForm(a, prefill = {}) {
+    const isLoan = a.type === 'loan', st = Debts.statement(a), owed = Accounts.owedOn(a);
+    const plans = Debts.plans().filter((p) => p.accountId === a.id && p.via !== 'card'), ps = Debts.planStatus();
+    const openPlan = plans.find((p) => (ps[p.id]?.left || 0) > 0);
+    const suggested = prefill.amount ?? (st ? st.due || null : openPlan ? openPlan.perPay : isLoan ? Math.min(Debts.payment(a) || owed, owed + Debts.split(a, owed).interest) : null);
+    const estInterest = (amt) => openPlan ? Math.min(amt || 0, Debts.planInterestPerPay(openPlan)) : isLoan ? Debts.split(a, amt || 0).interest : 0;
+    const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name} (${fmt0(Accounts.balance(x))})`]);
+    const hasInterest = isLoan && (a.rate || openPlan && Debts.planInterestPerPay(openPlan) > 0);
+    this.form({
+      title: `Pay ${a.name}`, save: 'Record payment',
+      sub: st ? `Statement ${prettyDate(st.date)}: ${fmt(st.billed)} · already paid ${fmt(st.paidSince)} · ${fmt(st.due)} left to pay${st.minDue ? ` · minimum ${fmt(st.minDue)}${st.minEstimated ? ' (estimate, check your statement)' : ''}` : ''}.` : `You owe ${fmt(owed)}.`,
+      fields: [
+        { id: 'amount', label: 'Amount you paid', type: 'number', value: suggested ?? '' },
+        { id: 'from', label: 'Paid from', type: 'select', value: prefill.from || Accounts.DEFAULT, options: cashOpts, show: () => cashOpts.length > 1 },
+        { id: 'extra', type: 'checkbox', label: 'Extra payment: put it all toward what I owe (no interest)', value: !!prefill.extra, show: () => isLoan && !!a.rate && !openPlan },
+        { id: 'interest', label: 'Interest & fees in this payment', type: 'number', value: hasInterest ? estInterest(suggested) : '', show: (v) => isLoan && !v.extra,
+          hint: hasInterest ? 'Tiffo’s estimate. If your statement shows a different amount, type that.' : 'Leave empty if there was none.' },
+        { id: 'date', label: 'Date', type: 'date', value: prefill.date || toISODate(new Date()), advanced: true },
+      ],
+      onSave: (v) => {
+        if (!v.amount || v.amount <= 0) return 'Type the amount you paid.';
+        if (!v.date) return 'Pick a date.';
+        const interest = isLoan && !v.extra ? Math.min(round2(v.interest || 0), v.amount) : 0;
+        const principal = round2(v.amount - interest);
+        if (principal > owed + 0.004) return `That’s more than the ${fmt(owed)} you owe. Lower the amount, or add the extra as interest/fees.`;
+        const from = v.from || Accounts.DEFAULT, group = uid(), made = [];
+        if (principal > 0) made.push(this.recordTransfer(from, a.id, principal, v.date, `Payment · ${a.name}`));
+        if (interest > 0) made.push(Store.addTransaction({ kind: 'expense', amount: interest, category: 'Interest & Fees', date: v.date, accountId: from, debtId: a.id, description: `Interest & fees · ${a.name}`, source: 'debt' }));
+        for (const t of made) { t.group = group; if (openPlan) t.planId = openPlan.id; }
+        // Move a plan's reminder to its next installment.
+        if (openPlan?.reminderId) {
+          const r = (Store.state.reminders || []).find((x) => x.id === openPlan.reminderId), nx = Debts.planStatus()[openPlan.id]?.next;
+          if (r && nx && nx !== r.eventDate) Object.assign(r, { remindAt: new Date(nx + 'T09:00:00').getTime(), eventDate: nx, rung: false, done: false, note: `${Debts.planStatus()[openPlan.id].done + 1} of ${openPlan.count}` });
+          if (r && !nx) r.done = true;
+        }
+        Store.save(); this.renderAll();
+        const left = Accounts.owedOn(a), sch = left && isLoan ? Debts.schedule(a) : null;
+        toast(`${Accounts.icon(a)} Paid ${fmt(v.amount)} to ${escapeHTML(a.name)}${interest ? ` (${fmt(principal)} off the debt, ${fmt(interest)} interest)` : ''} · ${left > 0 ? fmt(left) + ' left' + (sch?.payoff ? `, paid off by ${new Date(sch.payoff + 'T00:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' })}` : '') : 'all paid off 🎉'}`,
+          { duration: 7000, action: { label: 'Undo', fn: () => { made.forEach((t) => Store.removeTransaction(t.id, true)); UI.renderAll(); } } });
+      },
+    });
+  },
+
+  /** Something bought on installments: on a credit card, or with a lender / pay-later app. */
+  installmentForm(prefill = {}) {
+    const cards = Accounts.list().filter((a) => a.type === 'credit'), lenders = Accounts.list().filter((a) => a.type === 'loan' && a.kind === 'bnpl');
+    const viaOpts = [...cards.map((c) => [c.id, `💳 ${c.name} (card installment)`]), ...lenders.map((l) => [l.id, `🧾 ${l.name}`]), ['new', '➕ A lender or pay-later app (Home Credit, SPayLater, GGives…)']];
+    const cats = this.catOptions('expense');
+    const nextMonth = Debts.addPeriods(toISODate(new Date()), 1);
+    this.form({
+      title: 'Bought on installments', save: 'Save',
+      sub: 'The full price counts as spending today (that’s what you bought). Each installment then pays it off, so it isn’t counted twice.',
+      fields: [
+        { id: 'name', label: 'What did you buy?', value: prefill.name || '', placeholder: 'e.g. Laptop' },
+        { id: 'total', label: 'Cash price', type: 'number', value: prefill.total ?? '', hint: 'The price without interest.' },
+        { id: 'count', label: 'Number of installments', type: 'number', value: prefill.count ?? 6 },
+        { id: 'perPay', label: 'Each installment', type: 'number', value: prefill.perPay ?? '', hint: 'Leave empty if it’s just the price divided equally (0% interest). If it’s more, the extra counts as interest.' },
+        { id: 'via', label: 'Paid with', type: 'select', value: prefill.via || (cards[0]?.id || 'new'), options: viaOpts },
+        { id: 'lender', label: 'Lender or app name', value: prefill.lender || '', placeholder: 'e.g. Home Credit, SPayLater', show: (v) => v.via === 'new' },
+        { id: 'category', label: 'Category', type: 'select', value: prefill.category || 'Shopping', options: cats },
+        { id: 'freq', label: 'How often', type: 'select', value: 'month', options: [['month', 'Monthly'], ['semimonth', 'Twice a month'], ['week', 'Weekly']], advanced: true },
+        { id: 'firstDue', label: 'First installment date', type: 'date', value: prefill.firstDue || nextMonth, advanced: true },
+        { id: 'date', label: 'Date bought', type: 'date', value: prefill.date || toISODate(new Date()), advanced: true },
+      ],
+      onSave: (v) => {
+        if (!v.name) return 'Type what you bought.';
+        if (!v.total || v.total <= 0) return 'Type the price.';
+        if (!v.count || v.count < 2 || v.count > 120 || !Number.isInteger(v.count)) return 'Number of installments should be 2 to 120.';
+        const perPay = round2(v.perPay || v.total / v.count);
+        if (perPay * v.count < v.total - 0.05) return `${v.count} × ${fmt(perPay)} is less than the price. Check the numbers.`;
+        let acc;
+        if (v.via === 'new') {
+          if (!v.lender) return 'Type the lender or app name.';
+          acc = Accounts.find(v.lender, true) || Accounts.create(v.lender.slice(0, 30), 'loan');
+          if (!Accounts.owes(acc)) return `“${acc.name}” is an account you keep money in. Use a different name for the lender.`;
+          acc.kind = 'bnpl';
+        } else acc = Accounts.get(v.via);
+        const plan = { id: uid(), name: v.name.slice(0, 40), total: round2(v.total), count: v.count, perPay, freq: v.freq || 'month', firstDue: v.firstDue || nextMonth, date: v.date || toISODate(new Date()),
+          accountId: acc.id, via: acc.type === 'credit' ? 'card' : 'lender' };
+        Debts.plans().push(plan);
+        const t = Store.addTransaction({ kind: 'expense', amount: plan.total, category: v.category, date: plan.date, accountId: acc.id, planId: plan.id, description: `${plan.name} (${plan.count} installments)`, source: 'plan' });
+        t.fresh = true;
+        if (plan.via === 'lender') {
+          const r = Store.addReminder({ title: `🧾 ${plan.name}: ${fmt0(perPay)} installment (${acc.name})`, remindAt: new Date(plan.firstDue + 'T09:00:00').getTime(), eventDate: plan.firstDue, note: `1 of ${plan.count}`, repeat: plan.freq === 'month' ? 'month' : undefined });
+          plan.reminderId = r.id;
+        }
+        Store.save(); this.renderAll();
+        const extra = round2(perPay * plan.count - plan.total);
+        toast(`🧾 ${escapeHTML(plan.name)}: ${fmt(plan.total)} on ${escapeHTML(acc.name)} · ${plan.count} × ${fmt(perPay)}${extra > 0 ? ` (${fmt(extra)} interest overall)` : ' (0% interest)'}`, { duration: 7000,
+          action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id, true); Store.state.plans = Debts.plans().filter((x) => x !== plan); if (plan.reminderId) Store.state.reminders = Store.state.reminders.filter((r) => r.id !== plan.reminderId); UI.renderAll(); } } });
+      },
+    });
+  },
+
+  /** One card or loan: statement or schedule, payment history, installments. */
+  debtView(a) {
+    const o = Accounts.owedOn(a), st = Debts.statement(a), plans = Debts.plans().filter((p) => p.accountId === a.id), ps = Debts.planStatus();
+    const rowsHtml = (rows) => `<table class="w-full text-[12px] tabular"><thead><tr class="text-left opacity-70"><th class="font-semibold py-1">Date</th><th class="font-semibold text-right">Payment</th><th class="font-semibold text-right">Interest</th><th class="font-semibold text-right">Left</th></tr></thead><tbody>${rows.map((r) => `<tr><td class="py-0.5 whitespace-nowrap">${escapeHTML(new Date(r.date + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' }))}</td><td class="text-right">${fmt0(r.payment)}</td><td class="text-right">${fmt0(r.interest)}</td><td class="text-right">${fmt0(r.left)}</td></tr>`).join('')}</tbody></table>`;
+    let top = '';
+    if (a.type === 'credit') {
+      top = st ? `<div><b>Last statement (${escapeHTML(prettyDate(st.date))}):</b> ${fmt(st.billed)}${st.unbilled ? ` <span class="opacity-75">(+ ${fmt(st.unbilled)} in installments not billed yet)</span>` : ''}</div>
+        <div>Paid since: ${fmt(st.paidSince)} · <b>Left to pay: ${fmt(st.due)}</b>${st.dueDate ? ` by ${escapeHTML(prettyDate(st.dueDate))}` : ''}</div>
+        ${st.minDue ? `<div>Minimum: ${fmt(st.minDue)}${st.minEstimated ? ' <span class="opacity-75">(estimate: ' + (a.minPct ?? 3) + '% or ' + fmt0(a.minFloor ?? 500) + ', whichever is higher. Your statement has the real amount.)</span>' : ''}</div>` : ''}`
+        : '<div>Add the statement date (Edit details) to see each bill, the amount due and the minimum.</div>';
+      if (a.limit) top += `<div class="mt-1">Credit limit ${fmt(a.limit)} · used ${fmt(o)} · available ${fmt(Math.max(0, a.limit - o))}</div>`;
+    } else {
+      const paid = Debts.paidSoFar(a), sch = o ? Debts.schedule(a) : { rows: [] };
+      top = `<div><b>You owe ${fmt(o)}</b>${a.principal ? ` of ${fmt(a.principal)} borrowed` : ''}${a.rate ? ` · ${a.rate}% a year` : ''}${a.term ? ` · ${a.term} ${a.freq === 'week' ? 'weeks' : 'payments'}` : ''}</div>
+        <div>Paid so far: ${fmt(paid.principal)} off the debt + ${fmt(paid.interest)} interest &amp; fees</div>
+        ${sch.never ? '<div class="text-rose-700 font-semibold mt-1">⚠️ The regular payment is less than the interest, so this debt would never shrink.</div>' : ''}
+        ${sch.rows?.length && !plans.length ? `<div class="mt-1">Paid off by <b>${escapeHTML(new Date(sch.payoff + 'T00:00:00').toLocaleDateString([], { month: 'long', year: 'numeric' }))}</b> if you pay ${fmt(Debts.payment(a))} ${Debts.FREQ_LABEL[a.freq || 'month']} (about ${fmt(sch.interest)} more interest).</div>
+          <details class="mt-1"><summary class="cursor-pointer font-semibold">Payment schedule (estimate)</summary>${rowsHtml(sch.rows.slice(0, 24))}${sch.rows.length > 24 ? `<div class="opacity-70">…and ${sch.rows.length - 24} more</div>` : ''}</details>` : ''}
+        ${!Debts.payment(a) && o && !plans.length ? '<div class="mt-1 opacity-80">Add the interest rate and term, or the regular payment (Edit details), to see a schedule and payoff date.</div>' : ''}`;
+    }
+    const planHtml = plans.map((p) => { const s2 = ps[p.id] || {}; return `<div>🧾 ${escapeHTML(p.name)}: ${s2.done} of ${p.count} ${s2.word} · ${fmt(p.perPay)} each · ${fmt(s2.left)} left${s2.next ? ` · next ${escapeHTML(prettyDate(s2.next))}` : ''}</div>`; }).join('');
+    const hist = Debts.history(a).slice(-12).reverse().map((h) => `<div class="flex justify-between gap-2"><span class="truncate">${({ payment: '✅', interest: '📉', charge: '🛍️', credit: '↩', drawdown: '🏦' })[h.type]} ${escapeHTML(h.t.description)}</span><span class="tabular whitespace-nowrap">${escapeHTML(new Date(h.t.date + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' }))} · ${fmt0(h.t.amount)}</span></div>`).join('');
+    this.form({
+      title: `${Accounts.icon(a)} ${a.name}`, save: o > 0 ? 'Make a payment' : 'Close',
+      sub: a.type === 'credit' ? 'Credit card' : a.kind === 'bnpl' ? 'Installments / pay later' : 'Loan',
+      fields: [
+        { id: 'top', type: 'note', label: '', html: top },
+        ...(planHtml ? [{ id: 'plans', type: 'note', label: '', html: `<div class="font-semibold mb-0.5">Installments</div>${planHtml}` }] : []),
+        { id: 'hist', type: 'note', label: '', html: `<div class="font-semibold mb-0.5">Recent activity</div>${hist || '<div class="opacity-70">Nothing yet.</div>'}`, advanced: true },
+      ],
+      danger: { label: 'Edit details', fn: () => { this.closeForm(); this.accountForm(a); } },
+      onSave: () => { if (o > 0) setTimeout(() => this.payDebtForm(a), 0); },
+    });
+  },
+
   /* ---------- accounts ---------- */
   renderAccounts() {
     const row = (a) => {
@@ -4724,39 +5196,58 @@ const UI = {
       </li>`;
     };
     const has = Accounts.cashList(), owes = Accounts.oweList();
-    const head = (label, total, tone) => `<li class="pt-3 pb-1 flex justify-between text-[11px] font-bold ${tone}"><span>${label}</span><span class="tabular">${total}</span></li>`;
-    $('#acctList').innerHTML = (owes.length ? head('What you have', fmt(Accounts.total()), 'text-teal-700 dark:text-teal-400') : '') + has.map(row).join('')
-      + (owes.length ? head('What you owe', fmt(Accounts.owed()), 'text-orange-700 dark:text-orange-400') + owes.map(row).join('') : '');
+    $('#acctList').innerHTML = has.map(row).join('')
+      + (owes.length ? `<li class="pt-2.5 flex justify-between text-xs text-stone-500 dark:text-stone-400"><span>You owe ${fmt(Accounts.owed())} on ${owes.length} card${owes.length > 1 ? 's/loans' : '/loan'}</span><a href="#money" class="font-semibold text-orange-700 dark:text-orange-400 hover:underline" onclick="document.querySelector('[data-tool=debts]').scrollIntoView({behavior:'smooth'});return false">See Cards &amp; loans ↓</a></li>` : '');
     $('#moveAcctBtn').classList.toggle('hidden', Accounts.list().length < 2);
     $('#moveAcctBtn').textContent = owes.length ? '⇄ Move money / pay a card' : '⇄ Move money';
   },
-  accountForm(a = null, presetType = null) {
+  accountForm(a = null, presetType = null, pre = {}) {
     const types = Object.entries(ACCOUNT_TYPES).map(([k, v]) => [k, `${v.icon} ${v.label}`]);
     const isOwe = (v) => !!(ACCOUNT_TYPES[v.type] || {}).owe;
     this.form({
       title: a ? `Edit ${a.name}` : 'Add an account',
       sub: a ? '' : 'Where you keep money (GCash, Maya, a bank, cash at home), or something you owe on (a credit card or a loan).',
       fields: [
-        { id: 'name', label: 'Name', value: a?.name || '', placeholder: 'e.g. GCash, BPI credit card' },
+        { id: 'name', label: 'Name', value: a?.name || pre.name || '', placeholder: 'e.g. GCash, BPI credit card' },
         { id: 'type', label: 'Type', type: 'select', value: a?.type || presetType || 'ewallet', options: types },
         { id: 'bal', label: a ? 'Balance right now' : 'How much is in it now?', type: 'number', value: a && !Accounts.owes(a) ? Accounts.balance(a) : '', show: (v) => !isOwe(v),
           hint: a ? 'If this doesn’t match your app or bank, type the real amount and Tiffo will adjust.' : 'Leave empty for ₱0.' },
-        { id: 'owed', label: a ? 'How much you owe right now' : 'How much do you owe on it now?', type: 'number', value: a && Accounts.owes(a) ? Accounts.owedOn(a) : '', show: isOwe,
+        { id: 'owed', label: a ? 'How much you owe right now' : 'How much do you owe on it now?', type: 'number', value: a && Accounts.owes(a) ? Accounts.owedOn(a) : (pre.owed ?? ''), show: isOwe,
           hint: 'Check your app or latest statement. Leave empty for ₱0.' },
+        { id: 'drawdown', type: 'checkbox', label: 'I just got this loan, and the money went into one of my accounts', value: !!pre.drawdown, show: (v) => !a && v.type === 'loan' },
+        { id: 'into', label: 'Which account got the money?', type: 'select', value: Accounts.DEFAULT, options: Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]), show: (v) => !a && v.type === 'loan' && v.drawdown },
         { id: 'limit', label: 'Credit limit (optional)', type: 'number', value: a?.limit ?? '', show: (v) => v.type === 'credit' },
-        { id: 'dueDay', label: 'Payment due day of the month (optional)', type: 'number', value: a?.dueDay ?? '', show: isOwe, hint: 'e.g. 25 for the 25th. Tiffo can remind you.' },
+        { id: 'statementDay', label: 'Statement day of the month (optional)', type: 'number', value: a?.statementDay ?? '', show: (v) => v.type === 'credit', hint: 'The “statement date” on your bill. Lets Tiffo show each bill and what’s due.' },
+        { id: 'dueDay', label: 'Payment due day of the month (optional)', type: 'number', value: a?.dueDay ?? pre.dueDay ?? '', show: isOwe, hint: 'e.g. 25 for the 25th. Tiffo will remind you.' },
+        { id: 'principal', label: 'Amount you originally borrowed (optional)', type: 'number', value: a?.principal ?? '', show: (v) => v.type === 'loan', advanced: true, hint: 'Shows how much you’ve paid off.' },
+        { id: 'rate', label: 'Interest rate per year, % (optional)', type: 'number', value: a?.rate ?? '', show: (v) => v.type === 'loan', advanced: true, hint: 'From your loan papers. Tiffo splits each payment into interest and principal.' },
+        { id: 'term', label: 'Number of payments in total (optional)', type: 'number', value: a?.term ?? '', show: (v) => v.type === 'loan', advanced: true, hint: 'e.g. 36 for a 3-year monthly loan.' },
+        { id: 'payment', label: 'Regular payment (optional)', type: 'number', value: a?.payment ?? '', show: (v) => v.type === 'loan', advanced: true, hint: 'Leave empty and Tiffo works it out from the amount, rate and number of payments.' },
+        { id: 'freq', label: 'How often you pay', type: 'select', value: a?.freq || 'month', options: [['month', 'Monthly'], ['semimonth', 'Twice a month'], ['week', 'Weekly'], ['quarter', 'Every 3 months']], show: (v) => v.type === 'loan', advanced: true },
+        { id: 'minPct', label: 'Minimum payment % (optional)', type: 'number', value: a?.minPct ?? '', show: (v) => v.type === 'credit', advanced: true, hint: 'Only used to estimate the minimum when you haven’t typed it from a statement. Default 3%.' },
+        { id: 'minFloor', label: 'Lowest minimum payment (optional)', type: 'number', value: a?.minFloor ?? '', show: (v) => v.type === 'credit', advanced: true, hint: 'Default ₱500.' },
       ],
       onSave: (v) => {
         if (!v.name) return 'Give the account a name.';
         const dupe = Accounts.find(v.name, true); if (dupe && dupe !== a) return `You already have “${dupe.name}”.`;
-        if (v.dueDay != null && (v.dueDay < 1 || v.dueDay > 31 || !Number.isInteger(v.dueDay))) return 'The due day should be a number from 1 to 31.';
+        for (const [f, nm] of [['dueDay', 'due day'], ['statementDay', 'statement day']]) if (v[f] != null && isOwe(v) && (v[f] < 1 || v[f] > 31 || !Number.isInteger(v[f]))) return `The ${nm} should be a number from 1 to 31.`;
+        if (v.type === 'loan' && v.rate != null && v.rate > 200) return 'That interest rate looks too high. Type the yearly % (e.g. 12).';
+        if (v.type === 'loan' && v.term != null && (!Number.isInteger(v.term) || v.term < 1 || v.term > 1200)) return 'The number of payments should be a whole number.';
+        if (!a && v.type === 'loan' && v.drawdown && !v.owed) return 'Type how much you borrowed.';
         if (a && Accounts.owes(a) !== isOwe(v) && Store.state.transactions.some((t) => t.accountId === a.id || t.fromAccountId === a.id || t.toAccountId === a.id))
           return 'This account already has entries, so it can’t switch between money you have and money you owe. Add a new account instead.';
         const acc = a || Accounts.create(v.name, v.type);
         acc.name = v.name.slice(0, 30); acc.type = v.type;
         if (isOwe(v)) {
-          if (v.owed != null) Accounts.setOpening(acc, Accounts.opening(acc) + (-v.owed - Accounts.balance(acc)));
-          if (v.type === 'credit') { if (v.limit) acc.limit = round2(v.limit); else delete acc.limit; }
+          if (!a && v.type === 'loan' && v.drawdown) {
+            // New loan: the money arrived in an account (cash up, debt up). Not income.
+            this.recordTransfer(acc.id, v.into || Accounts.DEFAULT, round2(v.owed), toISODate(new Date()), `Loan received · ${acc.name}`);
+            if (!v.principal) acc.principal = round2(v.owed);
+            if (!acc.startDate) acc.startDate = toISODate(new Date());
+          } else if (v.owed != null) Accounts.setOpening(acc, Accounts.opening(acc) + (-v.owed - Accounts.balance(acc)));
+          const setNum = (f) => { if (v[f] != null && v[f] !== '' && v[f] > 0) acc[f] = round2(v[f]); else delete acc[f]; };
+          if (v.type === 'credit') { setNum('limit'); setNum('minPct'); setNum('minFloor'); if (v.statementDay) acc.statementDay = v.statementDay; else delete acc.statementDay; }
+          if (v.type === 'loan') { if (v.principal != null || a) setNum('principal'); setNum('rate'); setNum('payment'); if (v.term) acc.term = v.term; else delete acc.term; acc.freq = v.freq || 'month'; }
           const hadDue = acc.dueDay;
           if (v.dueDay) acc.dueDay = v.dueDay; else delete acc.dueDay;
           if (v.dueDay && v.dueDay !== hadDue) this.dueReminder(acc);
@@ -5578,6 +6069,15 @@ const UI = {
     // Accounts
     $('#addAcctBtn').addEventListener('click', () => this.accountForm());
     $('#lendBtn').addEventListener('click', () => this.loanForm('lend'));
+    $('#addCardBtn').addEventListener('click', () => this.accountForm(null, 'credit'));
+    $('#addLoanBtn').addEventListener('click', () => this.accountForm(null, 'loan'));
+    $('#addPlanBtn').addEventListener('click', () => this.installmentForm());
+    $('#debtList').addEventListener('click', (e) => {
+      const li = e.target.closest('[data-debt]'); if (!li) return;
+      const a = Accounts.get(li.dataset.debt); if (!a) return;
+      if (e.target.closest('.debt-pay')) this.payDebtForm(a); else this.debtView(a);
+    });
+    $('#planList').addEventListener('click', (e) => { const li = e.target.closest('[data-plan]'); const p = li && Debts.plans().find((x) => x.id === li.dataset.plan); if (p) this.debtView(Accounts.get(p.accountId)); });
     $('#borrowBtn').addEventListener('click', () => this.loanForm('borrow'));
     $('#loanList').addEventListener('click', (e) => { const li = e.target.closest('[data-person]'); if (li) this.personView(li.dataset.person); });
     $('#moveAcctBtn').addEventListener('click', () => this.transferForm());

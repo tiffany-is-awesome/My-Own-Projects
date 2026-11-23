@@ -1172,9 +1172,8 @@
 },
 {
 "t": "Bought a ₱30,000 laptop in three installments.",
-"amount": 30000,
-"needs": "installment",
-"src": "blueprint §16"
+"src": "blueprint §16",
+"route": "installment"
 },
 {
 "t": "Paid ₱2,000 toward my credit card.",
@@ -1194,5 +1193,37 @@
 "t": "My insurance is due next month.",
 "route": "reminder",
 "src": "blueprint §16"
+},
+{
+"t": "I bought a laptop in 6 monthly installments",
+"route": "installment",
+"src": "brief 06"
+},
+{
+"t": "My credit card bill is due on the 25th.",
+"route": "card_due",
+"src": "brief 06"
+},
+{
+"t": "Got a ₱100,000 personal loan from BDO",
+"route": "loan_new"
+},
+{
+"t": "Borrowed 50k from SSS",
+"route": "loan_new"
+},
+{
+"t": "card interest 350",
+"kind": "expense",
+"amount": 350,
+"category": "Interest & Fees",
+"fast": true
+},
+{
+"t": "late fee 500",
+"kind": "expense",
+"amount": 500,
+"category": "Interest & Fees",
+"fast": true
 }
 ]

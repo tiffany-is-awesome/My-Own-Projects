@@ -110,6 +110,55 @@ with sync_playwright() as p:
     pg.evaluate("o => { Store.adopt(o); }", old)
     check('migration keeps balance', state(), cash=2700, income=2000, spent=300)
 
+
+    # ---------- Phase B: cards, loans, installments ----------
+    def form_submit(js, fill=None):
+        pg.evaluate(js); pg.wait_for_timeout(30)
+        if fill: pg.evaluate(fill)
+        err = pg.evaluate("UI.submitForm().then(()=> document.getElementById('fmError').classList.contains('hidden') ? '' : document.getElementById('fmError').textContent)")
+        pg.wait_for_timeout(30)
+        if not pg.evaluate("document.getElementById('formModal').classList.contains('hidden')"): pg.evaluate("UI.closeForm()")
+        return err
+
+    # 14. New bank loan: money arrives (cash up, debt up, not income); payment splits into principal + interest
+    reset(50000)
+    form_submit("UI.accountForm(null,'loan',{name:'BDO loan', owed:100000, drawdown:true})",
+                "document.getElementById('fm_rate').value=12; document.getElementById('fm_term').value=12;")
+    check('loan received', state(), cash=150000, owed=100000, income=0, spent=0)
+    check('loan payment amount', {'p': pg.evaluate("Debts.payment(Accounts.find('BDO loan'))")}, p=8884.88)
+    form_submit("UI.payDebtForm(Accounts.find('BDO loan'))")
+    check('loan payment split', state(), cash=150000 - 8884.88, owed=92115.12, spent=1000)
+    form_submit("UI.payDebtForm(Accounts.find('BDO loan'), {amount: 10000, extra: true})")
+    check('extra payment all principal', state(), owed=82115.12, spent=1000)
+    err = form_submit("UI.payDebtForm(Accounts.find('BDO loan'), {amount: 999999})")
+    check('overpayment refused', {'refused': 1 if err else 0, **state()}, refused=1, owed=82115.12)
+    sch = pg.evaluate("Debts.schedule(Accounts.find('BDO loan'))")
+    check('schedule pays off to zero', {'left': sch['rows'][-1]['left'], 'never': 1 if sch.get('never') else 0}, left=0, never=0)
+
+    # 15. Card installment: full price owed at once, but each statement bills one installment
+    reset(50000)
+    pg.evaluate("""() => { const c = Accounts.create('BPI Card','credit'); Object.assign(c, {statementDay: 5, dueDay: 25, limit: 50000}); }""")
+    form_submit("UI.installmentForm({name:'Laptop', total:30000, count:6, via: Accounts.find('BPI Card').id, firstDue:'2026-11-05', date:'2026-10-20'})")
+    check('card installment purchase', state(), spent=30000, owed=30000, cash=50000)
+    st = pg.evaluate("Debts.statement(Accounts.find('BPI Card'))")
+    check('statement bills one installment', {'billed': st['billed'], 'unbilled': st['unbilled'], 'due': st['due']}, billed=5000, unbilled=25000, due=5000)
+    note('Paid ₱5,000 toward my credit card')
+    st = pg.evaluate("Debts.statement(Accounts.find('BPI Card'))")
+    check('statement paid', {'due': st['due'], **state()}, due=0, owed=25000, spent=30000, cash=45000)
+
+    # 16. Pay-later plan with add-on interest: 6 × 650 for a 3,600 phone
+    reset(50000)
+    form_submit("UI.installmentForm({name:'Phone', total:3600, count:6, via:'new', lender:'SPayLater', firstDue:'2026-12-15'})", "document.getElementById('fm_perPay').value=650;")
+    check('pay-later purchase', state(), spent=3600, owed=3600)
+    for i in range(6): form_submit("UI.payDebtForm(Accounts.find('SPayLater'))")
+    ps = pg.evaluate("Object.values(Debts.planStatus())[0]")
+    check('pay-later fully paid', {'done': ps['done'], 'left': ps['left'], **state()}, done=6, left=0, owed=0, spent=3600 + 300, cash=50000 - 3900)
+
+    # 17. Credit card purchase, refund and interest
+    reset(10000); pg.evaluate("Accounts.create('Card','credit')")
+    note('Bought shoes 2,000 using my credit card'); note('card interest 150 on my credit card')
+    check('card interest is spending', state(), spent=2150, owed=2150, cash=10000)
+
     b.close()
 
 for f in fails: print('✗', f)
