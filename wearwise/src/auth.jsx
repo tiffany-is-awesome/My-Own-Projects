@@ -1,4 +1,4 @@
-// Accounts (Supabase Auth) + cloud sync of the whole wardrobe to public.wearwise_data (formerly unique_ava_data)
+// Accounts (Supabase Auth) + cloud sync of the whole wardrobe to public.wearwise_data
 // (the database table keeps its original name; renaming it would break signed-in users mid-session).
 
 // Keep people signed in across the rename: move the old sign-in key once.
@@ -96,15 +96,9 @@ const slim = (state) => ({
   draft: { ...state.draft, stage: { ...state.draft.stage, customBg: null, personPhoto: null } },
 });
 
-// The table was renamed unique_ava_data → wearwise_data. Use whichever exists, so the site works before and after
-// the database change.
-let tableName = null;
+// Each signed-in user's closet lives in one row of public.wearwise_data (see supabase/wearwise.sql).
 export async function cloudTable() {
-  if (tableName) return tableName;
-  const probe = await supabase.from('wearwise_data').select('user_id', { head: true, count: 'exact' }).limit(1);
-  const missing = probe.error && /PGRST205|42P01|does not exist|schema cache|Could not find/i.test(`${probe.error.code} ${probe.error.message}`);
-  tableName = missing ? 'unique_ava_data' : 'wearwise_data';
-  return tableName;
+  return 'wearwise_data';
 }
 
 // Set while "Delete all my data" runs, so nothing is re-uploaded in the meantime.

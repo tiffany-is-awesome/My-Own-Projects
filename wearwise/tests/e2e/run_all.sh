@@ -11,5 +11,4 @@ here=wearwise/tests/e2e
 for t in cutout upload_retry flow phase2 polish cal share forward migrate inspiration sync_sim; do
   printf '%-14s ' "$t"; timeout 600 python3 "$here/$t.py" "${@}" 2>&1 | grep -E "^SUMMARY|^FAIL" | tr '\n' ' '; echo
 done
-printf '%-14s ' "sync (old db)"; timeout 600 python3 "$here/sync_sim.py" old-table 2>&1 | grep -E "^SUMMARY|^FAIL" | tr '\n' ' '; echo
 printf "%-14s " "tip jar (off)"; timeout 600 python3 "$here/tip.py" off 2>&1 | grep -E "^SUMMARY|^FAIL" | tr "\n" " "; echo

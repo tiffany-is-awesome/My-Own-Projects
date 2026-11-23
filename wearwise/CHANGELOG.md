@@ -8,6 +8,13 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-23 · Database renamed and tightened
+
+- The account table is now `wearwise_data` (was `unique_ava_data`; it was empty, so no one's data moved).
+- Anonymous visitors have no access at all; signed-in users can only read, add, change and delete their own row.
+- Each account's data is capped at 30 MB, and the server stamps every save time (so a wrong device clock can't confuse the "changed on another device" check).
+- The site no longer checks for the old table name, which saves one request when signing in.
+
 ## The app in 30 seconds
 - **Stack:** React 18 + Vite, built into ONE self-contained file (`/wearwise.html` at the repo root, served by GitHub Pages).
   Build: `cd wearwise && npm install && npm run build`. Tests: `npm test` (Vitest, rules engine).
