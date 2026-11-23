@@ -301,6 +301,46 @@ with sync_playwright() as p:
     check('records gov contributions', {'sss': r['gov'].get('SSS', 0), 'ph': r['gov'].get('PhilHealth', 0), 'pi': r['gov'].get('Pag-IBIG', 0)}, sss=1350, ph=500, pi=200)
     check('records business vs personal', {'b': r['business']['income'], 'p': r['personal']['income']}, b=5000, p=18000)
 
+    # ---------- Phase F: household, goals, overview ----------
+    # 32. You paid a shared expense: your share is spending, the others owe you; cash shows the full payment
+    reset(20000)
+    pg.evaluate("Household.split({ total: 3000, description: 'Groceries', category: 'Groceries', date: toISODate(new Date()), paidBy: 'me', shares: Household.equalShares(3000, ['Ana']) })")
+    check('split: I paid', {**state(), 'ana': pg.evaluate("Loans.owedBy('Ana')")}, cash=17000, spent=1500, theyOwe=1500, ana=1500)
+    # three ways, centavos land on me
+    pg.evaluate("Household.split({ total: 1000, description: 'Pizza', category: 'Meals', date: toISODate(new Date()), paidBy: 'me', shares: Household.equalShares(1000, ['Ana','Ben']) })")
+    check('split three ways', {'me': pg.evaluate("Store.state.transactions.filter(t=>t.description==='Pizza (my share)')[0].amount"), 'ben': pg.evaluate("Loans.owedBy('Ben')")}, me=333.34, ben=333.33)
+
+    # 33. Someone else paid: my share is spending, I owe them, no cash moves today; settle up later
+    reset(20000)
+    pg.evaluate("Household.split({ total: 3000, description: 'Groceries', category: 'Groceries', date: toISODate(new Date()), paidBy: 'Mom', shares: Household.equalShares(3000, ['Mom']) })")
+    check('split: Mom paid', {**state(), 'mom': pg.evaluate("Loans.oweTo('Mom')")}, cash=20000, spent=1500, youOwe=1500, mom=1500)
+    form_submit("UI.settleForm('Mom')")
+    check('settle up', state(), cash=18500, youOwe=0, spent=1500)
+
+    # 34. Split via a note
+    reset(20000)
+    note('Split groceries 3,000 with Ana')
+    check('split note', state(), spent=1500, theyOwe=1500, cash=17000)
+
+    # 35. Goals with a date: monthly amount needed
+    reset(20000)
+    pg.evaluate("() => { const p = Pockets.create('House fund', { goal: 12000 }); p.by = Bills.step(toISODate(new Date()), 'month', 6); p.family = true; Pockets.move(3000, null, p.id); }")
+    check('goal per month', {'pm': pg.evaluate("Pockets.perMonth(Pockets.find('House fund'))")}, pm=1500)
+
+    # 36. Someone else's account you track isn't counted as yours
+    reset(20000)
+    pg.evaluate("() => { const a = Accounts.create('Mom GCash','ewallet'); a.notMine = true; a.owner = 'Mom'; Accounts.setOpening(a, 50000); }")
+    check('others\' money excluded', {'cash': state()['cash'], 'net': nw()['net']}, cash=20000, net=20000)
+
+    # 37. Overview insights speak plainly and are ordered by importance
+    reset(20000)
+    pg.evaluate("""() => { const d = new Date(), y = d.getFullYear(), m = d.getMonth(), day = String(Math.min(d.getDate(), 28)).padStart(2,'0');
+      const prev = new Date(y, m - 1, 1), pm = `${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}-01`;
+      Store.addTransaction({kind:'expense', amount:1000, category:'Groceries', date: pm, description:'g'});
+      Store.addTransaction({kind:'expense', amount:2000, category:'Groceries', date: `${y}-${String(m+1).padStart(2,'0')}-01`, description:'g'}); }""")
+    ins = pg.evaluate("Insights.list().map(i => i.text)")
+    check('insight compares months', {'ok': 1 if any('100% more' in t and 'Groceries' in t for t in ins) else 0}, ok=1)
+
     b.close()
 
 for f in fails: print('✗', f)

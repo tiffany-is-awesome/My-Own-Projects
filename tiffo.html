@@ -105,7 +105,7 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto">
-      <div id="balanceCard" class="rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white px-4 sm:px-5 py-2 shadow-lg shadow-violet-500/25 text-right transition-colors">
+      <div id="balanceCard" class="rounded-2xl bg-gradient-to-br from-slate-800 to-teal-700 text-white px-4 sm:px-5 py-2 shadow-md shadow-teal-900/20 text-right transition-colors">
         <div class="text-[11px] uppercase tracking-wider font-semibold text-white/80">Current Cash Balance</div>
         <div id="balanceDisplay" class="text-2xl sm:text-3xl font-extrabold tabular leading-tight">$0.00</div>
         <div id="balanceSub" class="text-[11px] text-white/75 tabular"></div>
@@ -180,6 +180,15 @@
     <div id="colLeft" class="lg:col-span-3 space-y-6">
 
       <!-- Month summary tiles -->
+      <!-- At a glance (Home) -->
+      <section data-tool="glance" data-tool-name="✨ At a glance" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <h2 class="font-bold text-lg leading-tight mb-2">At a glance</h2>
+        <ul id="glanceList" class="space-y-1.5"></ul>
+        <ul id="glanceMore" class="hidden space-y-1.5 mt-1.5"></ul>
+        <button type="button" id="glanceMoreBtn" class="hidden mt-2 text-sm font-semibold text-teal-700 dark:text-teal-400 hover:underline">Show more</button>
+        <p id="glanceEmpty" class="text-sm text-stone-500 dark:text-stone-400">Start by typing what you spent or earned above. Tiffo will tell you what it means here.</p>
+      </section>
+
       <section data-tool="summary" data-tool-name="📅 Monthly summary" data-tool-nocollapse class="grid grid-cols-3 gap-3">
         <div class="rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-900/60 p-4">
           <div class="flex items-center gap-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300"><span class="h-5 w-5 rounded-md bg-emerald-500 text-white grid place-items-center text-[11px]">↗</span>In · this month</div>
@@ -310,6 +319,28 @@
         <div id="pocketEmpty" class="rounded-xl border-2 border-dashed border-fuchsia-200 dark:border-fuchsia-900/60 p-4 text-sm text-stone-500 dark:text-stone-400"></div>
         <div id="pocketGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
         <p id="pocketHint" class="hidden mt-3 text-[11px] text-stone-400">Type things like “send 500 to toys”, “move 200 from toys to necessities” or “take 100 out of toys”. Spending that mentions a pocket comes out of it.</p>
+      </section>
+
+      <!-- Household -->
+      <section data-tool="household" data-tool-name="🏠 Household" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-rose-100 dark:bg-rose-900/40" aria-hidden="true">🏠</span>
+            <div><h2 class="font-bold text-lg leading-tight">Household</h2>
+            <p class="text-xs text-stone-500 dark:text-stone-400">Split shared costs, allowances and family goals.</p></div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="splitBtn" class="rounded-lg border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-sm font-semibold px-3 py-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/40">+ Shared expense</button>
+            <button type="button" id="allowanceBtn" class="rounded-lg border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-sm font-semibold px-3 py-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/40">+ Allowance</button>
+          </div>
+        </div>
+        <ul id="hhMembers" class="divide-y divide-stone-100 dark:divide-stone-800"></ul>
+        <div id="hhExtra" class="mt-3 space-y-1 text-sm"></div>
+        <p id="hhEmpty" class="rounded-xl border-2 border-dashed border-rose-200 dark:border-rose-900/60 p-4 text-sm text-stone-500 dark:text-stone-400">Live with family or housemates? Tap <b>+ Shared expense</b> or type <b>“Split groceries 3,000 with Ana”</b>. Only your share counts as your spending; the rest is what you owe each other.</p>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-[11px] text-stone-400 flex-1 min-w-[12rem]">🔒 Private: only what you mark as shared is ever summarized. Other members’ own records are never stored here.</p>
+          <button type="button" id="hhShareBtn" class="hidden rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-semibold px-2.5 py-1.5 hover:bg-stone-50 dark:hover:bg-stone-800">📋 Copy shared summary</button>
+        </div>
       </section>
 
       <!-- Family & friends: informal loans -->
@@ -887,6 +918,11 @@
     <label id="pfGoalRow" class="block"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Goal (optional)</span>
       <div class="relative mt-1"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 currency-symbol">₱</span>
       <input id="pfGoal" type="number" step="1" min="0" inputmode="decimal" placeholder="e.g. 5000" class="w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 pl-8 pr-3 py-2.5 tabular focus:outline-none focus:ring-2 focus:ring-fuchsia-500" /></div></label>
+    <div id="pfGoalExtra" class="grid grid-cols-2 gap-3">
+      <label class="block"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Reach it by (optional)</span>
+        <input id="pfBy" type="date" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" /></label>
+      <label class="flex items-end gap-2 pb-2.5 text-sm"><input id="pfFamily" type="checkbox" class="h-4 w-4 rounded" /> Family goal</label>
+    </div>
     <p id="pfError" class="hidden text-sm rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 px-3 py-2" role="alert"></p>
     <div class="flex items-center gap-2 pt-1">
       <button type="button" id="pfDelete" class="hidden mr-auto text-sm font-semibold text-rose-600 dark:text-rose-400 hover:underline">Delete pocket</button>
@@ -1413,7 +1449,8 @@ const Accounts = {
     return round2(b);
   },
   owes(a) { return !!(ACCOUNT_TYPES[a?.type] || {}).owe; },
-  cashList() { return this.list().filter((a) => !this.owes(a)); },
+  cashList() { return this.list().filter((a) => !this.owes(a) && !a.notMine); },
+  othersList() { return this.list().filter((a) => !this.owes(a) && a.notMine); },
   oweList() { return this.list().filter((a) => this.owes(a)); },
   /** Money you actually have: cash, e-wallets, banks. Debts (cards, loans) are kept separate. */
   total(upTo = null) { return round2(this.cashList().reduce((x, a) => x + this.balance(a, upTo), 0)); },
@@ -2062,6 +2099,24 @@ const Parser = {
     const acc = Debts.find(raw);
     if (acc && acc.type === 'loan' && amt && !/\b(bought|buy|purchased|borrowed|got a|took)\b/.test(t)) return { type: 'debt_pay', acc, amount: round2(amt.value) };
     return null;
+  },
+
+  /** "Split groceries 3,000 with Ana", "hati kami ni Ana sa Meralco 2,800", "Mom paid 3,000 for groceries, split with me". */
+  householdIntent(text) {
+    const raw = String(text || '').trim(), t = raw.toLowerCase();
+    if (!/\b(split|hati|hatian|shared|share it|share with)\b/.test(t) || /\b(stocks?|shares of)\b/.test(t)) return null;
+    const amt = this.extractAmount(raw);
+    if (!amt) return null;
+    const N = this.nameRe();
+    // Who: everything after "with / kay / ni / kina", split on "and / at / & / ,"
+    const wm = raw.match(/\b(?:with|kay|ni|kina)\s+(.+?)(?=\s+(?:sa|for|on|para)\b|[.;!]|$)/i);
+    const names = wm ? wm[1].replace(/[₱$]?\s?\d[\d,.]*\s*[km]?\b/gi, ' ').split(/\s*(?:,|\band\b|\bat\b|&)\s*/i).map((n) => this.cleanName(n.trim().split(/\s+/).slice(0, 2).join(' '))).filter((n) => n && !/^(Me|Us|Kami|Ako)$/i.test(n)) : [];
+    const payer = (raw.match(new RegExp(`^\\s*${N}\\s+paid\\b`)) || [])[1];
+    const paidBy = payer && !/^(i|we)$/i.test(payer) ? this.cleanName(payer) : 'me';
+    let desc = raw.replace(wm ? wm[0] : /^$/, ' ').replace(/[₱$]?\s?\d[\d,.]*\s*[km]?\b/gi, ' ').replace(/\b(split|hati(?:an)?|kami|shared?|share it|for|the|sa|paid|i|we|with|ni|kay|para)\b/gi, ' ');
+    if (payer) desc = desc.replace(new RegExp(`^\\s*${payer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'), ' ');
+    desc = desc.replace(/[,.]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return { type: 'split', total: round2(amt.value), with: names.filter((n) => n !== paidBy), paidBy, desc: desc.replace(/^./, (c) => c.toUpperCase()) || 'Shared expense', category: this.matchCategory(raw, 'expense') || 'Groceries' };
   },
 
   /** Notes about investments. → { type: 'invest_buy' | 'invest_value' | 'invest_div' | 'invest_sell', holding, amount, ... } or null */
@@ -2803,7 +2858,7 @@ const Invest = {
    ========================================================================= */
 const FREQS = { week: 'Weekly', semimonth: 'Twice a month', month: 'Monthly', quarter: 'Every 3 months', semiannual: 'Every 6 months', year: 'Yearly' };
 const BILL_KINDS = { bill: { icon: '🧾', label: 'Bill or utility' }, rent: { icon: '🏠', label: 'Rent or dues' }, subscription: { icon: '📺', label: 'Subscription' },
-  school: { icon: '🎒', label: 'School fees' }, membership: { icon: '🏋️', label: 'Membership' }, insurance: { icon: '🛡️', label: 'Insurance premium' }, other: { icon: '📌', label: 'Other' } };
+  school: { icon: '🎒', label: 'School fees' }, allowance: { icon: '🧒', label: 'Allowance (to a family member)' }, membership: { icon: '🏋️', label: 'Membership' }, insurance: { icon: '🛡️', label: 'Insurance premium' }, other: { icon: '📌', label: 'Other' } };
 const Bills = {
   list() { return (Store.state.bills ||= []); },
   active() { return this.list().filter((b) => !b.stopped); },
@@ -3014,6 +3069,118 @@ const Records = {
     push(''); push('OTHER'); push('Interest & fees paid', r.interest.toFixed(2)); push('Dividends received', r.dividends.toFixed(2)); push('Gifts & donations', r.gifts.toFixed(2));
     push(''); push('DOCUMENTS'); for (const d of r.docs) push(DOC_KINDS[this.docKind(d)], d.result?.title || d.name || '', new Date(d.createdAt).toISOString().slice(0, 10));
     return '﻿' + rows.join('\r\n');
+  },
+};
+
+/* =========================================================================
+   HOUSEHOLD — shared expenses between people you live with.
+   Your Tiffo only ever holds YOUR side: your share is your spending, and the
+   rest is money owed between you (it shows in Family & friends). Other
+   members' personal records are never stored; a summary you share contains
+   shared items only.
+   ========================================================================= */
+const Household = {
+  members() { return (Store.state.settings?.household || []); },
+  setMembers(list) { (Store.state.settings ||= {}).household = [...new Set(list.map((x) => String(x).trim()).filter(Boolean))].slice(0, 12); Store.save(); },
+  addMember(name) { if (name && !this.members().some((m) => m.toLowerCase() === name.toLowerCase())) this.setMembers([...this.members(), name]); },
+  /**
+   * Record a shared expense. shares: { me: amount, [name]: amount, ... } summing to total.
+   * paidBy 'me' → expense (my share) + lent to each other person (their share).
+   * paidBy <name> → expense (my share) + borrowed from that person (my share), no cash out for the rest.
+   */
+  split({ total, description, category, date, paidBy = 'me', shares, accountId = Accounts.DEFAULT }) {
+    const group = uid(), made = [], mine = round2(shares.me || 0);
+    const base = { date, category: 'Loans', group, shared: true, source: 'household' };
+    if (paidBy === 'me') {
+      if (mine > 0) made.push(Store.addTransaction({ kind: 'expense', amount: mine, category, date, accountId, description: `${description} (my share)`, group, shared: true, source: 'household' }));
+      for (const [who, amt] of Object.entries(shares)) if (who !== 'me' && amt > 0) made.push(Store.addTransaction({ ...base, kind: 'lend', amount: round2(amt), person: who, accountId, description: `${who}’s share · ${description}` }));
+    } else {
+      // Someone else paid: my share is my spending, and I owe it to them. Cash doesn't move today.
+      if (mine > 0) {
+        made.push(Store.addTransaction({ kind: 'expense', amount: mine, category, date, accountId, description: `${description} (my share, ${paidBy} paid)`, group, shared: true, source: 'household' }));
+        made.push(Store.addTransaction({ ...base, kind: 'borrow', amount: mine, person: paidBy, accountId, description: `My share · ${description} (${paidBy} paid)` }));
+      }
+    }
+    for (const who of Object.keys(shares)) if (who !== 'me') this.addMember(who);
+    if (paidBy !== 'me') this.addMember(paidBy);
+    Store.save();
+    return made;
+  },
+  /** Equal split among me + names, with centavos rounding landing on me. */
+  equalShares(total, names, includeMe = true) {
+    const people = [...(includeMe ? ['me'] : []), ...names], each = Math.floor((total / people.length) * 100) / 100, out = {};
+    for (const p of people) out[p] = each;
+    out[people[0]] = round2(total - each * (people.length - 1));
+    return out;
+  },
+  /** Balances with each member (from Family & friends). Positive = they owe you. */
+  balances() { return this.members().map((m) => ({ name: m, net: round2(Loans.owedBy(m) - Loans.oweTo(m)) })); },
+  /** A summary of shared items only, to send to household members. */
+  summary(days = 31) {
+    const since = toISODate(new Date(Date.now() - days * 864e5));
+    const groups = {};
+    for (const t of Store.sorted()) if (t.shared && t.date >= since) (groups[t.group] ||= []).push(t);
+    const lines = [`Tiffo · shared household expenses since ${prettyDate(since)}`];
+    for (const g of Object.values(groups)) {
+      const exp = g.find((t) => Money.kind(t) === 'expense'), others = g.filter((t) => Money.kind(t) !== 'expense');
+      const desc = (exp?.description || others[0]?.description || '').replace(/\s*\(my share.*\)$/, '').replace(/^.*?·\s*/, '');
+      const total = round2((exp?.amount || 0) + others.filter((t) => Money.kind(t) === 'lend').reduce((a, t) => a + t.amount, 0));
+      lines.push(`• ${g[0].date} ${desc}: ${fmt(total || exp?.amount || 0)}${others.map((t) => Money.kind(t) === 'lend' ? ` · ${t.person}’s share ${fmt(t.amount)}` : ` · ${t.person} paid; my share ${fmt(t.amount)}`).join('')}`);
+    }
+    lines.push('', 'Balances:');
+    for (const b of this.balances()) lines.push(`• ${b.name}: ${b.net > 0 ? `owes me ${fmt(b.net)}` : b.net < 0 ? `I owe ${fmt(-b.net)}` : 'settled'}`);
+    return lines.join('\n');
+  },
+};
+
+/* =========================================================================
+   INSIGHTS — plain-English answers on Home. Each one links to where it lives.
+   ========================================================================= */
+const Insights = {
+  monthSpend(y, m, uptoDay = 31) {
+    const pre = `${y}-${String(m + 1).padStart(2, '0')}`, by = {};
+    let total = 0;
+    for (const t of Store.state.transactions) if (t.date.startsWith(pre) && +t.date.slice(8, 10) <= uptoDay) { const s = Money.spend(t); if (s) { total += s; by[t.category] = (by[t.category] || 0) + s; } }
+    return { total: round2(total), by };
+  },
+  list() {
+    const out = [], now = new Date(), y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
+    const cur = this.monthSpend(y, m, day), prevD = new Date(y, m - 1, 1), prev = this.monthSpend(prevD.getFullYear(), prevD.getMonth(), day);
+    const free = Pockets.free(), cash = Store.balance();
+    out.push({ p: 10, icon: '💵', page: 'money', text: Pockets.list().length ? `<b>${fmt0(free)}</b> free to use (${fmt0(cash)} in cash, the rest set aside in pockets).` : `You have <b>${fmt0(cash)}</b> in cash, e-wallets and banks.` });
+    if (cur.total || prev.total) {
+      const diff = cur.total - prev.total, pct = prev.total ? Math.round((diff / prev.total) * 100) : null;
+      const top = Object.entries(cur.by).sort((a, b) => b[1] - a[1])[0];
+      const moved = Object.keys({ ...cur.by, ...prev.by }).map((k) => [k, (cur.by[k] || 0) - (prev.by[k] || 0)]).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0];
+      let txt = `You’ve spent <b>${fmt0(cur.total)}</b> this month`;
+      if (pct != null && Math.abs(pct) >= 5) txt += `, <b>${Math.abs(pct)}% ${pct > 0 ? 'more' : 'less'}</b> than by this day last month`;
+      if (moved && Math.abs(moved[1]) >= 1 && pct != null && Math.abs(pct) >= 5) txt += `, mostly ${moved[1] > 0 ? 'more' : 'less'} on ${escapeHTML(moved[0])}`;
+      txt += '.';
+      if (top) txt += ` Biggest: ${CATEGORIES[top[0]]?.icon || ''} ${escapeHTML(top[0])} (${fmt0(top[1])}).`;
+      out.push({ p: pct != null && pct >= 20 ? 9 : 8, icon: pct != null && pct >= 20 ? '📈' : '🧾', page: 'activity', text: txt });
+    }
+    for (const b of Store.state.budgets || []) {
+      const st = Budgets.stats(b);
+      if (st && st.limit && st.pct >= 80) out.push({ p: st.pct >= 100 ? 9.5 : 7, icon: st.pct >= 100 ? '⚠️' : '🎯', page: 'plan', text: st.pct >= 100 ? `<b>${escapeHTML(b.name)}</b> is over budget by ${fmt0(-st.left)}.` : `<b>${escapeHTML(b.name)}</b>: ${Math.round(st.pct)}% used, ${fmt0(st.left)} left.` });
+    }
+    const tl = Timeline.items(14), over = tl.filter((i) => i.overdue);
+    if (over.length) out.push({ p: 9.8, icon: '⏰', page: 'plan', text: `<b>${over.length} overdue:</b> ${over.slice(0, 2).map((i) => escapeHTML(i.title)).join(', ')}${over.length > 2 ? '…' : ''}.` });
+    const soon = tl.filter((i) => !i.overdue && i.amount).slice(0, 3);
+    if (soon.length) out.push({ p: 8.5, icon: '📅', page: 'plan', text: `Due soon: ${soon.map((i) => `${escapeHTML(i.title)} <b>${fmt0(i.amount)}</b> ${escapeHTML(prettyDate(i.date).toLowerCase())}`).join(' · ')}.` });
+    for (const p of Pockets.list().filter((p) => p.goal)) {
+      const bal = Pockets.balance(p), left = p.goal - bal;
+      if (left <= 0) out.push({ p: 6, icon: '🎉', page: 'money', text: `${escapeHTML(p.emoji)} <b>${escapeHTML(p.name)}</b> goal reached (${fmt0(p.goal)})!` });
+      else out.push({ p: 5, icon: escapeHTML(p.emoji), page: 'money', text: `<b>${escapeHTML(p.name)}</b>: ${Math.round((bal / p.goal) * 100)}% of ${fmt0(p.goal)}${p.by ? ` · save ${fmt0(Pockets.perMonth(p))}/month to reach it by ${escapeHTML(new Date(p.by + 'T00:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' }))}` : ''}.` });
+    }
+    const owed = Accounts.owed(), lt = Loans.totals();
+    if (owed) out.push({ p: 6.5, icon: '💳', page: 'money', text: `You owe <b>${fmt0(owed)}</b> on cards and loans.` });
+    if (lt.theyOwe) out.push({ p: 4, icon: '👥', page: 'money', text: `People owe you <b>${fmt0(lt.theyOwe)}</b>.` });
+    if (lt.youOwe) out.push({ p: 4.5, icon: '👥', page: 'money', text: `You owe family &amp; friends <b>${fmt0(lt.youOwe)}</b>.` });
+    const nwS = NetWorth.series(2), nw = nwS[1], d = round2(nw.net - nwS[0].net);
+    if (nw.own || nw.owe) out.push({ p: 5.5, icon: '📊', page: 'money', text: `Net worth <b>${fmt0(nw.net)}</b>${d ? ` (${d > 0 ? '▲' : '▼'} ${fmt0(Math.abs(d))} since last month)` : ''}.` });
+    const iv = Invest.totals();
+    if (iv.value) out.push({ p: 3, icon: '📈', page: 'money', text: `Investments worth <b>${fmt0(iv.value)}</b> (${iv.gain >= 0 ? '+' : '−'}${fmt0(Math.abs(iv.gain))} overall${iv.estimated ? ', includes estimates' : ''}).` });
+    return out.sort((a, b) => b.p - a.p);
   },
 };
 
@@ -3375,6 +3542,14 @@ const Pockets = {
     return best;
   },
 
+  /** Saving needed per month to reach a pocket's goal by its date. */
+  perMonth(p) {
+    if (!p.goal || !p.by) return null;
+    const left = p.goal - this.balance(p); if (left <= 0) return 0;
+    const now = new Date(), by = new Date(p.by + 'T00:00:00');
+    const months = Math.max(1, (by.getFullYear() - now.getFullYear()) * 12 + (by.getMonth() - now.getMonth()));
+    return round2(left / months);
+  },
   create(name, { emoji, goal = null, exact = false } = {}) {
     const clean = (exact ? name : name.replace(new RegExp(`\\b${this.WORDS}s?\\b`, 'gi'), '')).replace(/\s+/g, ' ').trim().slice(0, 30);
     const title = clean.replace(/\b\w/g, (c) => c.toUpperCase());
@@ -4565,7 +4740,7 @@ const Nav = {
   PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More' },
   // Which page each card lives on.
   OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', retire: 'plan', timeline: 'plan', bills: 'plan', insurance: 'plan', records: 'more', spending: 'plan', profit: 'plan',
-    networth: 'money', accounts: 'money', invest: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
+    glance: 'home', household: 'money', networth: 'money', accounts: 'money', invest: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
   page: 'home',
   pageOf(el) { return this.OF[el.dataset.tool] || 'more'; },
   read() { const m = location.hash.match(/^#(home|activity|plan|money|more)\b/); this.page = m ? m[1] : 'home'; },
@@ -4750,8 +4925,8 @@ const UI = {
     const el = $('#balanceDisplay');
     el.textContent = fmt(b);
     const card = $('#balanceCard');
-    ['from-indigo-600', 'via-violet-600', 'to-fuchsia-600'].forEach((c) => card.classList.toggle(c, b >= 0));
-    ['from-rose-600', 'via-rose-500', 'to-orange-500'].forEach((c) => card.classList.toggle(c, b < 0));
+    ['from-slate-800', 'to-teal-700'].forEach((c) => card.classList.toggle(c, b >= 0));
+    ['from-rose-700', 'to-orange-600'].forEach((c) => card.classList.toggle(c, b < 0));
     if (this.lastBalance !== null && this.lastBalance !== b) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
     this.lastBalance = b;
     $('#balanceSub').textContent = Pockets.list().length ? `${fmt0(Pockets.free())} free · ${fmt0(Pockets.total())} in pockets`
@@ -4856,7 +5031,7 @@ const UI = {
   renderAll() {
     // Each card draws on its own, so one problem never blanks out the rest of the app.
     for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
-      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderTimeline(), () => this.renderBills(), () => this.renderPolicies(), () => this.renderRecords(), () => this.renderSyncStatus()]) {
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderTimeline(), () => this.renderBills(), () => this.renderPolicies(), () => this.renderRecords(), () => this.renderHousehold(), () => this.renderGlance(), () => this.renderSyncStatus()]) {
       try { f(); } catch (e) { console.error('Render problem', e); }
     }
   },
@@ -5089,6 +5264,8 @@ const UI = {
     if (ai) return this.handleAssetNote(text, ai);
     const ii = Parser.investIntent(text);
     if (ii) return this.handleInvestNote(text, ii);
+    const hi = Parser.householdIntent(text);
+    if (hi) { this.splitForm({ total: hi.total, with: hi.with, paidBy: hi.paidBy, desc: hi.desc, category: hi.category }); this._afterForm = () => { $('#noteInput').value = ''; $('#parsePreview').innerHTML = ''; }; return; }
     if (Reminders.isReminder(text)) {
       const r = Store.addReminder(Reminders.parse(text));
       $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
@@ -5372,6 +5549,8 @@ const UI = {
   },
 
   livePreview(text) {
+    const hi = text.trim() && Parser.householdIntent(text);
+    if (hi) { $('#parsePreview').innerHTML = `🧺 Shared: <b>${escapeHTML(hi.desc)}</b> ${fmt(hi.total)}${hi.with.length ? ' with ' + hi.with.map(escapeHTML).join(' & ') : ''}${hi.paidBy !== 'me' ? ` · ${escapeHTML(hi.paidBy)} paid` : ''} · you’ll confirm the split`; return; }
     const ii = text.trim() && !Parser.debtIntent(text) && !Parser.assetIntent(text) && Parser.investIntent(text);
     if (ii) {
       const nm = ii.holding ? escapeHTML(ii.holding.name) : 'an investment';
@@ -5676,6 +5855,93 @@ const UI = {
       b.closest('div.flex').remove(); toast('↩ Restored.');
     }, { once: false });
   },
+  /* ---------- at a glance (Home) ---------- */
+  renderGlance() {
+    const all = Insights.list(), first = all.slice(0, 4), rest = all.slice(4);
+    const li = (x) => `<li><button type="button" data-goto="${x.page}" class="w-full flex gap-2.5 text-left rounded-lg px-2 py-1.5 hover:bg-stone-50 dark:hover:bg-stone-800/50"><span class="text-base leading-6" aria-hidden="true">${x.icon}</span><span class="text-sm leading-6">${x.text}</span></button></li>`;
+    const hasData = Store.state.transactions.length || Accounts.list().length > 1 || Store.state.initialBalance;
+    $('#glanceEmpty').classList.toggle('hidden', !!hasData);
+    $('#glanceList').innerHTML = hasData ? first.map(li).join('') : '';
+    $('#glanceMore').innerHTML = hasData ? rest.map(li).join('') : '';
+    $('#glanceMoreBtn').classList.toggle('hidden', !hasData || !rest.length);
+    $('#glanceMoreBtn').textContent = $('#glanceMore').classList.contains('hidden') ? `Show ${rest.length} more` : 'Show less';
+  },
+
+  /* ---------- household ---------- */
+  renderHousehold() {
+    const ms = Household.balances(), allowances = Bills.active().filter((b) => b.kind === 'allowance'), goals = Pockets.list().filter((p) => p.family);
+    const shared = Store.state.transactions.some((t) => t.shared);
+    $('#hhEmpty').classList.toggle('hidden', !!(ms.length || allowances.length || goals.length));
+    $('#hhShareBtn').classList.toggle('hidden', !shared);
+    $('#hhMembers').innerHTML = ms.map((m) => `<li data-member="${escapeHTML(m.name)}" class="flex items-center gap-3 py-2">
+      <span class="h-8 w-8 rounded-full grid place-items-center bg-rose-100 dark:bg-rose-900/40 font-bold text-rose-900 dark:text-rose-200" aria-hidden="true">${escapeHTML(m.name[0].toUpperCase())}</span>
+      <span class="flex-1 min-w-0 truncate font-semibold">${escapeHTML(m.name)} <span class="font-normal text-sm ${m.net > 0 ? 'text-teal-700 dark:text-teal-400' : m.net < 0 ? 'text-orange-700 dark:text-orange-400' : 'text-stone-500'}">${m.net > 0 ? `owes you ${fmt0(m.net)}` : m.net < 0 ? `you owe ${fmt0(-m.net)}` : 'all settled'}</span></span>
+      ${m.net ? '<button type="button" class="hh-settle text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline">Settle up</button>' : ''}
+    </li>`).join('');
+    const yr = String(new Date().getFullYear()), sharedSpend = Store.state.transactions.filter((t) => t.shared && Money.kind(t) === 'expense' && t.date.slice(0, 7) === toISODate(new Date()).slice(0, 7)).reduce((a, t) => a + t.amount, 0);
+    $('#hhExtra').innerHTML = [
+      sharedSpend ? `<div>🧺 Your share of household costs this month: <b>${fmt0(sharedSpend)}</b></div>` : '',
+      ...allowances.map((b) => `<div>🧒 Allowance: <b>${escapeHTML(b.name)}</b> ${fmt0(b.amount || 0)} ${(FREQS[b.freq] || '').toLowerCase()} · next ${escapeHTML(prettyDate(b.nextDue))}</div>`),
+      ...goals.map((p) => { const bal = Pockets.balance(p), pm = Pockets.perMonth(p); return `<div>${escapeHTML(p.emoji)} Family goal <b>${escapeHTML(p.name)}</b>: ${fmt0(bal)}${p.goal ? ` of ${fmt0(p.goal)}` : ''}${pm ? ` · ${fmt0(pm)}/month to reach it by ${escapeHTML(new Date(p.by + 'T00:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' }))}` : ''}</div>`; }),
+    ].join('');
+  },
+  /** Split a shared expense. Your share is your spending; the rest is owed between you. */
+  splitForm(pre = {}) {
+    const members = [...new Set([...Household.members(), ...(pre.with || [])])];
+    const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]);
+    const fields = [
+      { id: 'desc', label: 'What was it?', value: pre.desc || '', placeholder: 'e.g. Groceries, Meralco, Rent' },
+      { id: 'total', label: 'Total amount', type: 'number', value: pre.total ?? '' },
+      { id: 'paidBy', label: 'Who paid?', type: 'select', value: pre.paidBy || 'me', options: [['me', 'I paid'], ...members.map((m) => [m, `${m} paid`])] },
+      { id: 'newPerson', label: 'Split with (new person, optional)', value: '', placeholder: 'e.g. Ana', hint: members.length ? 'Tick people below, or add someone new.' : 'Type the name of who you share with.' },
+      ...members.map((m, i) => ({ id: `w${i}`, type: 'checkbox', label: `Split with ${m}`, value: (pre.with || []).includes(m) || (!pre.with && members.length === 1) })),
+      { id: 'how', label: 'How to split', type: 'select', value: 'equal', options: [['equal', 'Equally'], ['custom', 'Custom amounts']] },
+      { id: 'myShare', label: 'My share (custom)', type: 'number', value: '', show: (v) => v.how === 'custom', hint: 'The rest is split equally among the others.' },
+      { id: 'category', label: 'Category', type: 'select', value: pre.category || 'Groceries', options: this.catOptions('expense') },
+      { id: 'account', label: 'Paid from', type: 'select', value: Accounts.DEFAULT, options: cashOpts, show: (v) => v.paidBy === 'me' && cashOpts.length > 1, advanced: true },
+      { id: 'date', label: 'Date', type: 'date', value: pre.date || toISODate(new Date()), advanced: true },
+    ];
+    this.form({
+      title: 'Shared expense', save: 'Save', sub: 'Your share counts as your spending. The rest is money owed between you, so it isn’t counted twice.', fields,
+      onSave: (v) => {
+        if (!v.desc) return 'Type what it was for.';
+        if (!v.total || v.total <= 0) return 'Type the total.';
+        const withNames = members.filter((m, i) => v[`w${i}`]);
+        const np = (v.newPerson || '').trim().slice(0, 30);
+        if (np) withNames.push(np.replace(/^./, (c) => c.toUpperCase()));
+        if (v.paidBy !== 'me' && !withNames.includes(v.paidBy)) withNames.push(v.paidBy);
+        if (!withNames.length) return 'Choose who you split it with.';
+        let shares;
+        if (v.how === 'custom') {
+          if (v.myShare == null || v.myShare < 0 || v.myShare > v.total) return 'Your share should be between 0 and the total.';
+          const others = withNames, rest = round2(v.total - v.myShare), each = Math.floor((rest / others.length) * 100) / 100;
+          shares = { me: round2(v.myShare) }; others.forEach((o, i) => { shares[o] = i === 0 ? round2(rest - each * (others.length - 1)) : each; });
+        } else shares = Household.equalShares(v.total, withNames);
+        const made = Household.split({ total: round2(v.total), description: v.desc.slice(0, 60), category: v.category, date: v.date || toISODate(new Date()), paidBy: v.paidBy, shares, accountId: v.account || Accounts.DEFAULT });
+        this.renderAll();
+        toast(`🧺 ${escapeHTML(v.desc)} ${fmt(v.total)} · your share ${fmt(shares.me || 0)}${v.paidBy === 'me' ? ` · ${withNames.map((n) => `${escapeHTML(n)} owes you ${fmt(shares[n] || 0)}`).join(', ')}` : ` · you owe ${escapeHTML(v.paidBy)} ${fmt(shares.me || 0)}`}`,
+          { duration: 7000, action: { label: 'Undo', fn: () => { made.forEach((t) => Store.removeTransaction(t.id, true)); UI.renderAll(); } } });
+      },
+    });
+  },
+  settleForm(name) {
+    const net = round2(Loans.owedBy(name) - Loans.oweTo(name)), they = net > 0;
+    const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]);
+    this.form({
+      title: `Settle up with ${name}`, save: 'Save', sub: they ? `${name} owes you ${fmt(net)}.` : `You owe ${name} ${fmt(-net)}.`,
+      fields: [
+        { id: 'amount', label: they ? `${name} paid you` : `You paid ${name}`, type: 'number', value: Math.abs(net) },
+        { id: 'account', label: they ? 'Went into' : 'Paid from', type: 'select', value: Accounts.DEFAULT, options: cashOpts, show: () => cashOpts.length > 1 },
+        { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()), advanced: true },
+      ],
+      onSave: (v) => {
+        if (!v.amount || v.amount <= 0) return 'Type the amount.';
+        const t = this.recordEntry({ kind: they ? 'repay_in' : 'repay_out', amount: round2(v.amount), person: name, date: v.date || toISODate(new Date()), category: 'Loans', accountId: v.account || Accounts.DEFAULT, description: they ? `${name} settled up` : `Settled up with ${name}` });
+        this.renderAll(); this.savedToast([t]);
+      },
+    });
+  },
+
   /* ---------- coming up (timeline) ---------- */
   renderTimeline() {
     const items = Timeline.items(45);
@@ -6449,8 +6715,9 @@ const UI = {
         <button type="button" class="acct-edit h-7 w-7 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Edit ${escapeHTML(a.name)}">⋯</button>
       </li>`;
     };
-    const has = Accounts.cashList(), owes = Accounts.oweList();
+    const has = Accounts.cashList(), owes = Accounts.oweList(), others = Accounts.othersList();
     $('#acctList').innerHTML = has.map(row).join('')
+      + (others.length ? `<li class="pt-3 pb-1 text-[11px] font-bold text-stone-400">Others’ money you track (not counted as yours)</li>` + others.map(row).join('') : '')
       + (owes.length ? `<li class="pt-2.5 flex justify-between text-xs text-stone-500 dark:text-stone-400"><span>You owe ${fmt(Accounts.owed())} on ${owes.length} card${owes.length > 1 ? 's/loans' : '/loan'}</span><a href="#money" class="font-semibold text-orange-700 dark:text-orange-400 hover:underline" onclick="document.querySelector('[data-tool=debts]').scrollIntoView({behavior:'smooth'});return false">See Cards &amp; loans ↓</a></li>` : '');
     $('#moveAcctBtn').classList.toggle('hidden', Accounts.list().length < 2);
     $('#moveAcctBtn').textContent = owes.length ? '⇄ Move money / pay a card' : '⇄ Move money';
@@ -6468,6 +6735,8 @@ const UI = {
           hint: a ? 'If this doesn’t match your app or bank, type the real amount and Tiffo will adjust.' : 'Leave empty for ₱0.' },
         { id: 'owed', label: a ? 'How much you owe right now' : 'How much do you owe on it now?', type: 'number', value: a && Accounts.owes(a) ? Accounts.owedOn(a) : (pre.owed ?? ''), show: isOwe,
           hint: 'Check your app or latest statement. Leave empty for ₱0.' },
+        { id: 'notMine', type: 'checkbox', label: 'This is someone else’s money I keep track of (don’t count it as mine)', value: !!a?.notMine, show: (v) => !isOwe(v), advanced: true },
+        { id: 'owner', label: 'Whose account? (optional)', value: a?.owner || '', placeholder: 'e.g. Mom', show: (v) => !isOwe(v) && v.notMine, advanced: true },
         { id: 'drawdown', type: 'checkbox', label: 'I just got this loan, and the money went into one of my accounts', value: !!pre.drawdown, show: (v) => !a && v.type === 'loan' },
         { id: 'into', label: 'Which account got the money?', type: 'select', value: Accounts.DEFAULT, options: Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]), show: (v) => !a && v.type === 'loan' && v.drawdown },
         { id: 'limit', label: 'Credit limit (optional)', type: 'number', value: a?.limit ?? '', show: (v) => v.type === 'credit' },
@@ -6506,6 +6775,7 @@ const UI = {
           if (v.dueDay) acc.dueDay = v.dueDay; else delete acc.dueDay;
           if (v.dueDay && v.dueDay !== hadDue) this.dueReminder(acc);
         } else if (v.bal != null) Accounts.setOpening(acc, Accounts.opening(acc) + (v.bal - Accounts.balance(acc)));
+        if (!isOwe(v)) { if (v.notMine) { acc.notMine = true; acc.owner = (v.owner || '').slice(0, 30) || undefined; } else { delete acc.notMine; delete acc.owner; } }
         Store.save(); this.renderAll(); toast(a ? 'Account updated.' : `${Accounts.icon(acc)} Added ${escapeHTML(acc.name)}.`);
       },
       danger: a && a.id !== Accounts.DEFAULT ? { label: 'Remove account', fn: async () => {
@@ -6579,7 +6849,7 @@ const UI = {
         <div class="text-sm font-semibold truncate mt-1">${escapeHTML(p.name)}</div>
         <div class="text-lg font-extrabold tabular ${bal < 0 ? 'text-rose-600 dark:text-rose-400' : ''}">${fmt(bal)}</div>
         ${pct != null ? `<div class="mt-1 h-1.5 rounded-full bg-stone-200/70 dark:bg-stone-700 overflow-hidden"><div class="h-full rounded-full" style="width:${pct}%;background:${p.color}"></div></div>
-          <div class="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5 tabular">${Math.round(pct)}% of ${fmt0(p.goal)} goal</div>` : ''}
+          <div class="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5 tabular">${Math.round(pct)}% of ${fmt0(p.goal)} goal${p.by && Pockets.perMonth(p) ? ` · ${fmt0(Pockets.perMonth(p))}/mo to make it by ${escapeHTML(new Date(p.by + 'T00:00:00').toLocaleDateString([], { month: 'short', year: '2-digit' }))}` : pct >= 100 ? ' 🎉' : ''}${p.family ? ' · family' : ''}</div>` : ''}
         <div class="mt-2 grid grid-cols-2 gap-1.5">
           <button type="button" class="pk-add rounded-lg text-xs font-semibold py-1.5 text-white hover:brightness-110" style="background:${p.color}">+ Add</button>
           <button type="button" class="pk-take rounded-lg text-xs font-semibold py-1.5 border border-stone-300 dark:border-stone-700 hover:bg-white/70 dark:hover:bg-stone-800">− Take out</button>
@@ -6609,6 +6879,9 @@ const UI = {
     $('#pfName').value = pocket && kind === 'edit' ? pocket.name : '';
     $('#pfEmoji').value = pocket && kind === 'edit' ? pocket.emoji : '';
     $('#pfGoal').value = pocket && kind === 'edit' && pocket.goal ? pocket.goal : '';
+    $('#pfBy').value = pocket && kind === 'edit' && pocket.by ? pocket.by : '';
+    $('#pfFamily').checked = !!(pocket && kind === 'edit' && pocket.family);
+    show('#pfGoalExtra', kind === 'new' || kind === 'edit');
     $('#pfAmount').value = '';
     $('#pfError').classList.add('hidden');
     $('#pocketModal').classList.remove('hidden'); $('#pocketModal').classList.add('flex');
@@ -6629,11 +6902,12 @@ const UI = {
       if (kind === 'new') {
         if (amount > Pockets.free() + 0.001) return err(`Only ${fmt(Math.max(0, Pockets.free()))} is free to put in.`);
         const p = Pockets.create(name, { emoji: $('#pfEmoji').value.trim() || null, goal });
+        p.by = $('#pfBy').value || null; p.family = $('#pfFamily').checked || undefined;
         Store.save();
         if (amount) Pockets.move(amount, null, p.id, 'Opening amount');
         toast(`👛 New pocket: ${escapeHTML(p.emoji + ' ' + p.name)}${amount ? ` with ${fmt(amount)}` : ''}`);
       } else {
-        pocket.name = name.slice(0, 30); pocket.emoji = $('#pfEmoji').value.trim() || Pockets.emojiFor(name); pocket.goal = goal;
+        pocket.name = name.slice(0, 30); pocket.emoji = $('#pfEmoji').value.trim() || Pockets.emojiFor(name); pocket.goal = goal; pocket.by = $('#pfBy').value || null; pocket.family = $('#pfFamily').checked || undefined;
         Store.save(); toast('Pocket updated.');
       }
     } else {
@@ -6961,12 +7235,12 @@ const UI = {
       { page: 'home', el: '#logBtn', title: 'Press Log (or Enter)', text: 'Tiffo works out what it was. If it isn’t sure, it shows you a quick card to check before saving anything.' },
       { page: 'home', el: 'label[for="fileInput"]', title: 'Scan a receipt or contract', text: 'Tiffo reads it and explains it in plain English. For receipts, you check the amount and date before anything is saved.' },
       { page: 'home', el: '#balanceCard', title: 'Your money right now', text: 'The total in all your accounts: cash, GCash, banks.' },
-      { page: 'home', el: '[data-tool="summary"]', title: 'This month at a glance', text: 'Money in, money out, and what’s left. The charts below show where it went.' },
+      { page: 'home', el: '[data-tool="glance"]', title: 'At a glance', text: 'Tiffo tells you what matters in plain words: what’s free to spend, how this month compares, what’s due soon. Tap a line to go there.' },
       { page: 'home', el: '[data-nav="activity"]', title: 'Activity', text: 'Every entry, newest first. Tap a category to change it, or delete a mistake.' },
-      { page: 'home', el: '[data-nav="plan"]', title: 'Plan', text: `Budgets and reminders. You can type these too: “15% for groceries” or “remind me to pay rent on the 30th”.` },
-      { page: 'home', el: '[data-nav="money"]', title: 'Money', text: 'Your accounts, pockets (money set aside, like “toys”), and 👥 family & friends: money you lent or borrowed.' },
+      { page: 'home', el: '[data-nav="plan"]', title: 'Plan', text: `What’s coming up, bills and subscriptions, insurance, budgets and a retirement planner. You can type these too: “15% for groceries” or “Meralco due Friday”.` },
+      { page: 'home', el: '[data-nav="money"]', title: 'Money', text: 'Your net worth, accounts, investments, cards & loans, pockets, household and 👥 family & friends.' },
       { page: 'home', el: '#remBellBtn', title: 'Reminders bell', text: 'A red number means something is due.' },
-      { page: 'home', el: '[data-nav="more"]', title: 'More', text: 'Documents, settings (currency, starting balance, day or night), choosing what you see, and this tour again.' },
+      { page: 'home', el: '[data-nav="more"]', title: 'More', text: 'Documents, yearly records, backup, settings (currency, day or night), choosing what you see, and this tour again.' },
       { page: 'home', el: '#noteInput', title: 'Your turn!', text: `Try typing your first note now, like “Groceries ${fmt0(500)}”.`, last: true },
     ];
   },
@@ -7327,6 +7601,16 @@ const UI = {
     $('#addAssetBtn').addEventListener('click', () => this.assetForm());
     $('#addHoldingBtn').addEventListener('click', () => this.holdingForm());
     $('#addBillBtn').addEventListener('click', () => this.billForm());
+    $('#splitBtn').addEventListener('click', () => this.splitForm());
+    $('#allowanceBtn').addEventListener('click', () => this.billForm(null, { kind: 'allowance', category: 'Family Support', name: 'Allowance for ', freq: 'week', nextDue: Debts.addPeriods(toISODate(new Date()), 0) }));
+    $('#hhMembers').addEventListener('click', (e) => { const li = e.target.closest('[data-member]'); if (li && e.target.closest('.hh-settle')) this.settleForm(li.dataset.member); });
+    $('#hhShareBtn').addEventListener('click', async () => {
+      const txt = Household.summary();
+      try { await navigator.clipboard.writeText(txt); toast('📋 Copied a summary of shared expenses only. Paste it in Messenger or Viber.'); }
+      catch (e) { this.form({ title: 'Shared summary', save: 'Done', sub: 'Copy this text. It includes shared items only.', fields: [{ id: 's', type: 'textarea', label: '', value: txt }], onSave: () => {} }); }
+    });
+    $('#glanceList').parentElement.addEventListener('click', (e) => { const b = e.target.closest('[data-goto]'); if (b) Nav.go(b.dataset.goto); });
+    $('#glanceMoreBtn').addEventListener('click', () => { $('#glanceMore').classList.toggle('hidden'); this.renderGlance(); });
     $('#addPolicyBtn').addEventListener('click', () => this.policyForm());
     $('#tlList').addEventListener('click', (e) => { const li = e.target.closest('[data-tl]'); const it = li && this._tl?.[+li.dataset.tl]; if (!it) return;
       if (e.target.closest('.tl-pay')) this.payTimelineItem(it);
