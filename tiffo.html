@@ -157,9 +157,9 @@
         class="flex-1 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-4 py-3 text-base placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
         placeholder="What happened? e.g. “Jollibee 350” or “Sahod 18,000”" />
       <div class="flex gap-3">
-        <button type="button" id="logBtn" class="flex-1 md:flex-none rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-semibold px-5 py-3 shadow-md shadow-emerald-500/25 transition">Log it</button>
+        <button type="button" id="logBtn" class="flex-1 md:flex-none whitespace-nowrap rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-semibold px-5 py-3 shadow-md shadow-emerald-500/25 transition">Log it</button>
         <label for="fileInput" class="flex-1 md:flex-none cursor-pointer rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:brightness-110 text-white font-semibold px-5 py-3 text-center shadow-md shadow-fuchsia-500/25 transition whitespace-nowrap">
-          📷 Scan Receipt / Contract
+          📷 Scan<span class="hidden sm:inline"> Receipt / Contract</span>
         </label>
         <input id="fileInput" type="file" accept="image/*,.txt,text/plain" class="hidden" />
       </div>
@@ -1128,6 +1128,9 @@ function onSubmit(form, button, fn) {
 }
 
 function toast(msg, opts = {}) {
+  // Keep the screen usable: at most 2 messages at once (the newest win).
+  const box = document.getElementById('toasts');
+  while (box && box.children.length >= 2) box.firstElementChild.remove();
   const el = document.createElement('div');
   el.className = 'animate-in rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-lg px-4 py-3 text-sm flex items-center gap-3';
   el.innerHTML = `<span class="flex-1">${msg}</span>`;
