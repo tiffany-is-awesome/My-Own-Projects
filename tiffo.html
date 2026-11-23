@@ -405,6 +405,45 @@
         </div>
       </section>
 
+      <section data-tool="timeline" data-tool-name="📅 Coming up" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-sky-100 dark:bg-sky-900/40" aria-hidden="true">📅</span>
+            <div><h2 class="font-bold text-lg leading-tight">Coming up</h2><p class="text-xs text-stone-500 dark:text-stone-400">Everything due in the next 45 days, in one list.</p></div>
+          </div>
+          <div class="text-right"><div class="text-[11px] font-semibold text-stone-500">Due in 30 days</div><div id="tlTotal" class="font-bold tabular">₱0</div></div>
+        </div>
+        <ul id="tlList" class="space-y-1"></ul>
+        <p id="tlEmpty" class="rounded-xl border-2 border-dashed border-sky-200 dark:border-sky-900/60 p-4 text-sm text-stone-500 dark:text-stone-400">Nothing due in the next 45 days. Add bills, cards, loans or insurance and they’ll show up here.</p>
+      </section>
+
+      <section data-tool="bills" data-tool-name="🔁 Bills & subscriptions" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-violet-100 dark:bg-violet-900/40" aria-hidden="true">🔁</span>
+            <div><h2 class="font-bold text-lg leading-tight">Bills &amp; subscriptions</h2><p class="text-xs text-stone-500 dark:text-stone-400">Rent, utilities, Netflix, tuition, memberships…</p></div>
+          </div>
+          <button type="button" id="addBillBtn" class="rounded-lg border border-violet-300 dark:border-violet-800 text-violet-900 dark:text-violet-200 text-sm font-semibold px-3 py-1.5 hover:bg-violet-50 dark:hover:bg-violet-950/40">+ Bill</button>
+        </div>
+        <div id="billAlerts" class="space-y-2 mb-3"></div>
+        <ul id="billList" class="divide-y divide-stone-100 dark:divide-stone-800"></ul>
+        <p id="billEmpty" class="rounded-xl border-2 border-dashed border-violet-200 dark:border-violet-900/60 p-4 text-sm text-stone-500 dark:text-stone-400">Add the bills you pay regularly. When you log a payment (like “Meralco 2,800”), Tiffo marks it paid and moves the due date.</p>
+        <p id="billMonthly" class="mt-2 text-xs text-stone-500 dark:text-stone-400"></p>
+      </section>
+
+      <section data-tool="insurance" data-tool-name="🛡️ Insurance" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-emerald-100 dark:bg-emerald-900/40" aria-hidden="true">🛡️</span>
+            <div><h2 class="font-bold text-lg leading-tight">Insurance</h2><p class="text-xs text-stone-500 dark:text-stone-400">Policies, premiums and renewals.</p></div>
+          </div>
+          <button type="button" id="addPolicyBtn" class="rounded-lg border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-sm font-semibold px-3 py-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40">+ Policy</button>
+        </div>
+        <ul id="polList" class="divide-y divide-stone-100 dark:divide-stone-800"></ul>
+        <p id="polEmpty" class="rounded-xl border-2 border-dashed border-emerald-200 dark:border-emerald-900/60 p-4 text-sm text-stone-500 dark:text-stone-400">Add life, health/HMO, car or home insurance to see premiums and renewals in Coming up.</p>
+        <p class="mt-2 text-[11px] text-stone-400">Tiffo explains what each kind of insurance usually covers. It can’t tell whether a policy is enough for you; your policy and your agent or a licensed adviser can.</p>
+      </section>
+
       <!-- Retirement planner (Plan page) -->
       <section data-tool="retire" data-tool-name="🌅 Retirement planner" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
         <div class="flex items-center gap-3 mb-3">
@@ -431,6 +470,22 @@
         <div class="mt-3 fig relative h-48"><svg id="rtChart" class="absolute inset-0 w-full h-full" role="img" aria-label="Projected retirement savings by age"></svg></div>
         <div id="rtTable" class="mt-3"></div>
         <p class="mt-2 text-[11px] text-stone-400">Estimates only. Amounts “in today’s money” remove inflation so you can compare with prices now. Real returns go up and down; this assumes a steady average. Tiffo isn’t a financial advisor.</p>
+      </section>
+
+      <section data-tool="records" data-tool-name="🗂️ Records" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-stone-100 dark:bg-stone-800" aria-hidden="true">🗂️</span>
+            <div><h2 class="font-bold text-lg leading-tight">Records</h2><p class="text-xs text-stone-500 dark:text-stone-400">Your year in one place: for filing, loans, or your accountant.</p></div>
+          </div>
+          <div class="flex items-center gap-2"><label for="recYear" class="sr-only">Year</label><select id="recYear" class="rounded-lg border border-stone-200 dark:border-stone-700 bg-transparent px-2 py-1.5 text-sm font-semibold"></select>
+          <button type="button" id="recCsvBtn" class="rounded-lg bg-stone-800 dark:bg-stone-200 text-white dark:text-stone-900 text-sm font-semibold px-3 py-1.5">⬇ Records CSV</button></div>
+        </div>
+        <div id="recSummary"></div>
+        <div class="mt-4"><div class="flex items-center justify-between gap-2"><h3 class="text-sm font-bold">Documents</h3>
+          <select id="recDocKind" class="rounded-lg border border-stone-200 dark:border-stone-700 bg-transparent px-2 py-1 text-xs font-semibold"><option value="">All</option><option value="receipt">Receipts</option><option value="invoice">Invoices</option><option value="tax">Tax</option><option value="government">SSS / PhilHealth / Pag-IBIG</option><option value="insurance">Insurance</option><option value="contract">Contracts</option><option value="other">Other</option></select></div>
+          <ul id="recDocs" class="mt-2 divide-y divide-stone-100 dark:divide-stone-800 text-sm"></ul></div>
+        <p class="mt-3 text-[11px] text-stone-400">These are summaries of what you logged, not tax computations. For BIR filing, confirm with an accountant or the BIR.</p>
       </section>
 
       <!-- Settings (More page) -->
@@ -1420,7 +1475,7 @@ const Store = {
   keyFor(user) { return CONFIG.STORAGE_KEY + (user ? ':' + user.id : ''); },
   key() { return this.keyFor(Auth.user); },
   SCHEMA: 3,
-  blank() { return { v: 3, initialBalance: 0, currency: detectCurrency(), accounts: [{ id: 'acc_cash', name: 'Cash', type: 'cash' }], transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], loans: [], plans: [], assets: [], holdings: [], settings: {}, createdAt: Date.now(), savedAt: 0 }; },
+  blank() { return { v: 3, initialBalance: 0, currency: detectCurrency(), accounts: [{ id: 'acc_cash', name: 'Cash', type: 'cash' }], transactions: [], documents: [], reminders: [], budgets: [], customCategories: [], pockets: [], pocketMoves: [], loans: [], plans: [], assets: [], holdings: [], bills: [], policies: [], settings: {}, createdAt: Date.now(), savedAt: 0 }; },
 
   /** Upgrade older saved data in place. Never deletes anything. */
   migrate() {
@@ -1513,7 +1568,8 @@ const Store = {
   },
   addDocument(doc) {
     this.state.documents.unshift({ id: uid(), createdAt: Date.now(), ...doc });
-    this.state.documents = this.state.documents.slice(0, 12); // keep last 12
+    this.state.documents = this.state.documents.slice(0, 100);                      // keep the last 100 for Records
+    this.state.documents.forEach((d, i) => { if (i >= 12 && d.thumb) delete d.thumb; });   // photos only for the newest 12 (saves space)
     this.save();
   },
 
@@ -2741,6 +2797,227 @@ const Invest = {
 };
 
 /* =========================================================================
+   BILLS & SUBSCRIPTIONS, INSURANCE, and the unified "Coming up" timeline.
+   A bill is a promise to pay on a schedule. Paying it is ordinary spending,
+   linked to the bill so the next due date moves forward.
+   ========================================================================= */
+const FREQS = { week: 'Weekly', semimonth: 'Twice a month', month: 'Monthly', quarter: 'Every 3 months', semiannual: 'Every 6 months', year: 'Yearly' };
+const BILL_KINDS = { bill: { icon: '🧾', label: 'Bill or utility' }, rent: { icon: '🏠', label: 'Rent or dues' }, subscription: { icon: '📺', label: 'Subscription' },
+  school: { icon: '🎒', label: 'School fees' }, membership: { icon: '🏋️', label: 'Membership' }, insurance: { icon: '🛡️', label: 'Insurance premium' }, other: { icon: '📌', label: 'Other' } };
+const Bills = {
+  list() { return (Store.state.bills ||= []); },
+  active() { return this.list().filter((b) => !b.stopped); },
+  get(id) { return this.list().find((b) => b.id === id) || null; },
+  norm(s) { return String(s || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[₱$€£]|\b\d[\d,.]*\b|\b(paid|pay|bill|payment|for|the|my|monthly|every|month|subscription|sub|renewal|auto|debit)\b/g, ' ').replace(/[^a-z]+/g, ' ').trim(); },
+  /** Advance a date by one period of `freq`. */
+  step(iso, freq, n = 1, day = null) {
+    const months = { month: 1, quarter: 3, semiannual: 6, year: 12 }[freq];
+    if (months) return Debts.addPeriods(iso, n * months, 'month', day);
+    return Debts.addPeriods(iso, n, freq);
+  },
+  /** Record a payment (an expense linked to the bill) and move the due date past it. */
+  pay(b, { amount = b.amount, date = toISODate(new Date()), accountId = b.accountId || Accounts.DEFAULT, description } = {}) {
+    const t = Store.addTransaction({ kind: 'expense', amount: round2(amount), category: b.category || 'Utilities', date, accountId, billId: b.id, description: description || `${b.name}`, source: 'bill' });
+    this.afterPaid(b, t);
+    return t;
+  },
+  /** After a payment: next due = first due date after this payment's date (late or early both fine). */
+  afterPaid(b, t) {
+    const before = b.nextDue;
+    let next = b.nextDue || t.date, k = 0;
+    while (next <= t.date && k < 400) next = this.step(next, b.freq, 1, b.day), k++;
+    if (k === 0 && b.nextDue && b.nextDue > t.date) next = this.step(b.nextDue, b.freq, 1, b.day);   // paid early: skip this cycle
+    t.prevDue = before; b.nextDue = next; b.lastPaid = t.date;
+    this.syncReminder(b);
+    Store.save();
+  },
+  /** Undo helper: put the due date back. */
+  unpay(b, t) { if (t.prevDue) { b.nextDue = t.prevDue; this.syncReminder(b); Store.save(); } },
+  syncReminder(b) {
+    const r = b.reminderId && (Store.state.reminders || []).find((x) => x.id === b.reminderId);
+    if (b.stopped || !b.nextDue) { if (r) r.done = true; return; }
+    const at = new Date(b.nextDue + 'T09:00:00').getTime() - (b.remindDays || 0) * 864e5;
+    if (r) Object.assign(r, { remindAt: at, eventDate: b.nextDue, done: false, rung: false, title: `${(BILL_KINDS[b.kind] || BILL_KINDS.other).icon} ${b.name} due${b.amount ? ' · ' + fmt0(b.amount) : ''}` });
+    else b.reminderId = Store.addReminder({ title: `${(BILL_KINDS[b.kind] || BILL_KINDS.other).icon} ${b.name} due${b.amount ? ' · ' + fmt0(b.amount) : ''}`, remindAt: at, eventDate: b.nextDue, note: 'From Bills & subscriptions', bill: b.id }).id;
+  },
+  /** Does a new expense pay one of your bills? Name match, or same category and a close amount near the due date. */
+  matchFor(t) {
+    if (Money.kind(t) !== 'expense' || t.billId) return null;
+    const d = this.norm(t.description), near = (b) => !b.nextDue || Math.abs(Date.parse(b.nextDue) - Date.parse(t.date)) <= 12 * 864e5;
+    const byName = this.active().filter((b) => { const n = this.norm(b.name); return n && (d.includes(n) || (n.length > 3 && n.split(' ').every((w) => d.includes(w)))); });
+    if (byName.length === 1) return byName[0];
+    const byCat = this.active().filter((b) => b.category === t.category && b.amount && Math.abs(t.amount - b.amount) <= Math.max(1, b.amount * (b.variable ? 0.5 : 0.1)) && near(b));
+    return byCat.length === 1 ? byCat[0] : null;
+  },
+  /** Spending that repeats in your history but isn't tracked yet. Asked about, never added silently. */
+  detect() {
+    const since = toISODate(new Date(Date.now() - 200 * 864e5)), groups = {};
+    const dismissed = new Set(Store.state.settings?.billDismissed || []);
+    for (const t of Store.state.transactions) {
+      if (Money.kind(t) !== 'expense' || t.date < since || t.billId || t.planId || t.debtId) continue;
+      const key = this.norm(t.description) || t.category;
+      if (!key || key.length < 3) continue;
+      (groups[key] ||= []).push(t);
+    }
+    const tracked = new Set(this.list().map((b) => this.norm(b.name)));
+    const out = [];
+    for (const [key, ts] of Object.entries(groups)) {
+      const flagged = ts.some((t) => t.repeat);
+      if ((ts.length < 2 && !flagged) || tracked.has(key) || dismissed.has(key)) continue;
+      ts.sort((a, b) => a.date.localeCompare(b.date));
+      const gaps = ts.slice(1).map((t, i) => (Date.parse(t.date) - Date.parse(ts[i].date)) / 864e5);
+      const avg = gaps.length ? gaps.reduce((a, b) => a + b, 0) / gaps.length : 30;
+      const freq = flagged ? (ts.find((t) => t.repeat).repeat) : avg >= 25 && avg <= 35 ? 'month' : avg >= 6 && avg <= 8 ? 'week' : avg >= 80 && avg <= 100 ? 'quarter' : avg >= 350 && avg <= 380 ? 'year' : null;
+      if (!freq || !FREQS[freq]) continue;
+      const amts = ts.map((t) => t.amount), mean = amts.reduce((a, b) => a + b, 0) / amts.length;
+      if (!flagged && amts.some((a) => Math.abs(a - mean) > Math.max(5, mean * 0.35))) continue;   // amounts all over the place: probably not one bill
+      const last = ts.at(-1);
+      out.push({ key, name: last.description.replace(/\s*\(.*?\)\s*$/, '').slice(0, 40), amount: round2(last.amount), category: last.category, freq, count: ts.length, next: this.step(last.date, freq), variable: amts.some((a) => Math.abs(a - mean) > 1) });
+    }
+    return out;
+  },
+  dismiss(key) { const s = (Store.state.settings ||= {}); s.billDismissed = [...new Set([...(s.billDismissed || []), key])]; Store.save(); },
+  /** Two tracked bills that look like the same thing, and the same charge twice within 3 days. */
+  duplicates() {
+    const bs = this.active(), pairs = [];
+    for (let i = 0; i < bs.length; i++) for (let j = i + 1; j < bs.length; j++) {
+      const a = bs[i], b = bs[j], na = this.norm(a.name), nb = this.norm(b.name);
+      if (a.notDupOf === b.id || b.notDupOf === a.id) continue;
+      if ((na && na === nb) || (a.kind === 'subscription' && b.kind === 'subscription' && a.amount && a.amount === b.amount && a.category === b.category))
+        pairs.push({ type: 'bills', a, b, text: `“${a.name}” and “${b.name}” look like the same ${a.kind === 'subscription' ? 'subscription' : 'bill'}.` });
+    }
+    const since = toISODate(new Date(Date.now() - 45 * 864e5)), seen = (Store.state.settings?.dupOk || []);
+    const ex = Store.state.transactions.filter((t) => Money.kind(t) === 'expense' && t.date >= since).sort((a, b) => a.date.localeCompare(b.date));
+    for (let i = 0; i < ex.length; i++) for (let j = i + 1; j < ex.length; j++) {
+      const a = ex[i], b = ex[j];
+      if ((Date.parse(b.date) - Date.parse(a.date)) / 864e5 > 3) break;
+      if (a.amount === b.amount && this.norm(a.description) && this.norm(a.description) === this.norm(b.description) && !seen.includes(a.id + '|' + b.id))
+        pairs.push({ type: 'charge', a, b, text: `${escapeHTML(a.description)} ${fmt0(a.amount)} appears twice (${prettyDate(a.date)} and ${prettyDate(b.date)}). Charged twice?` });
+    }
+    return pairs;
+  },
+  monthlyTotal() {
+    const per = { week: 52 / 12, semimonth: 2, month: 1, quarter: 1 / 3, semiannual: 1 / 6, year: 1 / 12 };
+    return round2(this.active().reduce((x, b) => x + (b.amount || 0) * (per[b.freq] || 1), 0));
+  },
+};
+
+const POLICY_TYPES = {
+  life: { icon: '🕊️', label: 'Life', explain: 'Pays the people you name (your beneficiaries) if you pass away while the policy is active. Some plans (like VUL) also include an investment part whose value can go up or down.' },
+  health: { icon: '🏥', label: 'Health or HMO', explain: 'Pays for doctor visits, tests or hospital stays, up to the limits in your plan. Check what’s excluded and the yearly or per-illness limit.' },
+  vehicle: { icon: '🚗', label: 'Car or motorcycle', explain: 'CTPL covers injury to other people and is required to register a vehicle in the Philippines. Comprehensive coverage adds damage, theft and more, depending on your policy.' },
+  property: { icon: '🏠', label: 'Home or property', explain: 'Pays for damage to your home or things in it from the events your policy lists (for example fire, typhoon or flood). Events not listed aren’t covered.' },
+  travel: { icon: '✈️', label: 'Travel', explain: 'Covers emergencies while traveling, like medical costs or trip problems, during the dates on your policy.' },
+  other: { icon: '🛡️', label: 'Other', explain: 'Check your policy for what it covers, the limits, and what’s excluded.' },
+};
+const Policies = {
+  list() { return (Store.state.policies ||= []); },
+  active() { return this.list().filter((p) => !p.ended); },
+  get(id) { return this.list().find((p) => p.id === id) || null; },
+  masked(p) { const n = String(p.policyNo || ''); return n ? '•••• ' + n.slice(-4) : ''; },
+  /** Premiums are ordinary spending (category Insurance), linked so the next due date moves on. */
+  matchFor(t) {
+    if (Money.kind(t) !== 'expense' || t.policyId || !/insurance|premium|hmo|sun life|philam|axa|pru|manulife|maxicare|intellicare|medicard|fwd|allianz|pioneer|malayan/i.test(t.description + ' ' + t.category)) return null;
+    const d = t.description.toLowerCase(), act = this.active();
+    const named = act.filter((p) => (p.provider && d.includes(p.provider.toLowerCase())) || (p.name && d.includes(p.name.toLowerCase())) || (POLICY_TYPES[p.type] && d.includes(p.type)));
+    if (named.length === 1) return named[0];
+    return act.length === 1 ? act[0] : null;
+  },
+  afterPaid(p, t) {
+    t.prevDue = p.nextDue;
+    let next = p.nextDue || t.date, k = 0;
+    while (next <= t.date && k < 200) next = Bills.step(next, p.freq || 'year'), k++;
+    if (k === 0 && p.nextDue && p.nextDue > t.date) next = Bills.step(p.nextDue, p.freq || 'year');
+    p.nextDue = next; Store.save();
+  },
+};
+
+/** Everything due soon, in one list: bills, cards & loans, installments, insurance, renewals, other reminders. */
+const Timeline = {
+  items(days = 45) {
+    const today = toISODate(new Date()), end = toISODate(new Date(Date.now() + days * 864e5)), out = [];
+    for (const b of Bills.active()) if (b.nextDue && b.nextDue <= end) out.push({ date: b.nextDue, title: b.name, amount: b.amount, variable: b.variable, icon: (BILL_KINDS[b.kind] || BILL_KINDS.other).icon, type: 'bill', ref: b, overdue: b.nextDue < today });
+    for (const u of Debts.upcoming(days)) out.push({ date: u.date, title: u.title, amount: u.amount, icon: u.plan ? '🧾' : Accounts.icon(u.acc), type: u.plan ? 'plan' : 'debt', ref: u.acc, overdue: u.overdue || u.date < today });
+    for (const p of Policies.active()) {
+      if (p.nextDue && p.nextDue <= end) out.push({ date: p.nextDue, title: `${p.name || p.provider || POLICY_TYPES[p.type]?.label} premium`, amount: p.premium, icon: POLICY_TYPES[p.type]?.icon || '🛡️', type: 'premium', ref: p, overdue: p.nextDue < today });
+      if (p.renewal && p.renewal >= today && p.renewal <= end && p.renewal !== p.nextDue) out.push({ date: p.renewal, title: `${p.name || p.provider || POLICY_TYPES[p.type]?.label} renewal`, icon: '🔄', type: 'renewal', ref: p });
+    }
+    const linked = new Set([...Bills.list().map((b) => b.reminderId), ...Accounts.list().map((a) => a.reminderId), ...Debts.plans().map((p) => p.reminderId), ...Policies.list().map((p) => p.reminderId)].filter(Boolean));
+    for (const r of Store.state.reminders || []) {
+      if (r.done || linked.has(r.id)) continue;
+      const d = r.eventDate || toISODate(new Date(r.remindAt));
+      if (d >= today && d <= end) out.push({ date: d, title: r.title, icon: '⏰', type: 'reminder', ref: r });
+    }
+    return out.sort((a, b) => (b.overdue - a.overdue) || a.date.localeCompare(b.date));
+  },
+  totalDue(days = 30) { const end = toISODate(new Date(Date.now() + days * 864e5)); return round2(this.items(days).filter((i) => i.amount && i.date <= end).reduce((x, i) => x + i.amount, 0)); },
+};
+
+/* =========================================================================
+   RECORDS — a year of what you logged, organised for Philippine users.
+   Summaries only: never an official tax computation.
+   ========================================================================= */
+const DOC_KINDS = { receipt: '🧾 Receipt', invoice: '📄 Invoice', tax: '🏛️ Tax', government: '🪪 SSS / PhilHealth / Pag-IBIG', insurance: '🛡️ Insurance', contract: '📝 Contract', other: '📁 Other' };
+const Records = {
+  years() {
+    const ys = new Set([String(new Date().getFullYear())]);
+    for (const t of Store.state.transactions) ys.add(t.date.slice(0, 4));
+    return [...ys].sort().reverse();
+  },
+  govOf(t) {
+    const d = `${t.description} ${t.category}`.toLowerCase();
+    if (/\bsss\b/.test(d)) return 'SSS';
+    if (/phil\s?health/.test(d)) return 'PhilHealth';
+    if (/pag-?\s?ibig|hdmf|\bmp2\b/.test(d) && Money.kind(t) === 'expense') return 'Pag-IBIG';
+    return t.category === "Gov't Contributions" ? 'Other government' : null;
+  },
+  year(y) {
+    const tx = Store.state.transactions.filter((t) => t.date.startsWith(y));
+    const inc = {}, exp = {}, gov = {}, govMonths = {};
+    let business = { income: 0, expense: 0 }, personal = { income: 0, expense: 0 }, interest = 0, dividends = 0, gifts = 0;
+    for (const t of tx) {
+      const e = Money.earn(t), sp = Money.spend(t);
+      if (e) { inc[t.category] = round2((inc[t.category] || 0) + e); (t.business ? business : personal).income += e; }
+      if (sp) { exp[t.category] = round2((exp[t.category] || 0) + sp); (t.business ? business : personal).expense += sp; }
+      if (t.category === 'Interest & Fees') interest += t.amount;
+      if (t.category === 'Dividends') dividends += t.amount;
+      if (t.category === 'Gifts & Donations') gifts += t.amount;
+      const g = Money.kind(t) === 'expense' && this.govOf(t);
+      if (g) { gov[g] = round2((gov[g] || 0) + t.amount); (govMonths[g] ||= new Set()).add(t.date.slice(5, 7)); }
+    }
+    const sum = (o) => round2(Object.values(o).reduce((a, b) => a + b, 0));
+    const docs = (Store.state.documents || []).filter((d) => new Date(d.createdAt).getFullYear() === +y || (d.result?.receipt?.date || '').startsWith(y));
+    return { y, entries: tx.length, inc, exp, income: sum(inc), expense: sum(exp), gov, govMonths: Object.fromEntries(Object.entries(govMonths).map(([k, v]) => [k, v.size])),
+      business: { income: round2(business.income), expense: round2(business.expense) }, personal: { income: round2(personal.income), expense: round2(personal.expense) },
+      interest: round2(interest), dividends: round2(dividends), gifts: round2(gifts), docs };
+  },
+  docKind(d) {
+    if (d.kind) return d.kind;
+    const t = `${d.result?.docType || ''} ${d.result?.title || ''} ${d.name || ''}`.toLowerCase();
+    if (/receipt/.test(t)) return 'receipt';
+    if (/invoice|billing/.test(t)) return 'invoice';
+    if (/\bbir\b|tax|2316|1701|1700|2551|itr/.test(t)) return 'tax';
+    if (/\bsss\b|philhealth|pag-?ibig|hdmf/.test(t)) return 'government';
+    if (/insurance|policy|premium/.test(t)) return 'insurance';
+    if (/contract|lease|agreement|terms/.test(t)) return 'contract';
+    return 'other';
+  },
+  csv(y) {
+    const r = this.year(y), rows = [], q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`, push = (...c) => rows.push(c.map(q).join(','));
+    push(`Tiffo records ${y}`); push('Informational summary of what you logged. Not a tax computation.'); push('');
+    push('Date', 'Description', 'Kind', 'Category', 'Amount', 'Business?', 'Account', 'Government contribution');
+    for (const t of Store.sorted().filter((t) => t.date.startsWith(y))) push(t.date, t.description, KINDS[Money.kind(t)].label, t.category, t.amount.toFixed(2), t.business ? 'Business' : '', Accounts.get(Accounts.idOf(t))?.name || '', this.govOf(t) || '');
+    push(''); push('INCOME BY CATEGORY'); for (const [k, v] of Object.entries(r.inc).sort((a, b) => b[1] - a[1])) push(k, v.toFixed(2)); push('Total income', r.income.toFixed(2));
+    push(''); push('SPENDING BY CATEGORY'); for (const [k, v] of Object.entries(r.exp).sort((a, b) => b[1] - a[1])) push(k, v.toFixed(2)); push('Total spending', r.expense.toFixed(2));
+    push(''); push('BUSINESS vs PERSONAL', 'Income', 'Spending'); push('Business', r.business.income.toFixed(2), r.business.expense.toFixed(2)); push('Personal', r.personal.income.toFixed(2), r.personal.expense.toFixed(2));
+    push(''); push('GOVERNMENT CONTRIBUTIONS', 'Total', 'Months paid'); for (const [k, v] of Object.entries(r.gov)) push(k, v.toFixed(2), r.govMonths[k]);
+    push(''); push('OTHER'); push('Interest & fees paid', r.interest.toFixed(2)); push('Dividends received', r.dividends.toFixed(2)); push('Gifts & donations', r.gifts.toFixed(2));
+    push(''); push('DOCUMENTS'); for (const d of r.docs) push(DOC_KINDS[this.docKind(d)], d.result?.title || d.name || '', new Date(d.createdAt).toISOString().slice(0, 10));
+    return '﻿' + rows.join('\r\n');
+  },
+};
+
+/* =========================================================================
    RETIREMENT — simple projections with labelled assumptions. Never a promise.
    ========================================================================= */
 const Retire = {
@@ -2871,7 +3148,7 @@ const NetWorth = {
    ========================================================================= */
 const Backup = {
   FORMAT: 1,
-  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans', 'assets', 'holdings'],
+  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans', 'assets', 'holdings', 'bills', 'policies'],
   lastAt() { return Store.state.settings?.lastBackupAt || 0; },
 
   build() {
@@ -2954,7 +3231,7 @@ const Backup = {
     }
     const byId = (key, fix = (x) => x) => { const have = new Set((st[key] ||= []).map((x) => x.id)); for (const x of d[key]) if (x.id && !have.has(x.id)) st[key].push(fix(x)); };
     byId('pocketMoves', (m) => ({ ...m, pocketId: pocketMap[m.pocketId] || m.pocketId }));
-    byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories'); byId('plans', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('assets'); byId('holdings');
+    byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories'); byId('plans', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('assets'); byId('holdings'); byId('bills', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('policies');
     Store.adopt(st); Store.save();
     return { added, skipped };
   },
@@ -4287,7 +4564,7 @@ const Exporter = {
 const Nav = {
   PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More' },
   // Which page each card lives on.
-  OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', retire: 'plan', spending: 'plan', profit: 'plan',
+  OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', retire: 'plan', timeline: 'plan', bills: 'plan', insurance: 'plan', records: 'more', spending: 'plan', profit: 'plan',
     networth: 'money', accounts: 'money', invest: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
   page: 'home',
   pageOf(el) { return this.OF[el.dataset.tool] || 'more'; },
@@ -4579,7 +4856,7 @@ const UI = {
   renderAll() {
     // Each card draws on its own, so one problem never blanks out the rest of the app.
     for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
-      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderSyncStatus()]) {
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderTimeline(), () => this.renderBills(), () => this.renderPolicies(), () => this.renderRecords(), () => this.renderSyncStatus()]) {
       try { f(); } catch (e) { console.error('Render problem', e); }
     }
   },
@@ -4769,9 +5046,11 @@ const UI = {
         const t = Store.addTransaction({ type: 'expense', kind: 'expense', amount: round2(v.amount), category: v.category, date: v.date, accountId: v.account || Accounts.DEFAULT,
           description: `${name} (receipt)`, source: 'scan' });
         t.fresh = true;
+        this.linkObligations(t);
         if (btn) { btn.disabled = true; btn.textContent = '✓ Logged'; }
         this.renderAll();
-        toast(`Saved ${fmt(t.amount)} from the receipt.`, { action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id, true); this.renderAll(); } } });
+        const bl = t.billId && Bills.get(t.billId);
+        toast(`Saved ${fmt(t.amount)} from the receipt.${bl ? ` ✓ ${escapeHTML(bl.name)} paid, next ${escapeHTML(prettyDate(bl.nextDue))}` : ''}`, { action: { label: 'Undo', fn: () => { this.unlinkObligations(t); Store.removeTransaction(t.id, true); this.renderAll(); } } });
       },
     });
   },
@@ -4832,6 +5111,16 @@ const UI = {
     }
     // A bill that's due later becomes a reminder, not a payment.
     if (Parser.isBillDue(text)) {
+      // A bill you already track: just update its due date (and amount).
+      const dt = Parser.readDate(text), amt = Parser.extractAmount(text);
+      const b = Bills.active().find((x) => { const n = Bills.norm(x.name); return n && Bills.norm(text).includes(n); });
+      if (b && dt.future) {
+        const before = { nextDue: b.nextDue, amount: b.amount };
+        b.nextDue = dt.date; if (amt) b.amount = round2(amt.value);
+        Bills.syncReminder(b); Store.save(); $('#noteInput').value = ''; $('#parsePreview').innerHTML = ''; this.renderAll();
+        toast(`🔁 ${escapeHTML(b.name)} due ${escapeHTML(prettyDate(b.nextDue))}${amt ? ' · ' + fmt(b.amount) : ''}`, { action: { label: 'Undo', fn: () => { Object.assign(b, before); Bills.syncReminder(b); Store.save(); UI.renderAll(); } } });
+        return;
+      }
       const r = Store.addReminder(Reminders.parse(text));
       $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
       this.renderReminders();
@@ -4887,11 +5176,24 @@ const UI = {
       accountId, source: 'note', ...(it.person ? { person: it.person } : {}), ...(it.repeat ? { repeat: it.repeat } : {}), ...(pk ? { pocketId: pk.id } : {}),
     });
     t.fresh = true;
+    this.linkObligations(t);
     return t;
   },
 
+  /** A new expense that pays a tracked bill or insurance premium marks it paid and moves the due date. */
+  linkObligations(t) {
+    const b = Bills.matchFor(t);
+    if (b) { t.billId = b.id; Bills.afterPaid(b, t); return; }
+    const p = Policies.matchFor(t);
+    if (p) { t.policyId = p.id; if (t.category === 'Other Expense') t.category = 'Insurance'; Policies.afterPaid(p, t); }
+  },
+  unlinkObligations(t) {
+    if (t.billId && Bills.get(t.billId)) Bills.unpay(Bills.get(t.billId), t);
+    if (t.policyId && Policies.get(t.policyId) && t.prevDue) { Policies.get(t.policyId).nextDue = t.prevDue; Store.save(); }
+  },
+
   savedToast(saved, text = '') {
-    const undo = { label: 'Undo', fn: () => { saved.forEach((t) => Store.removeTransaction(t.id, true)); UI.renderAll(); } };
+    const undo = { label: 'Undo', fn: () => { saved.forEach((t) => this.unlinkObligations(t) || Store.removeTransaction(t.id, true)); UI.renderAll(); } };
     if (saved.length > 1) {
       const out = saved.reduce((a, t) => a + Money.cash(t), 0);
       toast(`✓ Saved ${saved.length} entries · ${out >= 0 ? '+' : '−'}${fmt(Math.abs(out))}`, { duration: 5500, action: undo });
@@ -4914,6 +5216,10 @@ const UI = {
     if (onCard) msg += ` · on ${escapeHTML(Accounts.get(t.accountId).name)} (you owe ${fmt0(Accounts.owedOn(Accounts.get(t.accountId)))})`;
     else if (Accounts.list().length > 1 && t.accountId && k !== 'transfer') msg += ` · ${escapeHTML(Accounts.get(t.accountId)?.name || '')}`;
     if (t.repeat) msg += ` · repeats ${({ day: 'daily', week: 'weekly', month: 'monthly', year: 'yearly' })[t.repeat]}`;
+    const bill = t.billId && Bills.get(t.billId), pol = t.policyId && Policies.get(t.policyId);
+    if (bill) msg += ` · ✓ ${escapeHTML(bill.name)} paid, next ${escapeHTML(prettyDate(bill.nextDue))}`;
+    if (pol) msg += ` · ✓ ${escapeHTML(pol.name || 'insurance')} premium paid${pol.nextDue ? ', next ' + escapeHTML(prettyDate(pol.nextDue)) : ''}`;
+    const trackable = k === 'expense' && !bill && !pol && t.repeat && FREQS[t.repeat];
     const pk = t.pocketId && Pockets.get(t.pocketId);
     if (pk) msg += ` · ${dir > 0 ? 'into' : 'from'} ${escapeHTML(pk.emoji + ' ' + pk.name)} (${fmt0(Pockets.balance(pk))} left)`;
     const bud = k === 'expense' && (Store.state.budgets || []).find((b) => b.category === t.category);
@@ -4921,7 +5227,9 @@ const UI = {
     if (bs) msg += bs.left >= 0 ? ` · 🎯 ${fmt0(bs.left)} left for ${escapeHTML(bud.name)}` : ` · ⚠️ ${escapeHTML(bud.name)} is ${fmt0(-bs.left)} over budget`;
     toast(msg, {
       duration: pk ? 7000 : 4500,
-      actions: [...(pk ? [{ label: 'Not from pocket', fn: () => { delete t.pocketId; Store.save(); UI.renderAll(); } }] : []), { label: 'Edit', fn: () => UI.editEntry?.(t.id) }],
+      actions: [...(pk ? [{ label: 'Not from pocket', fn: () => { delete t.pocketId; Store.save(); UI.renderAll(); } }] : []),
+        ...(trackable ? [{ label: 'Track as a bill', fn: () => UI.billForm(null, { name: t.description.replace(/\s*(every|each)\s+\w+|\bmonthly\b|\bweekly\b|\byearly\b/gi, '').replace(/[₱$]?\s?[\d,.]+/g, '').trim().slice(0, 40), amount: t.amount, category: t.category, freq: t.repeat, nextDue: Bills.step(t.date, t.repeat), kind: t.category === 'Entertainment' ? 'subscription' : 'bill', firstTx: t.id }) }] : []),
+        { label: 'Edit', fn: () => UI.editEntry?.(t.id) }],
       action: undo,
     });
   },
@@ -5091,7 +5399,9 @@ const UI = {
     }
     if (text.trim() && Pockets.isPocketNote(text)) { $('#parsePreview').innerHTML = this.pocketPreview(text); return; }
     if (text.trim() && Budgets.isBudget(text)) { $('#parsePreview').innerHTML = this.budgetPreview(text); return; }
-    if (text.trim() && Parser.isBillDue(text)) { $('#parsePreview').innerHTML = `Will set a <span class="font-semibold text-rose-700 dark:text-rose-400">⏰ reminder</span> for this bill (not a payment yet)`; return; }
+    if (text.trim() && Parser.isBillDue(text)) {
+      const tb = Bills.active().find((x) => { const n = Bills.norm(x.name); return n && Bills.norm(text).includes(n); });
+      if (tb && Parser.readDate(text).future) { $('#parsePreview').innerHTML = `Will update <b>${escapeHTML(tb.name)}</b>’s due date to ${escapeHTML(prettyDate(Parser.readDate(text).date))}`; return; } $('#parsePreview').innerHTML = `Will set a <span class="font-semibold text-rose-700 dark:text-rose-400">⏰ reminder</span> for this bill (not a payment yet)`; return; }
     const items = text.trim() ? Parser.parseMany(text) : [];
     if (!items.length) { $('#parsePreview').innerHTML = ''; return; }
     const p = items[0];
@@ -5317,6 +5627,7 @@ const UI = {
         { id: 'date', label: 'Date', type: 'date', value: t.date },
         { id: 'description', label: 'Note', value: t.description },
         { id: 'repeat', label: 'Repeats', type: 'select', value: t.repeat || '', options: [['', 'No'], ['week', 'Every week'], ['month', 'Every month'], ['year', 'Every year']], advanced: true },
+        { id: 'business', type: 'checkbox', label: 'This is for my business (shown separately in Records)', value: !!t.business, show: (v) => ['income', 'expense', 'refund'].includes(v.kind), advanced: true },
         ...(hist ? [{ id: 'hist', type: 'note', label: '', html: `<div class="font-semibold text-[12px] mb-1">Changes so far</div>${hist}`, advanced: true }] : []),
       ],
       danger: { label: 'Delete', fn: () => { this.closeForm(); this.deleteEntry(id); } },
@@ -5327,7 +5638,7 @@ const UI = {
         if (loanKinds.includes(v.kind) && !person) return 'Type who it was with.';
         if (v.kind === 'transfer' && v.from === v.to) return 'Pick two different accounts.';
         const cat = v.kind === 'income' ? v.catI : ['expense', 'refund'].includes(v.kind) ? v.catE : v.kind === 'gift_in' ? 'Gifts Received' : /^invest/.test(v.kind) ? 'Investments' : /^asset_/.test(v.kind) ? 'Assets' : v.kind === 'transfer' ? 'Transfer' : 'Loans';
-        const patch = { kind: v.kind, amount: round2(v.amount), category: cat, date: v.date, description: (v.description || t.description).slice(0, 120), repeat: v.repeat || undefined,
+        const patch = { kind: v.kind, amount: round2(v.amount), category: cat, date: v.date, description: (v.description || t.description).slice(0, 120), repeat: v.repeat || undefined, business: v.business || undefined,
           person: (loanKinds.includes(v.kind) || v.kind === 'gift_in') ? person || undefined : undefined };
         if (v.kind === 'transfer') Object.assign(patch, { fromAccountId: v.from, toAccountId: v.to, accountId: v.from });
         else Object.assign(patch, { accountId: v.account || Accounts.idOf(t), fromAccountId: undefined, toAccountId: undefined });
@@ -5365,6 +5676,218 @@ const UI = {
       b.closest('div.flex').remove(); toast('↩ Restored.');
     }, { once: false });
   },
+  /* ---------- coming up (timeline) ---------- */
+  renderTimeline() {
+    const items = Timeline.items(45);
+    $('#tlTotal').textContent = fmt0(Timeline.totalDue(30));
+    $('#tlEmpty').classList.toggle('hidden', !!items.length);
+    let lastWeek = null;
+    const weekOf = (iso) => { const d = new Date(iso + 'T00:00:00'), now = new Date(); now.setHours(0, 0, 0, 0); const diff = Math.floor((d - now) / 864e5); return diff < 0 ? 'Overdue' : diff < 7 ? 'This week' : diff < 14 ? 'Next week' : 'Later'; };
+    $('#tlList').innerHTML = items.map((it, i) => {
+      const wk = it.overdue ? 'Overdue' : weekOf(it.date), head = wk !== lastWeek ? `<li class="pt-2 pb-0.5 text-[11px] font-bold ${wk === 'Overdue' ? 'text-rose-600' : 'text-stone-400'}">${wk}</li>` : '';
+      lastWeek = wk;
+      const canPay = ['bill', 'debt', 'plan', 'premium'].includes(it.type);
+      return head + `<li data-tl="${i}" class="flex items-center gap-3 rounded-xl px-2 py-2 ${it.overdue ? 'bg-rose-50 dark:bg-rose-950/30' : 'hover:bg-stone-50 dark:hover:bg-stone-800/40'}">
+        <span class="w-12 shrink-0 text-center leading-tight"><span class="block text-[10px] font-semibold uppercase text-stone-400">${escapeHTML(new Date(it.date + 'T00:00:00').toLocaleDateString([], { month: 'short' }))}</span><span class="block text-lg font-bold tabular">${new Date(it.date + 'T00:00:00').getDate()}</span></span>
+        <span class="text-lg" aria-hidden="true">${escapeHTML(it.icon || '•')}</span>
+        <span class="flex-1 min-w-0 truncate font-medium">${escapeHTML(it.title)}</span>
+        <span class="tabular font-semibold whitespace-nowrap">${it.amount ? (it.variable ? '≈ ' : '') + fmt0(it.amount) : ''}</span>
+        ${canPay ? '<button type="button" class="tl-pay text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline">Paid</button>' : ''}
+      </li>`;
+    }).join('');
+    this._tl = items;
+  },
+  payTimelineItem(it) {
+    if (it.type === 'bill') return this.billPayForm(it.ref);
+    if (it.type === 'debt') return this.payDebtForm(it.ref);
+    if (it.type === 'plan') return this.payDebtForm(it.ref);
+    if (it.type === 'premium') return this.premiumPayForm(it.ref);
+  },
+
+  /* ---------- bills & subscriptions ---------- */
+  renderBills() {
+    const bs = Bills.list().slice().sort((a, b) => (a.stopped - b.stopped) || String(a.nextDue).localeCompare(String(b.nextDue)));
+    $('#billEmpty').classList.toggle('hidden', !!bs.length);
+    $('#billMonthly').textContent = bs.length ? `About ${fmt0(Bills.monthlyTotal())} a month in bills and subscriptions.` : '';
+    const today = toISODate(new Date());
+    $('#billList').innerHTML = bs.map((b) => `<li data-bill="${b.id}" class="flex items-center gap-3 py-2.5 ${b.stopped ? 'opacity-50' : ''}">
+      <span class="h-9 w-9 rounded-xl grid place-items-center bg-violet-50 dark:bg-violet-950/40 text-lg" aria-hidden="true">${(BILL_KINDS[b.kind] || BILL_KINDS.other).icon}</span>
+      <button type="button" class="bill-open flex-1 min-w-0 text-left"><span class="block font-semibold truncate">${escapeHTML(b.name)}</span>
+        <span class="block text-[11px] text-stone-500 dark:text-stone-400 truncate">${FREQS[b.freq] || ''}${b.stopped ? ' · stopped' : b.nextDue ? ` · <span class="${b.nextDue < today ? 'text-rose-600 font-semibold' : ''}">${b.nextDue < today ? 'was due' : 'next'} ${escapeHTML(prettyDate(b.nextDue))}</span>` : ''}${b.autopay ? ' · auto-debit' : ''}${b.lastPaid ? ` · paid ${escapeHTML(prettyDate(b.lastPaid).toLowerCase())}` : ''}</span></button>
+      <span class="text-right"><span class="block tabular font-bold">${b.amount ? (b.variable ? '≈ ' : '') + fmt0(b.amount) : '—'}</span>${b.stopped ? '' : '<button type="button" class="bill-pay text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline">Paid</button>'}</span>
+    </li>`).join('');
+    // Suggestions (ask first) and duplicates
+    const sug = Bills.detect().slice(0, 3), dups = Bills.duplicates().slice(0, 3);
+    this._billSug = sug; this._billDup = dups;
+    $('#billAlerts').innerHTML = sug.map((x, i) => `<div class="rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200/70 dark:border-violet-900/60 px-3 py-2 text-sm flex flex-wrap items-center gap-2">
+        <span class="flex-1 min-w-[12rem]">🔁 <b>${escapeHTML(x.name)}</b> ${x.variable ? '≈ ' : ''}${fmt0(x.amount)} looks ${FREQS[x.freq].toLowerCase()} (${x.count} time${x.count > 1 ? 's' : ''}). Track it as a bill?</span>
+        <button type="button" data-sug="${i}" class="bill-sug-yes rounded-lg bg-violet-700 text-white text-xs font-semibold px-2.5 py-1.5">Track it</button>
+        <button type="button" data-sug="${i}" class="bill-sug-no text-xs font-semibold text-stone-500 hover:underline">No thanks</button></div>`).join('')
+      + dups.map((d, i) => `<div class="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/70 dark:border-amber-900/60 px-3 py-2 text-sm flex flex-wrap items-center gap-2">
+        <span class="flex-1 min-w-[12rem]">⚠️ ${d.type === 'bills' ? escapeHTML(d.text) : d.text}</span>
+        ${d.type === 'charge' ? `<button type="button" data-dup="${i}" class="bill-dup-del rounded-lg border border-amber-300 text-xs font-semibold px-2.5 py-1.5">Delete the second one</button>` : ''}
+        <button type="button" data-dup="${i}" class="bill-dup-ok text-xs font-semibold text-stone-500 hover:underline">${d.type === 'charge' ? 'Both are real' : 'They’re different'}</button></div>`).join('');
+  },
+  billForm(b = null, pre = {}) {
+    const kinds = Object.entries(BILL_KINDS).map(([k, v]) => [k, `${v.icon} ${v.label}`]);
+    const cashOpts = Accounts.list().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]);
+    this.form({
+      title: b ? `Edit ${b.name}` : 'Add a bill or subscription', save: 'Save',
+      sub: b ? '' : 'Tiffo reminds you before it’s due, and marks it paid when you log the payment.',
+      fields: [
+        { id: 'name', label: 'Name', value: b?.name || pre.name || '', placeholder: 'e.g. Meralco, Netflix, Rent' },
+        { id: 'kind', label: 'Type', type: 'select', value: b?.kind || pre.kind || 'bill', options: kinds },
+        { id: 'amount', label: 'Amount', type: 'number', value: b?.amount ?? pre.amount ?? '' },
+        { id: 'variable', type: 'checkbox', label: 'The amount changes each time (like electricity)', value: b?.variable ?? !!pre.variable },
+        { id: 'freq', label: 'How often', type: 'select', value: b?.freq || pre.freq || 'month', options: Object.entries(FREQS) },
+        { id: 'nextDue', label: 'Next due date', type: 'date', value: b?.nextDue || pre.nextDue || Debts.addPeriods(toISODate(new Date()), 1) },
+        { id: 'category', label: 'Category', type: 'select', value: b?.category || pre.category || 'Utilities', options: this.catOptions('expense') },
+        { id: 'account', label: 'Usually paid from', type: 'select', value: b?.accountId || Accounts.DEFAULT, options: cashOpts, show: () => cashOpts.length > 1, advanced: true },
+        { id: 'autopay', type: 'checkbox', label: 'It’s auto-debited (Tiffo still reminds you; log it when it’s charged)', value: !!b?.autopay, advanced: true },
+        { id: 'remindDays', label: 'Remind me this many days before', type: 'number', value: b?.remindDays ?? 1, advanced: true },
+      ],
+      danger: b ? { label: b.stopped ? 'Start again' : 'Stop tracking', fn: () => { this.closeForm(); b.stopped = !b.stopped; Bills.syncReminder(b); Store.save(); this.renderAll(); toast(b.stopped ? `Stopped tracking ${escapeHTML(b.name)}. Past payments stay in your records.` : `Tracking ${escapeHTML(b.name)} again.`); } } : null,
+      onSave: (v) => {
+        if (!v.name) return 'Give it a name.';
+        if (!v.nextDue) return 'Pick the next due date.';
+        if (v.amount != null && v.amount < 0) return 'The amount can’t be negative.';
+        const dupe = Bills.active().find((x) => x !== b && Bills.norm(x.name) && Bills.norm(x.name) === Bills.norm(v.name));
+        if (dupe && !this._form.dupeOk) { this._form.dupeOk = true; return `You already track “${dupe.name}”. Press Save again if this is a different one.`; }
+        const x = b || { id: uid(), createdAt: Date.now() };
+        Object.assign(x, { name: v.name.slice(0, 40), kind: v.kind, amount: v.amount ? round2(v.amount) : null, variable: !!v.variable, freq: v.freq, nextDue: v.nextDue, day: +v.nextDue.slice(8, 10),
+          category: v.category, accountId: v.account || Accounts.DEFAULT, autopay: !!v.autopay, remindDays: Math.max(0, Math.min(30, v.remindDays ?? 1)) });
+        if (!b) Bills.list().push(x);
+        if (pre.firstTx) { const t0 = Store.state.transactions.find((t) => t.id === pre.firstTx); if (t0 && !t0.billId) { t0.billId = x.id; x.lastPaid = t0.date; } }
+        Bills.syncReminder(x); Store.save(); this.renderAll();
+        toast(b ? 'Saved.' : `🔁 Tracking ${escapeHTML(x.name)} · next ${escapeHTML(prettyDate(x.nextDue))}`);
+      },
+    });
+  },
+  billPayForm(b) {
+    const cashOpts = Accounts.list().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]);
+    this.form({
+      title: `Paid ${b.name}`, save: 'Save payment', sub: `Due ${prettyDate(b.nextDue)}. This counts as spending (${b.category}).`,
+      fields: [
+        { id: 'amount', label: 'Amount paid', type: 'number', value: b.amount ?? '' },
+        { id: 'account', label: 'Paid from', type: 'select', value: b.accountId || Accounts.DEFAULT, options: cashOpts, show: () => cashOpts.length > 1 },
+        { id: 'date', label: 'Date paid', type: 'date', value: toISODate(new Date()) },
+      ],
+      onSave: (v) => {
+        if (!v.amount || v.amount <= 0) return 'Type the amount.';
+        const t = Bills.pay(b, { amount: v.amount, date: v.date, accountId: v.account || Accounts.DEFAULT });
+        if (b.variable) b.amount = round2(v.amount);
+        Store.save(); this.renderAll();
+        toast(`✓ ${escapeHTML(b.name)} paid · next ${escapeHTML(prettyDate(b.nextDue))}`, { action: { label: 'Undo', fn: () => { Bills.unpay(b, t); Store.removeTransaction(t.id, true); UI.renderAll(); } } });
+      },
+    });
+  },
+
+  /* ---------- insurance ---------- */
+  renderPolicies() {
+    const ps = Policies.list();
+    $('#polEmpty').classList.toggle('hidden', !!ps.length);
+    $('#polList').innerHTML = ps.map((p) => { const ty = POLICY_TYPES[p.type] || POLICY_TYPES.other; return `<li data-pol="${p.id}" class="py-2.5 ${p.ended ? 'opacity-50' : ''}"><button type="button" class="w-full flex items-center gap-3 text-left">
+      <span class="h-9 w-9 rounded-xl grid place-items-center bg-emerald-50 dark:bg-emerald-950/40 text-lg" aria-hidden="true">${ty.icon}</span>
+      <span class="flex-1 min-w-0"><span class="block font-semibold truncate">${escapeHTML(p.name || ty.label)}${p.provider ? ` <span class="font-normal text-stone-500">· ${escapeHTML(p.provider)}</span>` : ''}</span>
+        <span class="block text-[11px] text-stone-500 dark:text-stone-400 truncate">${p.coverage ? `covers ${fmt0(p.coverage)} · ` : ''}${p.premium ? `${fmt0(p.premium)} ${(FREQS[p.freq] || '').toLowerCase()}` : ''}${p.nextDue ? ` · next ${escapeHTML(prettyDate(p.nextDue))}` : ''}${p.renewal ? ` · renews ${escapeHTML(prettyDate(p.renewal))}` : ''}</span></span>
+    </button></li>`; }).join('');
+  },
+  policyForm(p = null, pre = {}) {
+    const types = Object.entries(POLICY_TYPES).map(([k, v]) => [k, `${v.icon} ${v.label}`]);
+    const docs = (Store.state.documents || []).map((d) => [d.id, `${d.result?.title || d.name || 'Document'} · ${new Date(d.createdAt).toLocaleDateString()}`]);
+    this.form({
+      title: p ? `Edit ${p.name || 'policy'}` : 'Add an insurance policy', save: 'Save', sub: p ? '' : 'Only the basics are needed. Everything else is optional.',
+      fields: [
+        { id: 'type', label: 'Type', type: 'select', value: p?.type || pre.type || 'health', options: types },
+        { id: 'explain', type: 'note', label: '', html: '', show: () => false },
+        { id: 'provider', label: 'Insurance company', value: p?.provider || '', placeholder: 'e.g. Sun Life, Maxicare, Pioneer' },
+        { id: 'name', label: 'Plan or policy name (optional)', value: p?.name || '', placeholder: 'e.g. HMO for family' },
+        { id: 'premium', label: 'Premium', type: 'number', value: p?.premium ?? pre.premium ?? '' },
+        { id: 'freq', label: 'Paid', type: 'select', value: p?.freq || 'year', options: Object.entries(FREQS) },
+        { id: 'nextDue', label: 'Next premium due (optional)', type: 'date', value: p?.nextDue || '' },
+        { id: 'coverage', label: 'Coverage amount (optional)', type: 'number', value: p?.coverage ?? '', advanced: true },
+        { id: 'renewal', label: 'Renewal or expiry date (optional)', type: 'date', value: p?.renewal || '', advanced: true },
+        { id: 'policyNo', label: 'Policy number (optional, shown hidden)', value: p?.policyNo || '', advanced: true, hint: 'Shown as •••• and the last 4 digits. Never sent to the AI or put in CSV exports. It is in your backup file and synced to your account.' },
+        { id: 'beneficiaries', label: 'Beneficiaries (optional)', value: p?.beneficiaries || '', advanced: true, placeholder: 'e.g. Mom, my daughter' },
+        ...(docs.length ? [{ id: 'docId', label: 'Linked document (optional)', type: 'select', value: p?.docId || '', options: [['', 'None'], ...docs], advanced: true }] : []),
+        { id: 'note', label: 'Private note (optional)', type: 'textarea', value: p?.note || '', advanced: true },
+      ],
+      danger: p ? { label: p.ended ? 'Mark active' : 'Policy ended', fn: () => { this.closeForm(); p.ended = !p.ended; Store.save(); this.renderAll(); } } : null,
+      onSave: (v) => {
+        if (!v.provider && !v.name) return 'Type the insurance company or the plan name.';
+        if (v.premium != null && v.premium < 0) return 'The premium can’t be negative.';
+        const x = p || { id: uid(), createdAt: Date.now() };
+        Object.assign(x, { type: v.type, provider: (v.provider || '').slice(0, 40), name: (v.name || '').slice(0, 40), premium: v.premium ? round2(v.premium) : null, freq: v.freq,
+          nextDue: v.nextDue || null, coverage: v.coverage ? round2(v.coverage) : null, renewal: v.renewal || null, policyNo: (v.policyNo || '').replace(/\s+/g, '').slice(0, 40) || null,
+          beneficiaries: (v.beneficiaries || '').slice(0, 200) || null, docId: v.docId || null, note: (v.note || '').slice(0, 500) || null });
+        if (!p) Policies.list().push(x);
+        Store.save(); this.renderAll(); toast(p ? 'Saved.' : `🛡️ Added ${escapeHTML(x.name || x.provider)}.`);
+      },
+    });
+  },
+  policyView(p) {
+    const ty = POLICY_TYPES[p.type] || POLICY_TYPES.other, doc = p.docId && (Store.state.documents || []).find((d) => d.id === p.docId);
+    const paid = Store.state.transactions.filter((t) => t.policyId === p.id), yr = String(new Date().getFullYear());
+    this.form({
+      title: `${ty.icon} ${p.name || ty.label}`, save: 'Record a premium', sub: [p.provider, ty.label].filter(Boolean).join(' · '),
+      fields: [
+        { id: 'what', type: 'note', label: '', html: `<div><b>What this kind of insurance does:</b> ${escapeHTML(ty.explain)}</div>
+          <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5">${p.coverage ? `<span>Coverage</span><b class="text-right tabular">${fmt(p.coverage)}</b>` : ''}${p.premium ? `<span>Premium</span><span class="text-right tabular">${fmt(p.premium)} ${(FREQS[p.freq] || '').toLowerCase()}</span>` : ''}
+          ${p.nextDue ? `<span>Next premium</span><span class="text-right">${escapeHTML(prettyDate(p.nextDue))}</span>` : ''}${p.renewal ? `<span>Renewal / expiry</span><span class="text-right">${escapeHTML(prettyDate(p.renewal))}</span>` : ''}
+          <span>Paid this year</span><span class="text-right tabular">${fmt(paid.filter((t) => t.date.startsWith(yr)).reduce((a, t) => a + t.amount, 0))}</span>
+          ${p.policyNo ? `<span>Policy number</span><span class="text-right"><span id="polNo" data-shown="0" class="tabular">${escapeHTML(Policies.masked(p))}</span> <button type="button" id="polNoBtn" class="underline text-xs">Show</button></span>` : ''}
+          ${p.beneficiaries ? `<span>Beneficiaries</span><span class="text-right">${escapeHTML(p.beneficiaries)}</span>` : ''}</div>
+          ${doc ? `<div class="mt-2">📎 <button type="button" id="polDoc" class="underline">${escapeHTML(doc.result?.title || doc.name || 'Linked document')}</button></div>` : ''}
+          ${p.note ? `<div class="mt-2 opacity-80">🔒 ${escapeHTML(p.note)}</div>` : ''}
+          <div class="mt-2"><button type="button" id="polEdit" class="underline font-semibold">Edit details</button></div>` },
+      ],
+      onSave: () => setTimeout(() => this.premiumPayForm(p), 0),
+    });
+    $('#polNoBtn')?.addEventListener('click', () => { const el = $('#polNo'), on = el.dataset.shown === '1'; el.textContent = on ? Policies.masked(p) : p.policyNo; el.dataset.shown = on ? '0' : '1'; $('#polNoBtn').textContent = on ? 'Show' : 'Hide'; });
+    $('#polEdit').addEventListener('click', () => { this.closeForm(); this.policyForm(p); });
+    $('#polDoc')?.addEventListener('click', () => { this.closeForm(); Nav.go('more'); this.renderDocResult(doc.result, { thumb: doc.thumb }); $('[data-tool="translator"]').scrollIntoView({ behavior: 'smooth' }); });
+  },
+  premiumPayForm(p) {
+    const cashOpts = Accounts.list().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]);
+    this.form({
+      title: `Paid ${p.name || p.provider} premium`, save: 'Save', sub: 'Insurance premiums count as spending (Insurance).',
+      fields: [
+        { id: 'amount', label: 'Amount', type: 'number', value: p.premium ?? '' },
+        { id: 'account', label: 'Paid from', type: 'select', value: Accounts.DEFAULT, options: cashOpts, show: () => cashOpts.length > 1 },
+        { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) },
+      ],
+      onSave: (v) => {
+        if (!v.amount || v.amount <= 0) return 'Type the amount.';
+        const t = Store.addTransaction({ kind: 'expense', amount: round2(v.amount), category: 'Insurance', date: v.date, accountId: v.account || Accounts.DEFAULT, policyId: p.id, description: `${p.name || p.provider} premium`, source: 'insurance' });
+        Policies.afterPaid(p, t); this.renderAll();
+        toast(`🛡️ Premium paid${p.nextDue ? ` · next ${escapeHTML(prettyDate(p.nextDue))}` : ''}`, { action: { label: 'Undo', fn: () => { this.unlinkObligations(t); Store.removeTransaction(t.id, true); UI.renderAll(); } } });
+      },
+    });
+  },
+
+  /* ---------- records ---------- */
+  renderRecords() {
+    const sel = $('#recYear'), years = Records.years();
+    const want = sel.value && years.includes(sel.value) ? sel.value : years[0];
+    sel.innerHTML = years.map((y) => `<option ${y === want ? 'selected' : ''}>${y}</option>`).join('');
+    const r = Records.year(want);
+    const top = (o) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k, v]) => `<div class="flex justify-between gap-2"><span class="truncate">${CATEGORIES[k]?.icon || '•'} ${escapeHTML(k)}</span><span class="tabular">${fmt0(v)}</span></div>`).join('') || '<div class="text-stone-500">Nothing yet.</div>';
+    const govRows = ['SSS', 'PhilHealth', 'Pag-IBIG', 'Other government'].filter((g) => r.gov[g]).map((g) => `<div class="flex justify-between"><span>${g}</span><span class="tabular">${fmt0(r.gov[g])} <span class="text-[11px] text-stone-500">· ${r.govMonths[g]} month${r.govMonths[g] > 1 ? 's' : ''}</span></span></div>`).join('');
+    const box = (title, body, tone = 'stone') => `<div class="rounded-xl border border-stone-200 dark:border-stone-800 p-3"><div class="text-xs font-bold text-${tone}-700 dark:text-${tone}-300 mb-1">${title}</div><div class="text-sm space-y-0.5">${body}</div></div>`;
+    $('#recSummary').innerHTML = `<div class="grid sm:grid-cols-2 gap-3">
+      ${box(`Income · ${fmt0(r.income)}`, top(r.inc), 'teal')}
+      ${box(`Spending · ${fmt0(r.expense)}`, top(r.exp), 'orange')}
+      ${box('SSS, PhilHealth &amp; Pag-IBIG', govRows || '<div class="text-stone-500">None logged. Type e.g. “SSS contribution 1,350”.</div>')}
+      ${box('Business vs personal', `<div class="flex justify-between"><span>Business</span><span class="tabular">${fmt0(r.business.income)} in · ${fmt0(r.business.expense)} out</span></div><div class="flex justify-between"><span>Personal</span><span class="tabular">${fmt0(r.personal.income)} in · ${fmt0(r.personal.expense)} out</span></div><div class="text-[11px] text-stone-500 mt-1">Mark an entry as business when you edit it.</div>`)}
+    </div>
+    <div class="mt-2 text-xs text-stone-500">${r.entries} entries in ${r.y}${r.interest ? ` · ${fmt0(r.interest)} interest & fees paid` : ''}${r.dividends ? ` · ${fmt0(r.dividends)} dividends` : ''}${r.gifts ? ` · ${fmt0(r.gifts)} gifts & donations` : ''}</div>`;
+    const kind = $('#recDocKind').value, docs = (Store.state.documents || []).filter((d) => !kind || Records.docKind(d) === kind);
+    $('#recDocs').innerHTML = docs.map((d) => `<li data-rdoc="${d.id}" class="flex items-center gap-2 py-2"><span class="text-xs whitespace-nowrap">${DOC_KINDS[Records.docKind(d)]}</span>
+      <button type="button" class="rdoc-open flex-1 min-w-0 truncate text-left font-medium hover:underline">${escapeHTML(d.result?.title || d.name || 'Document')}</button>
+      <span class="text-[11px] text-stone-500 whitespace-nowrap">${escapeHTML(new Date(d.createdAt).toLocaleDateString())}</span>
+      <select class="rdoc-kind rounded border border-stone-200 dark:border-stone-700 bg-transparent text-[11px] px-1 py-0.5" aria-label="Document type">${Object.entries(DOC_KINDS).map(([k, v]) => `<option value="${k}" ${k === Records.docKind(d) ? 'selected' : ''}>${v.replace(/^\S+\s/, '')}</option>`).join('')}</select></li>`).join('') || '<li class="py-2 text-stone-500">No documents yet. Scan or paste one on this tab (Legalese / Document Translator).</li>';
+  },
+
   /* ---------- retirement planner ---------- */
   renderRetire() {
     const p = Retire.inputs();
@@ -6803,6 +7326,31 @@ const UI = {
     $('#addCardBtn').addEventListener('click', () => this.accountForm(null, 'credit'));
     $('#addAssetBtn').addEventListener('click', () => this.assetForm());
     $('#addHoldingBtn').addEventListener('click', () => this.holdingForm());
+    $('#addBillBtn').addEventListener('click', () => this.billForm());
+    $('#addPolicyBtn').addEventListener('click', () => this.policyForm());
+    $('#tlList').addEventListener('click', (e) => { const li = e.target.closest('[data-tl]'); const it = li && this._tl?.[+li.dataset.tl]; if (!it) return;
+      if (e.target.closest('.tl-pay')) this.payTimelineItem(it);
+      else if (it.type === 'bill') this.billForm(it.ref); else if (it.type === 'premium' || it.type === 'renewal') this.policyView(it.ref); else if (it.type === 'debt' || it.type === 'plan') this.debtView(it.ref); });
+    $('#billList').addEventListener('click', (e) => { const li = e.target.closest('[data-bill]'); const b = li && Bills.get(li.dataset.bill); if (!b) return; e.target.closest('.bill-pay') ? this.billPayForm(b) : this.billForm(b); });
+    $('#billAlerts').addEventListener('click', (e) => {
+      const yes = e.target.closest('.bill-sug-yes'), no = e.target.closest('.bill-sug-no'), del = e.target.closest('.bill-dup-del'), ok = e.target.closest('.bill-dup-ok');
+      if (yes) { const x = this._billSug[+yes.dataset.sug]; this.billForm(null, { name: x.name, amount: x.amount, category: x.category, freq: x.freq, nextDue: x.next, variable: x.variable, kind: x.category === 'Entertainment' ? 'subscription' : x.category === 'Rent' ? 'rent' : 'bill' }); }
+      if (no) { Bills.dismiss(this._billSug[+no.dataset.sug].key); this.renderBills(); }
+      if (del) { const d = this._billDup[+del.dataset.dup]; this.deleteEntry(d.b.id); }
+      if (ok) { const d = this._billDup[+ok.dataset.dup], st = (Store.state.settings ||= {});
+        if (d.type === 'charge') st.dupOk = [...(st.dupOk || []), d.a.id + '|' + d.b.id]; else { d.b.notDupOf = d.a.id; }
+        Store.save(); this.renderBills(); }
+    });
+    $('#polList').addEventListener('click', (e) => { const li = e.target.closest('[data-pol]'); const p = li && Policies.get(li.dataset.pol); if (p) this.policyView(p); });
+    $('#recYear').addEventListener('change', () => this.renderRecords());
+    $('#recDocKind').addEventListener('change', () => this.renderRecords());
+    $('#recCsvBtn').addEventListener('click', () => {
+      const y = $('#recYear').value, csv = Records.csv(y);
+      try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = `tiffo-records-${y}.csv`; document.body.appendChild(a); a.click(); a.remove(); toast(`⬇ Records for ${y} downloaded.`); }
+      catch (err) { toast('This browser blocked the download.'); }
+    });
+    $('#recDocs').addEventListener('click', (e) => { const li = e.target.closest('[data-rdoc]'); const d = li && (Store.state.documents || []).find((x) => x.id === li.dataset.rdoc); if (d && e.target.closest('.rdoc-open')) { this.renderDocResult(d.result, { thumb: d.thumb }); $('[data-tool="translator"]').scrollIntoView({ behavior: 'smooth' }); } });
+    $('#recDocs').addEventListener('change', (e) => { const sel = e.target.closest('.rdoc-kind'); const d = sel && (Store.state.documents || []).find((x) => x.id === sel.closest('[data-rdoc]').dataset.rdoc); if (d) { d.kind = sel.value; Store.save(); this.renderRecords(); } });
     this.bindRetire();
     $('#invList').addEventListener('click', (e) => { const li = e.target.closest('[data-hold]'); const h = li && Invest.get(li.dataset.hold); if (h) this.holdingView(h); });
     $('#nwOwnList').addEventListener('click', (e) => { const li = e.target.closest('[data-asset]'); const a = li && Assets.get(li.dataset.asset); if (a) this.assetView(a); });
