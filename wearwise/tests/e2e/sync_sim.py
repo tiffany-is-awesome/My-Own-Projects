@@ -4,7 +4,7 @@ import json, time, base64, re, sys
 from urllib.parse import urlparse, parse_qs
 from playwright.sync_api import sync_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 and sys.argv[1].startswith('http') else 'http://localhost:8765/wearwise.html'
-TABLE = 'unique_ava_data' if 'old-table' in sys.argv else 'wearwise_data'   # 'old-table': before the database rename
+TABLE = 'wearwise_data'
 res = []
 def ok(n, c, d=''): res.append(bool(c)); print('PASS' if c else 'FAIL', n, d)
 

@@ -1,7 +1,7 @@
 -- Wearwise: cloud storage for each signed-in user's closet, outfits, calendar and lookbooks.
 -- Run this once in Supabase: SQL Editor → New query → paste → Run. Safe to run again.
 -- (Same project as Tiffo: accounts are shared, data is kept in its own table.)
--- The site also still works with the older table name public.unique_ava_data until this has been run.
+-- Applied to the live project on 2026-11-23.
 
 -- 1) If the old table exists, rename it (keeps any data and its access rules).
 do $$ begin
