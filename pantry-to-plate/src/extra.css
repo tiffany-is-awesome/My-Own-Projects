@@ -544,3 +544,9 @@ aside.gc-ings b{color:var(--accent)}
 .jarvis i{position:absolute;left:0;right:0;bottom:0;background:#D9A066}
 .jarvis.jar-empty{border-style:dashed}
 @media (max-width:380px){.levels{grid-template-columns:repeat(2,1fr)}}
+/* Sign in with Puter dialog */
+.signin-art .ill{width:120px;margin:0 auto 4px}
+.signin-list{list-style:none;padding:0;margin:6px 0 14px;display:grid;gap:10px}
+.signin-list li{display:flex;gap:10px;align-items:flex-start;text-align:left;line-height:1.45}
+.signin-list .ic{color:var(--accent);width:22px;height:22px;flex:0 0 22px;margin-top:1px}
+#authBox .btn.big[data-act=puter-connect]{width:100%;justify-content:center}
