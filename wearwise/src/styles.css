@@ -612,3 +612,8 @@ img { max-width: 100%; }
 .sync-pill { position: fixed; right: 14px; bottom: 14px; z-index: 60; background: var(--ink); color: #fff; font-size: 12px; padding: 8px 12px; }
 .sync-dot.offline, .sync-dot.conflict { background: var(--warn); }
 @media (max-width: 760px) { .sync-pill { bottom: 82px; } .sync-banner { top: 60px; } }
+
+/* Shown for a moment while photos are read back from this device */
+.boot { min-height: 60vh; display: grid; place-items: center; color: var(--ink-3); font-size: 14px; animation: bootIn .3s .25s both; }
+@keyframes bootIn { from { opacity: 0; } }
+.warn-text { color: #9a3b1b; }

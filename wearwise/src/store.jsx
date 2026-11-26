@@ -6,7 +6,8 @@
 //   outfits    saved looks: { id, name, profileId, slots, context, stage, favorite, createdAt }
 //   catalogs   lookbooks & trips (per profile)
 //   ensembles  saved family looks: { id, name, context, members: [{ profileId, slots }] }
-import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { forDevice, fromDevice, local, refsIn } from './photos.js';
 import { DEMO_CLOSET, DEMO_OUTFITS, DEMO_CATALOGS, BAG_ARTS } from './data/closet.js';
 import { DEMO_FAMILY } from './data/family.js';
 import { SAMPLE_INSPIRATION } from './ai/inspiration.js';
@@ -261,6 +262,7 @@ function reducer(state, a) {
 
     case 'DELETE_ALL': return { ...initialState(), onboarded: true };
     case 'RESET': return { ...initialState(), onboarded: true };
+    case 'RESTORE': return a.state; // the same state with its photos filled in from this device
     case 'HYDRATE': return { ...migrate(a.state), onboarded: true };
     default: return state;
   }
@@ -270,9 +272,34 @@ const Ctx = createContext(null);
 
 export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, undefined, load);
+  // Photos are saved in IndexedDB (see photos.js). Until they are read back, the app waits (a moment).
+  const [ready, setReady] = useState(() => refsIn(state).size === 0);
+  const [deviceSave, setDeviceSave] = useState('ok'); // ok | full
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* quota or private mode: keep in memory */ }
-  }, [state]);
+    if (ready) return;
+    fromDevice(state).then((s) => { dispatch({ type: 'RESTORE', state: s }); setReady(true); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save to this device. One save at a time; if the closet changes meanwhile, the newest version is saved next.
+  const queued = useRef(null), running = useRef(false), lastPrune = useRef(0);
+  useEffect(() => {
+    if (!ready) return;
+    queued.current = state;
+    if (running.current) return;
+    running.current = true;
+    (async () => {
+      while (queued.current) {
+        const next = queued.current; queued.current = null;
+        const saved = await forDevice(next);
+        try { localStorage.setItem(KEY, JSON.stringify(saved)); setDeviceSave('ok'); }
+        catch { setDeviceSave('full'); } // quota or private mode: kept in memory for now
+        const used = refsIn(saved);
+        if (!used.size) await local.clear().catch(() => {}); // nothing uses any photo (e.g. signed out, deleted)
+        else if (Date.now() - lastPrune.current > 10 * 60e3) { lastPrune.current = Date.now(); await local.prune(used).catch(() => {}); }
+      }
+      running.current = false;
+    })();
+  }, [state, ready]);
 
   const api = useMemo(() => {
     const index = new Map(state.garments.map((g) => [g.id, g]));
@@ -287,10 +314,10 @@ export function StoreProvider({ children }) {
     const hasDemo = state.garments.some((g) => g.demo) || state.profiles.some((p) => p.demo);
     const historyOf = (pid) => state.history.filter((h) => h.profileId === pid);
     const personal = preferenceProfile(historyOf(profile.id), get);
-    return { state, dispatch, get, resolve, owned, pool, profile, closetOf, outfitsOf, scoreOf, hasDemo, historyOf, personal };
-  }, [state]);
+    return { state, dispatch, get, resolve, owned, pool, profile, closetOf, outfitsOf, scoreOf, hasDemo, historyOf, personal, deviceSave };
+  }, [state, deviceSave]);
 
-  return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={api}>{ready ? children : <div className="boot" aria-busy="true">Opening your closet…</div>}</Ctx.Provider>;
 }
 
 export const useStore = () => useContext(Ctx);

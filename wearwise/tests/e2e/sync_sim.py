@@ -25,6 +25,8 @@ def handle(route, request):
     if '/auth/v1/' in u.path:
         if u.path.endswith('/logout'): return route.fulfill(status=204, body='')
         return route.fulfill(status=200, content_type='application/json', body=json.dumps(USER if u.path.endswith('/user') else SESSION))
+    if '/storage/v1/object/list/' in u.path:  # the demo closet has no photos, so the account has no photo files
+        return route.fulfill(status=200, content_type='application/json', body='[]')
     m = re.search(r'/rest/v1/(\w+)', u.path)
     if not m: return route.fulfill(status=404, body='')
     if m.group(1) != TABLE:
