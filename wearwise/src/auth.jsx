@@ -1,5 +1,5 @@
-// Accounts (Supabase Auth) + cloud sync of the whole wardrobe to public.wearwise_data
-// (the database table keeps its original name; renaming it would break signed-in users mid-session).
+// Accounts (Supabase Auth) + cloud sync of the whole wardrobe: one row in public.wearwise_data per user,
+// with the photos as separate private files in Supabase Storage (see photos.js).
 
 // Keep people signed in across the rename: move the old sign-in key once.
 function authKey() {
@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { CONFIG } from './config.js';
 import { useStore } from './store.jsx';
 import { useToast } from './components/common.jsx';
+import { forCloud, fromCloud, pruneCloud } from './photos.js';
 
 const configured = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY);
 export const supabase = configured
@@ -132,18 +133,30 @@ export function useCloudSync() {
 
   const fail = useCallback((error) => {
     const m = String(error?.message || error?.code || '');
-    if (/does not exist|PGRST205|42P01|schema cache/i.test(m + (error?.code || ''))) {
+    if (/does not exist|PGRST205|42P01|schema cache|bucket not found/i.test(m + (error?.code || ''))) {
       setStatus('needs-setup'); setMessage('Cloud storage isn\'t set up yet. Run supabase/wearwise.sql once in Supabase.');
     } else if (typeof navigator !== 'undefined' && navigator.onLine === false || /Failed to fetch|NetworkError|network/i.test(m)) {
       setStatus('offline'); setMessage('No connection. Your changes are kept on this device and will be saved when you\'re back online.');
     } else { setStatus('error'); setMessage(niceError(error)); }
   }, []);
 
+  const busy = useRef(false), again = useRef(false), changes = useRef(0), lastPrune = useRef(0);
   const save = useCallback(async () => {
     if (!supabase || !user || readyFor.current !== user.id || syncControl.paused) return;
+    if (busy.current) { again.current = true; return; } // one save at a time (two at once would look like a conflict)
+    busy.current = true;
+    try { await saveOnce(); } finally { busy.current = false; }
+    if (again.current) { again.current = false; if (dirty.current) save(); }
+  }, [user, fail]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveOnce = async () => {
     const T = await cloudTable();
     setStatus('saving');
-    const payload = { data: slim(latest.current), updated_at: new Date().toISOString() };
+    const at = changes.current;
+    let data;
+    try { data = await forCloud(supabase, user.id, slim(latest.current)); } // photos first, then the row that mentions them
+    catch (e) { fail(e); return; }
+    const payload = { data, updated_at: new Date().toISOString() };
     let res = seen.current
       ? await supabase.from(T).update(payload).eq('user_id', user.id).eq('updated_at', seen.current).select('updated_at')
       : await supabase.from(T).upsert({ user_id: user.id, ...payload }).select('updated_at');
@@ -162,9 +175,13 @@ export function useCloudSync() {
       }
     }
     seen.current = res.data[0].updated_at;
-    dirty.current = false;
-    setStatus('synced'); setLastSaved(new Date()); setMessage('');
-  }, [user, fail]);
+    dirty.current = changes.current !== at; // changed again while saving → the next save is already scheduled
+    setStatus(dirty.current ? 'saving' : 'synced'); setLastSaved(new Date()); setMessage('');
+    if (Date.now() - lastPrune.current > 10 * 60e3) { // now and then, remove account photos nothing uses any more
+      lastPrune.current = Date.now();
+      pruneCloud(supabase, user.id, data).catch(() => {});
+    }
+  };
 
   // On sign-in: load the account copy (it wins), or create it from this device.
   useEffect(() => {
@@ -182,8 +199,10 @@ export function useCloudSync() {
       const { data, error } = await supabase.from(T).select('data, updated_at').eq('user_id', user.id).maybeSingle();
       if (error) { fail(error); return; }
       if (data?.data && Object.keys(data.data).length) {
+        let full;
+        try { full = await fromCloud(supabase, user.id, data.data); } catch (e) { fail(e); return; }
         skipNext.current = true;
-        dispatch({ type: 'HYDRATE', state: data.data });
+        dispatch({ type: 'HYDRATE', state: full });
         seen.current = data.updated_at;
         toast('Your wardrobe is loaded from your account');
         readyFor.current = user.id;
@@ -202,7 +221,7 @@ export function useCloudSync() {
     if (!supabase || !user || readyFor.current !== user.id) return;
     if (skipNext.current) { skipNext.current = false; return; }
     if (conflict) return; // wait for her choice
-    dirty.current = true;
+    dirty.current = true; changes.current++;
     clearTimeout(timer.current);
     setStatus('saving');
     timer.current = setTimeout(save, 1500);
@@ -219,8 +238,11 @@ export function useCloudSync() {
       const cur = await supabase.from(T).select('data, updated_at').eq('user_id', user.id).maybeSingle();
       if (cur.error || !cur.data || cur.data.updated_at === seen.current) return;
       if (dirty.current) { setConflict({ data: cur.data.data, at: cur.data.updated_at }); setStatus('conflict'); setMessage('Your closet was changed on another device.'); return; }
+      let full;
+      try { full = await fromCloud(supabase, user.id, cur.data.data); } catch { return; } // try again next time
+      if (dirty.current) return; // she changed something while it loaded: the next save will show the choice
       skipNext.current = true;
-      dispatch({ type: 'HYDRATE', state: cur.data.data });
+      dispatch({ type: 'HYDRATE', state: full });
       seen.current = cur.data.updated_at;
       setLastSaved(new Date());
       toast('Updated with changes from your other device');
@@ -232,10 +254,12 @@ export function useCloudSync() {
     return () => { window.removeEventListener('online', online); document.removeEventListener('visibilitychange', visible); window.removeEventListener('beforeunload', leaving); };
   }, [user, conflict, save]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const useCloudVersion = () => {
+  const useCloudVersion = async () => {
     if (!conflict) return;
+    let full;
+    try { full = await fromCloud(supabase, user.id, conflict.data); } catch (e) { toast('Couldn\'t load the other version: ' + niceError(e)); return; }
     skipNext.current = true;
-    dispatch({ type: 'HYDRATE', state: conflict.data });
+    dispatch({ type: 'HYDRATE', state: full });
     seen.current = conflict.at; dirty.current = false;
     setConflict(null); setStatus('synced'); setMessage(''); setLastSaved(new Date());
     toast('Loaded the version from your other device');

@@ -6,7 +6,7 @@ Stack: React 18 + Vite, built into one self-contained HTML file. No backend of i
   styling logic = rules engine (src/ai/critic.js scores outfits, src/ai/generator.js builds them), data = src/store.jsx.
 Unit tests live in src/**/*.test.js (not included here). Change history: CHANGELOG.md.
 
-FILES (47):
+FILES (48):
   src/main.jsx
   src/App.jsx
   src/store.jsx
@@ -39,6 +39,7 @@ FILES (47):
   src/data/family.js
   src/data/photos.js
   src/data/scenes.jsx
+  src/photos.js
   src/styles.css
   src/views/Calendar.jsx
   src/views/Closet.jsx
@@ -271,7 +272,8 @@ export default function App() {
 //   outfits    saved looks: { id, name, profileId, slots, context, stage, favorite, createdAt }
 //   catalogs   lookbooks & trips (per profile)
 //   ensembles  saved family looks: { id, name, context, members: [{ profileId, slots }] }
-import { createContext, useContext, useEffect, useMemo, useReducer } from 'react';
+import { createContext, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { forDevice, fromDevice, local, refsIn } from './photos.js';
 import { DEMO_CLOSET, DEMO_OUTFITS, DEMO_CATALOGS, BAG_ARTS } from './data/closet.js';
 import { DEMO_FAMILY } from './data/family.js';
 import { SAMPLE_INSPIRATION } from './ai/inspiration.js';
@@ -526,6 +528,7 @@ function reducer(state, a) {
 
     case 'DELETE_ALL': return { ...initialState(), onboarded: true };
     case 'RESET': return { ...initialState(), onboarded: true };
+    case 'RESTORE': return a.state; // the same state with its photos filled in from this device
     case 'HYDRATE': return { ...migrate(a.state), onboarded: true };
     default: return state;
   }
@@ -535,9 +538,34 @@ const Ctx = createContext(null);
 
 export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, undefined, load);
+  // Photos are saved in IndexedDB (see photos.js). Until they are read back, the app waits (a moment).
+  const [ready, setReady] = useState(() => refsIn(state).size === 0);
+  const [deviceSave, setDeviceSave] = useState('ok'); // ok | full
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* quota or private mode: keep in memory */ }
-  }, [state]);
+    if (ready) return;
+    fromDevice(state).then((s) => { dispatch({ type: 'RESTORE', state: s }); setReady(true); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save to this device. One save at a time; if the closet changes meanwhile, the newest version is saved next.
+  const queued = useRef(null), running = useRef(false), lastPrune = useRef(0);
+  useEffect(() => {
+    if (!ready) return;
+    queued.current = state;
+    if (running.current) return;
+    running.current = true;
+    (async () => {
+      while (queued.current) {
+        const next = queued.current; queued.current = null;
+        const saved = await forDevice(next);
+        try { localStorage.setItem(KEY, JSON.stringify(saved)); setDeviceSave('ok'); }
+        catch { setDeviceSave('full'); } // quota or private mode: kept in memory for now
+        const used = refsIn(saved);
+        if (!used.size) await local.clear().catch(() => {}); // nothing uses any photo (e.g. signed out, deleted)
+        else if (Date.now() - lastPrune.current > 10 * 60e3) { lastPrune.current = Date.now(); await local.prune(used).catch(() => {}); }
+      }
+      running.current = false;
+    })();
+  }, [state, ready]);
 
   const api = useMemo(() => {
     const index = new Map(state.garments.map((g) => [g.id, g]));
@@ -552,10 +580,10 @@ export function StoreProvider({ children }) {
     const hasDemo = state.garments.some((g) => g.demo) || state.profiles.some((p) => p.demo);
     const historyOf = (pid) => state.history.filter((h) => h.profileId === pid);
     const personal = preferenceProfile(historyOf(profile.id), get);
-    return { state, dispatch, get, resolve, owned, pool, profile, closetOf, outfitsOf, scoreOf, hasDemo, historyOf, personal };
-  }, [state]);
+    return { state, dispatch, get, resolve, owned, pool, profile, closetOf, outfitsOf, scoreOf, hasDemo, historyOf, personal, deviceSave };
+  }, [state, deviceSave]);
 
-  return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={api}>{ready ? children : <div className="boot" aria-busy="true">Opening your closet…</div>}</Ctx.Provider>;
 }
 
 export const useStore = () => useContext(Ctx);
@@ -597,8 +625,8 @@ export const CONFIG = {
  FILE: wearwise/src/auth.jsx
 ====================================================================================================
 
-// Accounts (Supabase Auth) + cloud sync of the whole wardrobe to public.wearwise_data
-// (the database table keeps its original name; renaming it would break signed-in users mid-session).
+// Accounts (Supabase Auth) + cloud sync of the whole wardrobe: one row in public.wearwise_data per user,
+// with the photos as separate private files in Supabase Storage (see photos.js).
 
 // Keep people signed in across the rename: move the old sign-in key once.
 function authKey() {
@@ -611,6 +639,7 @@ import { createClient } from '@supabase/supabase-js';
 import { CONFIG } from './config.js';
 import { useStore } from './store.jsx';
 import { useToast } from './components/common.jsx';
+import { forCloud, fromCloud, pruneCloud } from './photos.js';
 
 const configured = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY);
 export const supabase = configured
@@ -731,18 +760,30 @@ export function useCloudSync() {
 
   const fail = useCallback((error) => {
     const m = String(error?.message || error?.code || '');
-    if (/does not exist|PGRST205|42P01|schema cache/i.test(m + (error?.code || ''))) {
+    if (/does not exist|PGRST205|42P01|schema cache|bucket not found/i.test(m + (error?.code || ''))) {
       setStatus('needs-setup'); setMessage('Cloud storage isn\'t set up yet. Run supabase/wearwise.sql once in Supabase.');
     } else if (typeof navigator !== 'undefined' && navigator.onLine === false || /Failed to fetch|NetworkError|network/i.test(m)) {
       setStatus('offline'); setMessage('No connection. Your changes are kept on this device and will be saved when you\'re back online.');
     } else { setStatus('error'); setMessage(niceError(error)); }
   }, []);
 
+  const busy = useRef(false), again = useRef(false), changes = useRef(0), lastPrune = useRef(0);
   const save = useCallback(async () => {
     if (!supabase || !user || readyFor.current !== user.id || syncControl.paused) return;
+    if (busy.current) { again.current = true; return; } // one save at a time (two at once would look like a conflict)
+    busy.current = true;
+    try { await saveOnce(); } finally { busy.current = false; }
+    if (again.current) { again.current = false; if (dirty.current) save(); }
+  }, [user, fail]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveOnce = async () => {
     const T = await cloudTable();
     setStatus('saving');
-    const payload = { data: slim(latest.current), updated_at: new Date().toISOString() };
+    const at = changes.current;
+    let data;
+    try { data = await forCloud(supabase, user.id, slim(latest.current)); } // photos first, then the row that mentions them
+    catch (e) { fail(e); return; }
+    const payload = { data, updated_at: new Date().toISOString() };
     let res = seen.current
       ? await supabase.from(T).update(payload).eq('user_id', user.id).eq('updated_at', seen.current).select('updated_at')
       : await supabase.from(T).upsert({ user_id: user.id, ...payload }).select('updated_at');
@@ -761,9 +802,13 @@ export function useCloudSync() {
       }
     }
     seen.current = res.data[0].updated_at;
-    dirty.current = false;
-    setStatus('synced'); setLastSaved(new Date()); setMessage('');
-  }, [user, fail]);
+    dirty.current = changes.current !== at; // changed again while saving → the next save is already scheduled
+    setStatus(dirty.current ? 'saving' : 'synced'); setLastSaved(new Date()); setMessage('');
+    if (Date.now() - lastPrune.current > 10 * 60e3) { // now and then, remove account photos nothing uses any more
+      lastPrune.current = Date.now();
+      pruneCloud(supabase, user.id, data).catch(() => {});
+    }
+  };
 
   // On sign-in: load the account copy (it wins), or create it from this device.
   useEffect(() => {
@@ -781,8 +826,10 @@ export function useCloudSync() {
       const { data, error } = await supabase.from(T).select('data, updated_at').eq('user_id', user.id).maybeSingle();
       if (error) { fail(error); return; }
       if (data?.data && Object.keys(data.data).length) {
+        let full;
+        try { full = await fromCloud(supabase, user.id, data.data); } catch (e) { fail(e); return; }
         skipNext.current = true;
-        dispatch({ type: 'HYDRATE', state: data.data });
+        dispatch({ type: 'HYDRATE', state: full });
         seen.current = data.updated_at;
         toast('Your wardrobe is loaded from your account');
         readyFor.current = user.id;
@@ -801,7 +848,7 @@ export function useCloudSync() {
     if (!supabase || !user || readyFor.current !== user.id) return;
     if (skipNext.current) { skipNext.current = false; return; }
     if (conflict) return; // wait for her choice
-    dirty.current = true;
+    dirty.current = true; changes.current++;
     clearTimeout(timer.current);
     setStatus('saving');
     timer.current = setTimeout(save, 1500);
@@ -818,8 +865,11 @@ export function useCloudSync() {
       const cur = await supabase.from(T).select('data, updated_at').eq('user_id', user.id).maybeSingle();
       if (cur.error || !cur.data || cur.data.updated_at === seen.current) return;
       if (dirty.current) { setConflict({ data: cur.data.data, at: cur.data.updated_at }); setStatus('conflict'); setMessage('Your closet was changed on another device.'); return; }
+      let full;
+      try { full = await fromCloud(supabase, user.id, cur.data.data); } catch { return; } // try again next time
+      if (dirty.current) return; // she changed something while it loaded: the next save will show the choice
       skipNext.current = true;
-      dispatch({ type: 'HYDRATE', state: cur.data.data });
+      dispatch({ type: 'HYDRATE', state: full });
       seen.current = cur.data.updated_at;
       setLastSaved(new Date());
       toast('Updated with changes from your other device');
@@ -831,10 +881,12 @@ export function useCloudSync() {
     return () => { window.removeEventListener('online', online); document.removeEventListener('visibilitychange', visible); window.removeEventListener('beforeunload', leaving); };
   }, [user, conflict, save]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const useCloudVersion = () => {
+  const useCloudVersion = async () => {
     if (!conflict) return;
+    let full;
+    try { full = await fromCloud(supabase, user.id, conflict.data); } catch (e) { toast('Couldn\'t load the other version: ' + niceError(e)); return; }
     skipNext.current = true;
-    dispatch({ type: 'HYDRATE', state: conflict.data });
+    dispatch({ type: 'HYDRATE', state: full });
     seen.current = conflict.at; dirty.current = false;
     setConflict(null); setStatus('synced'); setMessage(''); setLastSaved(new Date());
     toast('Loaded the version from your other device');
@@ -5387,6 +5439,231 @@ export function sceneForPrompt(prompt = '') {
 
 
 ====================================================================================================
+ FILE: wearwise/src/photos.js
+====================================================================================================
+
+// Photos are kept OUT of the main save data, because browser storage (localStorage) only holds about 5 MB and
+// one account row shouldn't carry every photo either.
+//  - In the app, photos stay as normal image data (data:image/… URLs), so nothing else has to change.
+//  - When saving, each photo is replaced by a short reference, "wwphoto:<fingerprint>", and the photo itself is kept
+//      · on this device in IndexedDB (the browser's larger storage for files), and
+//      · in the account, as a private file in Supabase Storage: wearwise-photos/<user id>/<fingerprint>.<ext>.
+//  - When loading, references are turned back into photos.
+// The fingerprint is a SHA-256 of the photo, so the same photo is only ever stored once.
+
+export const REF = 'wwphoto:';
+export const BUCKET = 'wearwise-photos';
+const MIN_LEN = 2000; // tiny images stay inline
+
+export const isPhoto = (v) => typeof v === 'string' && v.length >= MIN_LEN && v.startsWith('data:image/');
+export const isRef = (v) => typeof v === 'string' && v.startsWith(REF);
+
+/** Returns a copy of `value` where every string `fn` changes is replaced. `fn` may be async. */
+async function mapStrings(value, fn) {
+  if (typeof value === 'string') return fn(value);
+  if (Array.isArray(value)) return Promise.all(value.map((v) => mapStrings(v, fn)));
+  if (value && typeof value === 'object') {
+    const out = {};
+    await Promise.all(Object.keys(value).map(async (k) => { out[k] = await mapStrings(value[k], fn); }));
+    return out;
+  }
+  return value;
+}
+
+/** Every photo reference in a saved state. */
+export function refsIn(value, acc = new Set()) {
+  if (isRef(value)) acc.add(value.slice(REF.length));
+  else if (Array.isArray(value)) value.forEach((v) => refsIn(v, acc));
+  else if (value && typeof value === 'object') Object.values(value).forEach((v) => refsIn(v, acc));
+  return acc;
+}
+
+// ───────────── fingerprints (cached, so a 300-photo closet isn't re-hashed on every save)
+const idOf = new Map();   // photo data → fingerprint
+const dataOf = new Map(); // fingerprint → photo data
+
+const EXT = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif' };
+const mimeOf = (dataUrl) => dataUrl.slice(5, dataUrl.indexOf(';'));
+
+export async function fingerprint(dataUrl) {
+  const known = idOf.get(dataUrl);
+  if (known) return known;
+  const bytes = new TextEncoder().encode(dataUrl);
+  const hash = await crypto.subtle.digest('SHA-256', bytes);
+  const hex = [...new Uint8Array(hash)].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('');
+  const id = `${hex}.${EXT[mimeOf(dataUrl)] || 'img'}`;
+  remember(id, dataUrl);
+  return id;
+}
+function remember(id, dataUrl) {
+  idOf.set(dataUrl, id); dataOf.set(id, dataUrl);
+  if (idOf.size > 2000) { const [k] = idOf.keys(); dataOf.delete(idOf.get(k)); idOf.delete(k); } // bound memory
+}
+
+/** State → savable copy with references. `keep(id, data)` is awaited for each photo (store it somewhere first). */
+export async function withRefs(state, keep) {
+  return mapStrings(state, async (s) => {
+    if (!isPhoto(s)) return s;
+    const id = await fingerprint(s);
+    await keep(id, s);
+    return REF + id;
+  });
+}
+
+/** Saved copy → state with photos. `fetchPhoto(id)` returns the photo data, or null if it no longer exists. */
+export async function withPhotos(saved, fetchPhoto) {
+  return mapStrings(saved, async (s) => {
+    if (!isRef(s)) return s;
+    const id = s.slice(REF.length);
+    const cached = dataOf.get(id);
+    if (cached) return cached;
+    const data = await fetchPhoto(id);
+    if (data) remember(id, data);
+    return data || null;
+  });
+}
+
+// ───────────── this device: IndexedDB
+const DB = 'wearwise', STORE = 'photos';
+let dbp = null;
+function db() {
+  if (typeof indexedDB === 'undefined') return Promise.reject(new Error('no IndexedDB'));
+  dbp ??= new Promise((res, rej) => {
+    const r = indexedDB.open(DB, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(STORE);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => { dbp = null; rej(r.error); };
+  });
+  return dbp;
+}
+function tx(mode, run) {
+  return db().then((d) => new Promise((res, rej) => {
+    const t = d.transaction(STORE, mode);
+    const out = run(t.objectStore(STORE));
+    t.oncomplete = () => res(out?.result);
+    t.onerror = t.onabort = () => rej(t.error || new Error('IndexedDB write failed'));
+  }));
+}
+
+export const local = {
+  async has(id) { return (await tx('readonly', (s) => s.count(id))) > 0; },
+  async get(id) { const v = await tx('readonly', (s) => s.get(id)); return v?.data || null; },
+  async putMany(entries) { if (entries.length) await tx('readwrite', (s) => entries.forEach(([id, data]) => s.put({ data, at: Date.now() }, id))); },
+  async keys() { return tx('readonly', (s) => s.getAllKeys()); },
+  /** Delete photos no saved state refers to. Only ones older than an hour: another open tab may be mid-save. */
+  async prune(used) {
+    const d = await db();
+    const cutoff = Date.now() - 3600e3;
+    await new Promise((res, rej) => {
+      const t = d.transaction(STORE, 'readwrite');
+      const req = t.objectStore(STORE).openCursor();
+      req.onsuccess = () => { const c = req.result; if (!c) return; if (!used.has(c.key) && (c.value?.at || 0) < cutoff) c.delete(); c.continue(); };
+      t.oncomplete = res; t.onerror = () => rej(t.error);
+    });
+  },
+  async clear() { await tx('readwrite', (s) => s.clear()); },
+};
+
+/**
+ * Savable copy for this device. Photos are written to IndexedDB BEFORE the reference is returned, so a saved
+ * reference always has its photo. If IndexedDB isn't available (some private modes), photos stay inline as before.
+ */
+const onDevice = new Set();
+export async function forDevice(state) {
+  try {
+    const pending = [];
+    const saved = await withRefs(state, async (id, data) => { if (!onDevice.has(id)) pending.push([id, data]); });
+    await local.putMany(pending);
+    pending.forEach(([id]) => onDevice.add(id));
+    return saved;
+  } catch { return state; }
+}
+export async function fromDevice(saved) {
+  try { return await withPhotos(saved, (id) => local.get(id).then((d) => { if (d) onDevice.add(id); return d; })); }
+  catch { return saved; }
+}
+
+// ───────────── the account: Supabase Storage (private bucket, one folder per user)
+const blobToDataUrl = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+const inCloud = new Set(); // `${userId}/${id}` known to exist
+// At most 4 uploads/downloads at a time, so a big first upload doesn't choke a phone connection.
+let active = 0; const waiting = [];
+function limit(job) {
+  return new Promise((res, rej) => {
+    const run = () => { active++; job().then(res, rej).finally(() => { active--; waiting.shift()?.(); }); };
+    active < 4 ? run() : waiting.push(run);
+  });
+}
+
+/** Upload any photos the account doesn't have yet, and return the copy to save in the account row. */
+export async function forCloud(supabase, userId, state) {
+  const uploads = [];
+  const saved = await withRefs(state, async (id, data) => {
+    const path = `${userId}/${id}`;
+    if (inCloud.has(path)) return;
+    uploads.push(limit(async () => {
+      const blob = await (await fetch(data)).blob();
+      const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || mimeOf(data), upsert: false, cacheControl: '31536000' });
+      if (error && !/exists|duplicate|409/i.test(`${error.message} ${error.statusCode || ''}`)) throw error;
+      inCloud.add(path);
+    }));
+  });
+  await Promise.all(uploads); // the row is only saved once every photo it mentions is safely uploaded
+  return saved;
+}
+
+/** Turn an account copy back into a state with photos. Throws on a connection problem (so nothing is lost). */
+export async function fromCloud(supabase, userId, saved) {
+  return withPhotos(saved, async (id) => {
+    const local1 = await local.get(id).catch(() => null);       // already on this device: no download needed
+    if (local1) { inCloud.add(`${userId}/${id}`); return local1; }
+    const { data, error } = await limit(() => supabase.storage.from(BUCKET).download(`${userId}/${id}`));
+    if (error) {
+      if (/not found|404|Object not found/i.test(`${error.message} ${error.statusCode || ''} ${error.originalError?.status || ''}`)) return null;
+      throw error;
+    }
+    inCloud.add(`${userId}/${id}`);
+    return blobToDataUrl(data);
+  });
+}
+
+async function listCloud(supabase, userId) {
+  const all = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await supabase.storage.from(BUCKET).list(userId, { limit: 1000, offset });
+    if (error) throw error;
+    all.push(...data);
+    if (data.length < 1000) return all;
+  }
+}
+
+/** Remove account photos the saved closet no longer uses (older than an hour, in case another device is mid-save). */
+export async function pruneCloud(supabase, userId, saved) {
+  const used = refsIn(saved);
+  const cutoff = Date.now() - 3600e3;
+  const old = (await listCloud(supabase, userId))
+    .filter((f) => f.id && !used.has(f.name) && new Date(f.created_at || 0).getTime() < cutoff)
+    .map((f) => `${userId}/${f.name}`);
+  for (let i = 0; i < old.length; i += 100) await supabase.storage.from(BUCKET).remove(old.slice(i, i + 100));
+  old.forEach((p) => inCloud.delete(p));
+  return old.length;
+}
+
+/** "Delete all my data": every photo in the account. */
+export async function deleteCloudPhotos(supabase, userId) {
+  const files = (await listCloud(supabase, userId)).filter((f) => f.id).map((f) => `${userId}/${f.name}`);
+  for (let i = 0; i < files.length; i += 100) {
+    const { error } = await supabase.storage.from(BUCKET).remove(files.slice(i, i + 100));
+    if (error) throw error;
+  }
+  [...inCloud].filter((p) => p.startsWith(userId + '/')).forEach((p) => inCloud.delete(p));
+  return files.length;
+}
+
+export function forgetCaches() { idOf.clear(); dataOf.clear(); inCloud.clear(); onDevice.clear(); }
+
+
+====================================================================================================
  FILE: wearwise/src/styles.css
 ====================================================================================================
 
@@ -6004,6 +6281,11 @@ img { max-width: 100%; }
 .sync-pill { position: fixed; right: 14px; bottom: 14px; z-index: 60; background: var(--ink); color: #fff; font-size: 12px; padding: 8px 12px; }
 .sync-dot.offline, .sync-dot.conflict { background: var(--warn); }
 @media (max-width: 760px) { .sync-pill { bottom: 82px; } .sync-banner { top: 60px; } }
+
+/* Shown for a moment while photos are read back from this device */
+.boot { min-height: 60vh; display: grid; place-items: center; color: var(--ink-3); font-size: 14px; animation: bootIn .3s .25s both; }
+@keyframes bootIn { from { opacity: 0; } }
+.warn-text { color: #9a3b1b; }
 
 
 ====================================================================================================
@@ -7776,6 +8058,7 @@ import { useStore } from '../store.jsx';
 import { useAuth, supabase, cloudTable, syncControl } from '../auth.jsx';
 import { ConfirmButton, useToast } from '../components/common.jsx';
 import TipJar, { tipsOn } from '../components/TipJar.jsx';
+import { deleteCloudPhotos, forgetCaches, local as localPhotos } from '../photos.js';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut } from '../ai/claude.js';
 
 export function ProfileManager() {
@@ -7836,7 +8119,7 @@ function LocationManager() {
 }
 
 export default function Settings({ go }) {
-  const { state, dispatch, hasDemo } = useStore();
+  const { state, dispatch, hasDemo, deviceSave } = useStore();
   const { user, signOut } = useAuth() || {};
   const toast = useToast();
   const ai = useClaudeStatus();
@@ -7849,11 +8132,15 @@ export default function Settings({ go }) {
     syncControl.paused = true; // nothing may be re-uploaded while (or after) the account copy is deleted
     let cloud = '';
     if (supabase && user) {
-      const { error } = await supabase.from(await cloudTable()).delete().eq('user_id', user.id);
+      let error = null;
+      try { await deleteCloudPhotos(supabase, user.id); } catch (e) { error = e; }
+      if (!error) ({ error } = await supabase.from(await cloudTable()).delete().eq('user_id', user.id));
       cloud = error ? ` Your account copy could NOT be deleted (${error.message}). Try again when you're online.` : ' Your account copy was deleted too, and you were signed out.';
       if (!error) await signOut();
     }
     dispatch({ type: 'DELETE_ALL' });
+    try { await localPhotos.clear(); } catch { /* none stored */ }
+    forgetCaches();
     for (const k of ['wearwise.v1', 'unique-ava.v1']) { try { localStorage.removeItem(k); } catch { /* ignore */ } }
     syncControl.paused = false;
     setBusy(false);
@@ -7885,7 +8172,7 @@ export default function Settings({ go }) {
           <li><b>Only on this device:</b> removing photo backgrounds, cropping, reading colors, outfit scoring and suggestions from the rules engine, matching typed inspiration looks, the calendar and trip planner.</li>
           <li><b>Sent to Google Gemini</b> (through Puter, only after you sign in to Puter and only when you use an AI feature):
             the <i>cut-out</i> of a clothing photo when you add it; the <i>whole</i> photo only if the cut-out failed <i>and</i> you tap "Ask Gemini using the whole photo"; an inspiration photo only when you tap "Identify the pieces"; and the <i>text details</i> of your clothes (names, colors, fabric, warmth…) when Gemini picks outfits or critiques one. Gemini picks outfits from these details; it doesn't look at your photos to do so.</li>
-          <li><b>Saved to your account</b> (Supabase, only when you're signed in): your whole Wearwise data, including clothing and inspiration photos. Each account can only read its own data.</li>
+          <li><b>Saved to your account</b> (Supabase, only when you're signed in): your whole Wearwise data. Clothing and inspiration photos are kept as private files in your own account folder. Each account can only read its own data and photos.</li>
           <li><b>Saved in this browser:</b> the same data, so it works offline. "Delete all my data" below removes both copies.</li>
           <li><b>Shared lookbook links</b> contain the outfit names and each piece's name, type and colors, <i>no photos</i>. Anyone you send the link to can see those, as illustrations.</li>
         </ul>
@@ -7915,8 +8202,8 @@ export default function Settings({ go }) {
           const mb = (n) => (n / 1e6).toFixed(n < 1e6 ? 2 : 1);
           return (
             <p className="tiny" style={{ marginTop: 8 }}>
-              Your Wearwise data: <b>{mb(total)} MB</b> (photos {mb(photos)} MB).
-              {total > 12e6 ? ' That\'s a lot: saving to your account takes longer on slow connections, and the limit per account is 30 MB. Deleting photos of pieces you no longer own frees space.' : ''}
+              Your Wearwise data: <b>{mb(total)} MB</b>, of which photos {mb(photos)} MB. Photos are stored separately from the rest{user ? ', on this device and as private files in your account' : ' on this device'}, so a big closet is fine.
+              {deviceSave === 'full' ? <b className="warn-text"> This browser has no room left to save on this device (photo storage may be turned off, e.g. in private browsing). Your latest changes are only kept until you close this tab{user ? ', and in your account' : ''}.</b> : ''}
             </p>
           );
         })()}

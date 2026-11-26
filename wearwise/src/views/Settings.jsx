@@ -4,6 +4,7 @@ import { useStore } from '../store.jsx';
 import { useAuth, supabase, cloudTable, syncControl } from '../auth.jsx';
 import { ConfirmButton, useToast } from '../components/common.jsx';
 import TipJar, { tipsOn } from '../components/TipJar.jsx';
+import { deleteCloudPhotos, forgetCaches, local as localPhotos } from '../photos.js';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut } from '../ai/claude.js';
 
 export function ProfileManager() {
@@ -64,7 +65,7 @@ function LocationManager() {
 }
 
 export default function Settings({ go }) {
-  const { state, dispatch, hasDemo } = useStore();
+  const { state, dispatch, hasDemo, deviceSave } = useStore();
   const { user, signOut } = useAuth() || {};
   const toast = useToast();
   const ai = useClaudeStatus();
@@ -77,11 +78,15 @@ export default function Settings({ go }) {
     syncControl.paused = true; // nothing may be re-uploaded while (or after) the account copy is deleted
     let cloud = '';
     if (supabase && user) {
-      const { error } = await supabase.from(await cloudTable()).delete().eq('user_id', user.id);
+      let error = null;
+      try { await deleteCloudPhotos(supabase, user.id); } catch (e) { error = e; }
+      if (!error) ({ error } = await supabase.from(await cloudTable()).delete().eq('user_id', user.id));
       cloud = error ? ` Your account copy could NOT be deleted (${error.message}). Try again when you're online.` : ' Your account copy was deleted too, and you were signed out.';
       if (!error) await signOut();
     }
     dispatch({ type: 'DELETE_ALL' });
+    try { await localPhotos.clear(); } catch { /* none stored */ }
+    forgetCaches();
     for (const k of ['wearwise.v1', 'unique-ava.v1']) { try { localStorage.removeItem(k); } catch { /* ignore */ } }
     syncControl.paused = false;
     setBusy(false);
@@ -113,7 +118,7 @@ export default function Settings({ go }) {
           <li><b>Only on this device:</b> removing photo backgrounds, cropping, reading colors, outfit scoring and suggestions from the rules engine, matching typed inspiration looks, the calendar and trip planner.</li>
           <li><b>Sent to Google Gemini</b> (through Puter, only after you sign in to Puter and only when you use an AI feature):
             the <i>cut-out</i> of a clothing photo when you add it; the <i>whole</i> photo only if the cut-out failed <i>and</i> you tap "Ask Gemini using the whole photo"; an inspiration photo only when you tap "Identify the pieces"; and the <i>text details</i> of your clothes (names, colors, fabric, warmth…) when Gemini picks outfits or critiques one. Gemini picks outfits from these details; it doesn't look at your photos to do so.</li>
-          <li><b>Saved to your account</b> (Supabase, only when you're signed in): your whole Wearwise data, including clothing and inspiration photos. Each account can only read its own data.</li>
+          <li><b>Saved to your account</b> (Supabase, only when you're signed in): your whole Wearwise data. Clothing and inspiration photos are kept as private files in your own account folder. Each account can only read its own data and photos.</li>
           <li><b>Saved in this browser:</b> the same data, so it works offline. "Delete all my data" below removes both copies.</li>
           <li><b>Shared lookbook links</b> contain the outfit names and each piece's name, type and colors, <i>no photos</i>. Anyone you send the link to can see those, as illustrations.</li>
         </ul>
@@ -143,8 +148,8 @@ export default function Settings({ go }) {
           const mb = (n) => (n / 1e6).toFixed(n < 1e6 ? 2 : 1);
           return (
             <p className="tiny" style={{ marginTop: 8 }}>
-              Your Wearwise data: <b>{mb(total)} MB</b> (photos {mb(photos)} MB).
-              {total > 12e6 ? ' That\'s a lot: saving to your account takes longer on slow connections, and the limit per account is 30 MB. Deleting photos of pieces you no longer own frees space.' : ''}
+              Your Wearwise data: <b>{mb(total)} MB</b>, of which photos {mb(photos)} MB. Photos are stored separately from the rest{user ? ', on this device and as private files in your account' : ' on this device'}, so a big closet is fine.
+              {deviceSave === 'full' ? <b className="warn-text"> This browser has no room left to save on this device (photo storage may be turned off, e.g. in private browsing). Your latest changes are only kept until you close this tab{user ? ', and in your account' : ''}.</b> : ''}
             </p>
           );
         })()}

@@ -8,6 +8,14 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-26 · Photos stored separately (big closets now safe)
+
+- **Fixed a data-loss risk:** browser storage on the device only holds about 5 MB, which is roughly 80 photos. Past that, saving silently failed, so new pieces could disappear on reload if you weren't signed in. Photos now go into the browser's photo storage (IndexedDB), which holds hundreds of MB. Tested with 130 photos (8 MB): all saved and shown after reload.
+- Older saves with photos inside are moved over automatically the first time the site opens.
+- **Accounts:** each photo is uploaded once as a private file in your own folder (Supabase Storage bucket `wearwise-photos`). The account row now holds only short references, so syncing is quick and the 30 MB limit no longer matters. A second device downloads the photos once and keeps them.
+- Photos no one uses any more are cleaned up (after an hour, in case another device is mid-save). "Delete all my data" deletes the photo files too.
+- If this browser can't save at all (e.g. some private modes), Settings says so plainly.
+
 ## 2026-11-23 · Database renamed and tightened
 
 - The account table is now `wearwise_data` (was `unique_ava_data`; it was empty, so no one's data moved).
