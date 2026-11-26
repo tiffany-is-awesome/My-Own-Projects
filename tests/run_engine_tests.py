@@ -341,6 +341,56 @@ with sync_playwright() as p:
     ins = pg.evaluate("Insights.list().map(i => i.text)")
     check('insight compares months', {'ok': 1 if any('100% more' in t and 'Groceries' in t for t in ins) else 0}, ok=1)
 
+    # ---------- Phase G: safety & security ----------
+    # 38. PIN is stored only as a salted hash; wrong tries slow down; correct PIN works
+    reset(10000)
+    pg.evaluate("Sec.setPin('482913', 5)")
+    st = pg.evaluate("JSON.stringify(Store.state.settings.lock)")
+    check('PIN not stored in plain text', {'plain': 1 if '482913' in st else 0, 'hashed': 1 if pg.evaluate("Sec.cfg().hash.length > 20") else 0}, plain=0, hashed=1)
+    r = [pg.evaluate("Sec.verify('000000')") for _ in range(3)]
+    check('3 wrong tries → wait', {'wait': 1 if r[-1].get('wait', 0) >= 25 else 0, 'ok': 1 if any(x['ok'] for x in r) else 0}, wait=1, ok=0)
+    check('locked out even with right PIN during wait', {'ok': 1 if pg.evaluate("Sec.verify('482913')")['ok'] else 0}, ok=0)
+    pg.evaluate("Sec.cfg().until = 0")
+    check('right PIN after the wait', {'ok': 1 if pg.evaluate("Sec.verify('482913')")['ok'] else 0}, ok=1)
+
+    # 39. Password-protected backup: encrypted, opens with the password, refuses a wrong one
+    reset(10000); note('Groceries 1,234 at Puregold')
+    enc = pg.evaluate("Sec.encrypt(Backup.build(), 'correct horse 9').then(JSON.stringify)")
+    check('backup is encrypted', {'leak': 1 if 'Puregold' in enc or '1234' in enc else 0}, leak=0)
+    ok = pg.evaluate("e => Sec.decrypt(JSON.parse(e), 'correct horse 9').then(d => d.data.transactions.length)", enc)
+    bad = pg.evaluate("e => Sec.decrypt(JSON.parse(e), 'wrong password').then(() => 'opened').catch(() => 'refused')", enc)
+    check('decrypts with password, refuses wrong one', {'n': ok, 'bad': 1 if bad == 'refused' else 0}, n=1, bad=1)
+
+    # 40. A malicious backup can't run code: descriptions are shown as text
+    reset(10000)
+    evil = {"app": "Tiffo", "format": 1, "data": {"transactions": [{"id": "x1", "date": "2026-11-01", "amount": 5, "kind": "expense", "category": "Meals", "description": "<img src=x onerror=window.__pwned=1>"}]}}
+    pg.evaluate("e => { Backup.restore(Backup.validate(e), 'replace'); UI.renderAll(); Nav.go('activity'); }", evil)
+    pg.wait_for_timeout(50)
+    check('no code injection from imports', {'img': pg.evaluate("document.querySelectorAll('#ledgerList img').length"), 'pwned': 1 if pg.evaluate("!!window.__pwned") else 0}, img=0, pwned=0)
+
+    # 41. Scam Check finds warning signs, never calls something safe
+    samples = {'GCash: Your account will be suspended within 24 hours. Verify at gcash-verify.top and enter the 6-digit OTP.': 'high',
+               'Congratulations! You won P50,000. To claim pay the processing fee to this GCash number.': 'high',
+               'Earn 5% per day guaranteed! No risk.': 'high',
+               'Na-wrong send ko po sa inyo 2,000, pakibalik po.': 'some',
+               'BDO: Your statement for November is now available in the BDO app.': 'none',
+               'Meeting moved to 3pm tomorrow.': 'none'}
+    got = {t: pg.evaluate("t => ScamCheck.check(t).verdict", t) for t in samples}
+    check('scam check verdicts', {'right': sum(1 for t in samples if got[t] == samples[t])}, right=len(samples))
+    pg.evaluate("Nav.go('more')"); pg.evaluate("document.getElementById('scamInput').value='Meeting moved to 3pm tomorrow.'; UI.runScamCheck()")
+    check('no "safe" verdict wording', {'notsafe': 1 if 'does NOT mean it’s safe' in pg.inner_text('#scamResult') else 0}, notsafe=1)
+
+    # 42. Unusual amounts ask first; cash shortfall is warned
+    reset(5000)
+    pg.evaluate("""() => { for (const d of ['2026-10-01','2026-10-15','2026-11-01','2026-11-10']) Store.addTransaction({kind:'expense', amount:300, category:'Meals', date:d, description:'lunch'}); }""")
+    pg.evaluate("async t => { document.getElementById('noteInput').value = t; await UI.submitNote(t); }", 'lunch 35,000')
+    asked = not pg.evaluate("document.getElementById('formModal').classList.contains('hidden')")
+    tip = pg.inner_text('#fmFields') if asked else ''
+    pg.evaluate("UI.closeForm()")
+    check('unusual amount asks first', {'asked': 1 if asked and 'much more than your usual' in tip else 0, 'saved': pg.evaluate("Store.state.transactions.length")}, asked=1, saved=4)
+    bill(name='Rent', amount=8000, nextDue=pg.evaluate("Debts.addPeriods(toISODate(new Date()), 0).slice(0,8) + '28'"), category='Rent', kind='rent')
+    check('cash shortfall warned', {'w': 1 if any('more than your cash' in t for t in pg.evaluate("Insights.list().map(i => i.text)")) else 0}, w=1)
+
     b.close()
 
 for f in fails: print('✗', f)

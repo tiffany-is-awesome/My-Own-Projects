@@ -130,6 +130,7 @@
           <hr class="my-1 border-stone-200 dark:border-stone-800" />
  <button type="button" id="aiToggleBtn" class="hidden w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800" role="menuitemcheckbox"></button>
           <button id="signOutBtn" class="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800" role="menuitem">Sign out</button>
+          <button id="signOutAllBtn" class="hidden w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800" role="menuitem">Sign out on all devices</button>
           <button id="deleteAccountBtn" class="w-full text-left rounded-lg px-3 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40" role="menuitem">Delete account & data</button>
         </div>
       </div>
@@ -503,6 +504,22 @@
         <p class="mt-2 text-[11px] text-stone-400">Estimates only. Amounts “in today’s money” remove inflation so you can compare with prices now. Real returns go up and down; this assumes a steady average. Tiffo isn’t a financial advisor.</p>
       </section>
 
+      <!-- Scam Check (More page) -->
+      <section data-tool="scam" data-tool-name="🛡️ Scam Check" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-amber-100 dark:bg-amber-900/40" aria-hidden="true">🛡️</span>
+          <div><h2 class="font-bold text-lg leading-tight">Scam Check</h2>
+          <p class="text-xs text-stone-500 dark:text-stone-400">Paste a suspicious text, email, payment request, or investment or loan offer.</p></div>
+        </div>
+        <label for="scamInput" class="sr-only">Message to check</label>
+        <textarea id="scamInput" rows="4" placeholder="Paste the message here. Remove any real OTPs or passwords first; Tiffo never needs them." class="w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+        <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-[11px] text-stone-500 dark:text-stone-400">🔒 Checked on this device only. Nothing you paste is saved or sent.</p>
+          <button type="button" id="scamBtn" class="rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2">Check it</button>
+        </div>
+        <div id="scamResult" class="mt-3"></div>
+      </section>
+
       <section data-tool="records" data-tool-name="🗂️ Records" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
           <div class="flex items-center gap-3">
@@ -552,6 +569,10 @@
           <button type="button" id="toolsReset" class="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800">↺ Show everything again</button>
         </div>
       </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div class="min-w-0 flex-1"><div class="font-semibold text-sm">App lock</div><div id="lockStatus" class="text-xs text-stone-500 dark:text-stone-400">Off</div></div>
+            <div class="flex gap-2"><button type="button" id="lockSetBtn" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Set a PIN</button>
+            <button type="button" id="lockNowBtn" class="hidden rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">🔒 Lock now</button></div>
           </div>
           <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div class="min-w-0"><div class="font-semibold text-sm">Backup</div><div class="save-status text-xs text-stone-500 dark:text-stone-400">Saved on this device</div></div>
             <div class="flex gap-2">
@@ -862,6 +883,19 @@
       <button type="button" id="alarmDone" class="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3">✓ Got it</button>
     </div>
   </div>
+</div>
+
+<!-- ============================ LOCK SCREEN ============================ -->
+<div id="lockScreen" class="hidden fixed inset-0 z-[90] bg-stone-950/95 backdrop-blur-sm text-white flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
+  <form id="lockForm" class="w-full max-w-xs text-center" autocomplete="off">
+    <div class="mx-auto h-14 w-14 rounded-2xl grid place-items-center bg-gradient-to-br from-slate-700 to-teal-600 text-2xl font-bold">T</div>
+    <h2 id="lockTitle" class="mt-4 text-xl font-bold">Tiffo is locked</h2>
+    <p class="mt-1 text-sm text-stone-300">Enter your PIN</p>
+    <input id="lockPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" aria-label="PIN" class="mt-4 w-full rounded-xl bg-stone-800 border border-stone-700 px-4 py-3 text-center text-2xl tracking-[0.5em] tabular focus:outline-none focus:ring-2 focus:ring-teal-400" />
+    <p id="lockMsg" class="mt-2 min-h-[1.25rem] text-sm text-rose-300" role="alert"></p>
+    <button type="button" id="lockBtn" class="mt-2 w-full rounded-xl bg-teal-600 hover:bg-teal-500 font-semibold py-3">Unlock</button>
+    <button type="button" id="lockForgot" class="mt-3 text-sm text-stone-400 hover:text-white underline">Forgot PIN?</button>
+  </form>
 </div>
 
 <!-- ============================ TOUR: points at the real buttons ============================ -->
@@ -3140,6 +3174,17 @@ const Household = {
    INSIGHTS — plain-English answers on Home. Each one links to where it lives.
    ========================================================================= */
 const Insights = {
+  /** Your usual amount in a category (median of the last 120 days), if there's enough history. */
+  typical(category, exceptId = null) {
+    const since = toISODate(new Date(Date.now() - 120 * 864e5));
+    const xs = Store.state.transactions.filter((t) => t.id !== exceptId && Money.kind(t) === 'expense' && t.category === category && t.date >= since).map((t) => t.amount).sort((a, b) => a - b);
+    if (xs.length < 3) return null;
+    return xs[Math.floor(xs.length / 2)];
+  },
+  isUnusual(amount, category, exceptId = null) {
+    const m = this.typical(category, exceptId);
+    return m != null && amount > Math.max(m * 5, m + 3000);
+  },
   monthSpend(y, m, uptoDay = 31) {
     const pre = `${y}-${String(m + 1).padStart(2, '0')}`, by = {};
     let total = 0;
@@ -3175,6 +3220,20 @@ const Insights = {
       if (left <= 0) out.push({ p: 6, icon: '🎉', page: 'money', text: `${escapeHTML(p.emoji)} <b>${escapeHTML(p.name)}</b> goal reached (${fmt0(p.goal)})!` });
       else out.push({ p: 5, icon: escapeHTML(p.emoji), page: 'money', text: `<b>${escapeHTML(p.name)}</b>: ${Math.round((bal / p.goal) * 100)}% of ${fmt0(p.goal)}${p.by ? ` · save ${fmt0(Pockets.perMonth(p))}/month to reach it by ${escapeHTML(new Date(p.by + 'T00:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' }))}` : ''}.` });
     }
+    // Safety warnings (brief 05): short on cash for what's due, heavy debt payments, unusual or doubled charges, new repeating charges.
+    const due30 = Timeline.items(30).filter((i) => i.amount).reduce((a, i) => a + i.amount, 0);
+    if (due30 > 0 && due30 > cash) out.push({ p: 9.7, icon: '⚠️', page: 'plan', text: `Bills and payments due in the next 30 days (<b>${fmt0(due30)}</b>) are more than your cash (${fmt0(cash)}).` });
+    const inc3 = (() => { let x = 0; for (let k = 1; k <= 3; k++) { const d = new Date(y, m - k, 1), pre = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; x += Store.state.transactions.filter((t) => t.date.startsWith(pre)).reduce((a, t) => a + Money.earn(t), 0); } return x / 3; })();
+    const debtMonthly = Accounts.oweList().reduce((a, acc) => { if (!Accounts.owedOn(acc)) return a; if (acc.type === 'credit') { const st = Debts.statement(acc); return a + (st?.minDue || 0); } return a + (Debts.plans().some((pl) => pl.accountId === acc.id) ? 0 : (Debts.payment(acc) || 0)); }, 0)
+      + Debts.plans().filter((pl) => pl.via !== 'card' && (Debts.planStatus()[pl.id]?.left || 0) > 0).reduce((a, pl) => a + pl.perPay, 0);
+    if (inc3 > 0 && debtMonthly / inc3 >= 0.4) out.push({ p: 8.2, icon: '💳', page: 'money', text: `About <b>${Math.round((debtMonthly / inc3) * 100)}%</b> of your monthly income goes to debt payments (${fmt0(debtMonthly)} a month). Above 40% is usually considered high.` });
+    const wk = toISODate(new Date(Date.now() - 7 * 864e5));
+    const odd = Store.state.transactions.filter((t) => t.date >= wk && Money.kind(t) === 'expense' && this.isUnusual(t.amount, t.category, t.id)).sort((a, b) => b.amount - a.amount)[0];
+    if (odd) out.push({ p: 7.8, icon: '🔎', page: 'activity', text: `Unusual: <b>${fmt0(odd.amount)}</b> on ${escapeHTML(odd.category)} (${escapeHTML(odd.description.slice(0, 40))}) is much more than your usual ${fmt0(this.typical(odd.category, odd.id))}. Typo?` });
+    const dbl = Bills.duplicates().find((d) => d.type === 'charge');
+    if (dbl) out.push({ p: 8, icon: '⚠️', page: 'plan', text: `Possible double charge: ${dbl.text}` });
+    const sug = Bills.detect()[0];
+    if (sug) out.push({ p: 6.8, icon: '🔁', page: 'plan', text: `New repeating charge? <b>${escapeHTML(sug.name)}</b> ${fmt0(sug.amount)} seems ${FREQS[sug.freq].toLowerCase()}. Track it in Bills, or tell Tiffo it isn’t.` });
     const owed = Accounts.owed(), lt = Loans.totals();
     if (owed) out.push({ p: 6.5, icon: '💳', page: 'money', text: `You owe <b>${fmt0(owed)}</b> on cards and loans.` });
     if (lt.theyOwe) out.push({ p: 4, icon: '👥', page: 'money', text: `People owe you <b>${fmt0(lt.theyOwe)}</b>.` });
@@ -3184,6 +3243,146 @@ const Insights = {
     const iv = Invest.totals();
     if (iv.value) out.push({ p: 3, icon: '📈', page: 'money', text: `Investments worth <b>${fmt0(iv.value)}</b> (${iv.gain >= 0 ? '+' : '−'}${fmt0(Math.abs(iv.gain))} overall${iv.estimated ? ', includes estimates' : ''}).` });
     return out.sort((a, b) => b.p - a.p);
+  },
+};
+
+/* =========================================================================
+   SECURITY — app lock (PIN) and password-protected backups.
+   Honest limits: the PIN screen stops someone casually opening Tiffo on this
+   device; it does NOT encrypt the data stored in this browser. Backups made
+   with a password ARE encrypted (AES-GCM, key from PBKDF2-SHA-256).
+   The PIN is never stored, only a salted PBKDF2 hash of it.
+   ========================================================================= */
+const Sec = {
+  b64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); },
+  unb64(s) { return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); },
+  async kdf(secret, salt, iterations, usage) {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, usage === 'bits' ? ['deriveBits'] : ['deriveKey']);
+    if (usage === 'bits') return crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, base, 256);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  },
+  /* ----- PIN lock ----- */
+  ITER: 150000,
+  cfg() { return Store.state.settings?.lock || null; },
+  on() { return !!this.cfg()?.hash; },
+  async setPin(pin, autoMin = 5) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const hash = await this.kdf(pin, salt, this.ITER, 'bits');
+    (Store.state.settings ||= {}).lock = { salt: this.b64(salt), hash: this.b64(hash), iter: this.ITER, auto: autoMin, fails: 0, until: 0 };
+    Store.save();
+  },
+  off() { if (Store.state.settings) delete Store.state.settings.lock; Store.save(); },
+  /** → { ok } or { ok:false, wait: seconds } — after 3 wrong tries, waits double each time (30s, 60s, 120s…). */
+  async verify(pin) {
+    const c = this.cfg(); if (!c) return { ok: true };
+    const now = Date.now();
+    if (c.until && now < c.until) return { ok: false, wait: Math.ceil((c.until - now) / 1000) };
+    const h = this.b64(await this.kdf(String(pin), this.unb64(c.salt), c.iter || this.ITER, 'bits'));
+    if (h === c.hash) { c.fails = 0; c.until = 0; Store.save(); return { ok: true }; }
+    c.fails = (c.fails || 0) + 1;
+    if (c.fails >= 3) c.until = now + 30000 * Math.pow(2, Math.min(c.fails - 3, 6));
+    Store.save();
+    return { ok: false, wait: c.until && c.until > now ? Math.ceil((c.until - now) / 1000) : 0, left: Math.max(0, 3 - c.fails) };
+  },
+  /* ----- encrypted backups ----- */
+  BACKUP_ITER: 250000,
+  async encrypt(obj, password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await this.kdf(password, salt, this.BACKUP_ITER, 'key');
+    const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+    return { app: 'Tiffo', format: 1, encrypted: true, cipher: 'AES-GCM-256', kdf: { alg: 'PBKDF2-SHA-256', iter: this.BACKUP_ITER, salt: this.b64(salt) }, iv: this.b64(iv), exportedAt: new Date().toISOString(), data: this.b64(data) };
+  },
+  async decrypt(file, password) {
+    const key = await this.kdf(password, this.unb64(file.kdf.salt), file.kdf.iter, 'key');
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: this.unb64(file.iv) }, key, this.unb64(file.data));   // throws if the password is wrong
+    return JSON.parse(new TextDecoder().decode(plain));
+  },
+};
+
+/* =========================================================================
+   SCAM CHECK — looks for common warning signs in a pasted message or offer.
+   Runs only on this device; nothing pasted is saved or sent. It can point out
+   warning signs; it can never confirm that something is safe.
+   ========================================================================= */
+const ScamCheck = {
+  SIGNS: [
+    { id: 'secrets', level: 3, title: 'Asks for your OTP, PIN, password or card details',
+      re: [/\b(otp|one[- ]time (?:pin|password|code)|verification code|auth(?:entication)? code|mpin|\bpin\b|password|passcode|cvv|cvc|security code|card number|expiry date|6[- ]digit code)\b/i],
+      why: 'Banks, GCash, Maya and real companies never ask for these by text, chat, email or call. Anyone with your OTP can take your money.',
+      tip: 'Never share an OTP, PIN, password or card code with anyone, even someone who says they’re from your bank.' },
+    { id: 'remote', level: 3, title: 'Asks you to install an app or share your screen',
+      re: [/\b(anydesk|teamviewer|rustdesk|quick ?support|screen ?shar(?:e|ing)|install (?:this|the) app|download (?:this|the) app|apk)\b/i],
+      why: 'Remote-access apps let a stranger see and control your phone, including your banking apps.',
+      tip: 'Don’t install apps or share your screen because someone asked you to.' },
+    { id: 'advance', level: 3, title: 'Wants you to pay a fee first',
+      re: [/\b(processing|release|clearance|customs|activation|registration|insurance|verification|handling|withdrawal|unlock(?:ing)?|tax) fee\b/i, /\bpay (?:a |the )?(?:small )?(?:fee|amount|deposit) (?:first|before|to (?:claim|release|receive|withdraw|get))\b/i, /\b(?:bago (?:ma-?release|makuha)|bayad muna)\b/i],
+      why: 'Real prizes, loans and refunds don’t make you pay first to receive them. Advance fees are the most common scam pattern.',
+      tip: 'If you have to pay to receive money, assume it’s a scam.' },
+    { id: 'guarantee', level: 3, title: 'Promises guaranteed or very high returns',
+      re: [/\b(guaranteed?|sure (?:profit|income|kita)|no risk|risk[- ]free|zero risk|double your (?:money|investment)|walang talo|siguradong kita|fixed (?:daily|weekly) (?:income|returns?))\b/i, /\b\d{1,3}(?:\.\d+)?\s*%\s*(?:per|a|every|kada)\s*(?:day|week|month|araw|linggo|buwan)\b/i, /\b(?:x2|x3|2x|3x|triple)\b.*\b(?:money|investment|puhunan)\b/i],
+      why: 'Every real investment can lose money. Promises like “guaranteed” or several percent a day or month are classic signs of a Ponzi or pyramid scheme.',
+      tip: 'Check whether the company and the product are registered with the SEC before investing.' },
+    { id: 'urgent', level: 2, title: 'Pressures you to act right away',
+      re: [/\b(urgent|immediately|right now|asap|within \d+ (?:hours?|minutes?|mins?)|today only|last chance|final notice|expires? (?:today|soon|tonight)|limited slots?|act now|agad|ngayon na|bilisan)\b/i, /\b(?:account|card|wallet|sim) (?:will be |has been |is )?(?:suspended|blocked|deactivated|closed|locked|frozen)\b/i],
+      why: 'Scammers rush you so you don’t stop to check. Real banks give you time and let you call their official hotline.',
+      tip: 'Slow down. Nothing legitimate needs you to act in the next few minutes.' },
+    { id: 'secret', level: 2, title: 'Asks you to keep it secret',
+      re: [/\b(don'?t tell|do not tell|keep (?:this|it) (?:a )?(?:secret|confidential|between us)|between (?:you and me|us)|wag mong sabihin|huwag mong ipagsabi|atin-atin lang|confidential)\b/i],
+      why: 'Secrecy stops you from asking family or friends, who might spot the scam.',
+      tip: 'Talk to someone you trust before sending money.' },
+    { id: 'payment', level: 2, title: 'Unusual way to pay',
+      re: [/\b(gift ?cards?|google play cards?|itunes|steam cards?|load|e-?load|crypto|bitcoin|btc|usdt|tether|binance|western union|money ?gram|palawan|cebuana)\b/i, /\b(?:send|transfer|padala)\b.*\b(?:personal|this|my) (?:gcash|maya|account|number)\b/i, /\b(?:to|sa)\s+(?:this|ito|ang)\s+(?:gcash|maya)\s+(?:number|account)\b/i],
+      why: 'Gift cards, load, crypto and payments to a personal e-wallet are hard to trace or reverse. Real businesses use official payment channels.',
+      tip: 'Pay companies only through their official app or website that you open yourself.' },
+    { id: 'link', level: 2, title: 'Has a link to “verify” or “claim”',
+      re: [/\b(bit\.ly|tinyurl|t\.co|is\.gd|cutt\.ly|rb\.gy|shorturl|s\.id)\b/i, /\b(?:click|tap|open|visit)\b.{0,40}\b(?:link|here|below)\b/i, /https?:\/\/\S*(?:verify|secure|login|update|claim|reward|prize|refund)\S*/i, /\b(?:g-?cash|maya|bdo|bpi|metrobank|landbank|lazada|shopee)[-.]\w*\.(?:com|net|xyz|top|online|site|info|ph)\b/i],
+      why: 'Fake links copy real login pages to steal your details. Short links hide where they really go.',
+      tip: 'Don’t tap links in messages. Open your bank or e-wallet app yourself instead.' },
+    { id: 'prize', level: 2, title: 'Says you won something you didn’t join',
+      re: [/\b(congratulations|you(?:'ve| have)? won|winner|nanalo ka|prize|raffle|lucky draw|selected|claim your)\b/i],
+      why: 'You can’t win a raffle or promo you never entered.',
+      tip: 'Ignore prizes you didn’t sign up for. Check the company’s official page if unsure.' },
+    { id: 'impersonate', level: 2, title: 'Claims to be a bank, e-wallet, courier or government office',
+      re: [/\b(bdo|bpi|metrobank|landbank|security bank|unionbank|gcash|maya|paymaya|bsp|bir|sss|philhealth|pag-?ibig|lbc|j&t|jrs|ninja ?van|dhl|fedex|customs|meralco|globe|smart|dito|shopee|lazada|nbi|pnp)\b/i],
+      why: 'Scammers often pretend to be well-known companies or agencies to sound trustworthy. The name alone proves nothing.',
+      tip: 'Contact the company using the hotline or app you look up yourself, not the number in the message.' },
+    { id: 'family', level: 2, title: 'Says it’s someone you know, from a new number',
+      re: [/\b(new number|bagong number|changed (?:my )?number|lost my phone|nawala (?:ang )?phone)\b/i, /\b(?:mom|ma|dad|pa|anak|kuya|ate|tita|tito)\b.{0,40}\b(?:emergency|hospital|ospital|need money|kailangan ng pera|padalhan)\b/i],
+      why: 'A common trick: someone pretends to be family with a “new number” and an emergency.',
+      tip: 'Call the person on their old number, or ask something only they would know.' },
+    { id: 'job', level: 2, title: 'Easy money for simple tasks',
+      re: [/\b(like and (?:follow|subscribe)|simple tasks?|task (?:commission|income)|earn (?:₱|php|p)?\s?\d[\d,]* (?:daily|a day|per day|araw-araw)|work from home.{0,30}(?:earn|kita)|recharge your (?:account|balance)|commission per (?:order|task))\b/i],
+      why: '“Task” jobs pay small amounts at first, then ask you to deposit money to unlock bigger tasks, which you never get back.',
+      tip: 'A real job never asks you to pay or “recharge” to get paid.' },
+    { id: 'loan', level: 2, title: 'A loan offer that seems too easy',
+      re: [/\b(no credit check|no requirements|instant approval|approved (?:instantly|na agad)|walang requirements|1 ?valid id lang|loan approved)\b/i],
+      why: 'Fake lenders approve “instantly”, then demand fees before releasing the loan. Some real online lenders also harass borrowers or misuse contacts.',
+      tip: 'Check that a lender is registered with the SEC, and never pay to “release” a loan.' },
+    { id: 'wrongsend', level: 2, title: '“Wrong send”: they want money returned',
+      re: [/\b(wrong send|sent (?:it )?to you by mistake|na-?wrong send|nagkamali ako ng send|pakibalik|please return (?:the|my) money)\b/i],
+      why: 'Scammers send a fake receipt (or a real payment from a stolen account) and ask you to return it to a different number.',
+      tip: 'Check your actual balance in your app. If money truly arrived by mistake, contact your e-wallet’s official support, not the sender.' },
+  ],
+  check(text) {
+    const t = String(text || '');
+    const hits = [];
+    for (const s of this.SIGNS) {
+      const found = [];
+      for (const re of s.re) { const m = t.match(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g')); if (m) found.push(...m); }
+      if (found.length) hits.push({ ...s, found: [...new Set(found.map((x) => x.trim()))].slice(0, 4) });
+    }
+    // A bank/agency name alone is normal; only count it alongside another sign.
+    const others = hits.filter((h) => h.id !== 'impersonate');
+    const list = others.length ? hits : [];
+    const score = list.reduce((a, h) => a + h.level, 0), strong = list.some((h) => h.level === 3);
+    const verdict = !list.length ? 'none' : strong || score >= 5 ? 'high' : 'some';
+    return { hits: list.sort((a, b) => b.level - a.level), score, verdict };
+  },
+  highlight(text, hits) {
+    let html = escapeHTML(text);
+    const words = [...new Set(hits.flatMap((h) => h.found))].sort((a, b) => b.length - a.length).slice(0, 25);
+    for (const w of words) { const e = escapeHTML(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); html = html.replace(new RegExp(e, 'gi'), (m) => `<mark class="rounded bg-amber-200/80 dark:bg-amber-700/60 px-0.5">${m}</mark>`); }
+    return html;
   },
 };
 
@@ -3324,9 +3523,9 @@ const Backup = {
   build() {
     return { app: 'Tiffo', format: this.FORMAT, schema: Store.SCHEMA, exportedAt: new Date().toISOString(), currency: CURRENCY, data: JSON.parse(JSON.stringify(Store.state)) };
   },
-  download() {
-    const json = JSON.stringify(this.build(), null, 1);
-    const name = `tiffo-backup-${toISODate(new Date())}.json`;
+  async download(password = null) {
+    const json = JSON.stringify(password ? await Sec.encrypt(this.build(), password) : this.build(), null, 1);
+    const name = `tiffo-backup-${toISODate(new Date())}${password ? '-protected' : ''}.json`;
     try {
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
       const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
@@ -4742,7 +4941,7 @@ const Exporter = {
 const Nav = {
   PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More' },
   // Which page each card lives on.
-  OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', retire: 'plan', timeline: 'plan', bills: 'plan', insurance: 'plan', records: 'more', spending: 'plan', profit: 'plan',
+  OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', retire: 'plan', timeline: 'plan', bills: 'plan', insurance: 'plan', records: 'more', scam: 'more', spending: 'plan', profit: 'plan',
     glance: 'home', household: 'money', networth: 'money', accounts: 'money', invest: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
   page: 'home',
   pageOf(el) { return this.OF[el.dataset.tool] || 'more'; },
@@ -5034,7 +5233,7 @@ const UI = {
   renderAll() {
     // Each card draws on its own, so one problem never blanks out the rest of the app.
     for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
-      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderTimeline(), () => this.renderBills(), () => this.renderPolicies(), () => this.renderRecords(), () => this.renderHousehold(), () => this.renderGlance(), () => this.renderSyncStatus()]) {
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderTimeline(), () => this.renderBills(), () => this.renderPolicies(), () => this.renderRecords(), () => this.renderHousehold(), () => this.renderGlance(), () => this.renderLockStatus(), () => this.renderSyncStatus()]) {
       try { f(); } catch (e) { console.error('Render problem', e); }
     }
   },
@@ -5321,6 +5520,7 @@ const UI = {
       it.amount = (it.side === 'mine' ? Loans.oweTo(it.person) : Loans.owedBy(it.person)) || null;
       if (!it.amount) { it.needs.push('amount'); it.why.unshift(`${it.person} doesn’t owe anything in Tiffo yet`); }
     }
+    for (const it of items) if (it.kind === 'expense' && it.amount && Insights.isUnusual(it.amount, it.category)) it.needs.push('unusual');
     const sure = (it) => it.confidence >= 0.75 && !it.needs.length && !(it.account && !it.account.id);
     if (items.every(sure)) {
       const saved = items.map((it) => this.recordEntry(it, text));
@@ -5439,6 +5639,7 @@ const UI = {
         gift_or_loan: 'Was this a gift, a loan, or a payment?', who_paid: `Was this pay for work, a gift, or ${it.person || 'someone'} paying you back?`, repay_or_income: `${it.person} owes you money. Is this them paying you back?`,
         installment: 'Paid in installments? For now, log just today’s payment (the first installment). Installment tracking is coming soon.',
         credit_card: 'Paying a credit card bill isn’t new spending. Add your card in Money → Accounts (type: Credit card), and Tiffo will count card purchases as spending and payments as paying off the card.', invest_out: 'Only the gain from an investment is income. Check the type.',
+        unusual: `That’s much more than your usual ${it.category} (about ${fmt0(Insights.typical(it.category) || 0)}). Please check the amount.`,
         accounts: 'Which of your accounts did the money move between?', future: 'This date is in the future. Did it already happen?', big: 'That’s a big amount. Please double-check it.', amount: 'How much was it?', person: 'Who was it with?',
       };
       const tips = it.needs.map((n) => asks[n]).filter(Boolean);
@@ -5774,7 +5975,7 @@ const UI = {
         { id: 'mode', label: 'How?', type: 'select', value: cur ? 'merge' : 'replace', options: [['merge', 'Add what’s missing (keep my current data, skip duplicates)'], ['replace', 'Replace everything with the backup']] },
         { id: 'warn', type: 'note', label: '', html: '⚠️ Replacing removes what’s on this device now. You can undo right after.', show: (x) => x.mode === 'replace' && cur > 0 },
       ],
-      onSave: (x) => {
+      onSave: async (x) => {
         const r = Backup.restore(v, x.mode);
         Budgets.registerCategories(); this.applyCurrency(); this.renderAll();
         toast(x.mode === 'replace' ? `✅ Restored ${r.added} entries.` : `✅ Added ${r.added} entries${r.skipped ? `, skipped ${r.skipped} already here` : ''}.`,
@@ -5858,6 +6059,147 @@ const UI = {
       b.closest('div.flex').remove(); toast('↩ Restored.');
     }, { once: false });
   },
+  /* ---------- scam check ---------- */
+  runScamCheck() {
+    const text = $('#scamInput').value.trim();
+    if (!text) { $('#scamResult').innerHTML = '<p class="text-sm text-stone-500">Paste a message first.</p>'; return; }
+    const r = ScamCheck.check(text);
+    const head = { high: ['bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900', '🚩 Strong warning signs', 'This looks like a common scam. Don’t send money, codes or personal details.'],
+      some: ['bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900', '⚠️ Some warning signs', 'Be careful. Check it through an official channel before doing anything.'],
+      none: ['bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700', 'No common warning signs found', 'That does NOT mean it’s safe. Scams change all the time. If it involves money, verify it yourself first.'] }[r.verdict];
+    $('#scamResult').innerHTML = `<div class="rounded-xl border ${head[0]} p-3">
+        <div class="font-bold">${head[1]}</div><p class="text-sm mt-0.5">${head[2]}</p></div>
+      ${r.hits.map((h) => `<div class="mt-2 rounded-xl border border-stone-200 dark:border-stone-800 p-3 text-sm">
+        <div class="font-semibold">${h.level === 3 ? '🚩' : '⚠️'} ${escapeHTML(h.title)}</div>
+        <div class="text-[12px] text-stone-500 dark:text-stone-400 mt-0.5">Found: ${h.found.map((f) => `“${escapeHTML(f)}”`).join(', ')}</div>
+        <p class="mt-1">${escapeHTML(h.why)}</p><p class="mt-1 font-medium">👉 ${escapeHTML(h.tip)}</p></div>`).join('')}
+      ${r.hits.length ? `<details class="mt-2 text-sm"><summary class="cursor-pointer font-semibold">Show the message with warning signs marked</summary><div class="mt-1 rounded-lg bg-stone-50 dark:bg-stone-950 p-2 whitespace-pre-wrap break-words">${ScamCheck.highlight(text, r.hits)}</div></details>` : ''}
+      <div class="mt-2 rounded-xl bg-teal-50/70 dark:bg-teal-950/25 border border-teal-200/70 dark:border-teal-900/50 p-3 text-sm">
+        <div class="font-semibold">Always safe to do</div>
+        <ul class="mt-1 list-disc pl-5 space-y-0.5"><li>Never share OTPs, PINs, passwords or card codes. No real company asks for them.</li>
+        <li>Contact the company through its official app, or a hotline you look up yourself, not the number or link in the message.</li>
+        <li>Ask someone you trust before sending money, especially if you’re being rushed.</li>
+        <li>If you already sent money or a code, contact your bank or e-wallet right away through its official app to report it.</li></ul></div>`;
+  },
+
+  /* ---------- app lock ---------- */
+  renderLockStatus() {
+    const on = Sec.on();
+    $('#lockStatus').innerHTML = on ? `On · locks after ${Sec.cfg().auto} min away. <span class="opacity-80">Keeps out a casual onlooker; it doesn’t encrypt your data.</span>` : 'Off. Add a PIN so someone picking up your phone can’t open Tiffo.';
+    $('#lockSetBtn').textContent = on ? 'Change or turn off' : 'Set a PIN';
+    $('#lockNowBtn').classList.toggle('hidden', !on);
+    $('#signOutAllBtn')?.classList.toggle('hidden', !(Auth.user && Auth.user.provider === 'cloud'));
+  },
+  /** Ask for the PIN before a sensitive action (if a PIN is set). Resolves true/false. */
+  requirePin(reason) {
+    if (!Sec.on()) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      let done = false;
+      this.form({ title: 'Enter your PIN', save: 'Continue', sub: reason,
+        fields: [{ id: 'pin', label: 'PIN', value: '', placeholder: '••••' }],
+        onSave: async (v) => { const r = await Sec.verify(v.pin || ''); if (!r.ok) return r.wait ? `Too many tries. Wait ${r.wait} seconds.` : 'That PIN isn’t right.'; done = true; resolve(true); } });
+      const inp = $('#fm_pin'); if (inp) { inp.type = 'password'; inp.inputMode = 'numeric'; inp.autocomplete = 'off'; }
+      const obs = new MutationObserver(() => { if ($('#formModal').classList.contains('hidden')) { obs.disconnect(); if (!done) resolve(false); } });
+      obs.observe($('#formModal'), { attributes: true, attributeFilter: ['class'] });
+    });
+  },
+  async lockSettings() {
+    const on = Sec.on();
+    if (on && !(await this.requirePin('Enter your current PIN to change the lock.'))) return;
+    setTimeout(() => this.form({
+      title: on ? 'App lock' : 'Set a PIN', save: 'Save',
+      sub: 'A PIN stops someone who picks up your phone or computer from opening Tiffo. It does not encrypt the data stored in this browser: someone with technical skill and access to this device could still read it. Use your phone’s screen lock too, and sign out on shared computers.',
+      fields: [
+        { id: 'pin', label: on ? 'New PIN (4 to 8 digits)' : 'PIN (4 to 8 digits)', value: '', placeholder: '••••' },
+        { id: 'pin2', label: 'Type it again', value: '', placeholder: '••••' },
+        { id: 'auto', label: 'Lock after I’ve been away for', type: 'select', value: String(Sec.cfg()?.auto || 5), options: [['1', '1 minute'], ['5', '5 minutes'], ['15', '15 minutes'], ['30', '30 minutes']] },
+      ],
+      danger: on ? { label: 'Turn off the lock', fn: () => { Sec.off(); this.closeForm(); this.renderLockStatus(); toast('🔓 App lock is off.'); } } : null,
+      onSave: async (v) => {
+        if (!/^\d{4,8}$/.test(v.pin || '')) return 'Use 4 to 8 digits.';
+        if (v.pin !== v.pin2) return 'The two PINs don’t match.';
+        if (/^(\d)\1+$/.test(v.pin) || '0123456789'.includes(v.pin) || '9876543210'.includes(v.pin)) return 'That PIN is too easy to guess. Try another.';
+        await Sec.setPin(v.pin, +v.auto || 5); this.renderLockStatus();
+        toast(`🔒 PIN set. Tiffo locks after ${+v.auto || 5} min away.`);
+      },
+    }), 0);
+    setTimeout(() => ['#fm_pin', '#fm_pin2'].forEach((id) => { const i = $(id); if (i) { i.type = 'password'; i.inputMode = 'numeric'; i.autocomplete = 'new-password'; } }), 10);
+  },
+  lockNow() {
+    if (!Sec.on()) return;
+    this.closeForm?.();
+    $('#lockScreen').classList.remove('hidden'); $('#lockScreen').classList.add('flex');
+    $('#lockPin').value = ''; $('#lockMsg').textContent = '';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => $('#lockPin').focus(), 50);
+  },
+  locked() { return !$('#lockScreen').classList.contains('hidden'); },
+  bindLock() {
+    onSubmit($('#lockForm'), $('#lockBtn'), async () => {
+      const r = await Sec.verify($('#lockPin').value);
+      if (r.ok) { $('#lockScreen').classList.add('hidden'); $('#lockScreen').classList.remove('flex'); document.body.style.overflow = ''; this._lastActive = Date.now(); return; }
+      $('#lockPin').value = '';
+      $('#lockMsg').textContent = r.wait ? `Too many wrong tries. Wait ${r.wait} seconds.` : `That PIN isn’t right.${r.left ? ` ${r.left} more ${r.left === 1 ? 'try' : 'tries'} before a short wait.` : ''}`;
+    });
+    $('#lockForgot').addEventListener('click', async () => {
+      if (Auth.user && Auth.user.provider === 'cloud') {
+        if (!(await askConfirm('To reset your PIN, sign in again with your email and password. Your data is safe in your account.', 'Sign in again'))) return;
+        Sec.off(); await Auth.signOut(); $('#lockScreen').classList.add('hidden'); document.body.style.overflow = ''; location.reload();
+        return;
+      }
+      if (!(await askConfirm('This device isn’t signed in to a Tiffo account, so the PIN can’t be reset safely. The only way in is to erase Tiffo’s data on this device. If you have a backup file, you can restore it afterwards. Erase and start over?', 'Erase this device’s data'))) return;
+      try { LS.removeItem(Store.key()); } catch (e) {}
+      location.reload();
+    });
+    this._lastActive = Date.now();
+    for (const ev of ['pointerdown', 'keydown', 'scroll', 'touchstart']) window.addEventListener(ev, () => { if (!this.locked()) this._lastActive = Date.now(); }, { passive: true });
+    const check = () => { if (Sec.on() && !this.locked() && Date.now() - this._lastActive > (Sec.cfg().auto || 5) * 60000) this.lockNow(); };
+    setInterval(check, 15000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); else this._hiddenAt = Date.now(); });
+    $('#lockSetBtn').addEventListener('click', () => this.lockSettings());
+    $('#lockNowBtn').addEventListener('click', () => this.lockNow());
+    $('#signOutAllBtn').addEventListener('click', async () => {
+      $('#accountMenu').classList.add('hidden');
+      if (!(await askConfirm('Sign out of Tiffo on every phone and computer, including this one?', 'Sign out everywhere'))) return;
+      try { await (await Auth.supabase()).auth.signOut({ scope: 'global' }); } catch (e) { toast('Couldn’t reach the server. Check your connection and try again.'); return; }
+      await Auth.signOut(); this.onUserChanged(); toast('Signed out on all devices.');
+    });
+    if (Sec.on()) this.lockNow();
+  },
+
+  /** Backup with an optional password (encrypted in this browser before saving). */
+  backupForm() {
+    this.form({
+      title: 'Download a backup', save: 'Download',
+      sub: 'One file with everything in Tiffo. Keep it somewhere safe, like Google Drive or your email.',
+      fields: [
+        { id: 'protect', type: 'checkbox', label: 'Protect it with a password (recommended)', value: true },
+        { id: 'pw', label: 'Password (at least 8 characters)', value: '', show: (v) => v.protect },
+        { id: 'pw2', label: 'Type it again', value: '', show: (v) => v.protect, hint: 'The file is encrypted with this password. If you forget it, the backup can’t be opened, and Tiffo can’t recover it.' },
+      ],
+      onSave: async (v) => {
+        if (v.protect) {
+          if ((v.pw || '').length < 8) return 'Use at least 8 characters.';
+          if (v.pw !== v.pw2) return 'The two passwords don’t match.';
+        } else if (!(await this.requirePin('Enter your PIN to download an unprotected backup.'))) return 'Cancelled.';
+        await Backup.download(v.protect ? v.pw : null);
+      },
+    });
+    setTimeout(() => ['#fm_pw', '#fm_pw2'].forEach((id) => { const i = $(id); if (i) { i.type = 'password'; i.autocomplete = 'new-password'; } }), 10);
+  },
+  /** An encrypted backup file: ask for its password, then show the usual preview. */
+  restoreEncrypted(obj, fileName) {
+    this.form({
+      title: 'This backup is password-protected', save: 'Open it', sub: escapeHTML(fileName),
+      fields: [{ id: 'pw', label: 'Backup password', value: '' }],
+      onSave: async (v) => {
+        try { const plain = await Sec.decrypt(obj, v.pw || ''); setTimeout(() => this.restoreForm(Backup.validate(plain), fileName), 0); }
+        catch (e) { return 'Wrong password, or the file is damaged.'; }
+      },
+    });
+    setTimeout(() => { const i = $('#fm_pw'); if (i) { i.type = 'password'; i.autocomplete = 'off'; } }, 10);
+  },
+
   /* ---------- at a glance (Home) ---------- */
   renderGlance() {
     const all = Insights.list(), first = all.slice(0, 4), rest = all.slice(4);
@@ -7604,6 +7946,8 @@ const UI = {
     $('#addAssetBtn').addEventListener('click', () => this.assetForm());
     $('#addHoldingBtn').addEventListener('click', () => this.holdingForm());
     $('#addBillBtn').addEventListener('click', () => this.billForm());
+    $('#scamBtn').addEventListener('click', () => this.runScamCheck());
+    this.bindLock();
     $('#splitBtn').addEventListener('click', () => this.splitForm());
     $('#allowanceBtn').addEventListener('click', () => this.billForm(null, { kind: 'allowance', category: 'Family Support', name: 'Allowance for ', freq: 'week', nextDue: Debts.addPeriods(toISODate(new Date()), 0) }));
     $('#hhMembers').addEventListener('click', (e) => { const li = e.target.closest('[data-member]'); if (li && e.target.closest('.hh-settle')) this.settleForm(li.dataset.member); });
@@ -7777,13 +8121,15 @@ const UI = {
     $('#exportBtn').addEventListener('click', () => Exporter.download());
     $('#exportBtn2').addEventListener('click', () => Exporter.download());
     $('#trashBtn').addEventListener('click', () => this.trashView());
-    $('#backupBtn').addEventListener('click', () => Backup.download());
+    $('#backupBtn').addEventListener('click', () => this.backupForm());
     $('#restoreInput').addEventListener('change', async (e) => {
       const f = e.target.files[0]; e.target.value = '';
       if (!f) return;
       if (f.size > 25 * 1024 * 1024) return toast('That file is too big to be a Tiffo backup.');
       let obj; try { obj = JSON.parse(await f.text()); } catch (err) { return toast('That file couldn’t be read. Pick the .json file Tiffo downloaded.'); }
-      this.restoreForm(Backup.validate(obj), f.name);
+      if (!(await this.requirePin('Enter your PIN to restore a backup.'))) return;
+      if (obj && obj.encrypted) { setTimeout(() => this.restoreEncrypted(obj, f.name), 0); return; }
+      setTimeout(() => this.restoreForm(Backup.validate(obj), f.name), 0);
     });
     const undoSafety = { label: 'Undo', fn: () => { if (Backup.undo()) toast('↩ Your data is back.'); } };
     $('#loadDemoBtn').addEventListener('click', async () => {
@@ -7792,6 +8138,7 @@ const UI = {
       seedDemoData(); Budgets.registerCategories(); this.applyCurrency(); this.renderAll(); toast('Demo data loaded.', { duration: 8000, action: undoSafety });
     });
     $('#clearAllBtn').addEventListener('click', async () => {
+      if (!(await this.requirePin('Enter your PIN to delete everything.'))) return;
       const n = Store.state.transactions.length;
       if (!(await askConfirm(`Delete ALL ${n} entries, accounts, pockets, budgets and scans? Tip: download a backup first (More → Settings). You can undo this right after.`, 'Delete everything'))) return;
       Backup.safety();
