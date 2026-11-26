@@ -8,6 +8,13 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-26 · Realistic AI photos (Puter)
+
+- **Pieces without a photo:** "✦ Make a realistic AI photo" in the piece view, and "Make AI photos for N pieces without a photo" in the closet. Made from the piece's details (name, colors, fabric, fit) as a studio product photo.
+- **Outfits:** "✦ Realistic photo (AI)" on outfit suggestions and in the builder makes a photo of the outfit worn by a model, framed from the neck down. When pieces have your own photos, they're sent as a reference so the AI copies the real clothes. Saved outfits keep the photo and show it on the Saved page.
+- **Honest:** every AI image is labelled ("AI photo", "✦ AI impression") with a note that details can differ from the real clothes and that it isn't you. Your own photos are never replaced: AI photos are kept separately, and adding your own photo takes precedence.
+- Uses your Puter account (free allowance); if you're not signed in to Puter, the button asks you to sign in first.
+
 ## 2026-11-26 · Photos stored separately (big closets now safe)
 
 - **Fixed a data-loss risk:** browser storage on the device only holds about 5 MB, which is roughly 80 photos. Past that, saving silently failed, so new pieces could disappear on reload if you weren't signed in. Photos now go into the browser's photo storage (IndexedDB), which holds hundreds of MB. Tested with 130 photos (8 MB): all saved and shown after reload.

@@ -2,6 +2,7 @@
 import GarmentArt from './GarmentArt.jsx';
 import { SCENES } from '../data/scenes.jsx';
 import { usePhotos, markBroken } from '../data/photos.js';
+import { photoOf } from './GarmentArt.jsx';
 import Worn from './Worn.jsx';
 
 // Box positions in % of the 4:5 stage: [left, top, width, height]
@@ -52,7 +53,7 @@ export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', cu
     ));
   } else {
     // dressed on the mannequin: every piece drawn to fit the body
-    layers = <Worn key={KEYS.map((k) => o[k]?.id || '').join('|')} outfit={o} child={child} photoFor={(it) => it.image || photos.garments[it.id] || null} />;
+    layers = <Worn key={KEYS.map((k) => o[k]?.id || '').join('|')} outfit={o} child={child} photoFor={(it) => photoOf(it, photos).src} />;
   }
 
   // "On you": a real photo of a person, with the outfit pinned beside it as a product card.
@@ -74,14 +75,18 @@ export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', cu
       : <PhotoFinish>{scene.render()}</PhotoFinish>)
     : null;
 
-  const photoOnBody = onBody && KEYS.some((k) => o[k] && (o[k].image || photos.garments[o[k].id]));
+  const has = (it) => !!photoOf(it, photos).src;
+  const anyAi = KEYS.some((k) => o[k] && photoOf(o[k], photos).ai);
+  const photoOnBody = onBody && KEYS.some((k) => o[k] && has(o[k]));
   return (
     <div className={`stage ${compact ? 'compact' : ''} mode-${mode}`}>
       {bg}
       {layers}
-      {photoOnBody && !compact && <div className="stage-note">Your photos are placed as taken, not reshaped to the body</div>}
-      {!compact && !empty && mode === 'flatlay' && KEYS.some((k) => o[k] && !o[k].image && !photos.garments[o[k].id]) && (
-        <div className="stage-note">{KEYS.every((k) => !o[k] || (!o[k].image && !photos.garments[o[k].id])) ? 'Illustrations drawn from each piece\'s details, not photos' : 'Some pieces are illustrations; add photos to see the real thing'}</div>
+      {photoOnBody && !compact && <div className="stage-note">Photos are placed as taken, not reshaped to the body{anyAi ? '; pieces marked AI use AI-made sample photos' : ''}</div>}
+      {!compact && !empty && mode === 'flatlay' && (KEYS.some((k) => o[k] && !has(o[k])) || anyAi) && (
+        <div className="stage-note">{KEYS.every((k) => !o[k] || !has(o[k])) ? 'Illustrations drawn from each piece\'s details, not photos'
+          : KEYS.some((k) => o[k] && !has(o[k])) ? `Some pieces are illustrations${anyAi ? ', some AI-made sample photos' : ''}; add photos to see the real thing`
+          : 'Some pieces show AI-made sample photos, not photos of the real pieces'}</div>
       )}
       {empty && !compact && <div className="stage-empty">Pick pieces from the slots below to start a look.</div>}
       {caption && <div className="stage-caption">{caption}</div>}

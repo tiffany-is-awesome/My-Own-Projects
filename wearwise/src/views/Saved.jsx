@@ -1,3 +1,4 @@
+import { lookKey, outfitPieces } from '../components/AiPhoto.jsx';
 // Saved Outfits for the active profile: favorites, open, rename, delete.
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
@@ -55,7 +56,9 @@ export default function Saved({ go }) {
             return (
               <div key={o.id} className="card saved-card">
                 <button className="card" onClick={() => { dispatch({ type: 'LOAD_DRAFT', draft: { slots: o.slots, name: o.name, context: o.context, stage: o.stage } }); go('#/builder'); }} aria-label={`Open ${o.name}`}>
-                  <div className="card-stage"><OutfitThumb outfit={o} resolve={resolve} child={child} />{o.demo && <span className="card-flag basic">Demo</span>}</div>
+                  <div className="card-stage">{o.aiLook && o.aiLook.key === lookKey(outfitPieces(resolve(o.slots)))
+                    ? <><img className="garment-img" style={{ objectFit: 'cover', width: '100%', height: '100%' }} src={o.aiLook.image} alt="AI-made photo of this outfit" /><span className="card-flag ai">✦ AI impression</span></>
+                    : <OutfitThumb outfit={o} resolve={resolve} child={child} />}{o.demo && <span className="card-flag basic">Demo</span>}</div>
                 </button>
                 <div className="card-body">
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>

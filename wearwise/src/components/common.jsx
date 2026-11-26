@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import GarmentArt from './GarmentArt.jsx';
+import GarmentArt, { photoOf } from './GarmentArt.jsx';
+import { usePhotos } from '../data/photos.js';
 import Stage from './Stage.jsx';
 import { CATEGORY_LABEL } from '../data/closet.js';
 import { verdictOf } from '../ai/critic.js';
@@ -9,12 +10,14 @@ const STATUS_FLAG = { laundry: 'In laundry', repair: 'Needs repair', stored: 'St
 
 export function ProductCard({ item, onClick, action, flag, place }) {
   const meta = [item.material, item.weight && `${item.weight[0].toUpperCase()}${item.weight.slice(1)} weight`].filter(Boolean).join(' · ');
+  const isAi = photoOf(item, usePhotos()).ai;
   return (
     <div className="card">
       <button className="card" onClick={onClick} aria-label={`Open ${item.name}`}>
         <div className="card-stage">
           <GarmentArt item={item} />
           {item.demo && <span className="card-flag basic">Demo</span>}
+          {isAi && <span className="card-flag ai" title="AI-made sample photo, not a photo of the real piece">AI photo</span>}
           {item.status && item.status !== 'available' && <span className="card-flag status">{STATUS_FLAG[item.status]}</span>}
           {item.unverified?.length > 0 && <span className="card-flag check" title="Some details are guesses">Check details</span>}
           {flag && <span className="card-flag new">{flag}</span>}

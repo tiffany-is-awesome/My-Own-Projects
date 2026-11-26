@@ -196,7 +196,7 @@ function reducer(state, a) {
       const src = a.outfit || { slots: state.draft.slots, context: state.draft.context, stage: state.draft.stage };
       const outfit = {
         id: src.id || uid('o'), name: a.name || src.name || 'Untitled look', ...(src.wardrobe ? { wardrobe: src.wardrobe } : {}), profileId: a.profileId || me, favorite: !!(a.favorite || src.favorite),
-        ...(src.why ? { why: src.why } : {}), ...(src.source ? { source: src.source } : {}),
+        ...(src.why ? { why: src.why } : {}), ...(src.source ? { source: src.source } : {}), ...(src.aiLook ? { aiLook: src.aiLook } : {}),
         slots: { ...emptySlots(), ...src.slots }, context: src.context || state.draft.context,
         stage: { ...(src.stage || { mode: 'flatlay' }), mode: src.stage?.mode === 'person' ? 'flatlay' : (src.stage?.mode || 'flatlay'), customBg: null, personPhoto: null },
         createdAt: Date.now(),
@@ -206,6 +206,7 @@ function reducer(state, a) {
       else if (a.catalogId) catalogs = catalogs.map((c) => (c.id === a.catalogId ? { ...c, outfitIds: [...c.outfitIds, outfit.id] } : c));
       return { ...state, outfits: [outfit, ...state.outfits], catalogs, lastSavedId: outfit.id };
     }
+    case 'SET_OUTFIT_LOOK': return { ...state, outfits: state.outfits.map((o) => (o.id === a.id ? { ...o, aiLook: a.look || undefined } : o)) };
     case 'TOGGLE_FAVORITE': return { ...state, outfits: state.outfits.map((o) => (o.id === a.id ? { ...o, favorite: !o.favorite } : o)) };
     case 'RENAME_OUTFIT': return { ...state, outfits: state.outfits.map((o) => (o.id === a.id ? { ...o, name: a.name } : o)) };
     case 'DELETE_OUTFIT': return {

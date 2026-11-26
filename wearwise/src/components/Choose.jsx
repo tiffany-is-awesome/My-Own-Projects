@@ -1,3 +1,5 @@
+import { OutfitAiLook, outfitPieces } from './AiPhoto.jsx';
+import { useStore } from '../store.jsx';
 // Building blocks for "choose → get outfits → compare → save".
 import { useState } from 'react';
 import Stage from './Stage.jsx';
@@ -64,6 +66,7 @@ const SOURCE = { ai: 'Picked by Gemini · checked by the rules engine', rules: '
 
 /** One suggested outfit with explanation, alternatives and save. */
 export function OutfitCard({ result, ctx, pool, index, child = false, onReplace, onSave, onOpen, onWore, saved, savedId }) {
+  const savedLook = useStore().state.outfits.find((o) => o.id === savedId)?.aiLook || null;
   const [wore, setWore] = useState(false);
   const [mode, setMode] = useState('flatlay');
   const [showAlts, setShowAlts] = useState(false);
@@ -101,6 +104,7 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
           {onOpen && <button className="btn sm ghost" onClick={onOpen}>Open in builder</button>}
         </div>
         {savedId && <WardrobePicker outfitId={savedId} compact />}
+        <OutfitAiLook pieces={outfitPieces(result.outfit)} outfitId={savedId} saved={savedId ? savedLook : null} />
         {showAlts && (
           <div className="alts">
             {alts.length === 0 && <p className="tiny">No other combinations from your available clothes improve or vary this one.</p>}
