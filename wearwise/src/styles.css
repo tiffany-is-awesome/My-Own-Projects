@@ -617,3 +617,15 @@ img { max-width: 100%; }
 .boot { min-height: 60vh; display: grid; place-items: center; color: var(--ink-3); font-size: 14px; animation: bootIn .3s .25s both; }
 @keyframes bootIn { from { opacity: 0; } }
 .warn-text { color: #9a3b1b; }
+
+/* AI-made photos: always labelled */
+.card-flag.ai { top: auto; bottom: 10px; left: 10px; background: rgba(27,27,27,.78); color: #fff; letter-spacing: .06em; }
+.ai-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: rgba(27,27,27,.78); color: #fff; padding: 3px 7px; }
+.ai-look { position: relative; margin: 10px 0 0; }
+.ai-look img { width: 100%; display: block; aspect-ratio: 4 / 5; object-fit: cover; background: #f2f1ee; }
+.ai-look .ai-tag { position: absolute; top: 10px; left: 10px; }
+.ai-look-note { font-size: 11px; color: var(--ink-2); margin-top: 6px; line-height: 1.45; }
+.ai-making { aspect-ratio: 4 / 5; display: grid; place-items: center; text-align: center; padding: 20px; background: linear-gradient(110deg, #f2f1ee 30%, #fbfaf8 50%, #f2f1ee 70%); background-size: 250% 100%; animation: aiShimmer 1.4s linear infinite; color: var(--ink-2); font-size: 13px; }
+@keyframes aiShimmer { to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) { .ai-making { animation: none; } }
+.ai-bulk { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -6px 0 16px; color: var(--ink-2); }

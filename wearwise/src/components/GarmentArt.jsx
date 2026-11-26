@@ -394,14 +394,22 @@ function Accessory({ id, item, c, fab }) {
   );
 }
 
+/** Which picture shows for a piece, and whether it is AI-made. */
+export function photoOf(item, photos) {
+  if (item?.image) return { src: item.image, ai: false };
+  const ai = photos?.garments?.[item?.id] || item?.aiImage;
+  return ai ? { src: ai, ai: true } : { src: null, ai: false };
+}
+
 export default function GarmentArt({ item, className = '', style }) {
   const rid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const photos = usePhotos();
   if (!item) return null;
-  // 1) the user's own uploaded cut-out, 2) a real product photo from the photo slots, 3) the built-in render
-  const photo = item.image || photos.garments[item.id];
+  // 1) the user's own photo, 2) an AI-made sample photo (demo photo slots, or one she asked for), 3) the drawn render
+  const { src: photo, ai } = photoOf(item, photos);
   if (photo) {
-    return <img className={'garment-img ' + (item.cutout === 'kept-original' ? 'uncut ' : '') + className} style={style} src={photo} alt={`${item.colors?.[0]?.name || ''} ${item.name}`} draggable="false"
+    return <img className={'garment-img ' + (item.cutout === 'kept-original' && !ai ? 'uncut ' : '') + (ai ? 'ai-photo ' : '') + className} style={style} src={photo}
+      alt={`${ai ? 'AI-made photo of ' : ''}${item.colors?.[0]?.name || ''} ${item.name}`} title={ai ? 'AI-made sample photo, not a photo of the real piece' : undefined} draggable="false"
       onError={item.image ? undefined : () => markBroken(photo)} />;
   }
   const c = item.colors?.[0]?.hex || '#999999';

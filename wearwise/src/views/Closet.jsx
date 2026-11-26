@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
 import { ProductCard, Modal, Meter, OutfitThumb, ConfirmButton, useToast } from '../components/common.jsx';
-import GarmentArt from '../components/GarmentArt.jsx';
+import { PieceAiPhoto, BulkAiPhotos } from '../components/AiPhoto.jsx';
+import { usePhotos } from '../data/photos.js';
+import GarmentArt, { photoOf } from '../components/GarmentArt.jsx';
 import UploadModal from '../components/UploadModal.jsx';
 import ItemForm, { STATUSES, LocationPicker, FIELD_LABEL } from '../components/ItemForm.jsx';
 import { CATEGORIES, STYLES, OCCASIONS, slotOf } from '../data/closet.js';
@@ -11,11 +13,13 @@ import { wearStats } from '../ai/insights.js';
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function ItemDetail({ item, onClose, go }) {
-  const { state, dispatch, resolve } = useStore();
+function ItemDetail({ item: opened, onClose, go }) {
+  const { state, dispatch, resolve, get } = useStore();
+  const item = get(opened.id) || opened; // live, so an AI photo made here shows straight away
   const toast = useToast();
   const [editing, setEditing] = useState(null);
   const usedIn = state.outfits.filter((o) => Object.values(o.slots).includes(item.id));
+  const photos = usePhotos();
   const status = STATUSES.find((s) => s.id === (item.status || 'available'));
   if (editing) {
     return (
@@ -36,7 +40,10 @@ function ItemDetail({ item, onClose, go }) {
   return (
     <Modal title={item.name} onClose={onClose} wide>
       <div className="drawer-detail">
-        <div className="card-stage"><GarmentArt item={item} /></div>
+        <div>
+          <div className="card-stage"><GarmentArt item={item} />{photoOf(item, photos).ai && <span className="card-flag ai">AI photo</span>}</div>
+          <PieceAiPhoto item={item} />
+        </div>
         <div>
           <span className="label">{item.demo ? 'Demo item · sample data' : item.uploaded ? 'Added from your photo' : item.manual ? 'Added by hand' : 'In the closet'} · {status.label}{item.tagSource === 'ai' ? ' · details suggested by Gemini' : item.tagSource === 'device' ? ' · details guessed on this device' : ''}</span>
           {item.unverified?.length > 0 && (
@@ -141,6 +148,7 @@ export default function Closet({ go, initial = '' }) {
           <button className="btn accent" onClick={() => setUploading(true)}>+ Add clothes</button>
         </div>
       </div>
+      {owned.some((g) => !g.demo) && <BulkAiPhotos items={owned.filter((g) => !g.demo)} />}
 
       {hasDemo && owned.some((g) => g.demo) && (
         <div className="notice demo-banner">

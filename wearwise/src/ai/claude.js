@@ -81,7 +81,7 @@ function textOf(r) {
   return String(r);
 }
 
-function puterError(e) {
+export function puterError(e) {
   const msg = String(e?.error?.message || e?.message || e?.error || e || '');
   const code = String(e?.error?.code || e?.code || '');
   if (/insufficient|funds|credit|allowance|quota|limit/i.test(msg + code)) return Object.assign(new Error(msg), { code: 'rate_limited', serverMessage: 'Your free AI allowance on Puter is used up for now. It refreshes monthly, or you can top up on puter.com.' });

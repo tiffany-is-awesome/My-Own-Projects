@@ -1,3 +1,4 @@
+import { OutfitAiLook, outfitPieces } from '../components/AiPhoto.jsx';
 import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
@@ -87,6 +88,7 @@ export default function DressingRoom({ go }) {
             child={child}
             caption={stage.mode === 'scene' && !stage.customBg ? 'Illustrated backdrop · not a photo' : stage.mode === 'mannequin' ? (child ? "Child's mannequin · a styling guide, not a try-on" : 'Mannequin · a styling guide, not a virtual try-on') : stage.mode === 'person' ? 'Not a try-on: the pieces are shown beside the photo' : null} />
           {(stage.mode === 'mannequin' || stage.mode === 'scene') && <p className="tiny" style={{ marginTop: 6 }}>Illustrated preview. Colors are taken from each item; uploaded photos are shown as they are, never recolored.</p>}
+          <OutfitAiLook pieces={outfitPieces(outfit)} />
 
           {stage.mode === 'person' && (
             <div className="context-box" style={{ marginTop: 12, alignItems: 'center', justifyContent: 'space-between' }}>

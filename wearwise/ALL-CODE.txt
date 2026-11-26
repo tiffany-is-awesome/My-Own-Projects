@@ -6,7 +6,7 @@ Stack: React 18 + Vite, built into one self-contained HTML file. No backend of i
   styling logic = rules engine (src/ai/critic.js scores outfits, src/ai/generator.js builds them), data = src/store.jsx.
 Unit tests live in src/**/*.test.js (not included here). Change history: CHANGELOG.md.
 
-FILES (48):
+FILES (50):
   src/main.jsx
   src/App.jsx
   src/store.jsx
@@ -19,12 +19,14 @@ FILES (48):
   src/ai/context.js
   src/ai/critic.js
   src/ai/generator.js
+  src/ai/imagine.js
   src/ai/insights.js
   src/ai/inspiration.js
   src/ai/planner.js
   src/ai/stylist.js
   src/ai/tagger.js
   src/components/Account.jsx
+  src/components/AiPhoto.jsx
   src/components/Choose.jsx
   src/components/common.jsx
   src/components/GarmentArt.jsx
@@ -462,7 +464,7 @@ function reducer(state, a) {
       const src = a.outfit || { slots: state.draft.slots, context: state.draft.context, stage: state.draft.stage };
       const outfit = {
         id: src.id || uid('o'), name: a.name || src.name || 'Untitled look', ...(src.wardrobe ? { wardrobe: src.wardrobe } : {}), profileId: a.profileId || me, favorite: !!(a.favorite || src.favorite),
-        ...(src.why ? { why: src.why } : {}), ...(src.source ? { source: src.source } : {}),
+        ...(src.why ? { why: src.why } : {}), ...(src.source ? { source: src.source } : {}), ...(src.aiLook ? { aiLook: src.aiLook } : {}),
         slots: { ...emptySlots(), ...src.slots }, context: src.context || state.draft.context,
         stage: { ...(src.stage || { mode: 'flatlay' }), mode: src.stage?.mode === 'person' ? 'flatlay' : (src.stage?.mode || 'flatlay'), customBg: null, personPhoto: null },
         createdAt: Date.now(),
@@ -472,6 +474,7 @@ function reducer(state, a) {
       else if (a.catalogId) catalogs = catalogs.map((c) => (c.id === a.catalogId ? { ...c, outfitIds: [...c.outfitIds, outfit.id] } : c));
       return { ...state, outfits: [outfit, ...state.outfits], catalogs, lastSavedId: outfit.id };
     }
+    case 'SET_OUTFIT_LOOK': return { ...state, outfits: state.outfits.map((o) => (o.id === a.id ? { ...o, aiLook: a.look || undefined } : o)) };
     case 'TOGGLE_FAVORITE': return { ...state, outfits: state.outfits.map((o) => (o.id === a.id ? { ...o, favorite: !o.favorite } : o)) };
     case 'RENAME_OUTFIT': return { ...state, outfits: state.outfits.map((o) => (o.id === a.id ? { ...o, name: a.name } : o)) };
     case 'DELETE_OUTFIT': return {
@@ -1038,7 +1041,7 @@ function textOf(r) {
   return String(r);
 }
 
-function puterError(e) {
+export function puterError(e) {
   const msg = String(e?.error?.message || e?.message || e?.error || e || '');
   const code = String(e?.error?.code || e?.code || '');
   if (/insufficient|funds|credit|allowance|quota|limit/i.test(msg + code)) return Object.assign(new Error(msg), { code: 'rate_limited', serverMessage: 'Your free AI allowance on Puter is used up for now. It refreshes monthly, or you can top up on puter.com.' });
@@ -2316,6 +2319,108 @@ export function familyLook(members, ctx) {
 
 
 ====================================================================================================
+ FILE: wearwise/src/ai/imagine.js
+====================================================================================================
+
+// Realistic AI photos, made with the user's own Puter account (Puter's image models; the user covers the cost,
+// usually from Puter's free monthly allowance). Every image made here is labelled as AI wherever it is shown, and it
+// NEVER replaces a photo the user took: it is stored separately (garment.aiImage, outfit.aiLook).
+import { loadPuter, puterError } from './claude.js';
+import { CATEGORY_LABEL } from '../data/closet.js';
+
+// Tried in order; only a missing/unsupported model moves on to the next one.
+const MODELS = ['google/gemini-2.5-flash-image', 'black-forest-labs/flux-1.1-pro', 'black-forest-labs/flux-schnell'];
+
+const colorWords = (item) => (item.colors || []).map((c) => c.name).filter(Boolean).join(' and ') || '';
+const kindOf = (item) => item.art || item.subtype || CATEGORY_LABEL?.[item.category] || item.category || 'garment';
+
+/** Words that describe one piece, from its saved details only. */
+export function describePiece(item) {
+  const bits = [colorWords(item), item.pattern && item.pattern !== 'solid' ? `${item.pattern} pattern` : '', item.material, kindOf(item)];
+  return `${bits.filter(Boolean).join(' ')} ("${item.name}")`;
+}
+
+/** Product photo of a single piece, matching the look of the demo closet photos. */
+export function piecePrompt(item) {
+  const hex = (item.colors || []).map((c) => `${c.name}${c.hex ? ` (${c.hex})` : ''}`).join(' and ');
+  return `${item.name}: ${hex || 'neutral'}${item.material ? `, ${item.material.toLowerCase()}` : ''}${item.fit ? `, ${item.fit} fit` : ''}`
+    + `${item.pattern && item.pattern !== 'solid' ? `, ${item.pattern} pattern` : ''}, ${kindOf(item)}. `
+    + 'Neatly laid flat, front view (or invisible ghost-mannequin style). Professional e-commerce product photograph, centered, '
+    + 'seamless light gray (#F4F4F4) studio background, soft diffused lighting from the upper left, subtle natural contact shadow, '
+    + 'true-to-life fabric texture and color, no person, no props, no text, no logos, portrait 4:5.';
+}
+
+/** A styled photo of a whole outfit. Neck-down, so it never pretends to be the user. */
+export function outfitPrompt(pieces, { withReference } = {}) {
+  const list = pieces.map(describePiece).join('; ');
+  return 'Photorealistic full-length fashion photograph of an outfit worn by a model, framed from the neck down (no face), '
+    + `standing naturally, plain warm light-gray studio background, soft daylight. The outfit is exactly: ${list}. `
+    + (withReference ? 'The reference image shows these exact pieces: keep their colors, patterns and details as shown. ' : '')
+    + 'Do not add other garments, bags or jewelry. No text, no logos.';
+}
+
+const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = rej; i.src = src; });
+
+/** Shrink to a sensible size and save as WebP (a few dozen KB), so it syncs quickly. */
+async function compress(src, max = 900) {
+  let img;
+  try { const b = await (await fetch(src)).blob(); img = await loadImg(URL.createObjectURL(b)); }
+  catch { img = await loadImg(src); }
+  const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/webp', 0.86);
+}
+
+/** One reference image with the pieces' own photos side by side (so the AI sees the real clothes). */
+export async function referenceSheet(photos) {
+  const list = photos.filter(Boolean).slice(0, 6);
+  if (!list.length) return null;
+  const cols = Math.min(3, list.length), rows = Math.ceil(list.length / cols), cw = 320, ch = 400;
+  const c = document.createElement('canvas'); c.width = cols * cw; c.height = rows * ch;
+  const x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
+  for (let i = 0; i < list.length; i++) {
+    try {
+      const im = await loadImg(list[i]);
+      const k = Math.min((cw - 20) / im.naturalWidth, (ch - 20) / im.naturalHeight);
+      const w = im.naturalWidth * k, h = im.naturalHeight * k;
+      x.drawImage(im, (i % cols) * cw + (cw - w) / 2, Math.floor(i / cols) * ch + (ch - h) / 2, w, h);
+    } catch { /* skip a photo that won't load */ }
+  }
+  return c.toDataURL('image/jpeg', 0.85);
+}
+
+/**
+ * Make an image. Returns { image (WebP data URL), model, usedReference }.
+ * Errors carry .code: not_signed_in | rate_limited | upstream_error (see claude.js).
+ */
+export async function makeImage(prompt, { reference } = {}) {
+  const puter = await loadPuter();
+  if (!puter) throw Object.assign(new Error('Could not load Puter'), { code: 'upstream_error', serverMessage: 'The AI service (Puter) could not be reached.' });
+  let signedIn = false;
+  try { signedIn = await puter.auth.isSignedIn(); } catch { /* treat as signed out */ }
+  if (!signedIn) throw Object.assign(new Error('Not signed in to Puter'), { code: 'not_signed_in' });
+  let lastErr = null;
+  for (const model of MODELS) {
+    for (const ref of reference ? [reference, null] : [null]) { // if a model won't take the reference, try without it
+      try {
+        const el = await puter.ai.txt2img(prompt, { model, ...(ref ? { input_image: ref } : {}) });
+        const src = el?.src || (typeof el === 'string' ? el : null);
+        if (!src) throw Object.assign(new Error('No image came back'), { code: 'upstream_error' });
+        return { image: await compress(src), model, usedReference: !!ref };
+      } catch (e) {
+        lastErr = puterError(e);
+        if (lastErr.code === 'not_signed_in' || lastErr.code === 'rate_limited') throw lastErr;
+        if (lastErr.code === 'bad_model') break; // next model
+      }
+    }
+  }
+  throw lastErr;
+}
+
+
+====================================================================================================
  FILE: wearwise/src/ai/insights.js
 ====================================================================================================
 
@@ -3359,9 +3464,142 @@ export default function Account() {
 
 
 ====================================================================================================
+ FILE: wearwise/src/components/AiPhoto.jsx
+====================================================================================================
+
+// Realistic AI photos (Puter). Always labelled as AI, never replace the user's own photos.
+import { useEffect, useRef, useState } from 'react';
+import { useClaudeStatus, puterSignIn } from '../ai/claude.js';
+import { makeImage, piecePrompt, outfitPrompt, referenceSheet } from '../ai/imagine.js';
+import { usePhotos } from '../data/photos.js';
+import { useStore } from '../store.jsx';
+import { useToast } from './common.jsx';
+
+const SLOT_KEYS = ['outer', 'top', 'bottom', 'shoes', 'bag', 'accessory'];
+export const lookKey = (pieces) => pieces.map((p) => p.id).sort().join('|');
+
+function errorText(e) {
+  if (e?.code === 'not_signed_in') return 'Sign in to Puter (free) to make AI photos.';
+  if (e?.code === 'rate_limited') return e.serverMessage || 'Your free Puter allowance for AI images is used up for now.';
+  return 'The AI couldn\'t make a photo just now. Try again in a moment.';
+}
+
+/** Handles Puter sign-in (from the click itself, so the pop-up is allowed) and errors. */
+export function useAiMaker() {
+  const ai = useClaudeStatus();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const run = async (job) => {
+    if (busy) return null;
+    try { if (ai.status !== 'ready') await puterSignIn(); }
+    catch { toast('Sign in to Puter (free) to make AI photos.'); return null; }
+    setBusy(true);
+    try { return await job(); }
+    catch (e) { toast(errorText(e)); return null; }
+    finally { setBusy(false); }
+  };
+  return { busy, run, status: ai.status };
+}
+
+/** For one piece without a photo of its own: make / replace / remove its AI sample photo. */
+export function PieceAiPhoto({ item }) {
+  const { dispatch } = useStore();
+  const photos = usePhotos();
+  const { busy, run } = useAiMaker();
+  if (item.image) return null; // her own photo always wins; nothing to make
+  const slot = photos.garments[item.id];
+  const make = () => run(async () => {
+    const { image } = await makeImage(piecePrompt(item));
+    dispatch({ type: 'UPDATE_GARMENT', garment: { id: item.id, aiImage: image } });
+  });
+  return (
+    <div className="ai-piece">
+      {busy ? <div className="ai-making" style={{ maxWidth: 220 }}>Making a realistic photo from this piece's details…</div> : null}
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+        <button className="btn sm" disabled={busy} onClick={make}>✦ {item.aiImage || slot ? 'Make a new AI photo' : 'Make a realistic AI photo'}</button>
+        {item.aiImage && <button className="btn sm ghost" disabled={busy} onClick={() => dispatch({ type: 'UPDATE_GARMENT', garment: { id: item.id, aiImage: null } })}>Remove AI photo</button>}
+      </div>
+      <p className="tiny" style={{ marginTop: 6 }}>AI photos are made from this piece's details (name, colors, fabric) with Puter, so they show <i>a</i> piece like it, not your actual one. They're labelled "AI photo". Adding your own photo replaces it.</p>
+    </div>
+  );
+}
+
+/** "Make AI photos for the N pieces without a photo" (one at a time, can be stopped). */
+export function BulkAiPhotos({ items }) {
+  const { dispatch } = useStore();
+  const photos = usePhotos();
+  const { busy, run } = useAiMaker();
+  const [done, setDone] = useState(0);
+  const stop = useRef(false);
+  const todo = items.filter((g) => !g.image && !g.aiImage && !photos.garments[g.id]);
+  if (!todo.length && !busy) return null;
+  const go = () => run(async () => {
+    stop.current = false; setDone(0);
+    for (const g of todo) {
+      if (stop.current) break;
+      const { image } = await makeImage(piecePrompt(g));
+      dispatch({ type: 'UPDATE_GARMENT', garment: { id: g.id, aiImage: image } });
+      setDone((n) => n + 1);
+    }
+  });
+  return (
+    <div className="ai-bulk tiny">
+      {busy
+        ? <>Making AI photos… {done} of {todo.length + done} <button className="btn sm ghost" onClick={() => { stop.current = true; }}>Stop</button></>
+        : <><button className="btn sm" onClick={go}>✦ Make AI photos for {todo.length} piece{todo.length > 1 ? 's' : ''} without a photo</button> <span>Realistic sample photos from each piece's details, labelled "AI photo". Uses your Puter account.</span></>}
+    </div>
+  );
+}
+
+/** A realistic AI photo of a whole outfit. `pieces` = the outfit's garments; `outfitId` = saved outfit (keeps the photo). */
+export function OutfitAiLook({ pieces, outfitId, saved }) {
+  const { dispatch } = useStore();
+  const photos = usePhotos();
+  const { busy, run } = useAiMaker();
+  const key = lookKey(pieces);
+  const [local, setLocal] = useState(null);
+  const look = (saved?.key === key && saved) || (local?.key === key && local) || null;
+  // Made before she saved the outfit? Keep it with the saved outfit.
+  useEffect(() => { if (outfitId && local?.key === key && !saved) dispatch({ type: 'SET_OUTFIT_LOOK', id: outfitId, look: local }); }, [outfitId]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!pieces.length) return null;
+  const make = () => run(async () => {
+    const own = pieces.map((p) => p.image || null);
+    const anyOwn = own.some(Boolean);
+    const reference = anyOwn ? await referenceSheet(pieces.map((p) => p.image || photos.garments[p.id] || p.aiImage)) : null;
+    const r = await makeImage(outfitPrompt(pieces, { withReference: !!reference }), { reference });
+    const next = { key, image: r.image, usedReference: r.usedReference, at: Date.now() };
+    setLocal(next);
+    if (outfitId) dispatch({ type: 'SET_OUTFIT_LOOK', id: outfitId, look: next });
+  });
+  return (
+    <div className="ai-look-wrap">
+      {busy && <div className="ai-making">Making a realistic photo of this outfit… (about 10–30 seconds)</div>}
+      {!busy && look && (
+        <figure className="ai-look">
+          <img src={look.image} alt="AI-made photo of this outfit" />
+          <span className="ai-tag">✦ AI impression</span>
+          <figcaption className="ai-look-note">
+            Made by AI from {look.usedReference ? 'your photos and details' : 'the details'} of these pieces. Colors, patterns and fit can differ from your real clothes, and it isn't you.
+          </figcaption>
+        </figure>
+      )}
+      <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+        <button className="btn sm" disabled={busy} onClick={make}>✦ {look ? 'Another AI photo' : 'Realistic photo (AI)'}</button>
+        {look && <button className="btn sm ghost" disabled={busy} onClick={() => { setLocal(null); if (outfitId) dispatch({ type: 'SET_OUTFIT_LOOK', id: outfitId, look: null }); }}>Remove</button>}
+      </div>
+    </div>
+  );
+}
+
+export const outfitPieces = (resolved) => SLOT_KEYS.map((k) => resolved?.[k]).filter(Boolean);
+
+
+====================================================================================================
  FILE: wearwise/src/components/Choose.jsx
 ====================================================================================================
 
+import { OutfitAiLook, outfitPieces } from './AiPhoto.jsx';
+import { useStore } from '../store.jsx';
 // Building blocks for "choose → get outfits → compare → save".
 import { useState } from 'react';
 import Stage from './Stage.jsx';
@@ -3428,6 +3666,7 @@ const SOURCE = { ai: 'Picked by Gemini · checked by the rules engine', rules: '
 
 /** One suggested outfit with explanation, alternatives and save. */
 export function OutfitCard({ result, ctx, pool, index, child = false, onReplace, onSave, onOpen, onWore, saved, savedId }) {
+  const savedLook = useStore().state.outfits.find((o) => o.id === savedId)?.aiLook || null;
   const [wore, setWore] = useState(false);
   const [mode, setMode] = useState('flatlay');
   const [showAlts, setShowAlts] = useState(false);
@@ -3465,6 +3704,7 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
           {onOpen && <button className="btn sm ghost" onClick={onOpen}>Open in builder</button>}
         </div>
         {savedId && <WardrobePicker outfitId={savedId} compact />}
+        <OutfitAiLook pieces={outfitPieces(result.outfit)} outfitId={savedId} saved={savedId ? savedLook : null} />
         {showAlts && (
           <div className="alts">
             {alts.length === 0 && <p className="tiny">No other combinations from your available clothes improve or vary this one.</p>}
@@ -3532,7 +3772,8 @@ export function Compare({ results, ctx, child = false, onPick, onClose, savedIdx
 ====================================================================================================
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import GarmentArt from './GarmentArt.jsx';
+import GarmentArt, { photoOf } from './GarmentArt.jsx';
+import { usePhotos } from '../data/photos.js';
 import Stage from './Stage.jsx';
 import { CATEGORY_LABEL } from '../data/closet.js';
 import { verdictOf } from '../ai/critic.js';
@@ -3542,12 +3783,14 @@ const STATUS_FLAG = { laundry: 'In laundry', repair: 'Needs repair', stored: 'St
 
 export function ProductCard({ item, onClick, action, flag, place }) {
   const meta = [item.material, item.weight && `${item.weight[0].toUpperCase()}${item.weight.slice(1)} weight`].filter(Boolean).join(' · ');
+  const isAi = photoOf(item, usePhotos()).ai;
   return (
     <div className="card">
       <button className="card" onClick={onClick} aria-label={`Open ${item.name}`}>
         <div className="card-stage">
           <GarmentArt item={item} />
           {item.demo && <span className="card-flag basic">Demo</span>}
+          {isAi && <span className="card-flag ai" title="AI-made sample photo, not a photo of the real piece">AI photo</span>}
           {item.status && item.status !== 'available' && <span className="card-flag status">{STATUS_FLAG[item.status]}</span>}
           {item.unverified?.length > 0 && <span className="card-flag check" title="Some details are guesses">Check details</span>}
           {flag && <span className="card-flag new">{flag}</span>}
@@ -4102,14 +4345,22 @@ function Accessory({ id, item, c, fab }) {
   );
 }
 
+/** Which picture shows for a piece, and whether it is AI-made. */
+export function photoOf(item, photos) {
+  if (item?.image) return { src: item.image, ai: false };
+  const ai = photos?.garments?.[item?.id] || item?.aiImage;
+  return ai ? { src: ai, ai: true } : { src: null, ai: false };
+}
+
 export default function GarmentArt({ item, className = '', style }) {
   const rid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const photos = usePhotos();
   if (!item) return null;
-  // 1) the user's own uploaded cut-out, 2) a real product photo from the photo slots, 3) the built-in render
-  const photo = item.image || photos.garments[item.id];
+  // 1) the user's own photo, 2) an AI-made sample photo (demo photo slots, or one she asked for), 3) the drawn render
+  const { src: photo, ai } = photoOf(item, photos);
   if (photo) {
-    return <img className={'garment-img ' + (item.cutout === 'kept-original' ? 'uncut ' : '') + className} style={style} src={photo} alt={`${item.colors?.[0]?.name || ''} ${item.name}`} draggable="false"
+    return <img className={'garment-img ' + (item.cutout === 'kept-original' && !ai ? 'uncut ' : '') + (ai ? 'ai-photo ' : '') + className} style={style} src={photo}
+      alt={`${ai ? 'AI-made photo of ' : ''}${item.colors?.[0]?.name || ''} ${item.name}`} title={ai ? 'AI-made sample photo, not a photo of the real piece' : undefined} draggable="false"
       onError={item.image ? undefined : () => markBroken(photo)} />;
   }
   const c = item.colors?.[0]?.hex || '#999999';
@@ -4414,6 +4665,7 @@ export default function SaveModal({ defaultName = '', onClose, onDone }) {
 import GarmentArt from './GarmentArt.jsx';
 import { SCENES } from '../data/scenes.jsx';
 import { usePhotos, markBroken } from '../data/photos.js';
+import { photoOf } from './GarmentArt.jsx';
 import Worn from './Worn.jsx';
 
 // Box positions in % of the 4:5 stage: [left, top, width, height]
@@ -4464,7 +4716,7 @@ export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', cu
     ));
   } else {
     // dressed on the mannequin: every piece drawn to fit the body
-    layers = <Worn key={KEYS.map((k) => o[k]?.id || '').join('|')} outfit={o} child={child} photoFor={(it) => it.image || photos.garments[it.id] || null} />;
+    layers = <Worn key={KEYS.map((k) => o[k]?.id || '').join('|')} outfit={o} child={child} photoFor={(it) => photoOf(it, photos).src} />;
   }
 
   // "On you": a real photo of a person, with the outfit pinned beside it as a product card.
@@ -4486,14 +4738,18 @@ export default function Stage({ outfit, mode = 'flatlay', sceneId = 'studio', cu
       : <PhotoFinish>{scene.render()}</PhotoFinish>)
     : null;
 
-  const photoOnBody = onBody && KEYS.some((k) => o[k] && (o[k].image || photos.garments[o[k].id]));
+  const has = (it) => !!photoOf(it, photos).src;
+  const anyAi = KEYS.some((k) => o[k] && photoOf(o[k], photos).ai);
+  const photoOnBody = onBody && KEYS.some((k) => o[k] && has(o[k]));
   return (
     <div className={`stage ${compact ? 'compact' : ''} mode-${mode}`}>
       {bg}
       {layers}
-      {photoOnBody && !compact && <div className="stage-note">Your photos are placed as taken, not reshaped to the body</div>}
-      {!compact && !empty && mode === 'flatlay' && KEYS.some((k) => o[k] && !o[k].image && !photos.garments[o[k].id]) && (
-        <div className="stage-note">{KEYS.every((k) => !o[k] || (!o[k].image && !photos.garments[o[k].id])) ? 'Illustrations drawn from each piece\'s details, not photos' : 'Some pieces are illustrations; add photos to see the real thing'}</div>
+      {photoOnBody && !compact && <div className="stage-note">Photos are placed as taken, not reshaped to the body{anyAi ? '; pieces marked AI use AI-made sample photos' : ''}</div>}
+      {!compact && !empty && mode === 'flatlay' && (KEYS.some((k) => o[k] && !has(o[k])) || anyAi) && (
+        <div className="stage-note">{KEYS.every((k) => !o[k] || !has(o[k])) ? 'Illustrations drawn from each piece\'s details, not photos'
+          : KEYS.some((k) => o[k] && !has(o[k])) ? `Some pieces are illustrations${anyAi ? ', some AI-made sample photos' : ''}; add photos to see the real thing`
+          : 'Some pieces show AI-made sample photos, not photos of the real pieces'}</div>
       )}
       {empty && !compact && <div className="stage-empty">Pick pieces from the slots below to start a look.</div>}
       {caption && <div className="stage-caption">{caption}</div>}
@@ -6287,6 +6543,18 @@ img { max-width: 100%; }
 @keyframes bootIn { from { opacity: 0; } }
 .warn-text { color: #9a3b1b; }
 
+/* AI-made photos: always labelled */
+.card-flag.ai { top: auto; bottom: 10px; left: 10px; background: rgba(27,27,27,.78); color: #fff; letter-spacing: .06em; }
+.ai-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: rgba(27,27,27,.78); color: #fff; padding: 3px 7px; }
+.ai-look { position: relative; margin: 10px 0 0; }
+.ai-look img { width: 100%; display: block; aspect-ratio: 4 / 5; object-fit: cover; background: #f2f1ee; }
+.ai-look .ai-tag { position: absolute; top: 10px; left: 10px; }
+.ai-look-note { font-size: 11px; color: var(--ink-2); margin-top: 6px; line-height: 1.45; }
+.ai-making { aspect-ratio: 4 / 5; display: grid; place-items: center; text-align: center; padding: 20px; background: linear-gradient(110deg, #f2f1ee 30%, #fbfaf8 50%, #f2f1ee 70%); background-size: 250% 100%; animation: aiShimmer 1.4s linear infinite; color: var(--ink-2); font-size: 13px; }
+@keyframes aiShimmer { to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) { .ai-making { animation: none; } }
+.ai-bulk { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -6px 0 16px; color: var(--ink-2); }
+
 
 ====================================================================================================
  FILE: wearwise/src/views/Calendar.jsx
@@ -6585,7 +6853,9 @@ export default function Calendar({ go }) {
 import { useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
 import { ProductCard, Modal, Meter, OutfitThumb, ConfirmButton, useToast } from '../components/common.jsx';
-import GarmentArt from '../components/GarmentArt.jsx';
+import { PieceAiPhoto, BulkAiPhotos } from '../components/AiPhoto.jsx';
+import { usePhotos } from '../data/photos.js';
+import GarmentArt, { photoOf } from '../components/GarmentArt.jsx';
 import UploadModal from '../components/UploadModal.jsx';
 import ItemForm, { STATUSES, LocationPicker, FIELD_LABEL } from '../components/ItemForm.jsx';
 import { CATEGORIES, STYLES, OCCASIONS, slotOf } from '../data/closet.js';
@@ -6595,11 +6865,13 @@ import { wearStats } from '../ai/insights.js';
 const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function ItemDetail({ item, onClose, go }) {
-  const { state, dispatch, resolve } = useStore();
+function ItemDetail({ item: opened, onClose, go }) {
+  const { state, dispatch, resolve, get } = useStore();
+  const item = get(opened.id) || opened; // live, so an AI photo made here shows straight away
   const toast = useToast();
   const [editing, setEditing] = useState(null);
   const usedIn = state.outfits.filter((o) => Object.values(o.slots).includes(item.id));
+  const photos = usePhotos();
   const status = STATUSES.find((s) => s.id === (item.status || 'available'));
   if (editing) {
     return (
@@ -6620,7 +6892,10 @@ function ItemDetail({ item, onClose, go }) {
   return (
     <Modal title={item.name} onClose={onClose} wide>
       <div className="drawer-detail">
-        <div className="card-stage"><GarmentArt item={item} /></div>
+        <div>
+          <div className="card-stage"><GarmentArt item={item} />{photoOf(item, photos).ai && <span className="card-flag ai">AI photo</span>}</div>
+          <PieceAiPhoto item={item} />
+        </div>
         <div>
           <span className="label">{item.demo ? 'Demo item · sample data' : item.uploaded ? 'Added from your photo' : item.manual ? 'Added by hand' : 'In the closet'} · {status.label}{item.tagSource === 'ai' ? ' · details suggested by Gemini' : item.tagSource === 'device' ? ' · details guessed on this device' : ''}</span>
           {item.unverified?.length > 0 && (
@@ -6725,6 +7000,7 @@ export default function Closet({ go, initial = '' }) {
           <button className="btn accent" onClick={() => setUploading(true)}>+ Add clothes</button>
         </div>
       </div>
+      {owned.some((g) => !g.demo) && <BulkAiPhotos items={owned.filter((g) => !g.demo)} />}
 
       {hasDemo && owned.some((g) => g.demo) && (
         <div className="notice demo-banner">
@@ -6947,6 +7223,7 @@ export default function Create({ go, autoRun = false }) {
  FILE: wearwise/src/views/DressingRoom.jsx
 ====================================================================================================
 
+import { OutfitAiLook, outfitPieces } from '../components/AiPhoto.jsx';
 import { useMemo, useRef, useState } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
@@ -7036,6 +7313,7 @@ export default function DressingRoom({ go }) {
             child={child}
             caption={stage.mode === 'scene' && !stage.customBg ? 'Illustrated backdrop · not a photo' : stage.mode === 'mannequin' ? (child ? "Child's mannequin · a styling guide, not a try-on" : 'Mannequin · a styling guide, not a virtual try-on') : stage.mode === 'person' ? 'Not a try-on: the pieces are shown beside the photo' : null} />
           {(stage.mode === 'mannequin' || stage.mode === 'scene') && <p className="tiny" style={{ marginTop: 6 }}>Illustrated preview. Colors are taken from each item; uploaded photos are shown as they are, never recolored.</p>}
+          <OutfitAiLook pieces={outfitPieces(outfit)} />
 
           {stage.mode === 'person' && (
             <div className="context-box" style={{ marginTop: 12, alignItems: 'center', justifyContent: 'space-between' }}>
@@ -7962,6 +8240,7 @@ export function SharedLookbook({ data, go }) {
  FILE: wearwise/src/views/Saved.jsx
 ====================================================================================================
 
+import { lookKey, outfitPieces } from '../components/AiPhoto.jsx';
 // Saved Outfits for the active profile: favorites, open, rename, delete.
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
@@ -8019,7 +8298,9 @@ export default function Saved({ go }) {
             return (
               <div key={o.id} className="card saved-card">
                 <button className="card" onClick={() => { dispatch({ type: 'LOAD_DRAFT', draft: { slots: o.slots, name: o.name, context: o.context, stage: o.stage } }); go('#/builder'); }} aria-label={`Open ${o.name}`}>
-                  <div className="card-stage"><OutfitThumb outfit={o} resolve={resolve} child={child} />{o.demo && <span className="card-flag basic">Demo</span>}</div>
+                  <div className="card-stage">{o.aiLook && o.aiLook.key === lookKey(outfitPieces(resolve(o.slots)))
+                    ? <><img className="garment-img" style={{ objectFit: 'cover', width: '100%', height: '100%' }} src={o.aiLook.image} alt="AI-made photo of this outfit" /><span className="card-flag ai">✦ AI impression</span></>
+                    : <OutfitThumb outfit={o} resolve={resolve} child={child} />}{o.demo && <span className="card-flag basic">Demo</span>}</div>
                 </button>
                 <div className="card-body">
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
