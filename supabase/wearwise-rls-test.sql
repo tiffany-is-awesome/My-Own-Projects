@@ -2,9 +2,12 @@
 -- Safe to run any time: it creates two throwaway users inside ONE transaction and always ends with an error on
 -- purpose, which rolls everything back. Nothing is saved. Read the result in the error message:
 -- the expected result is
---   A sees rows=1 | A sees B=0 | A updates B=0 | A deletes B=0 | A inserts for someone else=denied | A updates own=1
---   | A writes photo into B folder=denied | A writes own photo=allowed | A sees B photos=0
---   | visitor reading=denied | visitor photos=0 (or denied)
+--   A sees rows=1 | A sees B=0 | A updates B=0 | A deletes B=0 | A inserts for someone else=denied
+--   | A moves own row to B=denied | A updates own=1 | A writes photo into B folder=denied | A writes own photo=allowed
+--   | A sees B photos=0 | A renames B photo=0 | visitor reading=denied | visitor sees photos=0 | visitor uploads=denied
+-- (Deleting files directly with SQL is blocked by Supabase itself; the app deletes through the Storage API, which uses
+--  the same "own folder only" rule as reading.)
+-- Last run on the live project: 2026-11-27, all as expected.
 do $$
 declare a uuid := gen_random_uuid(); b uuid := gen_random_uuid(); r text := ''; n int;
 begin
@@ -22,6 +25,8 @@ begin
   delete from public.wearwise_data where user_id = b; get diagnostics n = row_count; r := r || ' | A deletes B=' || n;
   begin insert into public.wearwise_data (user_id, data) values (gen_random_uuid(), '{}'); r := r || ' | A inserts for someone else=ALLOWED';
   exception when others then r := r || ' | A inserts for someone else=denied'; end;
+  begin update public.wearwise_data set user_id = b where user_id = a; get diagnostics n = row_count; r := r || ' | A moves own row to B=' || case when n > 0 then 'ALLOWED' else '0 rows' end;
+  exception when others then r := r || ' | A moves own row to B=denied'; end;
   update public.wearwise_data set data = '{"ok":1}' where user_id = a; get diagnostics n = row_count; r := r || ' | A updates own=' || n;
   begin insert into storage.objects (bucket_id, name, owner_id) values ('wearwise-photos', b::text || '/x.webp', a::text); r := r || ' | A writes photo into B folder=ALLOWED';
   exception when others then r := r || ' | A writes photo into B folder=denied'; end;
@@ -33,6 +38,8 @@ begin
   insert into storage.objects (bucket_id, name, owner_id) values ('wearwise-photos', b::text || '/secret.webp', b::text);
   execute 'set local role authenticated';
   select count(*) into n from storage.objects where bucket_id = 'wearwise-photos' and name like b::text || '/%'; r := r || ' | A sees B photos=' || n;
+  begin update storage.objects set name = a::text || '/stolen.webp' where bucket_id = 'wearwise-photos' and name like b::text || '/%'; get diagnostics n = row_count; r := r || ' | A renames B photo=' || n;
+  exception when others then r := r || ' | A renames B photo=denied'; end;
   execute 'reset role';
 
   -- not signed in at all
@@ -42,6 +49,8 @@ begin
   exception when others then r := r || ' | visitor reading=denied'; end;
   begin select count(*) into n from storage.objects where bucket_id = 'wearwise-photos'; r := r || ' | visitor sees photos=' || n;
   exception when others then r := r || ' | visitor photos=denied'; end;
+  begin insert into storage.objects (bucket_id, name) values ('wearwise-photos', b::text || '/anon.webp'); r := r || ' | visitor uploads=ALLOWED';
+  exception when others then r := r || ' | visitor uploads=denied'; end;
   execute 'reset role';
 
   raise exception 'RLS TEST RESULT (everything rolled back): %', r;

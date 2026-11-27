@@ -8,6 +8,12 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-27 · Final verification pass
+
+- **Fixed:** with Gemini on, if the AI found good outfits but the rules engine had no good one of its own, the rules engine's below-the-bar "closest option" was added next to the AI's outfits (with a contradictory note). The AI path now only tops up with outfits that pass the same bar (score ≥ 76, no deal-breaker). When no AI suggestion passes, it shows exactly what the rules engine shows on its own. New tests: 300 random AI answers, all shown outfits pass the bar; the forced case fails on the old code and passes on the new.
+- **Verified on the live Supabase project:** row-level security is on, the 4 own-row rules are in place for the closet data and the 4 own-folder rules for photos, the photo bucket is private, and visitors who aren't signed in have no permissions. The behaviour test passed: other users' data and photos can't be read, changed, renamed, deleted or taken over, and visitors who aren't signed in can't read or upload. Everything was rolled back and nothing was left behind.
+- All tests pass: 70 unit tests, 176 browser checks.
+
 ## 2026-11-27 · "How to use Wearwise" tour
 
 - A 13-step tour that highlights the real buttons one at a time, like Tiffo's: My Closet, Add clothes, search, Create an Outfit, getting outfits, Saved, Calendar and More, Family, Turn on AI, Sign in, and Settings.
