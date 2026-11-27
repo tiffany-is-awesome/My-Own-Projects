@@ -53,14 +53,16 @@ const topN = (items, ctx, n, keep) => {
 };
 
 /** Best bag + accessory (or none) for an outfit, from her closet. */
-function accessorize(o, ctx, pool, anchor) {
+function accessorize(o, ctx, pool, anchor, used = new Set()) {
   let best = { ...o };
   for (const slot of ['bag', 'accessory']) {
     if (anchor && slotOf(anchor) === slot) { best[slot] = anchor; continue; }
     const options = [null, ...pool.filter((g) => slotOf(g) === slot)];
     let bestScore = -1, pick = null;
     for (const c of options) {
-      const sc = critique({ ...best, [slot]: c }, ctx).overall + (c ? 0.5 : 0); // a tie goes to the finished look
+      // a tie goes to the finished look; a bag/accessory already used in another suggestion needs to be
+      // clearly better (2+ points) to be picked again, so the three looks don't all carry the same tote
+      const sc = critique({ ...best, [slot]: c }, ctx).overall + (c ? 0.5 : 0) - (c && used.has(c.id) ? 2 : 0);
       if (sc > bestScore) { bestScore = sc; pick = c; }
     }
     best = { ...best, [slot]: pick };
@@ -210,20 +212,24 @@ export function generateOutfits(pool, ctx, anchor = null) {
   if (anchor && !isAvailable(anchor)) return { outfits: [], missing: [], unavailable: anchor };
   const avail = pool.filter(isAvailable);
   const list = candidates(avail, ctx, anchor);
+  // Variety: how much two outfits overlap. A shared top/bottom/outer layer/shoes counts 1, a shared bag or
+  // accessory ½. The anchor piece ("style me with this") is in every outfit on purpose, so it doesn't count.
+  const anchorId = anchor?.id;
+  const overlap = (a, b) => [...CORE, 'bag', 'accessory'].reduce((n, k) =>
+    n + (a[k] && b[k] && a[k].id === b[k].id && a[k].id !== anchorId ? (CORE.includes(k) ? 1 : 0.5) : 0), 0);
   const chosen = [];
-  for (const { o } of list) {
-    if (chosen.length >= 3) break;
-    // distinct: share at most one core piece with any outfit already chosen (the anchor doesn't count)
-    if (chosen.some((c) => shared(c.o, o) - (anchor && slotOf(anchor) !== 'bag' && slotOf(anchor) !== 'accessory' ? 1 : 0) > 1)) continue;
-    chosen.push({ o });
+  for (const limit of [1, 2]) { // first: clearly different looks; then: at least half of each look different
+    for (const { o } of list) {
+      if (chosen.length >= 3) break;
+      if (chosen.some((c) => key(c.o) === key(o) || overlap(c.o, o) > limit)) continue;
+      chosen.push({ o });
+    }
   }
-  // a small closet may not allow 3 fully distinct looks: relax the rule rather than return fewer
-  for (const { o } of list) {
-    if (chosen.length >= 3) break;
-    if (!chosen.some((c) => key(c.o) === key(o))) chosen.push({ o });
-  }
+  const tooSimilar = chosen.length < 3 && list.length > chosen.length; // more were possible, but only as near-copies
+  const usedExtras = new Set();
   const outfits = chosen.map(({ o }) => {
-    const full = accessorize(o, ctx, avail, anchor);
+    const full = accessorize(o, ctx, avail, anchor, usedExtras);
+    ['bag', 'accessory'].forEach((k) => full[k] && usedExtras.add(full[k].id));
     const c = critique(full, ctx);
     return { name: describe(full), vibe: vibeOf(full), outfit: full, critique: c, why: explain(full, c, ctx) + personalNote(full, ctx), weak: c.dealBreakers.length > 0 };
   });
@@ -233,7 +239,7 @@ export function generateOutfits(pool, ctx, anchor = null) {
   const shown = (strong.length ? strong : outfits.slice(0, 1)).sort((a, b) => b.critique.overall - a.critique.overall);
   const note = shown.length < 3
     ? (strong.length
-      ? `Only ${strong.length} good outfit${strong.length > 1 ? 's' : ''} can be made from this closet for ${occ(ctx)}, so that's all you're shown. Adding pieces would give more choice.`
+      ? `Only ${strong.length} good${tooSimilar ? ', different' : ''} outfit${strong.length > 1 ? 's' : ''} can be made from this closet for ${occ(ctx)}, so that's all you're shown${tooSimilar ? ' (others would repeat the same pieces)' : ''}. Adding pieces would give more choice.`
       : `This closet can't make a really good outfit for ${occ(ctx)} yet. Here's the closest option, with what to watch.`)
     : '';
   return { outfits: shown, missing: [], note };

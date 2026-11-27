@@ -1710,7 +1710,77 @@ function occasionFit(o, ctx) {
   if (o.shoes && ctx.formality >= 3.5 && (o.shoes.formality || 2) <= ctx.formality - 1.5 && o.shoes.art !== 'sneaker') { s -= 14; cons.push(`The ${short(o.shoes)} ${plural(o.shoes) ? 'are' : 'is'} too casual for ${occ(ctx)}.`); }
   if (!o.shoes) { s -= 10; cons.push('Add shoes to complete the look.'); }
   if (o.top && !isDress(o.top) && !o.bottom) { s -= 15; cons.push('Add a bottom (or choose a dress) to complete the look.'); }
+  s += occasionCharacter(o, ctx, pros, cons);
   return { score: clamp(s), pros, cons, avg };
+}
+
+// ─── Occasion character: occasions differ in mood, not only in how dressy they are. Small, explained effects.
+const known = (i, field) => i && i[field] != null && !(i.unverified || []).includes(field);
+const LUXE = /silk|satin|velvet|sequin|lace|chiffon|organza|leather/;
+function occasionCharacter(o, ctx, pros, cons) {
+  const core = ['top', 'bottom', 'outer', 'shoes'].map((k) => o[k]).filter(Boolean);
+  const all = pieces(o);
+  if (!core.length) return 0;
+  const styleOf = (i) => (known(i, 'style') ? i.style : null);
+  const has = (re, list = core) => list.find((i) => re.test(`${i.art || ''} ${i.name || ''}`.toLowerCase()));
+  const sporty = core.find((i) => ['sporty', 'streetwear'].includes(styleOf(i)));
+  const edgy = core.find((i) => styleOf(i) === 'edgy');
+  const shorts = has(/shorts/);
+  const denim = core.find((i) => known(i, 'material') && /denim/.test(i.material.toLowerCase()) || /jeans/.test((i.art || '') + (i.name || '').toLowerCase()));
+  const sleeveless = o.top && o.top.sleeve === 'sleeveless' && !o.outer ? o.top : null;
+  const color = (i) => i.colors?.[0]?.name;
+  // A real standout (dress, shine, strong color) vs. a small one (a pattern, a statement accessory)
+  const bold = (i) => color(i) && !isNeutral(color(i)) && !['navy', 'denim', 'olive', 'khaki', 'camel', 'brown', 'beige', 'cream'].includes(color(i));
+  const standout = all.find((i) => i.category !== 'shoes' && i.category !== 'accessory' && i.category !== 'bag'
+    && (isDress(i) || bold(i) || (known(i, 'material') && LUXE.test(i.material.toLowerCase()) && !/leather/.test(i.material.toLowerCase()))));
+  const touch = !standout && all.find((i) => (i.pattern && !['solid', 'plain'].includes(i.pattern) && i.category !== 'shoes') || (i.category === 'accessory' && (i.formality || 2) >= 3.5) || (i.category !== 'shoes' && known(i, 'material') && /leather/.test(i.material.toLowerCase())));
+  const officey = core.filter((i) => styleOf(i) === 'business').length >= 2;
+  let d = 0;
+  // Pieces she (or the AI) tagged for this occasion count a little.
+  const tagged = core.filter((i) => known(i, 'occasions') && i.occasions?.length);
+  if (tagged.length >= 2) {
+    const share = tagged.filter((i) => i.occasions.includes(ctx.occasion)).length / tagged.length;
+    d += Math.round((share - 0.5) * 8); // −4 … +4
+  }
+  switch (ctx.occasion) {
+    case 'work':
+      if (shorts) { d -= 10; cons.push(`${cap(short(shorts))} read too off-duty for work.`); }
+      else if (sporty || edgy) { d -= 8; cons.push(`The ${short(sporty || edgy)} ${plural(sporty || edgy) ? 'feel' : 'feels'} too street for most workplaces.`); }
+      else if (denim && ctx.formality >= 3.5) { d -= 3; cons.push(`${cap(short(denim))} suit smart-casual offices; elsewhere, trousers are safer.`); }
+      else if (core.filter((i) => ['business', 'classic', 'preppy', 'minimalist'].includes(styleOf(i))).length >= 2) { d += 4; pros.push('Polished and easy to wear all day: right for work.'); }
+      break;
+    case 'party':
+      if (standout) {
+        const shiny = known(standout, 'material') && LUXE.test(standout.material.toLowerCase());
+        const strong = (isDress(standout) ? 1 : 0) + (shiny ? 1 : 0) + (bold(standout) ? 1 : 0); // dress, shine, color
+        d += strong >= 2 ? 10 : 6;
+        pros.push(strong >= 2 ? `The ${shiny ? standout.material.toLowerCase() + ' ' : ''}${short(standout)} is made for a party.` : `The ${short(standout)} ${plural(standout) ? 'bring' : 'brings'} the party feel.`);
+      }
+      else if (touch) { d += 1; pros.push(`The ${short(touch)} ${plural(touch) ? 'add' : 'adds'} a little interest; a stronger color or some shine would make it feel more like a party.`); }
+      else { d -= 5; cons.push('All calm neutrals: it reads more office than party. One standout piece (color, shine or a dress) would lift it.'); }
+      if (officey) { d -= 3; cons.push('Two business pieces together look like work clothes.'); }
+      break;
+    case 'date':
+      if (sporty) { d -= 8; cons.push(`The ${short(sporty)} ${plural(sporty) ? 'are' : 'is'} too sporty for a date.`); }
+      else if (officey) { d -= 5; cons.push('Two business pieces together feel like you came straight from the office.'); }
+      else if (core.some((i) => ['elegant', 'feminine'].includes(styleOf(i))) || standout) { d += 4; pros.push('Polished but relaxed, with a little something special: good for a date.'); }
+      break;
+    case 'church':
+      if (shorts || sleeveless) { d -= 8; cons.push(`${cap(short(shorts || sleeveless))} may feel too bare for church; add a layer or choose longer pieces.`); }
+      else if (edgy || sporty) { d -= 6; cons.push(`The ${short(edgy || sporty)} ${plural(edgy || sporty) ? 'feel' : 'feels'} too loud for church.`); }
+      else if (core.some((i) => ['classic', 'feminine', 'preppy', 'elegant'].includes(styleOf(i)))) { d += 3; pros.push('Neat and calm: right for church.'); }
+      break;
+    case 'wedding': case 'special':
+      if (denim) { d -= 10; cons.push(`${cap(short(denim))} are too casual for ${occ(ctx)}.`); }
+      if (sporty) { d -= 10; cons.push(`The ${short(sporty)} ${plural(sporty) ? 'don\'t' : 'doesn\'t'} belong at ${occ(ctx)}.`); }
+      break;
+    case 'vacation':
+      if (core.some((i) => known(i, 'material') && /linen|cotton/.test(i.material.toLowerCase())) && !officey) { d += 3; pros.push('Easy, breathable pieces: made for a holiday.'); }
+      if (officey) { d -= 5; cons.push('Two business pieces feel like work, not a holiday.'); }
+      break;
+    default:
+  }
+  return d;
 }
 
 // ───────────────────────────────── Comfort helper (0 stiff … 4 very comfortable)
@@ -2001,14 +2071,16 @@ const topN = (items, ctx, n, keep) => {
 };
 
 /** Best bag + accessory (or none) for an outfit, from her closet. */
-function accessorize(o, ctx, pool, anchor) {
+function accessorize(o, ctx, pool, anchor, used = new Set()) {
   let best = { ...o };
   for (const slot of ['bag', 'accessory']) {
     if (anchor && slotOf(anchor) === slot) { best[slot] = anchor; continue; }
     const options = [null, ...pool.filter((g) => slotOf(g) === slot)];
     let bestScore = -1, pick = null;
     for (const c of options) {
-      const sc = critique({ ...best, [slot]: c }, ctx).overall + (c ? 0.5 : 0); // a tie goes to the finished look
+      // a tie goes to the finished look; a bag/accessory already used in another suggestion needs to be
+      // clearly better (2+ points) to be picked again, so the three looks don't all carry the same tote
+      const sc = critique({ ...best, [slot]: c }, ctx).overall + (c ? 0.5 : 0) - (c && used.has(c.id) ? 2 : 0);
       if (sc > bestScore) { bestScore = sc; pick = c; }
     }
     best = { ...best, [slot]: pick };
@@ -2158,20 +2230,24 @@ export function generateOutfits(pool, ctx, anchor = null) {
   if (anchor && !isAvailable(anchor)) return { outfits: [], missing: [], unavailable: anchor };
   const avail = pool.filter(isAvailable);
   const list = candidates(avail, ctx, anchor);
+  // Variety: how much two outfits overlap. A shared top/bottom/outer layer/shoes counts 1, a shared bag or
+  // accessory ½. The anchor piece ("style me with this") is in every outfit on purpose, so it doesn't count.
+  const anchorId = anchor?.id;
+  const overlap = (a, b) => [...CORE, 'bag', 'accessory'].reduce((n, k) =>
+    n + (a[k] && b[k] && a[k].id === b[k].id && a[k].id !== anchorId ? (CORE.includes(k) ? 1 : 0.5) : 0), 0);
   const chosen = [];
-  for (const { o } of list) {
-    if (chosen.length >= 3) break;
-    // distinct: share at most one core piece with any outfit already chosen (the anchor doesn't count)
-    if (chosen.some((c) => shared(c.o, o) - (anchor && slotOf(anchor) !== 'bag' && slotOf(anchor) !== 'accessory' ? 1 : 0) > 1)) continue;
-    chosen.push({ o });
+  for (const limit of [1, 2]) { // first: clearly different looks; then: at least half of each look different
+    for (const { o } of list) {
+      if (chosen.length >= 3) break;
+      if (chosen.some((c) => key(c.o) === key(o) || overlap(c.o, o) > limit)) continue;
+      chosen.push({ o });
+    }
   }
-  // a small closet may not allow 3 fully distinct looks: relax the rule rather than return fewer
-  for (const { o } of list) {
-    if (chosen.length >= 3) break;
-    if (!chosen.some((c) => key(c.o) === key(o))) chosen.push({ o });
-  }
+  const tooSimilar = chosen.length < 3 && list.length > chosen.length; // more were possible, but only as near-copies
+  const usedExtras = new Set();
   const outfits = chosen.map(({ o }) => {
-    const full = accessorize(o, ctx, avail, anchor);
+    const full = accessorize(o, ctx, avail, anchor, usedExtras);
+    ['bag', 'accessory'].forEach((k) => full[k] && usedExtras.add(full[k].id));
     const c = critique(full, ctx);
     return { name: describe(full), vibe: vibeOf(full), outfit: full, critique: c, why: explain(full, c, ctx) + personalNote(full, ctx), weak: c.dealBreakers.length > 0 };
   });
@@ -2181,7 +2257,7 @@ export function generateOutfits(pool, ctx, anchor = null) {
   const shown = (strong.length ? strong : outfits.slice(0, 1)).sort((a, b) => b.critique.overall - a.critique.overall);
   const note = shown.length < 3
     ? (strong.length
-      ? `Only ${strong.length} good outfit${strong.length > 1 ? 's' : ''} can be made from this closet for ${occ(ctx)}, so that's all you're shown. Adding pieces would give more choice.`
+      ? `Only ${strong.length} good${tooSimilar ? ', different' : ''} outfit${strong.length > 1 ? 's' : ''} can be made from this closet for ${occ(ctx)}, so that's all you're shown${tooSimilar ? ' (others would repeat the same pieces)' : ''}. Adding pieces would give more choice.`
       : `This closet can't make a really good outfit for ${occ(ctx)} yet. Here's the closest option, with what to watch.`)
     : '';
   return { outfits: shown, missing: [], note };
@@ -3691,7 +3767,7 @@ export function DemoPhotoNote() {
 import { OutfitAiLook, outfitPieces } from './AiPhoto.jsx';
 import { useStore } from '../store.jsx';
 // Building blocks for "choose → get outfits → compare → save".
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Stage from './Stage.jsx';
 import { PieceList, ScoreBadge, HeartButton, Verdict, WardrobePicker } from './common.jsx';
 import { OCCASIONS, STYLES, SLOTS } from '../data/closet.js';
@@ -3762,10 +3838,34 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
   const [showAlts, setShowAlts] = useState(false);
   const alts = showAlts ? alternatives(result.outfit, ctx, pool) : [];
   const c = result.critique;
+  // After a swap: bring the picture back into view and say what changed (with Undo).
+  const [swap, setSwap] = useState(null); // { prev, text }
+  const stageRef = useRef(null);
+  useEffect(() => {
+    if (!swap) return;
+    const el = stageRef.current, r = el?.getBoundingClientRect();
+    if (r && (r.top < 60 || r.bottom > window.innerHeight)) el.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    const t = setTimeout(() => setSwap(null), 7000);
+    return () => clearTimeout(t);
+  }, [swap]);
+  const doSwap = (next) => {
+    const changed = SLOTS.filter((k) => (next.outfit[k]?.id || null) !== (result.outfit[k]?.id || null));
+    const added = changed.map((k) => next.outfit[k]).filter(Boolean);
+    const removed = changed.map((k) => result.outfit[k]).filter(Boolean);
+    const what = added.length ? `Swapped in: ${added.map((g) => g.name).join(', ')}` : `Removed: ${removed.map((g) => g.name).join(', ')}`;
+    setSwap({ prev: result, text: `${what} · ${result.critique.overall} → ${next.critique.overall}` });
+    onReplace(next);
+  };
   return (
     <article className="outfit-card" aria-label={`Outfit ${index + 1}`}>
-      <div className="outfit-card-stage">
+      <div className="outfit-card-stage" ref={stageRef}>
         <Stage outfit={result.outfit} mode={mode} compact child={child} />
+        {swap && (
+          <div className="swap-note" role="status">
+            <span>{swap.text}</span>
+            <button onClick={() => { onReplace(swap.prev); setSwap(null); }}>Undo</button>
+          </div>
+        )}
         <div className="seg mini-seg">
           <button className={mode === 'flatlay' ? 'on' : ''} onClick={() => setMode('flatlay')}>Flat-lay</button>
           <button className={mode === 'mannequin' ? 'on' : ''} onClick={() => setMode('mannequin')}>Mannequin</button>
@@ -3799,7 +3899,7 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
           <div className="alts">
             {alts.length === 0 && <p className="tiny">No other combinations from your available clothes improve or vary this one.</p>}
             {alts.map((a) => (
-              <button key={a.id} className="alt" onClick={() => { onReplace(withCritique(a.outfit, ctx, result)); setShowAlts(false); }}>
+              <button key={a.id} className="alt" onClick={() => { doSwap(withCritique(a.outfit, ctx, result)); setShowAlts(false); }}>
                 <span>{a.label}</span>
                 <span className={'tiny ' + (a.delta >= 0 ? 'up' : 'down')}>{a.score} ({a.delta >= 0 ? '+' : ''}{a.delta})</span>
               </button>
@@ -6710,6 +6810,12 @@ img { max-width: 100%; }
   .topbar .ai-status.as-button { padding: 6px 8px; }
 }
 @media (max-width: 380px) { .topbar .ai-status.as-button { max-width: 110px; overflow: hidden; text-overflow: ellipsis; } }
+
+/* Swap feedback on an outfit card */
+.swap-note { position: absolute; left: 10px; right: 10px; top: 10px; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(27,27,27,.88); color: #fff; padding: 8px 8px 8px 12px; font-size: 12px; font-weight: 600; line-height: 1.35; animation: swapIn .25s ease-out; }
+.swap-note button { flex: none; background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.55); padding: 5px 10px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+@keyframes swapIn { from { opacity: 0; transform: translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .swap-note { animation: none; } }
 
 
 ====================================================================================================

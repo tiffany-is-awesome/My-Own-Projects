@@ -8,6 +8,19 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-27 · Outfit quality pass 3: occasions, variety, swaps
+
+- **Occasions now differ in character, not just how dressy they are.** Before, Work, Party and Church returned the exact same three outfits. Now:
+  - Work rewards polished pieces and marks down shorts or sporty pieces.
+  - A party wants one standout piece (a dress, shine or a strong color); a satin dress counts for most. An all-neutral office look is called out.
+  - A date marks down office suits and sporty pieces.
+  - Church marks down shorts, sleeveless tops and loud pieces.
+  - Weddings and special occasions mark down denim and sporty pieces; vacations favor breathable pieces.
+  - Pieces you tagged for an occasion count a little more. Each effect is small and explained in the outfit's notes.
+- **More variety:** the three suggestions overlap less (pieces shared between pairs on the demo closet went from 23 to 15 across six occasions). The same bag or accessory is no longer put on every look. When the only remaining options would repeat the same pieces, fewer outfits are shown, and the note says why.
+- **Swapping a piece:** after "Improve or change", the card scrolls back to the picture and says what changed, e.g. "Swapped in: suede loafers · 88 → 91", with Undo.
+- Tests: 4 new unit tests (occasions differ, party standout, shorts at work and church, variety) and a new swap browser test.
+
 ## 2026-11-27 · Automatic realistic demo photos, Undo
 
 - **Demo closet:** while you aren't signed in to AI, demo pieces show as drawings with a note: "Turn on AI (a free Puter sign-in) and realistic photos are made for them automatically." Once you're signed in, Puter makes a realistic photo for each demo piece in the background, one at a time, with a small progress bar and a Stop button. They're made once and kept, labelled "AI photo". If the free allowance runs out, it stops and says so; the rest follow on a later visit. Can be switched off in Settings.
