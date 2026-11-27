@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
-import { ConfirmButton, PieceList, useToast } from '../components/common.jsx';
+import { ConfirmButton, PieceList, useToast, useUndoableDelete } from '../components/common.jsx';
 import { FEEDBACK_TAGS, describePreferences } from '../ai/insights.js';
 
 function Stars({ value, onChange }) {
@@ -16,6 +16,7 @@ function Stars({ value, onChange }) {
 }
 
 export default function History({ go }) {
+  const undoDelete = useUndoableDelete();
   const { dispatch, resolve, historyOf, profile, personal, get } = useStore();
   const toast = useToast();
   const list = historyOf(profile.id);
@@ -71,7 +72,7 @@ export default function History({ go }) {
                   {gone && <p className="tiny">Some pieces from this outfit are no longer in the closet.</p>}
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button className="btn sm ghost" onClick={() => { dispatch({ type: 'LOAD_DRAFT', draft: { slots: h.slots, name: 'Worn ' + fmt(h.date) } }); go('#/builder'); }}>Open in builder</button>
-                    <ConfirmButton label="Remove" confirmLabel="Click to remove" onConfirm={() => dispatch({ type: 'DELETE_WEAR', id: h.id })} />
+                    <ConfirmButton label="Remove" confirmLabel="Click to remove" onConfirm={() => undoDelete({ type: 'DELETE_WEAR', id: h.id }, 'Removed from history')} />
                   </div>
                 </div>
               </article>

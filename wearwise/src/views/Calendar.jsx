@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
-import { Modal, PieceList, ScoreBadge, Verdict, ConfirmButton, useToast } from '../components/common.jsx';
+import { Modal, PieceList, ScoreBadge, Verdict, ConfirmButton, useToast, useUndoableDelete } from '../components/common.jsx';
 import { ContextPicker, DEFAULT_CHOICE, contextOf, toSlots } from '../components/Choose.jsx';
 import { generateOutfits } from '../ai/generator.js';
 import { critique } from '../ai/critic.js';
@@ -182,6 +182,7 @@ function TripPlanner({ onClose }) {
 }
 
 export function TripCard({ trip }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, resolve, profile } = useStore();
   const [open, setOpen] = useState(false);
   const plans = state.plans.filter((p) => p.tripId === trip.id).sort((a, b) => a.date.localeCompare(b.date));
@@ -194,7 +195,7 @@ export function TripCard({ trip }) {
         <div><b>{trip.name}</b><div className="tiny">{nice(trip.start, { day: 'numeric', month: 'short' })} – {nice(trip.end, { day: 'numeric', month: 'short', year: 'numeric' })} · {plans.length} outfits · {items.length} pieces to pack</div></div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button className="btn sm" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? 'Hide' : 'Packing list'}</button>
-          <ConfirmButton label="Delete" confirmLabel="Delete trip and its plans?" onConfirm={() => dispatch({ type: 'DELETE_TRIP', id: trip.id })} />
+          <ConfirmButton label="Delete" confirmLabel="Delete trip and its plans?" onConfirm={() => undoDelete({ type: 'DELETE_TRIP', id: trip.id }, 'Trip deleted')} />
         </div>
       </div>
       {open && (

@@ -1,3 +1,4 @@
+import AutoDemoPhotos from './components/AutoDemoPhotos.jsx';
 import { useEffect, useState } from 'react';
 import { useStore } from './store.jsx';
 import Welcome from './views/Welcome.jsx';
@@ -142,7 +143,7 @@ export default function App() {
           {ai.via === 'puter' ? (
             <button className={'ai-status as-button ' + (gemUser ? 'ready' : '')} onClick={gemClick}
               title={gemUser ? `AI stylist: Gemini, signed in to Puter as ${gemUser.username}. Click to sign out.` : 'AI stylist: Gemini. Free, no key: sign in with a Puter account to switch it on.'}>
-              <i />{gemUser ? 'Gemini on' : gemUser === undefined ? 'Gemini' : 'Gemini · Sign in'}
+              <i />{gemUser ? 'AI on' : gemUser === undefined ? 'AI' : 'Turn on AI'}
             </button>
           ) : (
             <span className={'ai-status ' + ai.status} title={ai.status === 'ready' ? `AI stylist: ${ai.name}` : 'The AI stylist is not connected here, so the built-in rules engine is used'}>
@@ -153,6 +154,7 @@ export default function App() {
         </div>
       </header>
       <main key={route || 'home'} className="view-enter">{view}</main>
+      <AutoDemoPhotos />
       <nav className="tabbar" aria-label="Main (mobile)">
         {TABS.map(([h, l, d]) => {
           const on = h === '#/more' ? (route === 'more' || MOBILE_ALIAS[route] === 'more') : active === h && !MOBILE_ALIAS[route];

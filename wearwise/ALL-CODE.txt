@@ -6,7 +6,7 @@ Stack: React 18 + Vite, built into one self-contained HTML file. No backend of i
   styling logic = rules engine (src/ai/critic.js scores outfits, src/ai/generator.js builds them), data = src/store.jsx.
 Unit tests live in src/**/*.test.js (not included here). Change history: CHANGELOG.md.
 
-FILES (50):
+FILES (51):
   src/main.jsx
   src/App.jsx
   src/store.jsx
@@ -27,6 +27,7 @@ FILES (50):
   src/ai/tagger.js
   src/components/Account.jsx
   src/components/AiPhoto.jsx
+  src/components/AutoDemoPhotos.jsx
   src/components/Choose.jsx
   src/components/common.jsx
   src/components/GarmentArt.jsx
@@ -88,6 +89,7 @@ createRoot(document.getElementById('root')).render(
  FILE: wearwise/src/App.jsx
 ====================================================================================================
 
+import AutoDemoPhotos from './components/AutoDemoPhotos.jsx';
 import { useEffect, useState } from 'react';
 import { useStore } from './store.jsx';
 import Welcome from './views/Welcome.jsx';
@@ -232,7 +234,7 @@ export default function App() {
           {ai.via === 'puter' ? (
             <button className={'ai-status as-button ' + (gemUser ? 'ready' : '')} onClick={gemClick}
               title={gemUser ? `AI stylist: Gemini, signed in to Puter as ${gemUser.username}. Click to sign out.` : 'AI stylist: Gemini. Free, no key: sign in with a Puter account to switch it on.'}>
-              <i />{gemUser ? 'Gemini on' : gemUser === undefined ? 'Gemini' : 'Gemini · Sign in'}
+              <i />{gemUser ? 'AI on' : gemUser === undefined ? 'AI' : 'Turn on AI'}
             </button>
           ) : (
             <span className={'ai-status ' + ai.status} title={ai.status === 'ready' ? `AI stylist: ${ai.name}` : 'The AI stylist is not connected here, so the built-in rules engine is used'}>
@@ -243,6 +245,7 @@ export default function App() {
         </div>
       </header>
       <main key={route || 'home'} className="view-enter">{view}</main>
+      <AutoDemoPhotos />
       <nav className="tabbar" aria-label="Main (mobile)">
         {TABS.map(([h, l, d]) => {
           const on = h === '#/more' ? (route === 'more' || MOBILE_ALIAS[route] === 'more') : active === h && !MOBILE_ALIAS[route];
@@ -3595,6 +3598,93 @@ export const outfitPieces = (resolved) => SLOT_KEYS.map((k) => resolved?.[k]).fi
 
 
 ====================================================================================================
+ FILE: wearwise/src/components/AutoDemoPhotos.jsx
+====================================================================================================
+
+// Demo pieces start as drawings. Once the visitor is signed in to AI (Puter), realistic photos are made for them
+// automatically in the background, one at a time, with the visitor's own Puter account. Made once per browser:
+// each photo is saved with the piece (labelled "AI photo"), so it isn't made again.
+import { useEffect, useSyncExternalStore } from 'react';
+import { useStore } from '../store.jsx';
+import { useClaudeStatus, puterSignIn } from '../ai/claude.js';
+import { makeImage, piecePrompt } from '../ai/imagine.js';
+import { usePhotos } from '../data/photos.js';
+
+const PREF = 'wearwise.autoDemoPhotos';
+export const autoDemoOn = () => { try { return localStorage.getItem(PREF) !== 'off'; } catch { return true; } };
+export function setAutoDemo(on) { try { localStorage.setItem(PREF, on ? 'on' : 'off'); } catch { /* private mode */ } emit({ ...st, pref: on, stopped: on ? null : 'off' }); }
+
+// A tiny shared status, so the closet note and the progress pill show the same thing.
+let st = { running: false, done: 0, total: 0, stopped: null, pref: autoDemoOn() }; // stopped: null | 'user' | 'limit' | 'off'
+const subs = new Set();
+function emit(next) { st = next; subs.forEach((f) => f()); }
+export const useAutoDemo = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => st);
+export const stopAutoDemo = () => emit({ ...st, stopped: 'user' });
+
+const failed = new Set(); // pieces the AI couldn't do this session (not retried until next visit)
+const made = new Set();   // pieces already done this session (the closet may not show it yet for a moment)
+
+/** Mounted once in the app. Does the work; renders the small progress pill. */
+export default function AutoDemoPhotos() {
+  const { state, dispatch } = useStore();
+  const ai = useClaudeStatus();
+  const photos = usePhotos();
+  const s = useAutoDemo();
+  const todo = state.garments
+    .filter((g) => g.demo && !g.image && !g.aiImage && !photos.garments[g.id] && !failed.has(g.id) && !made.has(g.id))
+    .sort((a, b) => (a.ownerId === state.activeProfile ? 0 : 1) - (b.ownerId === state.activeProfile ? 0 : 1));
+  const next = todo[0];
+
+  useEffect(() => {
+    if (ai.status !== 'ready' || !s.pref || s.stopped || !next || s.running) return;
+    emit({ ...st, running: true, total: st.done + todo.length });
+    (async () => {
+      try {
+        const { image } = await makeImage(piecePrompt(next));
+        made.add(next.id);
+        dispatch({ type: 'UPDATE_GARMENT', garment: { id: next.id, aiImage: image } }); // harmless if the piece was removed meanwhile
+        emit({ ...st, running: false, done: st.done + 1 });
+      } catch (e) {
+        failed.add(next.id);
+        emit({ ...st, running: false, stopped: e?.code === 'rate_limited' || e?.code === 'not_signed_in' ? 'limit' : st.stopped });
+      }
+    })();
+  }, [ai.status, s.pref, s.stopped, s.running, next?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!s.running) return null;
+  return (
+    <div className="auto-pill" role="status">
+      <span className="spinner" aria-hidden="true" /> Making realistic demo photos · {Math.min(s.done + 1, s.total)} of {s.total}
+      <button onClick={stopAutoDemo}>Stop</button>
+    </div>
+  );
+}
+
+/** The line under the closet's demo note. */
+export function DemoPhotoNote() {
+  const { state } = useStore();
+  const ai = useClaudeStatus();
+  const photos = usePhotos();
+  const s = useAutoDemo();
+  const demo = state.garments.filter((g) => g.demo);
+  const drawn = demo.filter((g) => !g.image && !g.aiImage && !photos.garments[g.id]).length;
+  if (!demo.length) return null;
+  if (!drawn) return <span className="tiny">Demo pieces show AI-made sample photos (labelled "AI photo").</span>;
+  if (ai.status !== 'ready') {
+    return (
+      <span className="tiny">Demo pieces are shown as drawings. Turn on AI (a free Puter sign-in) and realistic photos are made for them automatically.{' '}
+        <button className="linklike" onClick={() => puterSignIn().catch(() => {})}>Turn on AI</button>
+      </span>
+    );
+  }
+  if (!s.pref) return <span className="tiny">Realistic demo photos are switched off (Settings).</span>;
+  if (s.stopped === 'limit') return <span className="tiny">Puter's free AI allowance ran out, so {drawn} demo piece{drawn > 1 ? 's stay drawings' : ' stays a drawing'} for now. They'll be made on a later visit.</span>;
+  if (s.stopped === 'user') return <span className="tiny">Stopped. {drawn} demo piece{drawn > 1 ? 's are' : ' is'} still drawings. <button className="linklike" onClick={() => emit({ ...st, stopped: null })}>Continue</button></span>;
+  return <span className="tiny">Making realistic photos for the demo pieces with your Puter account… ({drawn} to go)</span>;
+}
+
+
+====================================================================================================
  FILE: wearwise/src/components/Choose.jsx
 ====================================================================================================
 
@@ -3845,11 +3935,32 @@ export function PieceList({ outfit }) {
 
 const ToastCtx = createContext(() => {});
 export function ToastProvider({ children }) {
-  const [msg, setMsg] = useState(null);
-  const show = useCallback((m) => { setMsg(m); clearTimeout(window.__toastT); window.__toastT = setTimeout(() => setMsg(null), 2600); }, []);
-  return <ToastCtx.Provider value={show}>{children}{msg && <div className="toast" role="status">{msg}</div>}</ToastCtx.Provider>;
+  const [msg, setMsg] = useState(null); // a string, or { text, action: { label, run } }
+  const show = useCallback((m) => { setMsg(m); clearTimeout(window.__toastT); window.__toastT = setTimeout(() => setMsg(null), m?.action ? 6000 : 2600); }, []);
+  const text = typeof msg === 'string' ? msg : msg?.text;
+  return (
+    <ToastCtx.Provider value={show}>{children}
+      {msg && (
+        <div className={'toast' + (msg.action ? ' has-action' : '')} role="status">
+          {text}
+          {msg.action && <button className="toast-action" onClick={() => { clearTimeout(window.__toastT); setMsg(null); msg.action.run(); }}>{msg.action.label}</button>}
+        </div>
+      )}
+    </ToastCtx.Provider>
+  );
 }
 export const useToast = () => useContext(ToastCtx);
+
+/** Delete something and offer "Undo" for a few seconds (puts everything back exactly as it was before the delete). */
+export function useUndoableDelete() {
+  const { state, dispatch } = useStore();
+  const toast = useToast();
+  return (action, message) => {
+    const before = state;
+    dispatch(action);
+    toast({ text: message, action: { label: 'Undo', run: () => dispatch({ type: 'RESTORE', state: before }) } });
+  };
+}
 
 /** Click once to arm, again to confirm (no browser dialogs). */
 export function ConfirmButton({ label, confirmLabel = 'Click again to confirm', onConfirm, className = 'btn ghost sm', style }) {
@@ -6577,6 +6688,28 @@ img { max-width: 100%; }
 @media (max-width: 760px) { .results-head { scroll-margin-top: 178px; } }
 /* iPhone zooms the page when a text box under 16px is tapped */
 @media (max-width: 760px) { input[type="search"], input[type="text"], input[type="email"], input[type="password"], textarea, select { font-size: 16px; } }
+.toast.has-action { display: flex; align-items: center; gap: 16px; padding: 8px 8px 8px 20px; }
+.toast-action { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.5); padding: 7px 14px; font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.toast-action:hover, .toast-action:focus-visible { background: #fff; color: var(--ink); }
+@media (max-width: 760px) { .toast { max-width: calc(100vw - 24px); } }
+
+/* Automatic demo photos */
+.auto-pill { position: fixed; left: 16px; bottom: 16px; z-index: 55; display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--line); box-shadow: 0 6px 24px rgba(0,0,0,.10); padding: 8px 8px 8px 14px; font-size: 12px; font-weight: 600; }
+.auto-pill button { border: 1px solid var(--line); background: #fff; padding: 5px 10px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.auto-pill .spinner { width: 12px; height: 12px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: autoSpin .8s linear infinite; }
+@keyframes autoSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .auto-pill .spinner { animation: none; } }
+@media (max-width: 760px) { .auto-pill { left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); justify-content: space-between; } }
+.linklike { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; }
+.check-row input { margin-top: 3px; }
+/* Small phones: keep the top bar on one line */
+@media (max-width: 760px) {
+  .topbar .btn { white-space: nowrap; }
+  .topbar .ai-status { font-size: 10px; letter-spacing: .03em; }
+  .topbar .ai-status.as-button { padding: 6px 8px; }
+}
+@media (max-width: 380px) { .topbar .ai-status.as-button { max-width: 110px; overflow: hidden; text-overflow: ellipsis; } }
 
 
 ====================================================================================================
@@ -6588,7 +6721,7 @@ img { max-width: 100%; }
 import { useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
-import { Modal, PieceList, ScoreBadge, Verdict, ConfirmButton, useToast } from '../components/common.jsx';
+import { Modal, PieceList, ScoreBadge, Verdict, ConfirmButton, useToast, useUndoableDelete } from '../components/common.jsx';
 import { ContextPicker, DEFAULT_CHOICE, contextOf, toSlots } from '../components/Choose.jsx';
 import { generateOutfits } from '../ai/generator.js';
 import { critique } from '../ai/critic.js';
@@ -6767,6 +6900,7 @@ function TripPlanner({ onClose }) {
 }
 
 export function TripCard({ trip }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, resolve, profile } = useStore();
   const [open, setOpen] = useState(false);
   const plans = state.plans.filter((p) => p.tripId === trip.id).sort((a, b) => a.date.localeCompare(b.date));
@@ -6779,7 +6913,7 @@ export function TripCard({ trip }) {
         <div><b>{trip.name}</b><div className="tiny">{nice(trip.start, { day: 'numeric', month: 'short' })} – {nice(trip.end, { day: 'numeric', month: 'short', year: 'numeric' })} · {plans.length} outfits · {items.length} pieces to pack</div></div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button className="btn sm" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? 'Hide' : 'Packing list'}</button>
-          <ConfirmButton label="Delete" confirmLabel="Delete trip and its plans?" onConfirm={() => dispatch({ type: 'DELETE_TRIP', id: trip.id })} />
+          <ConfirmButton label="Delete" confirmLabel="Delete trip and its plans?" onConfirm={() => undoDelete({ type: 'DELETE_TRIP', id: trip.id }, 'Trip deleted')} />
         </div>
       </div>
       {open && (
@@ -6875,8 +7009,9 @@ export default function Calendar({ go }) {
 
 import { useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
-import { ProductCard, Modal, Meter, OutfitThumb, ConfirmButton, useToast } from '../components/common.jsx';
+import { ProductCard, Modal, Meter, OutfitThumb, ConfirmButton, useToast, useUndoableDelete } from '../components/common.jsx';
 import { PieceAiPhoto, BulkAiPhotos } from '../components/AiPhoto.jsx';
+import { DemoPhotoNote } from '../components/AutoDemoPhotos.jsx';
 import { usePhotos } from '../data/photos.js';
 import GarmentArt, { photoOf } from '../components/GarmentArt.jsx';
 import UploadModal from '../components/UploadModal.jsx';
@@ -6889,6 +7024,7 @@ const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function ItemDetail({ item: opened, onClose, go }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, resolve, get } = useStore();
   const item = get(opened.id) || opened; // live, so an AI photo made here shows straight away
   const toast = useToast();
@@ -6950,7 +7086,7 @@ function ItemDetail({ item: opened, onClose, go }) {
           <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
             <button className="btn accent" style={{ flex: 1 }} onClick={() => { onClose(); go('#/style/' + encodeURIComponent(item.id)); }}>Style me with this</button>
             <button className="btn" onClick={() => setEditing({ ...item })}>Edit details</button>
-            <ConfirmButton className="btn" label="Delete" confirmLabel="Click again to delete" onConfirm={() => { dispatch({ type: 'DELETE_GARMENT', id: item.id }); onClose(); toast('Deleted from the closet'); }} />
+            <ConfirmButton className="btn" label="Delete" confirmLabel="Click again to delete" onConfirm={() => { undoDelete({ type: 'DELETE_GARMENT', id: item.id }, `${item.name} deleted`); onClose(); toast('Deleted from the closet'); }} />
           </div>
           {usedIn.length > 0 && (
             <>
@@ -7027,7 +7163,7 @@ export default function Closet({ go, initial = '' }) {
 
       {hasDemo && owned.some((g) => g.demo) && (
         <div className="notice demo-banner">
-          <span>Demo items (labelled “Demo”) are sample data for trying the app. They're not your clothes.</span>
+          <span>Demo items (labelled “Demo”) are sample data for trying the app. They're not your clothes.<br /><DemoPhotoNote /></span>
           <ConfirmButton className="btn sm" label="Remove demo items" confirmLabel="Click again to remove" onConfirm={() => { dispatch({ type: 'REMOVE_DEMO' }); toast('Demo items removed'); }} />
         </div>
       )}
@@ -7514,12 +7650,13 @@ export default function DressingRoom({ go }) {
 import { useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
-import { PieceList, ScoreBadge, ConfirmButton, Verdict, useToast } from '../components/common.jsx';
+import { PieceList, ScoreBadge, ConfirmButton, Verdict, useToast, useUndoableDelete } from '../components/common.jsx';
 import { ContextPicker, DEFAULT_CHOICE, contextOf, toSlots } from '../components/Choose.jsx';
 import { familyLook } from '../ai/generator.js';
 import { ProfileManager } from './Settings.jsx';
 
 export default function Family({ go }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, closetOf, get, resolve } = useStore();
   const toast = useToast();
   const [ids, setIds] = useState(() => state.profiles.map((p) => p.id));
@@ -7609,7 +7746,7 @@ export default function Family({ go }) {
             {ensembles.map((e) => (
               <div key={e.id} className="ensemble">
                 <div className="ensemble-head"><div><b>{e.name}</b><div className="tiny">{e.why}</div></div>
-                  <ConfirmButton label="Delete" confirmLabel="Click to delete" onConfirm={() => dispatch({ type: 'DELETE_ENSEMBLE', id: e.id })} /></div>
+                  <ConfirmButton label="Delete" confirmLabel="Click to delete" onConfirm={() => undoDelete({ type: 'DELETE_ENSEMBLE', id: e.id }, 'Family look deleted')} /></div>
                 <div className="ensemble-row">
                   {e.members.map((m) => {
                     const p = state.profiles.find((x) => x.id === m.profileId);
@@ -7635,7 +7772,7 @@ export default function Family({ go }) {
 import { useMemo } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
-import { ConfirmButton, PieceList, useToast } from '../components/common.jsx';
+import { ConfirmButton, PieceList, useToast, useUndoableDelete } from '../components/common.jsx';
 import { FEEDBACK_TAGS, describePreferences } from '../ai/insights.js';
 
 function Stars({ value, onChange }) {
@@ -7649,6 +7786,7 @@ function Stars({ value, onChange }) {
 }
 
 export default function History({ go }) {
+  const undoDelete = useUndoableDelete();
   const { dispatch, resolve, historyOf, profile, personal, get } = useStore();
   const toast = useToast();
   const list = historyOf(profile.id);
@@ -7704,7 +7842,7 @@ export default function History({ go }) {
                   {gone && <p className="tiny">Some pieces from this outfit are no longer in the closet.</p>}
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button className="btn sm ghost" onClick={() => { dispatch({ type: 'LOAD_DRAFT', draft: { slots: h.slots, name: 'Worn ' + fmt(h.date) } }); go('#/builder'); }}>Open in builder</button>
-                    <ConfirmButton label="Remove" confirmLabel="Click to remove" onConfirm={() => dispatch({ type: 'DELETE_WEAR', id: h.id })} />
+                    <ConfirmButton label="Remove" confirmLabel="Click to remove" onConfirm={() => undoDelete({ type: 'DELETE_WEAR', id: h.id }, 'Removed from history')} />
                   </div>
                 </div>
               </article>
@@ -8012,7 +8150,7 @@ export default function Inspiration({ go }) {
 
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
-import { ConfirmButton, Modal, OutfitThumb, ScoreBadge, useToast } from '../components/common.jsx';
+import { ConfirmButton, Modal, OutfitThumb, ScoreBadge, useToast, useUndoableDelete } from '../components/common.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
 import { SLOTS, slotOf } from '../data/closet.js';
 
@@ -8115,6 +8253,7 @@ export function LookbookList({ go }) {
 }
 
 export function LookbookDetail({ id, go }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, resolve, get, scoreOf } = useStore();
   const toast = useToast();
   const [sharing, setSharing] = useState(false);
@@ -8214,7 +8353,7 @@ export function LookbookDetail({ id, go }) {
       )}
 
       <div style={{ marginTop: 48, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-        <ConfirmButton label="Delete lookbook" confirmLabel={`Delete “${c.title}”? Click again`} onConfirm={() => { dispatch({ type: 'DELETE_CATALOG', id: c.id }); go('#/lookbooks'); }} />
+        <ConfirmButton label="Delete lookbook" confirmLabel={`Delete “${c.title}”? Click again`} onConfirm={() => { undoDelete({ type: 'DELETE_CATALOG', id: c.id }, 'Lookbook deleted'); go('#/lookbooks'); }} />
       </div>
     </div>
   );
@@ -8267,9 +8406,10 @@ import { lookKey, outfitPieces } from '../components/AiPhoto.jsx';
 // Saved Outfits for the active profile: favorites, open, rename, delete.
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
-import { OutfitThumb, ScoreBadge, ConfirmButton, WardrobePicker, useToast } from '../components/common.jsx';
+import { OutfitThumb, ScoreBadge, ConfirmButton, WardrobePicker, useToast, useUndoableDelete } from '../components/common.jsx';
 
 export default function Saved({ go }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, resolve, outfitsOf, profile, scoreOf } = useStore();
   const toast = useToast();
   const [tab, setTab] = useState('all'); // 'all' | 'fav' | wardrobe id
@@ -8301,7 +8441,7 @@ export default function Saved({ go }) {
         {current && (
           <div className="wardrobe-tools">
             <input className="input" value={current.name} aria-label="Rename wardrobe" onChange={(e) => dispatch({ type: 'RENAME_WARDROBE', id: current.id, name: e.target.value })} />
-            <ConfirmButton label="Delete wardrobe" confirmLabel="Click again (outfits stay saved)" onConfirm={() => { dispatch({ type: 'DELETE_WARDROBE', id: current.id }); setTab('all'); }} />
+            <ConfirmButton label="Delete wardrobe" confirmLabel="Click again (outfits stay saved)" onConfirm={() => { undoDelete({ type: 'DELETE_WARDROBE', id: current.id }, 'Wardrobe deleted'); setTab('all'); }} />
           </div>
         )}
         <div className="tiny" style={{ marginTop: 6 }}>
@@ -8338,7 +8478,7 @@ export default function Saved({ go }) {
                   <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                     <button className="btn sm" aria-pressed={!!o.favorite} onClick={() => dispatch({ type: 'TOGGLE_FAVORITE', id: o.id })}>{o.favorite ? '♥ Favorite' : '♡ Favorite'}</button>
                     <button className="btn sm" onClick={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: o.slots, context: o.context, outfitId: o.id } }); toast('Added to Outfit History'); }}>I wore this</button>
-                    <ConfirmButton label="Delete" confirmLabel="Click to delete" onConfirm={() => { dispatch({ type: 'DELETE_OUTFIT', id: o.id }); toast('Outfit deleted'); }} />
+                    <ConfirmButton label="Delete" confirmLabel="Click to delete" onConfirm={() => { undoDelete({ type: 'DELETE_OUTFIT', id: o.id }, 'Outfit deleted'); }} />
                   </div>
                 </div>
               </div>
@@ -8360,8 +8500,9 @@ export default function Saved({ go }) {
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
 import { useAuth, supabase, cloudTable, syncControl } from '../auth.jsx';
-import { ConfirmButton, useToast } from '../components/common.jsx';
+import { ConfirmButton, useToast, useUndoableDelete } from '../components/common.jsx';
 import TipJar, { tipsOn } from '../components/TipJar.jsx';
+import { useAutoDemo, setAutoDemo } from '../components/AutoDemoPhotos.jsx';
 import { deleteCloudPhotos, forgetCaches, local as localPhotos } from '../photos.js';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut } from '../ai/claude.js';
 
@@ -8398,6 +8539,7 @@ export function ProfileManager() {
 }
 
 function LocationManager() {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch } = useStore();
   const [name, setName] = useState('');
   const count = (id) => state.garments.filter((g) => g.location === id).length;
@@ -8410,7 +8552,7 @@ function LocationManager() {
           <li key={l.id} style={{ gridTemplateColumns: '1fr 110px auto' }}>
             <input className="input" value={l.name} aria-label={`Rename ${l.name}`} onChange={(e) => dispatch({ type: 'RENAME_LOCATION', id: l.id, name: e.target.value })} />
             <span className="tiny">{count(l.id)} pieces</span>
-            <ConfirmButton label="Remove" confirmLabel="Click to remove" onConfirm={() => dispatch({ type: 'DELETE_LOCATION', id: l.id })} />
+            <ConfirmButton label="Remove" confirmLabel="Click to remove" onConfirm={() => undoDelete({ type: 'DELETE_LOCATION', id: l.id }, 'Place removed')} />
           </li>
         ))}
       </ul>
@@ -8424,6 +8566,7 @@ function LocationManager() {
 
 export default function Settings({ go }) {
   const { state, dispatch, hasDemo, deviceSave } = useStore();
+  const autoDemo = useAutoDemo();
   const { user, signOut } = useAuth() || {};
   const toast = useToast();
   const ai = useClaudeStatus();
@@ -8468,6 +8611,10 @@ export default function Settings({ go }) {
           gem ? <p className="small">Signed in to Puter as <b>{gem.username}</b>. <button className="btn sm" onClick={() => { puterSignOut(); setGem(null); toast('Signed out of Puter'); }}>Sign out</button></p>
             : <button className="btn sm primary" onClick={async () => { try { await puterSignIn(); setGem((await puterUser()) || null); } catch { toast('Sign-in was closed'); } }}>Sign in to Puter to switch on Gemini</button>
         ) : <p className="tiny">Status here: {ai.status === 'ready' ? `${ai.name} connected` : 'not connected'}.</p>}
+        <label className="check-row" style={{ marginTop: 12 }}>
+          <input type="checkbox" checked={autoDemo.pref} onChange={(e) => setAutoDemo(e.target.checked)} />
+          <span className="small">Make realistic photos for the demo pieces automatically when signed in to AI (uses your Puter account's free allowance; made once, then kept)</span>
+        </label>
       </section>
 
       <section className="settings-sec">

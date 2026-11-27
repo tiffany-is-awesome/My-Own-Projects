@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
 import { useAuth, supabase, cloudTable, syncControl } from '../auth.jsx';
-import { ConfirmButton, useToast } from '../components/common.jsx';
+import { ConfirmButton, useToast, useUndoableDelete } from '../components/common.jsx';
 import TipJar, { tipsOn } from '../components/TipJar.jsx';
+import { useAutoDemo, setAutoDemo } from '../components/AutoDemoPhotos.jsx';
 import { deleteCloudPhotos, forgetCaches, local as localPhotos } from '../photos.js';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut } from '../ai/claude.js';
 
@@ -40,6 +41,7 @@ export function ProfileManager() {
 }
 
 function LocationManager() {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch } = useStore();
   const [name, setName] = useState('');
   const count = (id) => state.garments.filter((g) => g.location === id).length;
@@ -52,7 +54,7 @@ function LocationManager() {
           <li key={l.id} style={{ gridTemplateColumns: '1fr 110px auto' }}>
             <input className="input" value={l.name} aria-label={`Rename ${l.name}`} onChange={(e) => dispatch({ type: 'RENAME_LOCATION', id: l.id, name: e.target.value })} />
             <span className="tiny">{count(l.id)} pieces</span>
-            <ConfirmButton label="Remove" confirmLabel="Click to remove" onConfirm={() => dispatch({ type: 'DELETE_LOCATION', id: l.id })} />
+            <ConfirmButton label="Remove" confirmLabel="Click to remove" onConfirm={() => undoDelete({ type: 'DELETE_LOCATION', id: l.id }, 'Place removed')} />
           </li>
         ))}
       </ul>
@@ -66,6 +68,7 @@ function LocationManager() {
 
 export default function Settings({ go }) {
   const { state, dispatch, hasDemo, deviceSave } = useStore();
+  const autoDemo = useAutoDemo();
   const { user, signOut } = useAuth() || {};
   const toast = useToast();
   const ai = useClaudeStatus();
@@ -110,6 +113,10 @@ export default function Settings({ go }) {
           gem ? <p className="small">Signed in to Puter as <b>{gem.username}</b>. <button className="btn sm" onClick={() => { puterSignOut(); setGem(null); toast('Signed out of Puter'); }}>Sign out</button></p>
             : <button className="btn sm primary" onClick={async () => { try { await puterSignIn(); setGem((await puterUser()) || null); } catch { toast('Sign-in was closed'); } }}>Sign in to Puter to switch on Gemini</button>
         ) : <p className="tiny">Status here: {ai.status === 'ready' ? `${ai.name} connected` : 'not connected'}.</p>}
+        <label className="check-row" style={{ marginTop: 12 }}>
+          <input type="checkbox" checked={autoDemo.pref} onChange={(e) => setAutoDemo(e.target.checked)} />
+          <span className="small">Make realistic photos for the demo pieces automatically when signed in to AI (uses your Puter account's free allowance; made once, then kept)</span>
+        </label>
       </section>
 
       <section className="settings-sec">

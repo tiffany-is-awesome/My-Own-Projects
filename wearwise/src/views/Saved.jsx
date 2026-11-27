@@ -2,9 +2,10 @@ import { lookKey, outfitPieces } from '../components/AiPhoto.jsx';
 // Saved Outfits for the active profile: favorites, open, rename, delete.
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
-import { OutfitThumb, ScoreBadge, ConfirmButton, WardrobePicker, useToast } from '../components/common.jsx';
+import { OutfitThumb, ScoreBadge, ConfirmButton, WardrobePicker, useToast, useUndoableDelete } from '../components/common.jsx';
 
 export default function Saved({ go }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, resolve, outfitsOf, profile, scoreOf } = useStore();
   const toast = useToast();
   const [tab, setTab] = useState('all'); // 'all' | 'fav' | wardrobe id
@@ -36,7 +37,7 @@ export default function Saved({ go }) {
         {current && (
           <div className="wardrobe-tools">
             <input className="input" value={current.name} aria-label="Rename wardrobe" onChange={(e) => dispatch({ type: 'RENAME_WARDROBE', id: current.id, name: e.target.value })} />
-            <ConfirmButton label="Delete wardrobe" confirmLabel="Click again (outfits stay saved)" onConfirm={() => { dispatch({ type: 'DELETE_WARDROBE', id: current.id }); setTab('all'); }} />
+            <ConfirmButton label="Delete wardrobe" confirmLabel="Click again (outfits stay saved)" onConfirm={() => { undoDelete({ type: 'DELETE_WARDROBE', id: current.id }, 'Wardrobe deleted'); setTab('all'); }} />
           </div>
         )}
         <div className="tiny" style={{ marginTop: 6 }}>
@@ -73,7 +74,7 @@ export default function Saved({ go }) {
                   <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                     <button className="btn sm" aria-pressed={!!o.favorite} onClick={() => dispatch({ type: 'TOGGLE_FAVORITE', id: o.id })}>{o.favorite ? '♥ Favorite' : '♡ Favorite'}</button>
                     <button className="btn sm" onClick={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: o.slots, context: o.context, outfitId: o.id } }); toast('Added to Outfit History'); }}>I wore this</button>
-                    <ConfirmButton label="Delete" confirmLabel="Click to delete" onConfirm={() => { dispatch({ type: 'DELETE_OUTFIT', id: o.id }); toast('Outfit deleted'); }} />
+                    <ConfirmButton label="Delete" confirmLabel="Click to delete" onConfirm={() => { undoDelete({ type: 'DELETE_OUTFIT', id: o.id }, 'Outfit deleted'); }} />
                   </div>
                 </div>
               </div>
