@@ -11,7 +11,8 @@ with sync_playwright() as p:
     pg.clock.set_fixed_time('2026-11-20T10:00:00+08:00')
     errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.route('**/chart.umd.min.js', lambda r: r.fulfill(body=stub, content_type='text/javascript'))
-    for pat in ['**/cdn.tailwindcss.com/**', '**/supabase-js@2', '**/js.puter.com/**']: pg.route(pat, lambda r: r.fulfill(body='', content_type='text/javascript'))
+    pg.add_init_script(stub)
+    for pat in ['**/cdn.tailwindcss.com/**', '**/supabase-js@2**', '**/js.puter.com/**']: pg.route(pat, lambda r: r.fulfill(body='', content_type='text/javascript'))
     pg.goto(html.as_uri()); pg.wait_for_timeout(600)
     def reset(cash):
         pg.evaluate(f"() => {{ CURRENCY='PHP'; Store.state = Store.blank(); Store.state.currency='PHP'; Store.state.initialBalance={cash}; Store.save(); }}")
