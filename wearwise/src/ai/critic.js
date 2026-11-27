@@ -249,7 +249,77 @@ function occasionFit(o, ctx) {
   if (o.shoes && ctx.formality >= 3.5 && (o.shoes.formality || 2) <= ctx.formality - 1.5 && o.shoes.art !== 'sneaker') { s -= 14; cons.push(`The ${short(o.shoes)} ${plural(o.shoes) ? 'are' : 'is'} too casual for ${occ(ctx)}.`); }
   if (!o.shoes) { s -= 10; cons.push('Add shoes to complete the look.'); }
   if (o.top && !isDress(o.top) && !o.bottom) { s -= 15; cons.push('Add a bottom (or choose a dress) to complete the look.'); }
+  s += occasionCharacter(o, ctx, pros, cons);
   return { score: clamp(s), pros, cons, avg };
+}
+
+// ─── Occasion character: occasions differ in mood, not only in how dressy they are. Small, explained effects.
+const known = (i, field) => i && i[field] != null && !(i.unverified || []).includes(field);
+const LUXE = /silk|satin|velvet|sequin|lace|chiffon|organza|leather/;
+function occasionCharacter(o, ctx, pros, cons) {
+  const core = ['top', 'bottom', 'outer', 'shoes'].map((k) => o[k]).filter(Boolean);
+  const all = pieces(o);
+  if (!core.length) return 0;
+  const styleOf = (i) => (known(i, 'style') ? i.style : null);
+  const has = (re, list = core) => list.find((i) => re.test(`${i.art || ''} ${i.name || ''}`.toLowerCase()));
+  const sporty = core.find((i) => ['sporty', 'streetwear'].includes(styleOf(i)));
+  const edgy = core.find((i) => styleOf(i) === 'edgy');
+  const shorts = has(/shorts/);
+  const denim = core.find((i) => known(i, 'material') && /denim/.test(i.material.toLowerCase()) || /jeans/.test((i.art || '') + (i.name || '').toLowerCase()));
+  const sleeveless = o.top && o.top.sleeve === 'sleeveless' && !o.outer ? o.top : null;
+  const color = (i) => i.colors?.[0]?.name;
+  // A real standout (dress, shine, strong color) vs. a small one (a pattern, a statement accessory)
+  const bold = (i) => color(i) && !isNeutral(color(i)) && !['navy', 'denim', 'olive', 'khaki', 'camel', 'brown', 'beige', 'cream'].includes(color(i));
+  const standout = all.find((i) => i.category !== 'shoes' && i.category !== 'accessory' && i.category !== 'bag'
+    && (isDress(i) || bold(i) || (known(i, 'material') && LUXE.test(i.material.toLowerCase()) && !/leather/.test(i.material.toLowerCase()))));
+  const touch = !standout && all.find((i) => (i.pattern && !['solid', 'plain'].includes(i.pattern) && i.category !== 'shoes') || (i.category === 'accessory' && (i.formality || 2) >= 3.5) || (i.category !== 'shoes' && known(i, 'material') && /leather/.test(i.material.toLowerCase())));
+  const officey = core.filter((i) => styleOf(i) === 'business').length >= 2;
+  let d = 0;
+  // Pieces she (or the AI) tagged for this occasion count a little.
+  const tagged = core.filter((i) => known(i, 'occasions') && i.occasions?.length);
+  if (tagged.length >= 2) {
+    const share = tagged.filter((i) => i.occasions.includes(ctx.occasion)).length / tagged.length;
+    d += Math.round((share - 0.5) * 8); // −4 … +4
+  }
+  switch (ctx.occasion) {
+    case 'work':
+      if (shorts) { d -= 10; cons.push(`${cap(short(shorts))} read too off-duty for work.`); }
+      else if (sporty || edgy) { d -= 8; cons.push(`The ${short(sporty || edgy)} ${plural(sporty || edgy) ? 'feel' : 'feels'} too street for most workplaces.`); }
+      else if (denim && ctx.formality >= 3.5) { d -= 3; cons.push(`${cap(short(denim))} suit smart-casual offices; elsewhere, trousers are safer.`); }
+      else if (core.filter((i) => ['business', 'classic', 'preppy', 'minimalist'].includes(styleOf(i))).length >= 2) { d += 4; pros.push('Polished and easy to wear all day: right for work.'); }
+      break;
+    case 'party':
+      if (standout) {
+        const shiny = known(standout, 'material') && LUXE.test(standout.material.toLowerCase());
+        const strong = (isDress(standout) ? 1 : 0) + (shiny ? 1 : 0) + (bold(standout) ? 1 : 0); // dress, shine, color
+        d += strong >= 2 ? 10 : 6;
+        pros.push(strong >= 2 ? `The ${shiny ? standout.material.toLowerCase() + ' ' : ''}${short(standout)} is made for a party.` : `The ${short(standout)} ${plural(standout) ? 'bring' : 'brings'} the party feel.`);
+      }
+      else if (touch) { d += 1; pros.push(`The ${short(touch)} ${plural(touch) ? 'add' : 'adds'} a little interest; a stronger color or some shine would make it feel more like a party.`); }
+      else { d -= 5; cons.push('All calm neutrals: it reads more office than party. One standout piece (color, shine or a dress) would lift it.'); }
+      if (officey) { d -= 3; cons.push('Two business pieces together look like work clothes.'); }
+      break;
+    case 'date':
+      if (sporty) { d -= 8; cons.push(`The ${short(sporty)} ${plural(sporty) ? 'are' : 'is'} too sporty for a date.`); }
+      else if (officey) { d -= 5; cons.push('Two business pieces together feel like you came straight from the office.'); }
+      else if (core.some((i) => ['elegant', 'feminine'].includes(styleOf(i))) || standout) { d += 4; pros.push('Polished but relaxed, with a little something special: good for a date.'); }
+      break;
+    case 'church':
+      if (shorts || sleeveless) { d -= 8; cons.push(`${cap(short(shorts || sleeveless))} may feel too bare for church; add a layer or choose longer pieces.`); }
+      else if (edgy || sporty) { d -= 6; cons.push(`The ${short(edgy || sporty)} ${plural(edgy || sporty) ? 'feel' : 'feels'} too loud for church.`); }
+      else if (core.some((i) => ['classic', 'feminine', 'preppy', 'elegant'].includes(styleOf(i)))) { d += 3; pros.push('Neat and calm: right for church.'); }
+      break;
+    case 'wedding': case 'special':
+      if (denim) { d -= 10; cons.push(`${cap(short(denim))} are too casual for ${occ(ctx)}.`); }
+      if (sporty) { d -= 10; cons.push(`The ${short(sporty)} ${plural(sporty) ? 'don\'t' : 'doesn\'t'} belong at ${occ(ctx)}.`); }
+      break;
+    case 'vacation':
+      if (core.some((i) => known(i, 'material') && /linen|cotton/.test(i.material.toLowerCase())) && !officey) { d += 3; pros.push('Easy, breathable pieces: made for a holiday.'); }
+      if (officey) { d -= 5; cons.push('Two business pieces feel like work, not a holiday.'); }
+      break;
+    default:
+  }
+  return d;
 }
 
 // ───────────────────────────────── Comfort helper (0 stiff … 4 very comfortable)
