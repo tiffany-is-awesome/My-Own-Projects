@@ -193,7 +193,7 @@ with sync_playwright() as p:
     check('net worth in Sept', nw('2026-09-30'), net=15000, assets=0)
     check('net worth in Oct', nw('2026-10-31'), net=1015000)
     check('net worth now', nw(), net=1115000)
-    check('12-month series', {'n': len(pg.evaluate("NetWorth.series(12)")), 'last': pg.evaluate("NetWorth.series(12).at(-1).net")}, n=12, last=1115000)
+    check('series covers only months with records (Sep–Nov)', {'n': len(pg.evaluate("NetWorth.series(12)")), 'last': pg.evaluate("NetWorth.series(12).at(-1).net")}, n=3, last=1115000)
 
     # 22. Asset notes
     reset(50000)

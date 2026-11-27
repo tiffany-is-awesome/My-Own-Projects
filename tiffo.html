@@ -3406,7 +3406,7 @@ const Insights = {
     if (owed) out.push({ p: 6.5, icon: '💳', page: 'money', text: `You owe <b>${fmt0(owed)}</b> on cards and loans.` });
     if (lt.theyOwe) out.push({ p: 4, icon: '👥', page: 'money', text: `People owe you <b>${fmt0(lt.theyOwe)}</b>.` });
     if (lt.youOwe) out.push({ p: 4.5, icon: '👥', page: 'money', text: `You owe family &amp; friends <b>${fmt0(lt.youOwe)}</b>.` });
-    const nwS = NetWorth.series(2), nw = nwS[1], d = round2(nw.net - nwS[0].net);
+    const nwS = NetWorth.series(2), nw = nwS.at(-1), d = nwS.length > 1 ? round2(nw.net - nwS[0].net) : 0;
     if (nw.own || nw.owe) out.push({ p: 5.5, icon: '📊', page: 'money', text: `Net worth <b>${fmt0(nw.net)}</b>${d ? ` (${d > 0 ? '▲' : '▼'} ${fmt0(Math.abs(d))} since last month)` : ''}.` });
     const iv = Invest.totals();
     if (iv.value) out.push({ p: 3, icon: '📈', page: 'money', text: `Investments worth <b>${fmt0(iv.value)}</b> (${iv.gain >= 0 ? '+' : '−'}${fmt0(Math.abs(iv.gain))} overall${iv.estimated ? ', includes estimates' : ''}).` });
@@ -3659,15 +3659,22 @@ const ASSET_TYPES = {
 };
 const Assets = {
   list() { return (Store.state.assets ||= []); },
-  active() { return this.list().filter((a) => !a.soldAt); },
+  active() { return this.list().filter((a) => !this.soldOn(a)); },
   get(id) { return this.list().find((a) => a.id === id) || null; },
   icon(a) { return (ASSET_TYPES[a.type] || ASSET_TYPES.other).icon; },
-  /** Value on a date: the latest valuation on or before it (0 before it was owned or after it was sold). */
+  /** The date it was sold, from its sale entry (so deleting or restoring that entry un-sells or re-sells it). */
+  soldOn(a) {
+    const sale = Store.state.transactions.find((t) => t.assetId === a.id && Money.kind(t) === 'asset_sell');
+    return sale ? sale.date : null;
+  },
+  /** Value on a date: the latest valuation on or before it; from the date you got it, the first value you gave. 0 before it was owned or after it was sold. */
   valueAt(a, iso = toISODate(new Date())) {
     if (a.since && a.since > iso) return 0;
-    if (a.soldAt && a.soldAt <= iso) return 0;
-    const h = (a.history || []).filter((x) => x.date <= iso).sort((x, y) => x.date.localeCompare(y.date));
-    return h.length ? h.at(-1).value : 0;
+    const sold = this.soldOn(a);
+    if (sold && sold <= iso) return 0;
+    const all = (a.history || []).slice().sort((x, y) => x.date.localeCompare(y.date) || (x.at || 0) - (y.at || 0)), h = all.filter((x) => x.date <= iso);
+    if (h.length) return h.at(-1).value;
+    return a.since && all.length ? all[0].value : 0;
   },
   value(a) { return this.valueAt(a); },
   setValue(a, value, date = toISODate(new Date()), how = 'manual') {
@@ -3722,11 +3729,20 @@ const NetWorth = {
     const own = round2(cash + people.theyOwe + invest + assets), owe = round2(owedDebts + people.youOwe);
     return { date: iso, cash, theyOwe: people.theyOwe, invest, assets, own, debts: owedDebts, youOwe: people.youOwe, owe, net: round2(own - owe) };
   },
-  /** Month-end net worth for the last n months (this month = today). */
+  /** The first date Tiffo has any record for: when you started, your first entry, or when you got something you own. */
+  startDate() {
+    const st = Store.state, ds = [st.createdAt ? toISODate(new Date(st.createdAt)) : null];
+    for (const t of st.transactions) ds.push(t.date);
+    for (const a of st.assets || []) ds.push(a.since || a.history?.[0]?.date);
+    for (const h of st.holdings || []) ds.push(h.opening?.date);
+    return ds.filter(Boolean).sort()[0] || toISODate(new Date());
+  },
+  /** Month-end net worth for the last n months (this month = today), only for months Tiffo has records for (no made-up history). */
   series(n = 12) {
-    const out = [], now = new Date();
+    const out = [], now = new Date(), start = this.startDate().slice(0, 7);
     for (let k = n - 1; k >= 0; k--) {
       const d = k === 0 ? now : new Date(now.getFullYear(), now.getMonth() - k + 1, 0);
+      if (k > 0 && toISODate(d).slice(0, 7) < start) continue;
       out.push({ label: d.toLocaleDateString([], { month: 'short' }), ...this.at(toISODate(d)) });
     }
     return out;
@@ -6301,11 +6317,18 @@ const UI = {
   },
 
   /** Deleting never loses anything right away: entries go to Recently deleted for 30 days. */
-  deleteEntry(id) {
+  async deleteEntry(id) {
     const removed = Store.removeTransaction(id);
     if (!removed) return;
     this.renderAll();
-    toast(`🗑 Deleted “${escapeHTML(removed.description.slice(0, 40))}”. It’s in Recently deleted for 30 days.`, { duration: 6000, action: { label: 'Undo', fn: () => { Store.restoreTransaction(id); UI.renderAll(); } } });
+    let gone = null;
+    // Deleting the purchase of something you own: the money comes back, so ask whether the thing should go too (otherwise it counts twice).
+    const asset = Money.kind(removed) === 'asset_buy' && removed.assetId && Assets.get(removed.assetId);
+    if (asset && !Store.state.transactions.some((t) => t.assetId === asset.id)
+      && await askConfirm(`You deleted buying ${asset.name}, so ${fmt(removed.amount)} is back in your account. Remove ${asset.name} from what you own too? If you still own it, keep it.`, `Remove ${asset.name}`)) {
+      gone = asset; Store.state.assets = Assets.list().filter((x) => x !== asset); Store.save(); this.renderAll();
+    }
+    toast(`🗑 Deleted “${escapeHTML(removed.description.slice(0, 40))}”${gone ? ` and ${escapeHTML(gone.name)}` : ''}. It’s in Recently deleted for 30 days.`, { duration: 6000, action: { label: 'Undo', fn: () => { Store.restoreTransaction(id); if (gone && !Assets.get(gone.id)) Assets.list().push(gone); Store.save(); UI.renderAll(); } } });
   },
   trashView() {
     const items = (Store.state.trash || []).slice().reverse();
@@ -6997,6 +7020,9 @@ const UI = {
       } } : null,
       onSave: (v) => {
         if (!v.name) return 'Give it a name.';
+        const same = (n) => String(n || '').trim().toLowerCase() === v.name.trim().toLowerCase();
+        if (Assets.active().some((x) => same(x.name))) return `${v.name.trim()} is already in what you own (net worth), so adding it here would count it twice.`;
+        if (Invest.list().some((x) => x !== h && same(x.name) && !Invest.calc(x).closed)) return `You already have ${v.name.trim()} in Investments. Use “Add to” on it instead.`;
         if (!h && (!v.amount || v.amount <= 0)) return 'Type the amount.';
         if (!h && v.fees && v.fees >= v.amount) return 'Fees should be less than the amount.';
         const x = h || { id: uid(), createdAt: Date.now() };
@@ -7091,9 +7117,9 @@ const UI = {
     const now = NetWorth.at(), ser = NetWorth.series(12);
     $('#nwTotal').textContent = fmt(now.net);
     $('#nwTotal').classList.toggle('text-rose-600', now.net < 0);
-    const prev = ser.at(-2), first = ser.find((x) => x.own || x.owe) || ser[0];
+    const prev = ser.at(-2) || ser.at(-1), first = ser.find((x) => x.own || x.owe) || ser[0];
     const ch = (a, b, label) => { const d = round2(a - b); return d ? `<span class="${d > 0 ? 'text-teal-700 dark:text-teal-400' : 'text-rose-600'}">${d > 0 ? '▲' : '▼'} ${fmt0(Math.abs(d))}</span> <span class="font-normal text-stone-500">${label}</span>` : ''; };
-    $('#nwChange').innerHTML = [ch(now.net, prev.net, 'since last month'), first !== prev ? ch(now.net, first.net, `since ${first.label}`) : ''].filter(Boolean).join(' · ') || '<span class="font-normal text-stone-500">Add accounts, debts or assets to see how it changes.</span>';
+    $('#nwChange').innerHTML = [prev !== ser.at(-1) ? ch(now.net, prev.net, 'since last month') : '', first !== prev && first !== ser.at(-1) ? ch(now.net, first.net, `since ${first.label}`) : ''].filter(Boolean).join(' · ') || '<span class="font-normal text-stone-500">Add accounts, debts or assets to see how it changes.</span>';
     const max = Math.max(1, ...ser.map((x) => Math.abs(x.net)));
     $('#nwBars').innerHTML = ser.map((x, i) => `<div class="flex-1 h-full flex flex-col justify-end" title="${escapeHTML(x.label)}: ${escapeHTML(fmt(x.net))}">
       <div class="rounded-t ${x.net < 0 ? 'bg-rose-400' : i === ser.length - 1 ? 'bg-teal-600' : 'bg-teal-300 dark:bg-teal-700'}" style="height:${Math.max(2, Math.round((Math.abs(x.net) / max) * 100))}%"></div></div>`).join('');
@@ -7137,6 +7163,10 @@ const UI = {
       onSave: (v) => {
         if (!v.name) return 'Give it a name.';
         if (/^(bdo|bpi|gcash|maya|metrobank|landbank|pnb|security bank|unionbank|cash|savings|bank|e-?wallet)$/i.test(v.name.trim())) return 'Bank and e-wallet money goes in Accounts, so it isn’t counted twice.';
+        const same = (n) => String(n || '').trim().toLowerCase() === v.name.trim().toLowerCase();
+        if (Accounts.list().some((x) => same(x.name))) return `You already have an account called ${v.name.trim()} in Accounts. Its money is counted there, so adding it here would count it twice.`;
+        if (Invest.list().some((x) => same(x.name))) return `${v.name.trim()} is already in Investments, so adding it here would count it twice.`;
+        if (Assets.list().some((x) => x !== a && !Assets.soldOn(x) && same(x.name))) return `You already have ${v.name.trim()} here.`;
         if (!a && (v.value == null || v.value < 0)) return 'Type what it’s worth now. A rough estimate is fine.';
         if (!a && v.bought && (!v.price || v.price <= 0)) return 'Type the price you paid.';
         const x = a || { id: uid(), history: [] };
@@ -7183,7 +7213,7 @@ const UI = {
       onSave: (v) => {
         if (!v.price || v.price < 0) return 'Type the price.';
         const t = Store.addTransaction({ kind: 'asset_sell', amount: round2(v.price), category: 'Assets', date: v.date, accountId: v.into || Accounts.DEFAULT, assetId: a.id, description: `Sold ${a.name}`, source: 'asset' });
-        a.soldAt = v.date; a.soldFor = round2(v.price); Store.save(); this.renderAll();
+        a.soldAt = v.date; a.soldFor = round2(v.price); Store.save(); this.renderAll();   // soldAt/soldFor are kept for older versions; Assets.soldOn() reads the sale entry
         const g = round2(v.price - (a.history?.[0]?.value ?? v.price));
         toast(`🏷️ Sold ${escapeHTML(a.name)} for ${fmt(v.price)}${g ? ` (${g > 0 ? 'gain' : 'loss'} of ${fmt(Math.abs(g))} vs. what you first recorded)` : ''}`, { duration: 7000,
           action: { label: 'Undo', fn: () => { Store.removeTransaction(t.id, true); delete a.soldAt; delete a.soldFor; Store.save(); UI.renderAll(); } } });
