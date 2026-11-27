@@ -8,6 +8,14 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-27 · Privacy rules verified on the live database
+
+Ran `supabase/wearwise-rls-test.sql` on the real Supabase project (two throwaway users inside one transaction, all rolled back; afterwards 0 test users, 0 rows, 0 photos left). Result:
+- A signed-in user sees only their own closet (1 row), sees 0 of the other user's rows, and changes or deletes 0 of them.
+- They can't save a closet under someone else's account, and can update their own.
+- They can't put a photo into someone else's folder and can't see someone else's photos, but can save into their own.
+- A visitor who isn't signed in is refused the closet data and sees 0 photos.
+
 ## 2026-11-27 · Better cut-outs
 
 - **White or pale clothes on a light background** (a white tee on a beige sheet) are now cut out. Before, the background removal took the garment with it and gave up, keeping the whole photo. It now retries with finer settings first, but only accepts the result if a sensible amount of garment is left.
