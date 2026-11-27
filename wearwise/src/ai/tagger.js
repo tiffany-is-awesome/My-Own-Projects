@@ -85,6 +85,50 @@ function removeBackground(ctx, w, h, tolerance = 34) {
 }
 
 /**
+ * Lint or a crumb touching the garment's edge is joined to it by a thin bridge, so "keep the largest piece" can't drop
+ * it. Shave 3 px off the outline, see which small blobs come loose, and remove those (and only those). Thin parts of
+ * the garment itself (straps, a necklace chain) disappear in the shaving step and are therefore left untouched.
+ */
+function detachSpecks(px, w, h) {
+  const N = w * h, R = 3;
+  let m = new Uint8Array(N);
+  for (let p = 0; p < N; p++) m[p] = px[p * 4 + 3] > 0 ? 1 : 0;
+  for (let r = 0; r < R; r++) { // erode
+    const e = new Uint8Array(N);
+    for (let p = 0; p < N; p++) {
+      if (!m[p]) continue;
+      const x = p % w, y = (p / w) | 0;
+      e[p] = x > 0 && x < w - 1 && y > 0 && y < h - 1 && m[p - 1] && m[p + 1] && m[p - w] && m[p + w] ? 1 : 0;
+    }
+    m = e;
+  }
+  const label = new Int32Array(N).fill(-1), sizes = [];
+  const stack = [];
+  for (let p0 = 0; p0 < N; p0++) {
+    if (!m[p0] || label[p0] !== -1) continue;
+    const id = sizes.length; let size = 0; label[p0] = id; stack.push(p0);
+    while (stack.length) {
+      const p = stack.pop(); size++;
+      const x = p % w, y = (p / w) | 0;
+      for (const q of [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, y > 0 ? p - w : -1, y < h - 1 ? p + w : -1]) if (q >= 0 && m[q] && label[q] === -1) { label[q] = id; stack.push(q); }
+    }
+    sizes.push(size);
+  }
+  if (sizes.length < 2) return;
+  const main = sizes.indexOf(Math.max(...sizes));
+  const small = new Set(sizes.map((n, i) => (i !== main && n < sizes[main] * 0.03 ? i : -1)).filter((i) => i >= 0));
+  if (!small.size) return;
+  for (let p = 0; p < N; p++) {
+    if (!small.has(label[p])) continue;
+    const x = p % w, y = (p / w) | 0; // remove the blob plus the pixels shaved off it
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const xx = x + dx, yy = y + dy;
+      if (xx >= 0 && yy >= 0 && xx < w && yy < h && label[yy * w + xx] !== main) px[(yy * w + xx) * 4 + 3] = 0;
+    }
+  }
+}
+
+/**
  * Clean up the cut-out without touching the garment's own pixels:
  *  - keep only the largest connected piece (drops crumbs, lint, bits of the background),
  *  - crop to the garment with a small margin, so it fills its box in the flat-lay and mannequin,
@@ -97,6 +141,7 @@ export function refineCutout(canvas, original) {
   const data = ctx.getImageData(0, 0, w, h);
   const px = data.data;
   const N = w * h;
+  detachSpecks(px, w, h);
   const label = new Int32Array(N).fill(-1);
   let best = -1, bestSize = 0, comp = 0;
   const stack = [];
@@ -116,7 +161,7 @@ export function refineCutout(canvas, original) {
   if (best < 0 || coverage < 0.015 || coverage > 0.97) {
     // The cut-out failed (garment too close to the background color, or touching every edge). Never lose the garment.
     ctx.putImageData(original, 0, 0);
-    return { canvas, data: original, cut: 'kept-original', aspect: h / w };
+    return { canvas, data: original, cut: 'kept-original', aspect: h / w, reason: coverage > 0.97 ? 'too-much' : 'too-little' };
   }
   let x0 = w, y0 = h, x1 = 0, y1 = 0;
   for (let p = 0; p < N; p++) {
@@ -131,7 +176,7 @@ export function refineCutout(canvas, original) {
   out.width = cw; out.height = ch;
   const octx = out.getContext('2d', { willReadFrequently: true });
   octx.drawImage(canvas, x0, y0, cw, ch, 0, 0, cw, ch);
-  return { canvas: out, data: octx.getImageData(0, 0, cw, ch), cut: 'clean', aspect: ch / cw };
+  return { canvas: out, data: octx.getImageData(0, 0, cw, ch), cut: 'clean', aspect: ch / cw, coverage };
 }
 
 /** Dominant color of the opaque pixels (tiny k-means, k=3). */
@@ -223,8 +268,14 @@ export async function processUpload(file, onStep = () => {}) {
 
   onStep('Removing background');
   const original = ctx.getImageData(0, 0, w, h);
-  removeBackground(ctx, w, h);
-  const refined = refineCutout(canvas, original);
+  // Try the usual setting first. If it removed (almost) everything, the garment is close to the background color
+  // (a white tee on a beige sheet): try finer settings. If it removed (almost) nothing, try a looser one.
+  const attempt = (tol) => { ctx.putImageData(original, 0, 0); removeBackground(ctx, w, h, tol); return refineCutout(canvas, original); };
+  let refined = attempt(34);
+  const retries = refined.cut === 'clean' ? [] : refined.reason === 'too-little' ? [20, 12] : [48];
+  // a finer retry only counts if a sensible amount of garment is left (it mustn't eat into a pale garment)
+  for (const tol of retries) { const r = attempt(tol); if (r.cut === 'clean' && r.coverage >= 0.05) { refined = r; break; } }
+  if (refined.cut !== 'clean') { ctx.putImageData(original, 0, 0); refined = { ...refined, canvas, data: original }; }
   const data = refined.data;
   await wait(350);
 
