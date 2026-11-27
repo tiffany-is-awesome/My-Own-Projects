@@ -189,9 +189,13 @@ Reply with ONLY this JSON:
     seen.add(k);
     validated.push({ name: describe(o), outfit: o, critique: c, why: str(raw.why, 300) || explain(o, c, ctx), source: 'ai' });
   }
-  // Top up from the rules engine (never fewer than 3 when her closet allows)
+  // Nothing the AI suggested passed: show exactly what the rules engine shows on its own (same bar, same note).
+  if (!validated.length) return { outfits: rules.outfits.map((x) => ({ ...x, source: 'rules' })), provider: r.provider, note: [rejected ? `The rules engine replaced the AI's suggestions: they didn't pass its checks (incomplete, impractical for the weather, or a weak match).` : '', rules.note].filter(Boolean).join(' ') };
+  // Top up from the rules engine, but only with outfits that pass the same bar as the AI's (≥ GOOD, no deal-breaker).
+  // (When the rules engine has no good outfit, it returns one "closest option" below the bar: that is not added here.)
   for (const x of rules.outfits) {
     if (validated.length >= 3) break;
+    if (x.weak || x.critique.overall < GOOD || x.critique.dealBreakers.length) continue;
     const k = Object.values(x.outfit).map((g) => g?.id || '-').join('|');
     if (seen.has(k)) continue;
     seen.add(k);
@@ -200,7 +204,8 @@ Reply with ONLY this JSON:
   return {
     outfits: validated,
     provider: r.provider,
-    note: [rejected ? `The rules engine replaced ${rejected} AI suggestion${rejected > 1 ? 's' : ''} that didn't pass its checks (incomplete, impractical for the weather, or a weak match).` : '', validated.length < 3 ? rules.note : ''].filter(Boolean).join(' '),
+    note: [rejected ? `The rules engine replaced ${rejected} AI suggestion${rejected > 1 ? 's' : ''} that didn't pass its checks (incomplete, impractical for the weather, or a weak match).` : '',
+      validated.length < 3 ? `Only ${validated.length} good outfit${validated.length > 1 ? 's' : ''} for this, so that's all you're shown.` : ''].filter(Boolean).join(' '),
   };
 }
 
