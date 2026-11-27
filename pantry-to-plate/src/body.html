@@ -31,6 +31,7 @@
         <button class="btn primary big" data-act="tab" data-tab="kitchen"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M6 10h12M9 6v2M9 13v3"/></svg>Open my kitchen</button>
         <button class="btn big" data-act="cook-today"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M2 10h2M20 10h2M9 6.5c0-1.2 1-1.2 1-2.5M14 6.5c0-1.2 1-1.2 1-2.5"/></svg>Find something to cook</button>
       </div>
+      <div id="howToUse" class="howto"></div>
       <div id="homeSample"></div>
       <div id="homeAlert"></div>
       <div id="homeResume"></div>
@@ -186,6 +187,16 @@
 <footer><div class="wrap">Pantry → Plate. Freshness times are conservative estimates based on USDA cold-storage guidance and the UK Food Standards Agency (cooked rice). Printed use-by dates always win. When in doubt, throw it out.</div></footer>
 <div class="cookbar" id="cookbar" hidden></div>
 <div class="modal" id="authModal" hidden><div class="box" role="dialog" aria-modal="true" aria-labelledby="authTitle" id="authBox"></div></div>
+<div id="tour" hidden>
+  <div class="tour-block"></div>
+  <div id="tourSpot" class="tour-move" aria-hidden="true"></div>
+  <div id="tourTip" class="tour-move" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourText">
+    <div id="tourCount" class="tour-count"></div>
+    <h3 id="tourTitle"></h3>
+    <p id="tourText"></p>
+    <div class="tour-btns"><button type="button" class="linkbtn" data-act="tour-skip">Skip tour</button><span><button type="button" class="btn small" id="tourBack" data-act="tour-back">Back</button><button type="button" class="btn primary small" id="tourNext" data-act="tour-next">Next</button></span></div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="gc" id="gc" hidden role="dialog" aria-modal="true" aria-labelledby="gcTitle">
   <div class="gc-top"><button class="iconbtn" data-act="gc-close" aria-label="Back to the full recipe"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button><div class="gc-head"><span class="label">Cooking</span><h2 id="gcTitle"></h2></div><button class="linkbtn" data-act="gc-quit">Stop cooking</button></div>

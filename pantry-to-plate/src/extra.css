@@ -559,3 +559,31 @@ canvas.making-photo{animation:photoShimmer 1.6s ease-in-out infinite}
 .photo-credit.demo-note span{flex:1 1 180px}
 .photo-credit.demo-note .linkbtn{font-weight:700}
 @media (prefers-reduced-motion:reduce){canvas.making-photo{animation:none}}
+
+/* Almost there: dishes one basic away */
+.almost{margin-top:14px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;background:#fff}
+.almost h3{display:flex;align-items:center;gap:6px;font-size:1rem;margin:0 0 4px}
+.almost h3 .ic{color:var(--amber);width:16px;height:16px}
+.almost p{margin:0 0 8px;color:var(--muted);font-size:.88rem}
+.almost-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.almost-row span{flex:1 1 180px}
+
+/* How to use: spotlight tour */
+.howto{margin-top:12px}
+.howto .linkbtn{display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.howto .ic{width:16px;height:16px}
+.howto-new{color:var(--accent)}
+.howto-new .ic{color:var(--amber)}
+.howto-quiet{color:var(--muted);font-weight:600!important}
+#tour{position:fixed;inset:0;z-index:90}
+#tour[hidden]{display:none}
+.tour-block{position:absolute;inset:0}
+#tourSpot{position:fixed;border-radius:14px;pointer-events:none;box-shadow:0 0 0 9999px rgba(20,28,22,.58),0 0 0 3px var(--accent)}
+#tourTip{position:fixed;width:min(22rem,calc(100vw - 2rem));background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 16px;box-shadow:0 18px 40px rgba(0,0,0,.18)}
+.tour-count{font-size:.72rem;font-weight:700;color:var(--accent);letter-spacing:.02em}
+#tourTip h3{margin:2px 0 4px;font-size:1.02rem}
+#tourTip p{margin:0;color:#4a524c;font-size:.92rem;line-height:1.45}
+.tour-btns{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
+.tour-btns span{display:flex;gap:6px}
+.tour-move{transition:left .25s ease,top .25s ease,width .25s ease,height .25s ease}
+@media (prefers-reduced-motion:reduce){.tour-move{transition:none}}

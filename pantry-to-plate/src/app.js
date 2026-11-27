@@ -233,6 +233,7 @@ function renderNavCounts() { $("#navKitchen").textContent = S.pantry.length || "
    HOME
    ===================================================================== */
 function renderHome() {
+  if (typeof Tour !== "undefined") Tour.renderLink();
   const items = S.pantry.map(p => ({ p, f: fr(p) }));
   const check = items.filter(x => x.f.group === "check");
   $("#homeAlert").innerHTML = check.length ? `<button class="alert" data-act="tab" data-tab="rescue">${icon("stop")}<b>${check.length} food${check.length > 1 ? "s" : ""} may not be safe to eat.</b> See what to do in Rescue my food →</button>` : "";
@@ -528,6 +529,23 @@ function ideaCard(m, extra = "") {
     <span class="meta">${r.prep + r.cook} min · ${esc(r.difficulty || "Easy")} · uses ${m.usedCount} of yours${m.urgentUsed.length ? ` · <span class="urg">saves ${m.urgentUsed.length} that need using</span>` : ""}${m.swaps.length ? " · " + m.swaps.length + " swap" + (m.swaps.length > 1 ? "s" : "") : ""}${m.scaledDown ? " · smaller batch" : ""}${m.unconfirmed && m.unconfirmed.length ? ` · <span class="urg">check ${m.unconfirmed.length} amount${m.unconfirmed.length > 1 ? "s" : ""}</span>` : ""}</span>${extra}</span></button>`;
 }
 function styleLabel(r) { return r.ai ? "AI recipe" : esc(r.style || "Classic"); }
+/* "Almost there": dishes that only need a basic or two you haven't ticked. One tap says you have it. */
+function almostThere(list) {
+  if (list.length >= 6 || S.ui.mode === "one") return "";
+  const all = E.DEFAULT_STAPLES.concat(E.OPTIONAL_STAPLES.filter(k => !E.DEFAULT_STAPLES.includes(k))).filter(k => !S.staples.includes(k));
+  if (!all.length) return "";
+  const have = new Set(list.map(m => m.recipe.id)), out = [];
+  for (const m of E.rankRecipes(allRecipes(), S.pantry, S.staples.concat(all), opts({ focus: S.ui.focus }))) {
+    if (have.has(m.recipe.id)) continue;
+    const m0 = match(m.recipe); if (m0.ok) continue;
+    const need = all.filter(k => m0.missing.includes(E.ingName(k)));
+    if (need.length && need.length <= 2 && need.length === m0.missing.length) out.push({ r: m.recipe, need });
+    if (out.length >= 4) break;
+  }
+  if (!out.length) return "";
+  return `<div class="almost"><h3>${icon("spark")}Almost there</h3><p>These only need a basic you haven't ticked. If you have it, tap to add it to your basics.</p>
+    ${out.map(({ r, need }) => `<div class="almost-row"><span><b>${esc(r.title)}</b> needs ${esc(need.map(k => E.ingName(k).toLowerCase()).join(" and "))}</span><button class="btn small" data-act="tick-basics" data-k="${esc(need.join(","))}">${icon("check")}I have ${esc(need.map(k => E.ingName(k).toLowerCase()).join(" and "))}</button></div>`).join("")}</div>`;
+}
 function renderIdeas() {
   const res = currentList();
   let html = "";
@@ -543,7 +561,9 @@ function renderIdeas() {
     S.ui.lastList = list;
     if (needsBasics()) html += `<div class="basics-note">${icon("info")}<span>Recipes only use food you've added. Tick the basics you keep (salt, oil…) to unlock more.</span><button class="btn small" data-act="go-basics">Choose basics</button></div>`;
     html += `<p class="count"><b>${list.length}</b> recipe${list.length === 1 ? "" : "s"} you can make now${S.ui.mode === "urgent" ? ", most urgent first" : ""}</p>`;
-    html += list.slice(0, 30).map(m => ideaCard(m)).join("") || `<div class="empty">${S.pantry.length ? "Nothing fits these filters. Try “Any time”, another cuisine, or fewer diet limits." : "Add some food in My kitchen first."}</div>`;
+    const filtered = S.prefs.maxTime || (S.prefs.cuisine && S.prefs.cuisine !== "any") || (S.prefs.diet || []).length;
+    html += list.slice(0, 30).map(m => ideaCard(m)).join("") || `<div class="empty">${!S.pantry.length ? "Add some food in My kitchen first." : filtered ? "Nothing fits these filters. Try “Any time”, another cuisine, or fewer diet limits." : "Nothing can be made from only what's in your kitchen yet. Add a few more foods, or see what's almost there below."}</div>`;
+    html += almostThere(list);
   }
   html += `<div class="ai-more">${AI.ready ? `<button class="btn" data-act="ai-more"${S.ui.aiBusy ? " disabled" : ""}>${S.ui.aiBusy ? "Asking the AI…" : "Ask the AI for more ideas"}</button><small>AI recipes are checked against your kitchen before they're shown.</small>` : `<small>Recipes come from a curated library of well-known dishes, so they work even without AI.</small>`}</div>`;
   $("#ideas").innerHTML = html;
@@ -890,6 +910,11 @@ document.addEventListener("click", e => {
     case "rescue-item": S.ui.rescueId = t.dataset.id; setTab("rescue"); break;
     case "focus-add": { const q = $("#qaText"); if (q) { q.focus(); q.scrollIntoView({ behavior: "smooth", block: "center" }); } break; }
     case "basics-done": S.prefs.staplesChosen = true; persist(); rerender(); toast(S.staples.length ? `Got it: ${S.staples.length} basic${S.staples.length > 1 ? "s" : ""} recipes can count on.` : "Got it: recipes will only use the food you've added."); break;
+    case "tour": Tour.open(0); break;
+    case "tour-next": Tour.move(1); break;
+    case "tour-back": Tour.move(-1); break;
+    case "tour-skip": Tour.close(); break;
+    case "tick-basics": { const ks = (t.dataset.k || "").split(",").filter(k => E.ING[k]); ks.forEach(k => { if (!S.staples.includes(k)) S.staples.push(k); }); S.prefs.staplesChosen = true; persist(); rerender(); toast(`Added ${ks.map(k => E.ingName(k).toLowerCase()).join(" and ")} to your basics. You can change basics in My kitchen.`); break; }
     case "go-basics": setTab("kitchen"); requestAnimationFrame(() => { const el = $("#basicsAsk .basics") || $("#staples"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }); break;
     case "welcome-done": S.ui.welcomeDone = true; renderKitchen(); break;
     case "load-sample": seedKitchen(); persist(); S.ui.welcomeDone = true; renderKitchen(); renderNavCounts(); toast("Example kitchen loaded. Empty it any time to add your own food."); break;
