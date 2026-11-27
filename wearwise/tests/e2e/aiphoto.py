@@ -31,7 +31,7 @@ def fresh(b, signed_in=True):
     ctx = b.new_context(viewport={'width': 1280, 'height': 900})
     ctx.add_init_script(FAKE % ('true' if signed_in else 'false'))
     pg = ctx.new_page(); pg.goto(URL); pg.wait_for_timeout(400)
-    pg.evaluate("() => localStorage.clear()"); pg.reload(); pg.wait_for_timeout(600)
+    pg.evaluate("() => { localStorage.clear(); localStorage.setItem('wearwise.autoDemoPhotos', 'off'); }"); pg.reload(); pg.wait_for_timeout(600)  # automatic demo photos are tested in autodemo.py
     return ctx, pg
 
 ADD_OWN = """() => {  // one hand-added piece with NO photo, and one with her own photo

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
-import { ProductCard, Modal, Meter, OutfitThumb, ConfirmButton, useToast } from '../components/common.jsx';
+import { ProductCard, Modal, Meter, OutfitThumb, ConfirmButton, useToast, useUndoableDelete } from '../components/common.jsx';
 import { PieceAiPhoto, BulkAiPhotos } from '../components/AiPhoto.jsx';
+import { DemoPhotoNote } from '../components/AutoDemoPhotos.jsx';
 import { usePhotos } from '../data/photos.js';
 import GarmentArt, { photoOf } from '../components/GarmentArt.jsx';
 import UploadModal from '../components/UploadModal.jsx';
@@ -14,6 +15,7 @@ const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function ItemDetail({ item: opened, onClose, go }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, resolve, get } = useStore();
   const item = get(opened.id) || opened; // live, so an AI photo made here shows straight away
   const toast = useToast();
@@ -75,7 +77,7 @@ function ItemDetail({ item: opened, onClose, go }) {
           <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
             <button className="btn accent" style={{ flex: 1 }} onClick={() => { onClose(); go('#/style/' + encodeURIComponent(item.id)); }}>Style me with this</button>
             <button className="btn" onClick={() => setEditing({ ...item })}>Edit details</button>
-            <ConfirmButton className="btn" label="Delete" confirmLabel="Click again to delete" onConfirm={() => { dispatch({ type: 'DELETE_GARMENT', id: item.id }); onClose(); toast('Deleted from the closet'); }} />
+            <ConfirmButton className="btn" label="Delete" confirmLabel="Click again to delete" onConfirm={() => { undoDelete({ type: 'DELETE_GARMENT', id: item.id }, `${item.name} deleted`); onClose(); toast('Deleted from the closet'); }} />
           </div>
           {usedIn.length > 0 && (
             <>
@@ -152,7 +154,7 @@ export default function Closet({ go, initial = '' }) {
 
       {hasDemo && owned.some((g) => g.demo) && (
         <div className="notice demo-banner">
-          <span>Demo items (labelled “Demo”) are sample data for trying the app. They're not your clothes.</span>
+          <span>Demo items (labelled “Demo”) are sample data for trying the app. They're not your clothes.<br /><DemoPhotoNote /></span>
           <ConfirmButton className="btn sm" label="Remove demo items" confirmLabel="Click again to remove" onConfirm={() => { dispatch({ type: 'REMOVE_DEMO' }); toast('Demo items removed'); }} />
         </div>
       )}

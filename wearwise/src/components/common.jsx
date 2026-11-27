@@ -72,11 +72,32 @@ export function PieceList({ outfit }) {
 
 const ToastCtx = createContext(() => {});
 export function ToastProvider({ children }) {
-  const [msg, setMsg] = useState(null);
-  const show = useCallback((m) => { setMsg(m); clearTimeout(window.__toastT); window.__toastT = setTimeout(() => setMsg(null), 2600); }, []);
-  return <ToastCtx.Provider value={show}>{children}{msg && <div className="toast" role="status">{msg}</div>}</ToastCtx.Provider>;
+  const [msg, setMsg] = useState(null); // a string, or { text, action: { label, run } }
+  const show = useCallback((m) => { setMsg(m); clearTimeout(window.__toastT); window.__toastT = setTimeout(() => setMsg(null), m?.action ? 6000 : 2600); }, []);
+  const text = typeof msg === 'string' ? msg : msg?.text;
+  return (
+    <ToastCtx.Provider value={show}>{children}
+      {msg && (
+        <div className={'toast' + (msg.action ? ' has-action' : '')} role="status">
+          {text}
+          {msg.action && <button className="toast-action" onClick={() => { clearTimeout(window.__toastT); setMsg(null); msg.action.run(); }}>{msg.action.label}</button>}
+        </div>
+      )}
+    </ToastCtx.Provider>
+  );
 }
 export const useToast = () => useContext(ToastCtx);
+
+/** Delete something and offer "Undo" for a few seconds (puts everything back exactly as it was before the delete). */
+export function useUndoableDelete() {
+  const { state, dispatch } = useStore();
+  const toast = useToast();
+  return (action, message) => {
+    const before = state;
+    dispatch(action);
+    toast({ text: message, action: { label: 'Undo', run: () => dispatch({ type: 'RESTORE', state: before }) } });
+  };
+}
 
 /** Click once to arm, again to confirm (no browser dialogs). */
 export function ConfirmButton({ label, confirmLabel = 'Click again to confirm', onConfirm, className = 'btn ghost sm', style }) {

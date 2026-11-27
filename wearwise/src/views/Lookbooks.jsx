@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store.jsx';
-import { ConfirmButton, Modal, OutfitThumb, ScoreBadge, useToast } from '../components/common.jsx';
+import { ConfirmButton, Modal, OutfitThumb, ScoreBadge, useToast, useUndoableDelete } from '../components/common.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
 import { SLOTS, slotOf } from '../data/closet.js';
 
@@ -103,6 +103,7 @@ export function LookbookList({ go }) {
 }
 
 export function LookbookDetail({ id, go }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, resolve, get, scoreOf } = useStore();
   const toast = useToast();
   const [sharing, setSharing] = useState(false);
@@ -202,7 +203,7 @@ export function LookbookDetail({ id, go }) {
       )}
 
       <div style={{ marginTop: 48, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-        <ConfirmButton label="Delete lookbook" confirmLabel={`Delete “${c.title}”? Click again`} onConfirm={() => { dispatch({ type: 'DELETE_CATALOG', id: c.id }); go('#/lookbooks'); }} />
+        <ConfirmButton label="Delete lookbook" confirmLabel={`Delete “${c.title}”? Click again`} onConfirm={() => { undoDelete({ type: 'DELETE_CATALOG', id: c.id }, 'Lookbook deleted'); go('#/lookbooks'); }} />
       </div>
     </div>
   );

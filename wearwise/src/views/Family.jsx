@@ -2,12 +2,13 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
 import Stage from '../components/Stage.jsx';
-import { PieceList, ScoreBadge, ConfirmButton, Verdict, useToast } from '../components/common.jsx';
+import { PieceList, ScoreBadge, ConfirmButton, Verdict, useToast, useUndoableDelete } from '../components/common.jsx';
 import { ContextPicker, DEFAULT_CHOICE, contextOf, toSlots } from '../components/Choose.jsx';
 import { familyLook } from '../ai/generator.js';
 import { ProfileManager } from './Settings.jsx';
 
 export default function Family({ go }) {
+  const undoDelete = useUndoableDelete();
   const { state, dispatch, closetOf, get, resolve } = useStore();
   const toast = useToast();
   const [ids, setIds] = useState(() => state.profiles.map((p) => p.id));
@@ -97,7 +98,7 @@ export default function Family({ go }) {
             {ensembles.map((e) => (
               <div key={e.id} className="ensemble">
                 <div className="ensemble-head"><div><b>{e.name}</b><div className="tiny">{e.why}</div></div>
-                  <ConfirmButton label="Delete" confirmLabel="Click to delete" onConfirm={() => dispatch({ type: 'DELETE_ENSEMBLE', id: e.id })} /></div>
+                  <ConfirmButton label="Delete" confirmLabel="Click to delete" onConfirm={() => undoDelete({ type: 'DELETE_ENSEMBLE', id: e.id }, 'Family look deleted')} /></div>
                 <div className="ensemble-row">
                   {e.members.map((m) => {
                     const p = state.profiles.find((x) => x.id === m.profileId);

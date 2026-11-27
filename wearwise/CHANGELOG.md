@@ -8,6 +8,12 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-27 · Automatic realistic demo photos, Undo
+
+- **Demo closet:** while you aren't signed in to AI, demo pieces show as drawings with a note: "Turn on AI (a free Puter sign-in) and realistic photos are made for them automatically." Once you're signed in, Puter makes a realistic photo for each demo piece in the background, one at a time, with a small progress bar and a Stop button. They're made once and kept, labelled "AI photo". If the free allowance runs out, it stops and says so; the rest follow on a later visit. Can be switched off in Settings.
+- **Undo:** deleting a piece, outfit, trip, history entry, lookbook, family look, wardrobe or place shows "Undo" for 6 seconds.
+- The AI button in the top bar now says **"Turn on AI"** / **"AI on"**, so it isn't confused with the account's "Sign in". It stays on one line on small phones.
+
 ## 2026-11-27 · Phone and accessibility polish
 
 - **Closet on phones:** the search box no longer pushes the page sideways (it caused a small side-scroll).
