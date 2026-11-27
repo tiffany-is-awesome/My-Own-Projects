@@ -391,6 +391,111 @@ with sync_playwright() as p:
     bill(name='Rent', amount=8000, nextDue=pg.evaluate("Debts.addPeriods(toISODate(new Date()), 0).slice(0,8) + '28'"), category='Rent', kind='rent')
     check('cash shortfall warned', {'w': 1 if any('more than your cash' in t for t in pg.evaluate("Insights.list().map(i => i.text)")) else 0}, w=1)
 
+    # 43. Foreign currency: detected, rate shown with its source, nothing saved until confirmed, original kept
+    reset(10000)
+    det = pg.evaluate("""() => ['Dinner $25', 'Lunch 350', 'Taxi ₱200', 'Coffee €4.50', 'Souvenir 1000 yen', 'Hotel USD 120', 'Grab 250 pesos'].map(t => (FX.detect(t) || {}).code || '-').join(',')""")
+    check('detects foreign amounts', {'ok': 1 if det == 'USD,-,-,EUR,JPY,USD,-' else 0}, ok=1)
+    if det != 'USD,-,-,EUR,JPY,USD,-': fails.append('detected: ' + det)
+    pg.evaluate("""() => { window.__fx = []; window.fetch = async (u) => { window.__fx.push(String(u)); return { ok: true, json: async () => ({ date: '2026-11-19', rates: { PHP: 58.5 } }) }; }; }""")
+    pg.evaluate("async t => { document.getElementById('noteInput').value = t; await UI.submitNote(t); }", 'Dinner $25')
+    pg.wait_for_timeout(60)
+    sub = pg.inner_text('#formModal')
+    check('rate form shows source, nothing saved yet', {'src': 1 if 'European Central Bank' in sub else 0, 'rate': pg.evaluate("+document.getElementById('fm_rate').value"), 'saved': pg.evaluate("Store.state.transactions.length")}, src=1, rate=58.5, saved=0)
+    pg.evaluate("UI.submitForm()"); pg.wait_for_timeout(60)
+    card = pg.inner_text('#formModal')
+    check('then a check card', {'card': 1 if 'Converted' in card and pg.evaluate("+document.getElementById('fm_amount').value") == 1462.5 else 0, 'saved': pg.evaluate("Store.state.transactions.length")}, card=1, saved=0)
+    pg.evaluate("UI.submitForm()"); pg.wait_for_timeout(60)
+    t = pg.evaluate("Store.state.transactions[0]")
+    check('saved converted, original kept', {'amt': t['amount'], 'orig': t['fx']['amount'], 'usd': 1 if t['fx']['code'] == 'USD' else 0, 'desc': 1 if '$25.00' in t['description'] else 0, 'cash': pg.evaluate("Store.balance()")}, amt=1462.5, orig=25, usd=1, desc=1, cash=10000 - 1462.5)
+    # what the bank actually charged wins; offline falls back to the person's own rate
+    pg.evaluate("() => { window.fetch = async () => { throw new Error('offline'); }; }")
+    pg.evaluate("async t => { document.getElementById('noteInput').value = t; await UI.submitNote(t); }", 'Coffee €4.50 yesterday')
+    pg.wait_for_timeout(60)
+    offline = 'couldn’t look up' in pg.inner_text('#formModal')
+    pg.evaluate("document.getElementById('fm_actual').value = '290'; UI.submitForm()"); pg.wait_for_timeout(60); pg.evaluate("UI.submitForm()"); pg.wait_for_timeout(60)
+    t2 = pg.evaluate("Store.state.transactions.find(t => t.fx && t.fx.code === 'EUR')")
+    check('offline + amount charged', {'offline': 1 if offline else 0, 'amt': t2['amount'], 'rate': round(t2['fx']['rate'], 4)}, offline=1, amt=290, rate=round(290 / 4.5, 4))
+    pg.evaluate("async t => { document.getElementById('noteInput').value = t; await UI.submitNote(t); }", 'Croissant €3')
+    pg.wait_for_timeout(60)
+    check('remembers your last rate', {'rate': round(pg.evaluate("+document.getElementById('fm_rate').value"), 4)}, rate=round(290 / 4.5, 4))
+    pg.evaluate("UI.closeForm()")
+    check('multi-entry foreign note refused, nothing saved', {'n': (pg.evaluate("async t => { await UI.submitNote(t); return Store.state.transactions.length; }", 'Lunch $10 and taxi $5'))}, n=2)
+
+    # 44. Household sync: post a split, another member adds their share (fake server, real client code)
+    reset(10000)
+    pg.evaluate(r"""() => {
+      const db = { hh: [], mem: [], items: [] }; window.__db = db; let n = 0;
+      const tbl = { tiffo_households: 'hh', tiffo_household_members: 'mem', tiffo_household_items: 'items' };
+      const q = (name) => { const rows = () => db[tbl[name]]; let f = [], op = 'select', payload = null, single = false;
+        const run = () => { let r = rows().filter(x => f.every(([k, v]) => x[k] === v));
+          if (op === 'insert') { const row = { id: 'i' + (++n), author: window.__me, created_at: new Date().toISOString(), ...payload }; rows().push(row); r = [row]; }
+          if (op === 'delete') { db[tbl[name]] = rows().filter(x => !r.includes(x)); }
+          if (op === 'update') r.forEach(x => Object.assign(x, payload));
+          return Promise.resolve({ data: single ? (r[0] || null) : r, error: null }); };
+        const o = { select() { return o; }, eq(k, v) { f.push([k, v]); return o; }, order() { return o; }, limit() { return o; },
+          insert(p) { op = 'insert'; payload = p; return o; }, delete() { op = 'delete'; return o; }, update(p) { op = 'update'; payload = p; return o; },
+          single() { single = true; return run(); }, maybeSingle() { single = true; return run(); }, then(a, b) { return run().then(a, b); } };
+        return o; };
+      Auth.sb = { from: q, rpc: async (fn, a) => {
+        if (fn === 'tiffo_create_household') { const id = 'h1'; db.hh.push({ id, name: a.p_name, owner: window.__me, invite_code: 'ABCDE12345' }); db.mem.push({ household_id: id, user_id: window.__me, display_name: a.p_display, role: 'owner', can_share: true }); return { data: { id, invite_code: 'ABCDE12345' }, error: null }; }
+        if (fn === 'tiffo_join_household') { const h = db.hh.find(h => h.invite_code === a.p_code.toUpperCase()); if (!h) return { data: null, error: { message: 'That invite code doesn’t match any household' } }; db.mem.push({ household_id: h.id, user_id: window.__me, display_name: a.p_display, role: 'member', can_share: true }); return { data: h.id, error: null }; }
+      } };
+      window.__me = 'u-mom'; Auth.user = { id: 'sb:u-mom', uid: 'u-mom', name: 'x', provider: 'cloud' };
+    }""")
+    pg.evaluate("HHSync.create('Our home', 'Mom')")
+    pg.wait_for_timeout(50)
+    check('household made', {'ok': 1 if pg.evaluate("HHSync.hh && HHSync.hh.name === 'Our home' && HHSync.ready()") else 0}, ok=1)
+    pg.evaluate("UI.closeForm(); UI.splitForm({ total: 3000, with: ['Ana', 'Kuya'], desc: 'Groceries' })"); pg.wait_for_timeout(40)
+    pg.evaluate("document.getElementById('fm_hhPost').checked = true; UI.submitForm()"); pg.wait_for_timeout(120)
+    item = pg.evaluate("__db.items[0]")
+    check('split posted with names, mine marked', {'n': pg.evaluate("__db.items.length"), 'total': item['data']['total'], 'ana': item['data']['shares'].get('Ana', 0), 'mom': item['data']['shares'].get('Mom', 0), 'payerMom': 1 if item['data']['payer'] == 'Mom' else 0, 'tagged': pg.evaluate("Store.state.transactions.filter(t => t.hhItem).length")}, n=1, total=3000, ana=1000, mom=1000, payerMom=1, tagged=3)
+    check('nothing private posted', {'keys': len(set(item['data'].keys()) - {'desc', 'total', 'category', 'date', 'payer', 'shares', 'currency', 'by'})}, keys=0)
+    # Ana on her own phone (a fresh Tiffo)
+    reset(5000)
+    pg.evaluate("() => { window.__me = 'u-ana'; Auth.user = { id: 'sb:u-ana', uid: 'u-ana', name: 'y', provider: 'cloud' }; Object.assign(HHSync, { hh: null, members: [], items: [], loadedAt: 0 }); }")
+    pg.evaluate("HHSync.join('abcde-12345', 'Ana')")
+    pg.evaluate("Nav.go('more'); UI.renderHHSync()"); pg.wait_for_timeout(60)
+    panel = pg.inner_text('#hhSync')
+    check('member sees the post with her share', {'seen': 1 if 'Groceries' in panel and 'your share' in panel and '1 new' in panel else 0}, seen=1)
+    pg.evaluate("document.querySelector('#hhSync [data-hh=\"add\"]').click()"); pg.wait_for_timeout(60)
+    s = state()
+    check('added: her share is spending, she owes Mom', {**s, 'mom': pg.evaluate("Loans.oweTo('Mom')")}, spent=1000, youOwe=1000, mom=1000, cash=5000)
+    pg.evaluate("UI.renderHHSync()")
+    check('no double add', {'btn': pg.evaluate("document.querySelectorAll('#hhSync [data-hh=\"add\"]').length"), 'in': 1 if '✓ In your Tiffo' in pg.inner_text('#hhSync') else 0}, btn=0, **{'in': 1})
+    # Ana settles up and posts it; Mom adds it
+    pg.evaluate("UI.settleForm('Mom')"); pg.wait_for_timeout(40)
+    pg.evaluate("document.getElementById('fm_hhPost').checked = true; UI.submitForm()"); pg.wait_for_timeout(120)
+    check('Ana settled', {'youOwe': state()['youOwe'], 'posts': pg.evaluate("__db.items.length")}, youOwe=0, posts=2)
+    reset(10000)
+    pg.evaluate("() => { window.__me = 'u-mom'; Auth.user = { id: 'sb:u-mom', uid: 'u-mom', name: 'x', provider: 'cloud' }; Store.state.settings.hhSync = { id: 'h1', me: 'Mom', done: [], post: true }; Store.save(); Object.assign(HHSync, { hh: null, loadedAt: 0 }); }")
+    pg.evaluate("HHSync.load(true)")
+    pg.evaluate("HHSync.importItem(HHSync.items.find(i => i.kind === 'settle'))")
+    check('Mom gets the repayment', {'cash': state()['cash'], 'income': state()['income']}, cash=11000, income=0)
+    pg.evaluate("() => { Auth.user = null; Auth.sb = null; Object.assign(HHSync, { hh: null, members: [], items: [] }); }")
+
+    # 45. Fingerprint/face unlock: a virtual authenticator stands in for the phone's sensor
+    ctx = b.new_context(timezone_id='Asia/Manila'); bp = ctx.new_page()
+    bp.on('pageerror', lambda e: errs.append(str(e)))
+    bp.route('**/chart.umd.min.js', lambda r: r.fulfill(body=stub, content_type='text/javascript'))
+    for pat in ['**/cdn.tailwindcss.com/**', '**/supabase-js@2', '**/js.puter.com/**']:
+        bp.route(pat, lambda r: r.fulfill(body='', content_type='text/javascript'))
+    bp.route('https://tiffo.test/', lambda r: r.fulfill(body=html.read_text(), content_type='text/html'))
+    cdp = ctx.new_cdp_session(bp); cdp.send('WebAuthn.enable')
+    auth = cdp.send('WebAuthn.addVirtualAuthenticator', {'options': {'protocol': 'ctap2', 'transport': 'internal', 'hasUserVerification': True, 'isUserVerified': True, 'hasResidentKey': False}})
+    bp.goto('https://tiffo.test/'); bp.wait_for_timeout(600)
+    bp.evaluate("async () => { Store.state = Store.blank(); await Sec.setPin('4831', 5); }")
+    on = bp.evaluate("async () => { await Bio.enroll(); return Bio.on() && !!Sec.cfg().bio.pk; }")
+    unlocked = bp.evaluate("() => Bio.unlock()")
+    bp.evaluate("async () => { await Sec.setPin('7294', 5); }")
+    kept = bp.evaluate("Bio.on()")
+    cdp.send('WebAuthn.setUserVerified', {'authenticatorId': auth['authenticatorId'], 'isUserVerified': False})
+    refused = bp.evaluate("() => Bio.unlock().then(ok => ok ? 'opened' : 'refused').catch(() => 'refused')")
+    cdp.send('WebAuthn.setUserVerified', {'authenticatorId': auth['authenticatorId'], 'isUserVerified': True})
+    bp.evaluate("() => { const c = Sec.cfg(); c.bio.pk = (() => { const k = Sec.unb64(c.bio.pk); k[k.length - 1] ^= 1; return Sec.b64(k); })(); }")
+    wrongkey = bp.evaluate("() => Bio.unlock().then(ok => ok ? 'opened' : 'refused').catch(() => 'refused')")
+    check('biometric unlock', {'on': 1 if on else 0, 'unlock': 1 if unlocked else 0, 'kept after PIN change': 1 if kept else 0, 'unverified refused': 1 if refused == 'refused' else 0, 'wrong key refused': 1 if wrongkey == 'refused' else 0},
+          on=1, unlock=1, **{'kept after PIN change': 1, 'unverified refused': 1, 'wrong key refused': 1})
+    ctx.close()
     b.close()
 
 for f in fails: print('✗', f)
