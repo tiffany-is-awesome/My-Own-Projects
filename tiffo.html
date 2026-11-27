@@ -26,7 +26,8 @@
     } catch (e) {}
   })();
 </script>
-<script src="https://cdn.tailwindcss.com"></script>
+<!-- Styling. Version pinned; this CDN doesn't allow integrity checks (no CORS), see security notes. -->
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script>
   // Tailwind's Play CDN reads this AFTER it loads. (Setting it earlier gets overwritten,
   // which made dark styles follow the device setting instead of the Day/Night toggle.)
@@ -34,7 +35,7 @@
     fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
   } } };
 </script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
@@ -1401,12 +1402,21 @@ const Auth = {
     if (!window.supabase) {
       await new Promise((res, rej) => {
         const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        // Exact version + integrity hash: if the file on the CDN ever changes, the browser refuses to run it.
+        s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js';
+        s.integrity = 'sha384-A97u3Qnt9GZHURO9YJZRe7VQgGUeFzcv6I1oIGnUTxQrCxnpQMwR0/G8F2zt9abZ'; s.crossOrigin = 'anonymous';
         s.onload = res; s.onerror = () => rej(new Error('Could not load Supabase'));
         document.head.appendChild(s);
       });
     }
     this.sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    this.sb.auth.onAuthStateChange((event) => {
+      // Came back from a "reset password" email: ask for the new password right away.
+      if (event === 'PASSWORD_RECOVERY') setTimeout(() => UI.newPasswordForm?.(), 300);
+      // The session ended without signing out here (e.g. "sign out on all devices", or it expired): say so instead of "offline".
+      if (event === 'SIGNED_OUT' && this.user?.provider === 'cloud' && !this._signingOut) { Cloud.authLost = true; Cloud.setStatus('error'); }
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') Cloud.authLost = false;
+    });
     return this.sb;
   },
   fromSupabaseUser(u) { return u ? { id: 'sb:' + u.id, uid: u.id, name: u.user_metadata?.name || u.email.split('@')[0], email: u.email, provider: 'cloud' } : null; },
@@ -1483,7 +1493,9 @@ const Auth = {
   },
 
   async signOut() {
+    this._signingOut = true;
     if (this.useSupabase()) { try { await (await this.supabase()).auth.signOut(); } catch (e) {} }
+    this._signingOut = false;
     LS.removeItem(this.SESSION_KEY);
     this.user = null;
   },
@@ -1694,6 +1706,7 @@ const Store = {
   },
 
   addTransaction(tx) {
+    if (!Number.isFinite(+tx.amount) || Math.abs(+tx.amount) >= 1e12) throw new Error('That amount isn’t a valid number.');
     const kind = KINDS[tx.kind] ? tx.kind : (tx.type === 'income' ? 'income' : 'expense');
     const t = { id: uid(), createdAt: Date.now(), accountId: Accounts.DEFAULT, ...tx, kind, type: Money.typeFor(kind), amount: round2(Math.abs(tx.amount)) };
     this.state.transactions.push(t);
@@ -2335,9 +2348,74 @@ const Parser = {
 
 /* =========================================================================
    5a. CLOUD SYNC — one row per user in Supabase table "tiffo_data".
-   Last change wins (compares savedAt). Pulls on sign-in, when the tab comes
-   back into view, and every 60 s; pushes ~1 s after any change.
+   Devices MERGE, never overwrite: each device keeps a fingerprint of what it
+   last synced (the "base"), so a three-way compare tells what was added,
+   changed or deleted on each side. Writes are conditional on the row not
+   having changed since it was read; if it did, Tiffo merges again.
+   Pulls on sign-in, when the tab comes back into view, and every 60 s;
+   pushes ~1 s after any change.
    ========================================================================= */
+const SyncMerge = {
+  SKIP: new Set(['savedAt', 'v']),
+  hash(x) { const str = JSON.stringify(x) ?? ''; let h = 2166136261 >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36) + '.' + str.length; },
+  keyOf(x) { return x?.id ?? x?.t?.id ?? x?.name ?? this.hash(x); },
+  /** A small summary of a state: a hash per record, per setting and per top-level value. */
+  fingerprint(st) {
+    const out = { a: {}, s: {}, v: {} };
+    for (const [k, val] of Object.entries(st || {})) {
+      if (this.SKIP.has(k)) continue;
+      if (Array.isArray(val)) { out.a[k] = {}; for (const x of val) out.a[k][this.keyOf(x)] = this.hash(x); }
+      else if (k === 'settings' && val && typeof val === 'object') for (const [sk, sv] of Object.entries(val)) out.s[sk] = this.hash(sv);
+      else out.v[k] = this.hash(val);
+    }
+    return out;
+  },
+  /** One value changed on one side only → take it; changed on both → take the newer side. */
+  pick(l, r, baseH, newer) {
+    const lh = this.hash(l), rh = this.hash(r);
+    if (lh === rh) return l;
+    if (baseH == null) return newer === 'remote' ? r : l;
+    if (lh === baseH) return r;
+    if (rh === baseH) return l;
+    return newer === 'remote' ? r : l;
+  },
+  /** Three-way merge of two whole states. Without a base (first sync), nothing is deleted: everything from both sides is kept. */
+  merge(local, remote, base) {
+    const newer = (remote.savedAt || 0) > (local.savedAt || 0) ? 'remote' : 'local';
+    const out = { ...remote, ...local };
+    const keys = new Set([...Object.keys(local), ...Object.keys(remote)]);
+    for (const k of keys) {
+      if (this.SKIP.has(k)) continue;
+      const L = local[k], R = remote[k];
+      if (Array.isArray(L) || Array.isArray(R)) {
+        const la = Array.isArray(L) ? L : [], ra = Array.isArray(R) ? R : [], b = base?.a?.[k];
+        const lm = new Map(la.map((x) => [this.keyOf(x), x])), rm = new Map(ra.map((x) => [this.keyOf(x), x]));
+        const res = [];
+        for (const id of new Set([...lm.keys(), ...rm.keys()])) {
+          const inL = lm.has(id), inR = rm.has(id), bh = b?.[id];
+          if (inL && inR) { res.push(this.pick(lm.get(id), rm.get(id), bh, (lm.get(id)?.history?.at(-1)?.at || 0) > (rm.get(id)?.history?.at(-1)?.at || 0) ? 'local' : (rm.get(id)?.history?.at(-1)?.at || 0) > (lm.get(id)?.history?.at(-1)?.at || 0) ? 'remote' : newer)); continue; }
+          const x = inL ? lm.get(id) : rm.get(id);
+          if (bh == null) { res.push(x); continue; }                 // added on one side
+          if (this.hash(x) !== bh) { res.push(x); continue; }        // deleted on one side but changed on the other: keep it (safer)
+          // otherwise: deleted on the other side → leave it out
+        }
+        out[k] = res;
+      } else if (k === 'settings') {
+        const ls = L || {}, rs = R || {}, b = base?.s, so = {};
+        for (const sk of new Set([...Object.keys(ls), ...Object.keys(rs)])) {
+          const inL = sk in ls, inR = sk in rs, bh = b?.[sk];
+          if (inL && inR) so[sk] = this.pick(ls[sk], rs[sk], bh, newer);
+          else { const x = inL ? ls[sk] : rs[sk]; if (bh == null || this.hash(x) !== bh) so[sk] = x; }
+        }
+        out.settings = so;
+      } else out[k] = k in local && k in remote ? this.pick(L, R, base?.v?.[k], newer) : (k in local ? L : R);
+    }
+    out.v = Math.max(local.v || 1, remote.v || 1);
+    out.savedAt = Math.max(local.savedAt || 0, remote.savedAt || 0);
+    return out;
+  },
+};
+
 const Cloud = {
   status: 'off', lastSync: 0, timer: null, busy: false,
 
@@ -2348,6 +2426,7 @@ const Cloud = {
   label() {
     if (!this.on()) return '';
     if (this.status === 'saving' || this.status === 'syncing') return '☁️ Syncing…';
+    if (this.authLost) return '🔑 Signed out of the cloud (from another device, or it expired). Your entries are safe on this device: sign out and in again to sync them.';
     if (this.status === 'error') return '⚠️ Offline: saved on this device, will sync later';
     if (this.lastSync) {
       const m = Math.round((Date.now() - this.lastSync) / 60000);
@@ -2356,42 +2435,68 @@ const Cloud = {
     return '☁️ Cloud account';
   },
 
-  /** Bring this device up to date. Returns true if local data was replaced. */
+  baseKey() { return Store.key() + '.syncbase'; },
+  base() { try { return JSON.parse(LS.getItem(this.baseKey())) || null; } catch (e) { return null; } },
+  setBase(st) { try { LS.setItem(this.baseKey(), JSON.stringify(SyncMerge.fingerprint(st))); } catch (e) {} },
+
+  /** Read the cloud copy, merge it with this device's data, and write back only if something changed.
+      The write only succeeds if nobody else wrote in between (otherwise: read and merge again).
+      Returns true if this device's data changed. */
+  async sync() {
+    if (!this.on()) return false;
+    const sb = await Auth.supabase();
+    let changedHere = false;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const { data: row, error } = await sb.from('tiffo_data').select('data, updated_at').eq('user_id', Auth.user.uid).maybeSingle();
+      if (error) throw error;
+      const local = Store.state, remote = row?.data && typeof row.data === 'object' ? row.data : null;
+      const merged = remote ? SyncMerge.merge(local, remote, this.base()) : local;
+      const sameAsLocal = SyncMerge.hash(SyncMerge.fingerprint(merged)) === SyncMerge.hash(SyncMerge.fingerprint(local));
+      const sameAsRemote = remote && SyncMerge.hash(SyncMerge.fingerprint(merged)) === SyncMerge.hash(SyncMerge.fingerprint(remote));
+      if (!sameAsLocal) { Store.adopt(merged); Store.saveLocal(); changedHere = true; }
+      if (sameAsRemote) { this.setBase(Store.state); return changedHere; }
+      const stamp = new Date(Math.max(Date.now(), (Date.parse(row?.updated_at) || 0) + 1)).toISOString();
+      let wrote;
+      if (!row) {
+        const r = await sb.from('tiffo_data').insert({ user_id: Auth.user.uid, data: Store.state, updated_at: stamp }).select('user_id');
+        if (r.error && !/duplicate|conflict|23505/i.test(r.error.message || r.error.code || '')) throw r.error;
+        wrote = !r.error && r.data?.length;
+      } else {
+        // Normally: only write if nobody wrote since we read. Last try: write the merged data anyway (it already includes what we just read),
+        // so a timestamp-format mismatch can never stop syncing altogether.
+        let q = sb.from('tiffo_data').update({ data: Store.state, updated_at: stamp }).eq('user_id', Auth.user.uid);
+        if (attempt < 3) q = q.eq('updated_at', row.updated_at);
+        const r = await q.select('user_id');
+        if (r.error) throw r.error;
+        wrote = r.data?.length;
+      }
+      if (wrote) { this.setBase(Store.state); return changedHere; }
+      // Another device saved in between: go round again and merge with that.
+    }
+    throw new Error('Another device keeps saving at the same moment. Will try again shortly.');
+  },
+
+  /** Bring this device up to date (merging). Returns true if local data changed. */
   async pull() {
     if (!this.on() || this.busy) return false;
     this.busy = true; this.setStatus('syncing');
-    try {
-      const sb = await Auth.supabase();
-      const { data, error } = await sb.from('tiffo_data').select('data, updated_at').eq('user_id', Auth.user.uid).maybeSingle();
-      if (error) throw error;
-      const localAt = Store.state.savedAt || 0;
-      const remoteAt = data ? (data.data?.savedAt || Date.parse(data.updated_at) || 0) : 0;
-      if (data && data.data && remoteAt > localAt) {
-        Store.adopt(data.data);
-        Store.saveLocal();
-        this.setStatus('synced');
-        return true;
-      }
-      if (!data || localAt > remoteAt) await this.push(true);
-      else this.setStatus('synced');
-      return false;
-    } catch (e) {
-      console.warn('Cloud pull failed', e); this.setStatus('error'); return false;
-    } finally { this.busy = false; }
+    try { const changed = await this.sync(); this.setStatus('synced'); return changed; }
+    catch (e) { console.warn('Cloud sync failed', e); this.noteAuthError(e); this.setStatus('error'); return false; }
+    finally { this.busy = false; }
   },
+  authLost: false,
+  /** 401s and expired/invalid tokens mean "signed out", not "offline". */
+  noteAuthError(e) { if (e && (e.status === 401 || e.code === 'PGRST301' || /jwt|refresh token|not authenticated|invalid claim/i.test(e.message || ''))) this.authLost = true; },
 
   schedule() { clearTimeout(this.timer); this.setStatus('saving'); this.timer = setTimeout(() => this.push(), 1000); },
 
-  async push(inPull = false) {
+  async push() {
     if (!this.on()) return;
-    try {
-      const sb = await Auth.supabase();
-      const { error } = await sb.from('tiffo_data').upsert({
-        user_id: Auth.user.uid, data: Store.state, updated_at: new Date(Store.state.savedAt || Date.now()).toISOString(),
-      });
-      if (error) throw error;
-      this.setStatus('synced');
-    } catch (e) { console.warn('Cloud push failed', e); this.setStatus('error'); if (!inPull) setTimeout(() => this.on() && this.schedule(), 30000); }
+    if (this.busy) { clearTimeout(this.timer); this.timer = setTimeout(() => this.push(), 1500); return; }
+    this.busy = true;
+    try { if (await this.sync()) UI.afterRemoteUpdate?.(); this.setStatus('synced'); }
+    catch (e) { console.warn('Cloud push failed', e); this.noteAuthError(e); this.setStatus('error'); if (!this.authLost) setTimeout(() => this.on() && this.schedule(), 30000); }
+    finally { this.busy = false; }
   },
 };
 
@@ -3367,7 +3472,7 @@ const HHSync = {
         ]);
         const hh = this.check(h);
         if (!hh) { this.hh = null; this.members = []; this.items = []; this.setCfg(null); this.error = ''; this.gone = true; return; }
-        this.hh = hh; this.members = this.check(m) || []; this.items = this.check(it) || []; this.error = ''; this.loadedAt = Date.now();
+        this.hh = hh; this.members = this.check(m) || []; this.items = (this.check(it) || []).filter((x) => this.valid(x)); this.error = ''; this.loadedAt = Date.now();
       } catch (e) { this.error = e.message || 'Couldn’t reach the server.'; }
       finally { this.loading = null; }
     })();
@@ -3387,6 +3492,17 @@ const HHSync = {
   async setCanShare(uid, on) { this.check(await (await this.sb()).from('tiffo_household_members').update({ can_share: on }).eq('household_id', this.cfg().id).eq('user_id', uid)); const m = this.members.find((x) => x.user_id === uid); if (m) m.can_share = on; },
   async newCode() { const code = this.check(await (await this.sb()).rpc('tiffo_new_invite_code', { p_household: this.cfg().id })); this.hh.invite_code = code; return code; },
   forget() { this.setCfg(null); this.hh = null; this.members = []; this.items = []; this.loadedAt = 0; },
+  /** Posts come from other people's accounts, so treat them as untrusted: sane numbers, dates and short text only. */
+  valid(item) {
+    const d = item?.data, money = (x) => typeof x === 'number' && Number.isFinite(x) && x > 0 && x < 1e9, txt = (x, n) => typeof x === 'string' && x.trim().length > 0 && x.length <= n;
+    if (!d || typeof d !== 'object' || (d.date != null && !/^\d{4}-\d{2}-\d{2}$/.test(d.date))) return false;
+    if (item.kind === 'split') {
+      const sh = d.shares && typeof d.shares === 'object' ? Object.entries(d.shares) : null;
+      return money(d.total) && txt(d.desc, 80) && txt(d.payer, 40) && !!sh && sh.length <= 20 && sh.every(([k, v]) => txt(k, 40) && typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= d.total + 0.01);
+    }
+    if (item.kind === 'settle') return money(d.amount) && txt(d.from, 40) && txt(d.to, 40);
+    return false;
+  },
   /** What a post means for me: { mine, payer, role } for a split; { dir, other } for a settle-up; or null if it's not about me. */
   forMe(item) {
     const d = item.data || {}, me = this.myName();
@@ -3402,6 +3518,7 @@ const HHSync = {
   },
   /** Add someone else's post to my own Tiffo. Returns the new transactions. */
   importItem(item, myShare) {
+    if (!this.valid(item)) throw new Error('This post looks damaged, so it wasn’t added.');
     const d = item.data, me = this.myName();
     let made = [];
     if (item.kind === 'split') {
@@ -4764,7 +4881,8 @@ const DocScanner = {
     if (!this.tesseractLoading) {
       this.tesseractLoading = new Promise((res, rej) => {
         const s = document.createElement('script');
-        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+        s.integrity = 'sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F'; s.crossOrigin = 'anonymous';
         s.onload = res; s.onerror = () => rej(new Error('OCR library failed to load'));
         document.head.appendChild(s);
       });
@@ -6658,6 +6776,22 @@ const UI = {
       ...goals.map((p) => { const bal = Pockets.balance(p), pm = Pockets.perMonth(p); return `<div>${escapeHTML(p.emoji)} Family goal <b>${escapeHTML(p.name)}</b>: ${fmt0(bal)}${p.goal ? ` of ${fmt0(p.goal)}` : ''}${pm ? ` · ${fmt0(pm)}/month to reach it by ${escapeHTML(new Date(p.by + 'T00:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' }))}` : ''}</div>`; }),
     ].join('');
   },
+  /** After a "reset password" email: set the new password (Supabase recovery session). */
+  newPasswordForm() {
+    this.form({
+      title: 'Choose a new password', save: 'Save new password', sub: 'You opened a password-reset link. Pick a new password for your Tiffo account.',
+      fields: [{ id: 'pw', label: 'New password (at least 8 characters)', value: '' }, { id: 'pw2', label: 'Type it again', value: '' }],
+      onSave: async (v) => {
+        if ((v.pw || '').length < 8) return 'Use at least 8 characters.';
+        if (v.pw !== v.pw2) return 'The two passwords don’t match.';
+        const { error } = await (await Auth.supabase()).auth.updateUser({ password: v.pw });
+        if (error) return error.message || 'Couldn’t change the password. Open the reset link again.';
+        toast('🔑 Password changed.');
+      },
+    });
+    setTimeout(() => ['#fm_pw', '#fm_pw2'].forEach((id) => { const i = $(id); if (i) { i.type = 'password'; i.autocomplete = 'new-password'; } }), 10);
+  },
+
   /* ---------- household sync (family on their own phones) ---------- */
   renderHHSync() {
     const el = $('#hhSync'); if (!el) return;
@@ -8371,7 +8505,7 @@ const UI = {
       return;
     }
     const puter = CONFIG.AI_PROVIDER === 'puter';
-    if (puter) AI.loadPuter().catch(() => {});        // start loading while the note is read
+    // Puter's code is only loaded after you agree (it runs inside the page, so it shouldn't load before consent).
     const ok = await askConfirm(puter
       ? 'Turn on free AI? Tiffo will send the notes you type and the documents you scan to Google\'s Gemini AI through Puter (puter.com) so it can read them. You\'ll sign in to a free Puter account once; your AI use comes out of that account\'s free allowance, so nobody pays. Puter and Google handle what\'s sent under their own privacy policies, so avoid very private documents. You can switch it off any time.'
       : 'Turn on free AI? Tiffo will send the notes you type and the documents you scan to Google\'s free Gemini AI so it can read them. On the free plan, Google may use this to improve its products, and people at Google may read it. Avoid using AI on very private documents. You can switch it off any time.', 'Turn on AI');
