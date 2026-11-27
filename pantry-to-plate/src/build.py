@@ -32,3 +32,13 @@ html = f'''<!DOCTYPE html>
 '''
 (src/"index.html").write_text(html)
 print("built", len(html), "bytes")
+
+# Final step: split long strings into short "..." + "..." pieces (same text at runtime) so no viewer
+# can wrap a string across two lines and mistake the wrap for a line break inside it.
+import subprocess, re as _re
+_h = open("index.html", encoding="utf8").read()
+_m = _re.search(r"<script>([\s\S]*?)</script>", _h)
+open("/tmp/_bundle.js", "w", encoding="utf8").write(_m.group(1))
+subprocess.run(["node", "wrapstrings.js", "/tmp/_bundle.js", "/tmp/_bundle.wrapped.js"], check=True)
+_w = open("/tmp/_bundle.wrapped.js", encoding="utf8").read()
+open("index.html", "w", encoding="utf8").write(_h[:_m.start(1)] + _w + _h[_m.end(1):])
