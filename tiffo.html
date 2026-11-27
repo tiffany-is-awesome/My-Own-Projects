@@ -264,6 +264,24 @@
         <div id="invAlloc" class="mb-3"></div>
         <ul id="invList" class="divide-y divide-stone-100 dark:divide-stone-800"></ul>
         <p id="invEmpty" class="rounded-xl border-2 border-dashed border-cyan-200 dark:border-cyan-900/60 p-4 text-sm text-stone-500 dark:text-stone-400"></p>
+        <details id="invTips" class="mt-3 rounded-xl bg-cyan-50/60 dark:bg-cyan-950/20 border border-cyan-100 dark:border-cyan-900/50 text-sm">
+          <summary class="cursor-pointer select-none px-3 py-2 font-semibold text-cyan-900 dark:text-cyan-200">💡 How investments work</summary>
+          <ul class="px-3 pb-3 space-y-2 text-stone-700 dark:text-stone-300">
+            <li class="flex gap-2"><span aria-hidden="true">🧯</span><div><b>Emergency money first.</b> Money you might need soon isn’t for investing. Many people keep 3–6 months of expenses in savings they can reach quickly before investing the rest.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">🎢</span><div><b>More growth means bigger swings.</b> Things that can grow more, like stocks, can also drop a lot in a bad year. A time deposit won’t drop, but it grows slowly. Neither is “better”; it depends on when you need the money.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">⏳</span><div><b>Match it to when you’ll need it.</b> Money for the next 1–3 years suits low-risk choices (time deposits, MP2, treasury bonds). Money you won’t touch for 5+ years has time to recover from stock-market dips.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">🧺</span><div><b>Don’t put everything in one place.</b> Funds and ETFs hold many companies at once, so one bad company hurts less. FMETF, for example, follows the PSEi’s biggest companies.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">📅</span><div><b>Small amounts, regularly.</b> Putting in the same amount every month means you buy more units when prices are low and fewer when they’re high. Tiffo’s “average cost” shows what you paid per unit overall.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">🔓</span><div><b>A gain isn’t yours until you sell.</b> “Not sold yet” gains and losses can still change. “From sales” gains and losses are final. Dividends and interest are money you actually received.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">🧾</span><div><b>Fees quietly add up.</b> Funds charge a yearly fee (often 1–2%) on top of any sales or early-exit fees, whether the fund goes up or down. Over many years that can take a big part of your growth, so compare before you buy.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">📈</span><div><b>Beat rising prices.</b> If your money earns less than prices go up, it buys less every year, even though the number in your account grows.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">🏛️</span><div><b>Taxes in the Philippines.</b> Since July 2025: interest from banks, time deposits and bonds has a 20% final tax, taken out for you. Selling shares on the PSE has a 0.1% stock transaction tax. Cash dividends from Philippine companies usually have 10% taken out. MP2 dividends are tax-free, and so are gains when you cash out mutual funds and UITFs.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">🛡️</span><div><b>What’s protected.</b> Bank deposits are insured by PDIC up to ₱1 million per person per bank. Stocks, funds, UITFs and crypto are not insured: their value can go down.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">🚩</span><div><b>Too good to be true.</b> “Guaranteed” high returns, like 5–10% a month, are a warning sign. Check that the company is registered with the SEC (and that it’s allowed to sell investments), and run the offer through Scam Check.</div></li>
+            <li class="flex gap-2"><span aria-hidden="true">🕊️</span><div><b>Insurance plus investment (VUL).</b> Part of what you pay goes to insurance and charges, so the investment part grows slower than a fund on its own, especially in the first years. Know which part is which.</div></li>
+          </ul>
+          <p class="px-3 pb-3 text-[11px] text-stone-500 dark:text-stone-400">General information, not advice for your situation. Tax rules, rates and fees change, so check with your bank, broker, Pag-IBIG or a licensed financial adviser before deciding.</p>
+        </details>
         <p class="mt-2 text-[11px] text-stone-400">Tiffo doesn’t fetch live prices. Values are what you type, or estimates marked “estimate”. Past results don’t guarantee future returns.</p>
       </section>
 
@@ -1474,7 +1492,18 @@ const Auth = {
   async deleteAccount() {
     if (!this.user) return;
     if (this.user.provider === 'cloud') {
-      try { await (await this.supabase()).from('tiffo_data').delete().eq('user_id', this.user.uid); } catch (e) { console.warn('Cloud delete failed', e); }
+      const sb = await this.supabase();
+      try { await sb.from('tiffo_data').delete().eq('user_id', this.user.uid); } catch (e) { console.warn('Cloud delete failed', e); }
+      // Household sharing: remove your posts, and leave (or, if you made it, delete) the household.
+      try {
+        const hh = Store.state.settings?.hhSync;
+        await sb.from('tiffo_household_items').delete().eq('author', this.user.uid);
+        if (hh?.id) {
+          const { data: h } = await sb.from('tiffo_households').select('owner').eq('id', hh.id).maybeSingle();
+          if (h?.owner === this.user.uid) await sb.from('tiffo_households').delete().eq('id', hh.id);
+          else await sb.from('tiffo_household_members').delete().eq('household_id', hh.id).eq('user_id', this.user.uid);
+        }
+      } catch (e) { console.warn('Household cleanup failed', e); }
     }
     LS.removeItem(Store.keyFor(this.user));
     if (this.user.id.startsWith('local:')) { const u = this.users(); delete u[this.user.email]; this.saveUsers(u); }
@@ -2696,9 +2725,50 @@ const Debts = {
     if (!P || !n) return null;
     return round2(r ? (r * P) / (1 - Math.pow(1 + r, -n)) : P / n);
   },
-  /** Split a payment into interest and principal (interest = what's owed × period rate). */
-  split(a, amount, upTo = null) {
-    const owed = Accounts.owedOn(a, upTo), interest = Math.min(round2(owed * this.periodRate(a)), amount);
+  /** The payment period a date falls in: (prev due date, next due date]. null if Tiffo doesn't know the due dates. */
+  periodOf(a, date = this.today()) {
+    const f = a.freq || 'month';
+    let next = null;
+    if (a.dueDay) next = this.nextDay(a.dueDay, date);
+    else if (a.startDate) { let k = 1; next = this.addPeriods(a.startDate, 1, f); while (next < date && k < 1200) next = this.addPeriods(a.startDate, ++k, f); }
+    if (!next) return null;
+    return { prev: this.addPeriods(next, -1, f, a.dueDay), next };
+  },
+  /** Formal loans: payments that were due but not made. → { amount, missed, since } or null.
+      Counts due dates from when the loan started (or when you added it to Tiffo) up to yesterday,
+      and compares what should have been paid with what you recorded (principal + interest). */
+  behind(a) {
+    if (a.type !== 'loan' || this.plans().some((p) => p.accountId === a.id)) return null;
+    const pay = this.payment(a), owed = Accounts.owedOn(a);
+    if (!pay || owed <= 0) return null;
+    const start = a.startDate || (a.createdAt ? toISODate(new Date(a.createdAt)) : null);
+    if (!start) return null;
+    const f = a.freq || 'month', today = this.today();
+    const first = a.dueDay ? this.nextDay(a.dueDay, this.dayAfter(start)) : this.addPeriods(start, 1, f);
+    if (!first) return null;
+    const dues = [];
+    for (let k = 0, d = first; d < today && k < 1200; d = this.addPeriods(first, ++k, f, a.dueDay)) dues.push(d);
+    if (!dues.length) return null;
+    let paid = 0;
+    for (const t of Store.state.transactions) {
+      if (t.date < start) continue;
+      if ((Money.kind(t) === 'transfer' && t.toAccountId === a.id) || t.debtId === a.id) paid += t.amount;
+    }
+    const short = round2(dues.length * pay - paid);
+    if (short < 1) return null;
+    const missed = Math.min(dues.length, Math.ceil(short / pay - 0.001));
+    return { amount: round2(Math.min(short, owed + round2(owed * this.periodRate(a)))), missed, since: dues[dues.length - missed] };
+  },
+  /** Interest already recorded for this loan in the period `date` falls in (so two part-payments aren't both charged a full period). */
+  interestIn(a, date = this.today()) {
+    const per = this.periodOf(a, date);
+    if (!per) return 0;
+    return round2(Store.state.transactions.filter((t) => t.debtId === a.id && t.date > per.prev && t.date <= per.next).reduce((x, t) => x + t.amount, 0));
+  },
+  /** Split a payment into interest and principal (interest = what's owed × period rate, less interest already paid this period). */
+  split(a, amount, upTo = null, date = null) {
+    const owed = Accounts.owedOn(a, upTo), due = Math.max(0, round2(owed * this.periodRate(a)) - this.interestIn(a, date || this.today()));
+    const interest = Math.min(due, amount);
     const principal = round2(Math.min(amount - interest, owed));
     return { interest: round2(interest), principal, over: round2(Math.max(0, amount - interest - principal)), short: amount <= interest && interest > 0 };
   },
@@ -2803,6 +2873,8 @@ const Debts = {
         if (st && st.dueDate && st.due > 0 && st.dueDate <= end) out.push({ date: st.dueDate, title: `${a.name} bill`, amount: st.due, min: st.minDue, acc: a, overdue: st.overdue });
         else if (!st && a.dueDay && Accounts.owedOn(a) > 0) out.push({ date: this.nextDay(a.dueDay), title: `${a.name} bill`, amount: Accounts.owedOn(a), acc: a });
       } else if (Accounts.owedOn(a) > 0 && !this.plans().some((p) => p.accountId === a.id)) {
+        const late = this.behind(a);
+        if (late) out.push({ date: late.since, title: `${a.name}: ${late.missed} missed payment${late.missed > 1 ? 's' : ''}`, amount: late.amount, acc: a, overdue: true });
         const d = this.nextDue(a);
         if (d && d <= end) out.push({ date: d, title: `${a.name} payment`, amount: Math.min(this.payment(a) || Accounts.owedOn(a), Accounts.owedOn(a) + round2(Accounts.owedOn(a) * this.periodRate(a))), acc: a });
       }
@@ -2849,6 +2921,18 @@ const INVEST_TYPES = {
   retirement: { icon: '🌅', label: 'Retirement (MP2, PERA…)', re: /\b(mp2|pera|retirement|sss wisp|wisp|pag-?ibig savings)\b/ },
   crypto: { icon: '🪙', label: 'Crypto', re: /\b(crypto|bitcoin|btc|eth|ethereum|usdt|coins\.ph)\b/ },
   other: { icon: '📦', label: 'Other', re: /\b(digital gold|gold savings|investment)\b/ },
+};
+/** One short "good to know" per kind of investment, shown when you open it. General information, not advice. */
+const INVEST_TIPS = {
+  stock: 'Prices change every day. You earn when the price goes up (once you sell) and from dividends. Selling costs a broker fee plus the 0.1% stock transaction tax.',
+  etf: 'One ETF holds many companies, so a single bad company hurts less. Its price moves with the market it follows, up and down.',
+  mutual_fund: 'Priced once a day (NAVPS). Check the yearly fee and any early-redemption fee. Gains when you cash out are tax-free.',
+  uitf: 'Like a mutual fund, run by a bank and priced as NAVPU. Check the fees and any minimum holding period. Gains when you cash out are tax-free.',
+  bond: 'You’re lending to the government or a company, and they pay you interest (20% final tax is taken out). If you sell before it matures, you may get more or less than you paid.',
+  time_deposit: 'Fixed interest for a fixed time; 20% final tax is taken out of the interest. Taking it out early usually means less interest or a penalty. PDIC insures bank deposits up to ₱1 million per person per bank.',
+  retirement: 'MP2: a 5-year term, government-guaranteed, with tax-free dividends whose rate is declared each year (not fixed in advance). PERA: tax perks, but taking money out early can cost you those perks.',
+  crypto: 'Prices can swing by half or more within months, and it isn’t insured like bank deposits. Use exchanges registered with the BSP, and only money you can afford to lose.',
+  other: 'Know what you own, how you’d sell it, and what it costs to keep.',
 };
 const Invest = {
   list() { return (Store.state.holdings ||= []); },
@@ -3724,10 +3808,11 @@ const NetWorth = {
     const upTo = Debts.dayAfter(iso), people = this.peopleAt(iso);
     const cash = round2(Accounts.cashList().reduce((x, a) => x + Accounts.balance(a, upTo), 0));
     const owedDebts = Accounts.owed(upTo);
+    const credits = round2(Accounts.oweList().reduce((x, a) => x + Math.max(0, Accounts.balance(a, upTo)), 0));   // overpaid a card: the bank owes you
     const invest = this.investmentsAt(iso);
     const assets = round2(Assets.list().reduce((x, a) => x + Assets.valueAt(a, iso), 0));
-    const own = round2(cash + people.theyOwe + invest + assets), owe = round2(owedDebts + people.youOwe);
-    return { date: iso, cash, theyOwe: people.theyOwe, invest, assets, own, debts: owedDebts, youOwe: people.youOwe, owe, net: round2(own - owe) };
+    const own = round2(cash + credits + people.theyOwe + invest + assets), owe = round2(owedDebts + people.youOwe);
+    return { date: iso, cash, credits, theyOwe: people.theyOwe, invest, assets, own, debts: owedDebts, youOwe: people.youOwe, owe, net: round2(own - owe) };
   },
   /** The first date Tiffo has any record for: when you started, your first entry, or when you got something you own. */
   startDate() {
@@ -3794,7 +3879,8 @@ const Backup = {
     data.initialBalance = Number.isFinite(+raw.initialBalance) ? +raw.initialBalance : 0;
     const dates = data.transactions.map((t) => t.date).sort();
     return { ok: true, data, dropped, exportedAt: obj.exportedAt || null,
-      summary: { entries: data.transactions.length, accounts: data.accounts.length, pockets: data.pockets.length, budgets: data.budgets.length, reminders: data.reminders.length, from: dates[0], to: dates.at(-1) } };
+      summary: { entries: data.transactions.length, accounts: data.accounts.length, pockets: data.pockets.length, budgets: data.budgets.length, reminders: data.reminders.length,
+        holdings: data.holdings.length, assets: data.assets.length, bills: data.bills.length, policies: data.policies.length, plans: data.plans.length, documents: data.documents.length, from: dates[0], to: dates.at(-1) } };
   },
 
   /** Same entry? (different id, but same day, amount, kind and wording) */
@@ -3810,14 +3896,25 @@ const Backup = {
   },
 
   /** mode: 'merge' adds what's missing (skipping duplicates); 'replace' swaps everything. → { added, skipped } */
+  /** Settings that belong to this device and this person, never taken from a file: the app lock, AI consent, the household link. */
+  DEVICE_SETTINGS: ['lock', 'aiConsent', 'hhSync'],
+  /** Bring an older backup up to today's format (the same upgrade Tiffo runs on its own saved data). */
+  upgrade(data) {
+    const keep = Store.state;
+    try { Store.state = { ...Store.blank(), ...JSON.parse(JSON.stringify(data)), v: data.v || 1 }; Store.migrate(); return Store.state; }
+    finally { Store.state = keep; }
+  },
   restore(v, mode = 'merge') {
     this.safety();
     if (mode === 'replace') {
-      Store.adopt(JSON.parse(JSON.stringify(v.data)));
+      const mine = Store.state.settings || {}, next = JSON.parse(JSON.stringify(v.data));
+      next.settings = { ...(next.settings || {}) };
+      for (const k of this.DEVICE_SETTINGS) { if (k in mine) next.settings[k] = mine[k]; else delete next.settings[k]; }
+      Store.adopt(next);
       Store.save();
       return { added: v.summary.entries, skipped: 0 };
     }
-    const st = Store.state, d = JSON.parse(JSON.stringify(v.data));
+    const st = Store.state, d = this.upgrade(v.data);
     // Accounts: same id or same name = same account; remember id changes for entries.
     const accMap = {};
     for (const a of d.accounts) {
@@ -3829,11 +3926,23 @@ const Backup = {
       const same = Pockets.list().find((x) => x.id === p.id) || Pockets.find(p.name, true);
       if (same) pocketMap[p.id] = same.id; else { (st.pockets ||= []).push(p); pocketMap[p.id] = p.id; }
     }
+    // Investments, things you own, bills and policies: same id or same name = the same one (so nothing is counted twice).
+    const nameOf = (x) => String(x.name || x.provider || '').trim().toLowerCase();
+    const maps = { holdingId: {}, assetId: {}, billId: {}, policyId: {} };
+    for (const [key, f] of [['holdings', 'holdingId'], ['assets', 'assetId'], ['bills', 'billId'], ['policies', 'policyId']]) {
+      const have = (st[key] ||= []);
+      d[key] = (d[key] || []).filter((x) => {
+        const same = have.find((y) => y.id === x.id) || (nameOf(x) && have.find((y) => nameOf(y) === nameOf(x)));
+        if (same) { maps[f][x.id] = same.id; return false; }
+        return true;
+      });
+    }
     const ids = new Set(st.transactions.map((t) => t.id)), sigs = new Set(st.transactions.map((t) => this.sig(t)));
     let added = 0, skipped = 0;
     for (const t of d.transactions) {
       if (ids.has(t.id) || sigs.has(this.sig(t))) { skipped++; continue; }
-      for (const f of ['accountId', 'fromAccountId', 'toAccountId']) if (t[f] && accMap[t[f]]) t[f] = accMap[t[f]];
+      for (const f of ['accountId', 'fromAccountId', 'toAccountId', 'debtId']) if (t[f] && accMap[t[f]]) t[f] = accMap[t[f]];
+      for (const f of Object.keys(maps)) if (t[f] && maps[f][t[f]]) t[f] = maps[f][t[f]];
       if (t.pocketId && pocketMap[t.pocketId]) t.pocketId = pocketMap[t.pocketId];
       st.transactions.push(t); ids.add(t.id); sigs.add(this.sig(t)); added++;
     }
@@ -5846,8 +5955,17 @@ const UI = {
     if (p) { t.policyId = p.id; if (t.category === 'Other Expense') t.category = 'Insurance'; Policies.afterPaid(p, t); }
   },
   unlinkObligations(t) {
-    if (t.billId && Bills.get(t.billId)) Bills.unpay(Bills.get(t.billId), t);
-    if (t.policyId && Policies.get(t.policyId) && t.prevDue) { Policies.get(t.policyId).nextDue = t.prevDue; Store.save(); }
+    // Only the latest payment moves the due date back (an older one being deleted doesn't change what's due next).
+    const later = (f, id) => Store.state.transactions.some((x) => x !== t && x[f] === id && x.date >= t.date);
+    if (t.billId && Bills.get(t.billId) && !later('billId', t.billId)) Bills.unpay(Bills.get(t.billId), t);
+    if (t.policyId && Policies.get(t.policyId) && t.prevDue && !later('policyId', t.policyId)) { Policies.get(t.policyId).nextDue = t.prevDue; Store.save(); }
+  },
+  /** A deleted bill or premium payment came back: it counts as paid again. */
+  relinkObligations(t) {
+    if (!t) return;
+    const later = (f, id) => Store.state.transactions.some((x) => x !== t && x[f] === id && x.date > t.date);
+    if (t.billId && Bills.get(t.billId) && !later('billId', t.billId)) Bills.afterPaid(Bills.get(t.billId), t);
+    if (t.policyId && Policies.get(t.policyId) && !later('policyId', t.policyId)) Policies.afterPaid(Policies.get(t.policyId), t);
   },
 
   savedToast(saved, text = '') {
@@ -6248,11 +6366,11 @@ const UI = {
       title: 'Restore a backup', save: 'Restore',
       sub: `${escapeHTML(fileName)} · made ${escapeHTML(when)}`,
       fields: [
-        { id: 'what', type: 'note', label: '', html: `<div><b>In this backup:</b> ${sm.entries} entries${sm.from ? ` (${escapeHTML(prettyDate(sm.from))} to ${escapeHTML(prettyDate(sm.to))})` : ''}, ${sm.accounts} accounts, ${sm.pockets} pockets, ${sm.budgets} budgets, ${sm.reminders} reminders.</div>
+        { id: 'what', type: 'note', label: '', html: `<div><b>In this backup:</b> ${sm.entries} entries${sm.from ? ` (${escapeHTML(prettyDate(sm.from))} to ${escapeHTML(prettyDate(sm.to))})` : ''}, ${[[sm.accounts, 'account'], [sm.pockets, 'pocket'], [sm.budgets, 'budget'], [sm.reminders, 'reminder'], [sm.holdings, 'investment'], [sm.assets, 'thing you own', 'things you own'], [sm.bills, 'bill or subscription', 'bills & subscriptions'], [sm.policies, 'insurance policy', 'insurance policies'], [sm.plans, 'installment plan'], [sm.documents, 'document']].filter(([n]) => n).map(([n, one, many]) => `${n} ${n === 1 ? one : many || one + 's'}`).join(', ')}.</div>
           ${v.dropped ? `<div class="mt-1">⚠️ ${v.dropped} damaged entr${v.dropped === 1 ? 'y' : 'ies'} will be skipped.</div>` : ''}
           <div class="mt-1"><b>On this device now:</b> ${cur} entries.</div>` },
         { id: 'mode', label: 'How?', type: 'select', value: cur ? 'merge' : 'replace', options: [['merge', 'Add what’s missing (keep my current data, skip duplicates)'], ['replace', 'Replace everything with the backup']] },
-        { id: 'warn', type: 'note', label: '', html: '⚠️ Replacing removes what’s on this device now. You can undo right after.', show: (x) => x.mode === 'replace' && cur > 0 },
+        { id: 'warn', type: 'note', label: '', html: '⚠️ Replacing removes what’s on this device now. You can undo right after. Your app lock, AI setting and household link on this device stay as they are.', show: (x) => x.mode === 'replace' && cur > 0 },
       ],
       onSave: async (x) => {
         const r = Backup.restore(v, x.mode);
@@ -6318,6 +6436,8 @@ const UI = {
 
   /** Deleting never loses anything right away: entries go to Recently deleted for 30 days. */
   async deleteEntry(id) {
+    const t0 = Store.state.transactions.find((t) => t.id === id);
+    if (t0) this.unlinkObligations(t0);   // a deleted bill payment means the bill is due again
     const removed = Store.removeTransaction(id);
     if (!removed) return;
     this.renderAll();
@@ -6328,7 +6448,7 @@ const UI = {
       && await askConfirm(`You deleted buying ${asset.name}, so ${fmt(removed.amount)} is back in your account. Remove ${asset.name} from what you own too? If you still own it, keep it.`, `Remove ${asset.name}`)) {
       gone = asset; Store.state.assets = Assets.list().filter((x) => x !== asset); Store.save(); this.renderAll();
     }
-    toast(`🗑 Deleted “${escapeHTML(removed.description.slice(0, 40))}”${gone ? ` and ${escapeHTML(gone.name)}` : ''}. It’s in Recently deleted for 30 days.`, { duration: 6000, action: { label: 'Undo', fn: () => { Store.restoreTransaction(id); if (gone && !Assets.get(gone.id)) Assets.list().push(gone); Store.save(); UI.renderAll(); } } });
+    toast(`🗑 Deleted “${escapeHTML(removed.description.slice(0, 40))}”${gone ? ` and ${escapeHTML(gone.name)}` : ''}. It’s in Recently deleted for 30 days.`, { duration: 6000, action: { label: 'Undo', fn: () => { Store.restoreTransaction(id); UI.relinkObligations(Store.state.transactions.find((t) => t.id === id)); if (gone && !Assets.get(gone.id)) Assets.list().push(gone); Store.save(); UI.renderAll(); } } });
   },
   trashView() {
     const items = (Store.state.trash || []).slice().reverse();
@@ -6341,7 +6461,7 @@ const UI = {
     });
     $('#fmFields').addEventListener('click', (e) => {
       const b = e.target.closest('[data-restore]'); if (!b) return;
-      Store.restoreTransaction(b.dataset.restore); this.renderAll();
+      Store.restoreTransaction(b.dataset.restore); this.relinkObligations(Store.state.transactions.find((t) => t.id === b.dataset.restore)); this.renderAll();
       b.closest('div.flex').remove(); toast('↩ Restored.');
     }, { once: false });
   },
@@ -7105,6 +7225,7 @@ const UI = {
           <span class="font-semibold">Overall</span><b class="text-right tabular">${c.gain >= 0 ? '+' : '−'}${fmt(Math.abs(c.gain))} (${pct(c.pct)})</b>
           ${c.units ? `<span>Units</span><span class="text-right tabular">${c.units}</span>` : ''}</div>` },
         { id: 'acts', type: 'note', label: '', html: `<div class="flex flex-wrap gap-2"><button type="button" data-mode="buy" class="inv-act rounded-lg bg-white/70 dark:bg-stone-900/60 border px-2.5 py-1.5 font-semibold">➕ Add more</button><button type="button" data-mode="sell" class="inv-act rounded-lg bg-white/70 dark:bg-stone-900/60 border px-2.5 py-1.5 font-semibold">➖ Sell / withdraw</button><button type="button" data-mode="div" class="inv-act rounded-lg bg-white/70 dark:bg-stone-900/60 border px-2.5 py-1.5 font-semibold">💹 Dividend</button><button type="button" data-mode="edit" class="inv-act rounded-lg bg-white/70 dark:bg-stone-900/60 border px-2.5 py-1.5 font-semibold">✏️ Edit</button></div>` },
+        { id: 'tip', type: 'note', label: '', html: `<div class="text-[12px] opacity-90">💡 <b>Good to know:</b> ${escapeHTML(INVEST_TIPS[h.type] || INVEST_TIPS.other)}</div>` },
         { id: 'hist', type: 'note', label: '', html: `<div class="font-semibold mb-0.5">History</div>${hist || '—'}${vals ? `<div class="font-semibold mt-2 mb-0.5">Values you typed</div>${vals}` : ''}`, advanced: true },
       ],
       onSave: () => setTimeout(() => this.tradeForm(h, 'value'), 0),
@@ -7128,6 +7249,7 @@ const UI = {
     const li = (icon, label, amt, attrs = '', sub = '') => `<li ${attrs} class="flex justify-between gap-2 ${attrs ? 'cursor-pointer hover:underline' : ''}"><span class="truncate">${icon} ${escapeHTML(label)}${sub ? ` <span class="text-[11px] text-stone-500">${sub}</span>` : ''}</span><span class="tabular whitespace-nowrap">${fmt(amt)}</span></li>`;
     $('#nwOwnList').innerHTML = [
       li('💵', 'Cash, e-wallets & banks', now.cash),
+      now.credits ? li('💳', 'Credit on cards & loans (overpaid)', now.credits) : '',
       now.theyOwe ? li('👥', 'Owed to you', now.theyOwe) : '',
       now.invest ? li('📈', 'Investments', now.invest, '', Invest.totals().estimated ? '(includes estimates)' : '') : '',
       ...Assets.active().map((a) => li(Assets.icon(a), a.name, Assets.value(a), `data-asset="${a.id}"`, a.history?.length ? `(${escapeHTML(prettyDate(a.history.at(-1).date).toLowerCase())})` : '')),
@@ -7338,9 +7460,10 @@ const UI = {
     const plans = Debts.plans().filter((p) => p.accountId === a.id && p.via !== 'card'), ps = Debts.planStatus();
     const openPlan = plans.find((p) => (ps[p.id]?.left || 0) > 0);
     const suggested = prefill.amount ?? (st ? st.due || null : openPlan ? openPlan.perPay : isLoan ? Math.min(Debts.payment(a) || owed, owed + Debts.split(a, owed).interest) : null);
-    const estInterest = (amt) => openPlan ? Math.min(amt || 0, Debts.planInterestPerPay(openPlan)) : isLoan ? Debts.split(a, amt || 0).interest : 0;
+    const estInterest = (amt, date) => openPlan ? Math.min(amt || 0, Debts.planInterestPerPay(openPlan)) : isLoan ? Debts.split(a, amt || 0, null, date || prefill.date).interest : 0;
     const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name} (${fmt0(Accounts.balance(x))})`]);
     const hasInterest = isLoan && (a.rate || openPlan && Debts.planInterestPerPay(openPlan) > 0);
+    const firstEstimate = hasInterest ? estInterest(suggested) : null;
     this.form({
       title: `Pay ${a.name}`, save: 'Record payment',
       sub: st ? `Statement ${prettyDate(st.date)}: ${fmt(st.billed)} · already paid ${fmt(st.paidSince)} · ${fmt(st.due)} left to pay${st.minDue ? ` · minimum ${fmt(st.minDue)}${st.minEstimated ? ' (estimate, check your statement)' : ''}` : ''}.` : `You owe ${fmt(owed)}.`,
@@ -7348,13 +7471,15 @@ const UI = {
         { id: 'amount', label: 'Amount you paid', type: 'number', value: suggested ?? '' },
         { id: 'from', label: 'Paid from', type: 'select', value: prefill.from || Accounts.DEFAULT, options: cashOpts, show: () => cashOpts.length > 1 },
         { id: 'extra', type: 'checkbox', label: 'Extra payment: put it all toward what I owe (no interest)', value: !!prefill.extra, show: () => isLoan && !!a.rate && !openPlan },
-        { id: 'interest', label: 'Interest & fees in this payment', type: 'number', value: hasInterest ? estInterest(suggested) : '', show: (v) => isLoan && !v.extra,
-          hint: hasInterest ? 'Tiffo’s estimate. If your statement shows a different amount, type that.' : 'Leave empty if there was none.' },
+        { id: 'interest', label: 'Interest & fees in this payment', type: 'number', value: hasInterest ? firstEstimate : '', show: (v) => isLoan && !v.extra,
+          hint: hasInterest ? `Tiffo’s estimate${isLoan && !openPlan && Debts.interestIn(a, prefill.date) > 0 ? ` (you already paid ${fmt(Debts.interestIn(a, prefill.date))} interest this period, so it isn’t charged again)` : ''}. If your statement shows a different amount, type that.` : 'Leave empty if there was none.' },
         { id: 'date', label: 'Date', type: 'date', value: prefill.date || toISODate(new Date()), advanced: true },
       ],
       onSave: (v) => {
         if (!v.amount || v.amount <= 0) return 'Type the amount you paid.';
         if (!v.date) return 'Pick a date.';
+        // Untouched estimate: work it out again for the amount and date actually entered.
+        if (hasInterest && v.interest === firstEstimate && (v.amount !== suggested || (v.date && v.date !== (prefill.date || toISODate(new Date()))))) v.interest = estInterest(v.amount, v.date);
         const interest = isLoan && !v.extra ? Math.min(round2(v.interest || 0), v.amount) : 0;
         const principal = round2(v.amount - interest);
         if (principal > owed + 0.004) return `That’s more than the ${fmt(owed)} you owe. Lower the amount, or add the extra as interest/fees.`;
@@ -8594,7 +8719,7 @@ const UI = {
     });
     $('#deleteAccountBtn').addEventListener('click', async () => {
       $('#accountMenu').classList.add('hidden');
-      if (!(await askConfirm('Delete your account and all its entries from this device? Export a CSV first if you need it.', 'Delete account'))) return;
+      if (!(await askConfirm(Auth.user?.provider === 'cloud' ? 'Delete all your Tiffo data from this device and from the cloud, including anything you shared with a household? Download a backup first if you might need it. Your sign-in email itself stays registered; to remove it too, contact the app owner.' : 'Delete your account and all its entries from this device? Download a backup first if you might need it.', 'Delete everything'))) return;
       await Auth.deleteAccount(); this.onUserChanged(); toast('Account deleted.');
     });
 
