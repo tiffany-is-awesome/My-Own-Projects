@@ -594,6 +594,10 @@
             <div class="flex gap-2"><button type="button" id="lockSetBtn" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Set a PIN</button>
             <button type="button" id="lockNowBtn" class="hidden rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">🔒 Lock now</button></div>
           </div>
+          <div id="vaultRow" class="hidden flex flex-wrap items-center justify-between gap-3 py-3"><div class="min-w-0 flex-1"><div class="font-semibold text-sm">🔐 Encrypted vault</div><div id="vaultStatus" class="text-xs text-stone-500 dark:text-stone-400">Off</div></div>
+            <div class="flex flex-wrap gap-2"><button type="button" id="vaultSetBtn" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Set up</button>
+            <button type="button" id="vaultLockBtn" class="hidden rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">🔒 Lock now</button></div>
+          </div>
           <div id="bioRow" class="hidden flex flex-wrap items-center justify-between gap-3 py-3"><div class="min-w-0 flex-1"><div class="font-semibold text-sm">Fingerprint or face unlock</div><div id="bioStatus" class="text-xs text-stone-500 dark:text-stone-400">Off</div></div>
             <button type="button" id="bioBtn" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Turn on</button>
           </div>
@@ -909,6 +913,19 @@
 </div>
 
 <!-- ============================ LOCK SCREEN ============================ -->
+<div id="vaultScreen" class="hidden fixed inset-0 z-[95] bg-stone-950 text-white flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-labelledby="vaultTitle">
+  <form id="vaultForm" class="w-full max-w-sm text-center" autocomplete="on">
+    <div class="mx-auto h-14 w-14 rounded-2xl grid place-items-center bg-gradient-to-br from-slate-700 to-teal-600 text-2xl" aria-hidden="true">🔐</div>
+    <h2 id="vaultTitle" class="mt-4 text-xl font-bold">Your Tiffo vault is locked</h2>
+    <p class="mt-1 text-sm text-stone-300">Your financial records on this device are encrypted. Enter your vault password, or your recovery key, to open them.</p>
+    <p id="vaultWho" class="mt-1 text-xs text-stone-400"></p>
+    <input type="text" id="vaultUser" autocomplete="username" class="hidden" aria-hidden="true" tabindex="-1" />
+    <input id="vaultPw" type="password" autocomplete="current-password" aria-label="Vault password or recovery key" placeholder="Vault password or recovery key" class="mt-4 w-full rounded-xl bg-stone-800 border border-stone-700 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-teal-400" />
+    <p id="vaultMsg" class="mt-2 min-h-[1.25rem] text-sm text-rose-300" role="alert"></p>
+    <button type="button" id="vaultBtn" class="mt-1 w-full rounded-xl bg-teal-600 hover:bg-teal-500 font-semibold py-3">Unlock</button>
+    <button type="button" id="vaultForgot" class="mt-3 text-sm text-stone-400 hover:text-white underline">Forgot the password and the recovery key?</button>
+  </form>
+</div>
 <div id="lockScreen" class="hidden fixed inset-0 z-[90] bg-stone-950/95 backdrop-blur-sm text-white flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <form id="lockForm" class="w-full max-w-xs text-center" autocomplete="off">
     <div class="mx-auto h-14 w-14 rounded-2xl grid place-items-center bg-gradient-to-br from-slate-700 to-teal-600 text-2xl font-bold">T</div>
@@ -1409,7 +1426,7 @@ const Auth = {
         document.head.appendChild(s);
       });
     }
-    this.sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    this.sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, { auth: { storage: SessionStore, persistSession: true, autoRefreshToken: true } });
     this.sb.auth.onAuthStateChange((event) => {
       // Came back from a "reset password" email: ask for the new password right away.
       if (event === 'PASSWORD_RECOVERY') setTimeout(() => UI.newPasswordForm?.(), 300);
@@ -1518,6 +1535,7 @@ const Auth = {
       } catch (e) { console.warn('Household cleanup failed', e); }
     }
     LS.removeItem(Store.keyFor(this.user));
+    Vault.eraseLocal(Store.keyFor(this.user));
     if (this.user.id.startsWith('local:')) { const u = this.users(); delete u[this.user.email]; this.saveUsers(u); }
     await this.signOut();
   },
@@ -1680,8 +1698,16 @@ const Store = {
   /** Take saved data (from this device, the cloud or a backup) and upgrade it safely. */
   adopt(saved) { this.state = { ...this.blank(), ...saved, v: saved.v || 1 }; this.migrate(); this.emptyOldTrash(); return this.state; },
 
+  locked: false,
   load() {
     this.state = this.blank();
+    const k = this.key();
+    Vault.discardPending(k);
+    if (Vault.active(k)) {
+      if (Vault.unlocked(k) && Vault.cache) { this.locked = false; if (Vault.cache.state) { this.adopt(Vault.cache.state); Vault.cache.state = this.state; if (Vault.cache.mergedPlain) { Vault.cache.mergedPlain = false; Vault.queue(k); Vault.cleanupPlain(k); } return true; } return false; }
+      this.locked = true; return false;   // the vault must be unlocked first (UI.ensureVault)
+    }
+    this.locked = false;
     try {
       const raw = LS.getItem(this.key());
       if (raw) { this.adopt(JSON.parse(raw)); return true; }
@@ -1696,6 +1722,12 @@ const Store = {
   },
 
   saveLocal() {
+    const k = this.key();
+    if (Vault.active(k)) {   // encrypted vault: never write plain text
+      if (Vault.unlocked(k)) { if (Vault.cache) Vault.cache.state = this.state; Vault.queue(k); }
+      else console.warn('Vault is locked: not saved');
+      return;
+    }
     try { LS.setItem(this.key(), JSON.stringify(this.state)); }
     catch (e) {
       // Quota exceeded — drop document thumbnails first, then retry.
@@ -2426,6 +2458,7 @@ const Cloud = {
   label() {
     if (!this.on()) return '';
     if (this.status === 'saving' || this.status === 'syncing') return '☁️ Syncing…';
+    if (this.vaultNeeded) return this.vaultNeeded.off ? '🔐 The vault was turned off on another device. Your data here is safe; turn the vault off here too to keep syncing.' : '🔐 Your cloud data is encrypted. Unlock it on this device to sync (More → Settings → Encrypted vault).';
     if (this.authLost) return '🔑 Signed out of the cloud (from another device, or it expired). Your entries are safe on this device: sign out and in again to sync them.';
     if (this.status === 'error') return '⚠️ Offline: saved on this device, will sync later';
     if (this.lastSync) {
@@ -2436,8 +2469,19 @@ const Cloud = {
   },
 
   baseKey() { return Store.key() + '.syncbase'; },
-  base() { try { return JSON.parse(LS.getItem(this.baseKey())) || null; } catch (e) { return null; } },
-  setBase(st) { try { LS.setItem(this.baseKey(), JSON.stringify(SyncMerge.fingerprint(st))); } catch (e) {} },
+  async base() {
+    const o = Vault.readJSON(this.baseKey());
+    if (!o?.vault) return o || null;
+    try { return await Vault.open(o, Store.key() + '|syncbase'); } catch (e) { return null; }
+  },
+  async setBase(st) {
+    const fp = SyncMerge.fingerprint(st), k = Store.key();
+    if (Vault.active(k)) { if (Vault.unlocked(k)) await Vault.sealTo(this.baseKey(), fp, k + '|syncbase'); return; }
+    try { LS.setItem(this.baseKey(), JSON.stringify(fp)); } catch (e) {}
+  },
+  /** Cloud copies of encrypted accounts: { vault, kid, iv, ct, keys } — only ciphertext and wrapped keys. */
+  vaultLabel() { return 'cloud|' + Auth.user.uid; },
+  vaultNeeded: null, turningOff: false,
 
   /** Read the cloud copy, merge it with this device's data, and write back only if something changed.
       The write only succeeds if nobody else wrote in between (otherwise: read and merge again).
@@ -2449,28 +2493,50 @@ const Cloud = {
     for (let attempt = 0; attempt < 4; attempt++) {
       const { data: row, error } = await sb.from('tiffo_data').select('data, updated_at').eq('user_id', Auth.user.uid).maybeSingle();
       if (error) throw error;
-      const local = Store.state, remote = row?.data && typeof row.data === 'object' ? row.data : null;
-      const merged = remote ? SyncMerge.merge(local, remote, this.base()) : local;
+      const k = Store.key(), raw = row?.data && typeof row.data === 'object' ? row.data : null, vaultOn = Vault.active(k);
+      let remote = raw;
+      if (raw?.vault) {
+        // End-to-end encrypted cloud copy: decrypt here, on the device.
+        if (!vaultOn || raw.kid !== Vault.ring?.id) { this.vaultNeeded = { keys: raw.keys, mismatch: vaultOn }; const e = new Error('Your cloud data is encrypted with a vault. Unlock it on this device to sync.'); e.vault = true; throw e; }
+        if (!Vault.unlocked(k)) throw new Error('The vault is locked.');
+        if ((raw.keys?.changedAt || 0) > (Vault.ring.changedAt || 0)) {   // password or recovery key changed on another device: use the new wrappers here too
+          const ring = { ...Vault.ring, pw: raw.keys.pw, rk: raw.keys.rk, changedAt: raw.keys.changedAt }; Vault.writeRing(k, ring); Vault.ring = ring;
+        }
+        remote = await Vault.open(raw, this.vaultLabel());
+      } else if (raw && vaultOn && raw.vaultOffAt && raw.vaultOffAt > (Vault.ring?.created || 0) && !this.turningOff) {
+        this.vaultNeeded = { off: true }; const e = new Error('The vault was turned off on another device. Turn it off here too to keep syncing (your data here is safe).'); e.vault = true; throw e;
+      }
+      if (remote && remote !== raw) { /* decrypted */ } else if (remote) { remote = { ...remote }; delete remote.vaultOff; delete remote.vaultOffAt; }
+      this.vaultNeeded = null;
+      const local = Store.state;
+      const merged = remote ? SyncMerge.merge(local, remote, await this.base()) : local;
       const sameAsLocal = SyncMerge.hash(SyncMerge.fingerprint(merged)) === SyncMerge.hash(SyncMerge.fingerprint(local));
       const sameAsRemote = remote && SyncMerge.hash(SyncMerge.fingerprint(merged)) === SyncMerge.hash(SyncMerge.fingerprint(remote));
       if (!sameAsLocal) { Store.adopt(merged); Store.saveLocal(); changedHere = true; }
-      if (sameAsRemote) { this.setBase(Store.state); return changedHere; }
+      // An encrypted vault never leaves a plain copy in the cloud; turning it off writes one plain copy marked as such.
+      const cloudEncrypted = !!raw?.vault, wantEncrypted = vaultOn && !this.turningOff;
+      const keysCurrent = !wantEncrypted || (raw?.keys?.changedAt || 0) >= (Vault.ring?.changedAt || 0);   // a new password or recovery key must reach the cloud too
+      if (sameAsRemote && cloudEncrypted === wantEncrypted && keysCurrent) { await this.setBase(Store.state); return changedHere; }
+      if (wantEncrypted && !Vault.unlocked(k)) throw new Error('The vault is locked.');
+      const payload = wantEncrypted ? { ...(await Vault.seal(Store.state, this.vaultLabel())), keys: Vault.cloudKeys(), savedAt: Store.state.savedAt }
+        : this.turningOff ? { ...Store.state, vaultOff: true, vaultOffAt: Date.now() } : Store.state;
+      if (cloudEncrypted && !wantEncrypted && !this.turningOff) throw new Error('Refusing to replace encrypted cloud data with an unencrypted copy.');
       const stamp = new Date(Math.max(Date.now(), (Date.parse(row?.updated_at) || 0) + 1)).toISOString();
       let wrote;
       if (!row) {
-        const r = await sb.from('tiffo_data').insert({ user_id: Auth.user.uid, data: Store.state, updated_at: stamp }).select('user_id');
+        const r = await sb.from('tiffo_data').insert({ user_id: Auth.user.uid, data: payload, updated_at: stamp }).select('user_id');
         if (r.error && !/duplicate|conflict|23505/i.test(r.error.message || r.error.code || '')) throw r.error;
         wrote = !r.error && r.data?.length;
       } else {
         // Normally: only write if nobody wrote since we read. Last try: write the merged data anyway (it already includes what we just read),
         // so a timestamp-format mismatch can never stop syncing altogether.
-        let q = sb.from('tiffo_data').update({ data: Store.state, updated_at: stamp }).eq('user_id', Auth.user.uid);
+        let q = sb.from('tiffo_data').update({ data: payload, updated_at: stamp }).eq('user_id', Auth.user.uid);
         if (attempt < 3) q = q.eq('updated_at', row.updated_at);
         const r = await q.select('user_id');
         if (r.error) throw r.error;
         wrote = r.data?.length;
       }
-      if (wrote) { this.setBase(Store.state); return changedHere; }
+      if (wrote) { await this.setBase(Store.state); return changedHere; }
       // Another device saved in between: go round again and merge with that.
     }
     throw new Error('Another device keeps saving at the same moment. Will try again shortly.');
@@ -2481,7 +2547,7 @@ const Cloud = {
     if (!this.on() || this.busy) return false;
     this.busy = true; this.setStatus('syncing');
     try { const changed = await this.sync(); this.setStatus('synced'); return changed; }
-    catch (e) { console.warn('Cloud sync failed', e); this.noteAuthError(e); this.setStatus('error'); return false; }
+    catch (e) { console.warn('Cloud sync failed', e); this.noteAuthError(e); this.setStatus('error'); if (e.vault) UI.vaultCloudPrompt?.(); return false; }
     finally { this.busy = false; }
   },
   authLost: false,
@@ -3623,7 +3689,8 @@ const Insights = {
    The PIN is never stored, only a salted PBKDF2 hash of it.
    ========================================================================= */
 const Sec = {
-  b64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); },
+  /** Bytes → base64, in chunks (spreading a large array into one call overflows the stack for big data). */
+  b64(buf) { const u = new Uint8Array(buf); let str = ''; for (let i = 0; i < u.length; i += 0x8000) str += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(str); },
   unb64(s) { return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); },
   async kdf(secret, salt, iterations, usage) {
     const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, usage === 'bits' ? ['deriveBits'] : ['deriveKey']);
@@ -3655,7 +3722,7 @@ const Sec = {
     return { ok: false, wait: c.until && c.until > now ? Math.ceil((c.until - now) / 1000) : 0, left: Math.max(0, 3 - c.fails) };
   },
   /* ----- encrypted backups ----- */
-  BACKUP_ITER: 250000,
+  BACKUP_ITER: 600000,   // older files keep opening: each file records its own iteration count
   async encrypt(obj, password) {
     const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
     const key = await this.kdf(password, salt, this.BACKUP_ITER, 'key');
@@ -3667,6 +3734,254 @@ const Sec = {
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: this.unb64(file.iv) }, key, this.unb64(file.data));   // throws if the password is wrong
     return JSON.parse(new TextDecoder().decode(plain));
   },
+};
+
+/* =========================================================================
+   ENCRYPTED VAULT — optional encryption of everything Tiffo stores for you.
+   Web Crypto only (no custom crypto):
+   • A random 256-bit DATA KEY encrypts the data with AES-GCM-256 (fresh
+     12-byte IV per save; the slot name is bound in as authenticated data).
+   • The data key is never stored as is: it is WRAPPED (AES-GCM) twice —
+     by a key derived from the vault password (PBKDF2-SHA-256, 600,000
+     iterations, random salt) and by one derived from a random recovery key.
+   • While unlocked, the data key lives only in memory as a non-extractable
+     CryptoKey. Locking reloads the page, which clears memory.
+   • Changing the password re-wraps the data key in one write; the data
+     itself isn't re-encrypted, so an interrupted change can't lock you out.
+   If both the password and the recovery key are lost, the data cannot be
+   decrypted by anyone, including Tiffo.
+   ========================================================================= */
+const Vault = {
+  ITER: 600000, RK_ITER: 200000, FORMAT: 1,
+  key: null, ring: null, base: null, writing: null, dirty: false,
+  POINTER: 'tiffo.vault.last',
+  available() { return !!(window.crypto?.subtle && window.isSecureContext !== false && LS.persistent); },
+  ringKey(base) { return base + '.vaultkeys'; },
+  readRing(base) { try { return JSON.parse(LS.getItem(this.ringKey(base))) || null; } catch (e) { return null; } },
+  writeRing(base, ring) { LS.setItem(this.ringKey(base), JSON.stringify(ring)); },
+  /** Is there a working (fully set up) vault for this storage slot? */
+  active(base = Store.key()) { return this.readRing(base)?.status === 'active'; },
+  unlocked(base = Store.key()) { return !!(this.key && this.base === base); },
+  status(base = Store.key()) {
+    if (!this.available()) return 'unavailable';
+    if (!this.active(base)) return 'off';
+    return this.unlocked(base) ? 'unlocked' : 'locked';
+  },
+  enc(x) { return new TextEncoder().encode(x); },
+  async kek(secret, salt, iter) {
+    const base = await crypto.subtle.importKey('raw', this.enc(secret), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  },
+  async wrap(raw, secret, iter) {
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const w = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: this.enc('tiffo-vault-key-v1') }, await this.kek(secret, salt, iter), raw);
+    return { kdf: 'PBKDF2-SHA-256', iter, salt: Sec.b64(salt), iv: Sec.b64(iv), w: Sec.b64(w) };
+  },
+  async unwrap(slot, secret) {
+    return crypto.subtle.decrypt({ name: 'AES-GCM', iv: Sec.unb64(slot.iv), additionalData: this.enc('tiffo-vault-key-v1') }, await this.kek(secret, Sec.unb64(slot.salt), slot.iter), Sec.unb64(slot.w));   // throws if wrong
+  },
+  /** 128-bit random recovery key, shown as 26 letters/digits in groups (no 0/O/1/I confusion). */
+  newRecoveryKey() {
+    const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', b = crypto.getRandomValues(new Uint8Array(26));
+    const k = [...b].map((x) => A[x & 31]).join('');   // 26 × 5 bits = 130 bits
+    return k.match(/.{1,5}/g).join('-');
+  },
+  normRK(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); },
+  isRK(s) { return this.normRK(s).length === 26; },
+  /** Unwrap the data key with a password, or with a recovery key. → { raw, via } (throws if neither works). */
+  async rawFrom(ring, secret) {
+    try { return { raw: await this.unwrap(ring.pw, secret), via: 'password' }; } catch (e) {}
+    if (ring.rk && this.isRK(secret)) { try { return { raw: await this.unwrap(ring.rk, this.normRK(secret)), via: 'recovery' }; } catch (e) {} }
+    throw new Error('That password or recovery key isn’t right.');
+  },
+  async useRaw(raw, ring, base) {
+    this.key = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    this.ring = ring; this.base = base;
+  },
+  aad(label) { return this.enc(`tiffo-vault-v${this.FORMAT}|${this.ring.id}|${label}`); },
+  /** Encrypt any JSON value for a named slot. */
+  async seal(obj, label) {
+    if (!this.key) throw new Error('The vault is locked.');
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: this.aad(label) }, this.key, this.enc(JSON.stringify(obj)));
+    return { vault: this.FORMAT, kid: this.ring.id, iv: Sec.b64(iv), ct: Sec.b64(ct) };
+  },
+  async open(box, label) {
+    if (!this.key) throw new Error('The vault is locked.');
+    if (!box || box.kid !== this.ring.id) throw new Error('This was encrypted with a different vault.');
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: Sec.unb64(box.iv), additionalData: this.aad(label) }, this.key, Sec.unb64(box.ct));   // throws if tampered
+    return JSON.parse(new TextDecoder().decode(pt));
+  },
+  /** A brand-new vault: random data key, wrapped by the password and by a new recovery key. Nothing is written yet. */
+  async create(password) {
+    const raw = crypto.getRandomValues(new Uint8Array(32)), rk = this.newRecoveryKey();
+    const ring = { v: 1, id: uid() + uid(), status: 'pending', created: Date.now(), changedAt: Date.now(), cipher: 'AES-GCM-256', pw: await this.wrap(raw, password, this.ITER), rk: await this.wrap(raw, this.normRK(rk), this.RK_ITER) };
+    return { ring, raw, rk };
+  },
+  /** Check a password or recovery key against the open vault (for sensitive actions). */
+  async verify(secret) { try { await this.rawFrom(this.ring, secret); return true; } catch (e) { return false; } },
+  /** New password (needs the current password or the recovery key). One atomic write of the key wrappers. */
+  async changePassword(secret, newPw) {
+    const { raw } = await this.rawFrom(this.ring, secret);
+    const ring = { ...this.ring, pw: await this.wrap(raw, newPw, this.ITER), changedAt: Date.now() };
+    this.writeRing(this.base, ring); this.ring = ring;
+    new Uint8Array(raw).fill(0);
+    return ring;
+  },
+  /** A new recovery key replaces the old one (which stops working). */
+  async newRecovery(secret) {
+    const { raw } = await this.rawFrom(this.ring, secret), rk = this.newRecoveryKey();
+    const ring = { ...this.ring, rk: await this.wrap(raw, this.normRK(rk), this.RK_ITER), changedAt: Date.now() };
+    this.writeRing(this.base, ring); this.ring = ring;
+    new Uint8Array(raw).fill(0);
+    return rk;
+  },
+  /** The key wrappers as stored in the cloud (wrapped keys only; never the data key or a password). */
+  cloudKeys() { const { id, v, created, changedAt, cipher, pw, rk } = this.ring; return { id, v, created, changedAt, cipher, pw, rk }; },
+
+  /* ----- storage ----- */
+  SLOTS: ['.vault', '.vaultkeys', '.session'],
+  cache: null,
+  /** Which vault to unlock when Tiffo opens (not secret: just the storage slot and an email to show). */
+  pointer() { try { return JSON.parse(LS.getItem(this.POINTER)) || null; } catch (e) { return null; } },
+  setPointer(base) { LS.setItem(this.POINTER, JSON.stringify({ base, label: Auth.user?.email || 'this device', at: Date.now() })); },
+  readJSON(k) { try { return JSON.parse(LS.getItem(k)); } catch (e) { return null; } },
+  /** A vault left half-made by an interrupted setup: the plain data is still the real data, so the half-made vault is removed. */
+  discardPending(base) { const r = this.readRing(base); if (r && r.status !== 'active') { LS.removeItem(this.ringKey(base)); LS.removeItem(base + '.vault'); if (this.base === base) { this.key = null; this.ring = null; this.base = null; } } },
+  /** Save the current data encrypted. Saves are queued so they're written in order, always with the newest data. */
+  queue(base) {
+    this.dirty = true;
+    if (this.writing) return this.writing;
+    this.writing = (async () => {
+      try {
+        while (this.dirty) {
+          this.dirty = false;
+          const box = await this.seal(Store.state, base + '|state');
+          if (this.base !== base) break;
+          try { LS.setItem(base + '.vault', JSON.stringify(box)); this.saveError = null; }
+          catch (e) {
+            Store.state.documents.forEach((d) => delete d.thumb);
+            try { LS.setItem(base + '.vault', JSON.stringify(await this.seal(Store.state, base + '|state'))); this.saveError = null; }
+            catch (e2) { this.saveError = e2; toast('⚠️ Couldn’t save: this browser’s storage is full. Download a backup now.', { duration: 10000 }); }
+          }
+        }
+      } catch (e) { this.saveError = e; console.warn('Vault save failed', e); }
+      finally { this.writing = null; }
+    })();
+    return this.writing;
+  },
+  flush() { return this.writing || Promise.resolve(); },
+  async sealTo(k, obj, label) { try { LS.setItem(k, JSON.stringify(await this.seal(obj, label))); } catch (e) { console.warn('Vault write failed', k, e); } },
+  /** Open the vault for a storage slot: unwrap the key, decrypt the data, the Undo copy and the sign-in session into memory. */
+  async unlock(base, secret) {
+    const ring = this.readRing(base);
+    if (!ring || ring.status !== 'active') throw new Error('There’s no vault to unlock here.');
+    const { raw, via } = await this.rawFrom(ring, secret);
+    await this.useRaw(raw, ring, base); new Uint8Array(raw).fill(0);
+    const box = this.readJSON(base + '.vault');
+    let state = null;
+    try { state = box ? await this.open(box, base + '|state') : null; }
+    catch (e) { this.key = null; this.ring = null; this.base = null; throw new Error('The encrypted data couldn’t be opened: it may be damaged or changed. Nothing was deleted. Try your recovery key, or restore a backup.'); }
+    // A plain copy written after the vault was made (e.g. by an older Tiffo version in another tab): merge it in, never drop it.
+    const plain = this.readJSON(base);
+    if (plain && !plain.vault && Array.isArray(plain.transactions) && (plain.savedAt || 0) > (state?.savedAt || 0)) state = state ? SyncMerge.merge(state, plain, null) : plain;
+    this.cache = { state };
+    const sb = this.readJSON(base + '.safety');
+    if (sb?.vault) { try { Backup.safe = JSON.stringify(await this.open(sb, base + '|safety')); } catch (e) {} }
+    await SessionStore.load(base);
+    if (plain) { this.cache.mergedPlain = true; }
+    return via;
+  },
+  /** Once the vault is the real data, leftover plain copies are removed (only after they've been merged in, see unlock). */
+  cleanupPlain(base) {
+    if (!this.active(base) || !this.unlocked(base)) return;
+    LS.removeItem(base);
+    const s = this.readJSON(base + '.safety'); if (s && !s.vault) LS.removeItem(base + '.safety');
+    const sb = this.readJSON(base + '.syncbase'); if (sb && !sb.vault) LS.removeItem(base + '.syncbase');
+  },
+  /** Step 1–3 of turning the vault on: make keys, write the encrypted copy, read it back with the password alone and compare. The plain data isn't touched. → recovery key */
+  async enable(password) {
+    const base = Store.key();
+    this.discardPending(base);
+    const { ring, raw, rk } = await this.create(password);
+    this.writeRing(base, ring);
+    await this.useRaw(raw, ring, base); new Uint8Array(raw).fill(0);
+    LS.setItem(base + '.vault', JSON.stringify(await this.seal(Store.state, base + '|state')));
+    await this.verifyStored(base, password);
+    return rk;
+  },
+  /** Read the encrypted copy back from storage using only the password, decrypt it with a freshly derived key, and compare with what's in memory. */
+  async verifyStored(base, secret) {
+    const ring = this.readRing(base), { raw } = await this.rawFrom(ring, secret);
+    const k = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['decrypt']); new Uint8Array(raw).fill(0);
+    const box = this.readJSON(base + '.vault');
+    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: Sec.unb64(box.iv), additionalData: this.enc(`tiffo-vault-v${this.FORMAT}|${ring.id}|${base}|state`) }, k, Sec.unb64(box.ct));
+    if (new TextDecoder().decode(pt) !== JSON.stringify(Store.state)) throw new Error('The encrypted copy didn’t match. Nothing was changed.');
+  },
+  /** Step 5: the vault becomes the real data; the plain copies are removed. */
+  async activate(base) {
+    const ring = { ...this.readRing(base), status: 'active' };
+    this.writeRing(base, ring); this.ring = ring;
+    this.cache = { state: Store.state };
+    LS.removeItem(base);
+    if (Backup.safe) await this.sealTo(base + '.safety', JSON.parse(Backup.safe), base + '|safety'); else LS.removeItem(base + '.safety');
+    const fp = this.readJSON(base + '.syncbase'); if (fp && !fp.vault) await this.sealTo(base + '.syncbase', fp, base + '|syncbase');
+    this.setPointer(base);
+    if (Auth.user?.provider === 'cloud') await SessionStore.secureNow(base);
+  },
+  /** Setup was cancelled before step 5: remove the half-made vault; the plain data was never touched. */
+  abort(base = Store.key()) { this.discardPending(base); this.key = null; this.ring = null; this.base = null; this.cache = null; },
+  /** Use a vault made on another device (its key wrappers come from the cloud): re-encrypt this device's data with it. */
+  async adopt(keys, secret) {
+    const base = Store.key(), { raw } = await this.rawFrom(keys, secret);
+    const ring = { ...keys, status: 'pending' };
+    LS.removeItem(this.ringKey(base)); this.writeRing(base, ring);
+    await this.useRaw(raw, ring, base); new Uint8Array(raw).fill(0);
+    LS.setItem(base + '.vault', JSON.stringify(await this.seal(Store.state, base + '|state')));
+    await this.verifyStored(base, secret);
+    LS.removeItem(base + '.syncbase');   // the old fingerprint was encrypted with the old key
+    await this.activate(base);
+  },
+  /** Turn the vault off on this device: write the plain copy, check it, then remove the encrypted files. */
+  async disable() {
+    const base = Store.key(), text = JSON.stringify(Store.state);
+    await this.flush();
+    LS.setItem(base, text);
+    if (LS.getItem(base) !== text) throw new Error('Couldn’t write the unencrypted copy. Nothing was changed.');
+    if (Backup.safe) LS.setItem(base + '.safety', Backup.safe); else LS.removeItem(base + '.safety');
+    try { const sb = this.readJSON(base + '.syncbase'); if (sb?.vault) LS.setItem(base + '.syncbase', JSON.stringify(await this.open(sb, base + '|syncbase'))); } catch (e) { LS.removeItem(base + '.syncbase'); }
+    SessionStore.unsecure(base);
+    LS.removeItem(this.ringKey(base));                 // from here on, the plain copy is the real data
+    LS.removeItem(base + '.vault');
+    if (this.pointer()?.base === base) LS.removeItem(this.POINTER);
+    this.key = null; this.ring = null; this.base = null; this.cache = null;
+  },
+  /** Last resort when both the password and the recovery key are lost: erase this device's encrypted files. */
+  eraseLocal(base) { for (const x of [...this.SLOTS, '.safety', '.syncbase']) LS.removeItem(base + x); LS.removeItem(base); if (this.pointer()?.base === base) LS.removeItem(this.POINTER); },
+};
+
+/* The Supabase sign-in session (refresh token) goes into the vault too, so a copy of browser storage can't be used to download the cloud data. */
+const SessionStore = {
+  mem: new Map(), pending: null,
+  vaultBase() { const p = Vault.pointer(); return p && Vault.active(p.base) ? p.base : null; },
+  getItem(k) { if (this.mem.has(k)) return this.mem.get(k); return this.vaultBase() ? null : LS.getItem(k); },
+  setItem(k, v) {
+    this.mem.set(k, v);
+    const vb = this.vaultBase();
+    if (!vb) return LS.setItem(k, v);
+    if (Vault.unlocked(vb)) { LS.removeItem(k); this.persist(vb); }
+  },
+  removeItem(k) { this.mem.delete(k); LS.removeItem(k); const vb = this.vaultBase(); if (vb && Vault.unlocked(vb)) this.persist(vb); },
+  persist(vb) { this.pending = Vault.sealTo(vb + '.session', Object.fromEntries(this.mem), vb + '|session'); return this.pending; },
+  async load(vb) { const box = Vault.readJSON(vb + '.session'); if (!box?.vault) return; try { for (const [k, v] of Object.entries(await Vault.open(box, vb + '|session'))) this.mem.set(k, v); } catch (e) { console.warn('Session couldn’t be decrypted', e); } },
+  /** Move a plain sign-in session into the vault. */
+  async secureNow(vb) {
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (/^sb-.+-auth-token/.test(k)) this.mem.set(k, localStorage.getItem(k)); }
+    for (const k of this.mem.keys()) localStorage.removeItem(k);
+    await this.persist(vb);
+  },
+  /** Vault turned off: the session goes back to normal browser storage. */
+  unsecure(vb) { for (const [k, v] of this.mem) LS.setItem(k, v); LS.removeItem(vb + '.session'); },
 };
 
 /* =========================================================================
@@ -4004,9 +4319,14 @@ const Backup = {
   sig(t) { return [t.date, round2(+t.amount).toFixed(2), Money.kind(t), String(t.description || '').toLowerCase().replace(/\s+/g, ' ').trim()].join('|'); },
 
   /** Keep a copy of the current data so a restore / clear / demo can be undone. */
-  safety() { this.safe = JSON.stringify(Store.state); try { LS.setItem(Store.key() + '.safety', this.safe); } catch (e) {} },
+  safety() {
+    this.safe = JSON.stringify(Store.state);
+    const k = Store.key();
+    if (Vault.active(k)) { if (Vault.unlocked(k)) Vault.sealTo(k + '.safety', Store.state, k + '|safety'); return; }
+    try { LS.setItem(k + '.safety', this.safe); } catch (e) {}
+  },
   undo() {
-    const s = this.safe || LS.getItem(Store.key() + '.safety');
+    const s = this.safe || (Vault.active() ? null : LS.getItem(Store.key() + '.safety'));
     if (!s) return false;
     Store.adopt(JSON.parse(s)); Store.save(); Budgets.registerCategories(); UI.applyCurrency(); UI.renderAll();
     return true;
@@ -6632,8 +6952,224 @@ const UI = {
       $('#lockMsg').textContent = 'That didn’t work. Use your PIN.';
     } catch (e) { $('#lockMsg').textContent = 'Fingerprint/face check was cancelled. Use your PIN, or try again.'; }
   },
-  /** Ask for the PIN before a sensitive action (if a PIN is set). Resolves true/false. */
+  /* ---------- encrypted vault ---------- */
+  /** Show the vault lock screen for a storage slot and wait until it's unlocked. */
+  ensureVault(base, label) {
+    return new Promise((resolve) => {
+      const scr = $('#vaultScreen');
+      $('#vaultWho').textContent = label ? `For ${label}` : '';
+      $('#vaultUser').value = label || '';
+      $('#vaultPw').value = ''; $('#vaultMsg').textContent = '';
+      scr.classList.remove('hidden'); scr.classList.add('flex'); document.body.style.overflow = 'hidden';
+      setTimeout(() => $('#vaultPw').focus(), 50);
+      let fails = 0, until = 0;
+      const go = async () => {
+        if (Date.now() < until) { $('#vaultMsg').textContent = `Too many tries. Wait ${Math.ceil((until - Date.now()) / 1000)} seconds.`; return; }
+        const secret = $('#vaultPw').value;
+        if (!secret) return;
+        $('#vaultBtn').disabled = true; $('#vaultBtn').textContent = 'Unlocking…'; $('#vaultMsg').textContent = '';
+        try {
+          const via = await Vault.unlock(base, secret);
+          $('#vaultPw').value = '';
+          scr.classList.add('hidden'); scr.classList.remove('flex'); document.body.style.overflow = '';
+          this._lastActive = Date.now();
+          $('#vaultBtn').onclick = null; $('#vaultForm').onsubmit = null;
+          if (via === 'recovery') setTimeout(() => { toast('🔑 Unlocked with your recovery key. Set a new vault password now.', { duration: 8000 }); this.vaultChangePassword(true); }, 800);
+          resolve(true);
+        } catch (e) {
+          fails++; if (fails >= 5) until = Date.now() + 30000 * 2 ** (fails - 5);
+          $('#vaultMsg').textContent = /different vault|decrypt|operation/i.test(e.message) ? 'The encrypted data couldn’t be opened. It may be damaged; try your recovery key, or restore a backup.' : e.message;
+          $('#vaultPw').select();
+        } finally { $('#vaultBtn').disabled = false; $('#vaultBtn').textContent = 'Unlock'; }
+      };
+      $('#vaultBtn').onclick = go;
+      $('#vaultForm').onsubmit = (e) => { e.preventDefault(); go(); };
+      $('#vaultForgot').onclick = async () => {
+        const cloud = /:sb:/.test(base);
+        const ok = await askConfirm(`Without the vault password or the recovery key, nobody can decrypt this data, including Tiffo.${cloud ? ' Your cloud copy is encrypted the same way, so it can’t be recovered either.' : ''} If you have a backup file, you can restore it after starting over. Erase the encrypted data on this device and start over?`, 'Erase and start over');
+        if (!ok || !(await askConfirm('This can’t be undone. Erase the encrypted data on this device?', 'Yes, erase it'))) return;
+        Vault.eraseLocal(base); location.reload();
+      };
+    });
+  },
+  /** Re-enter the vault password before a sensitive action. */
+  requireVault(reason) {
+    return new Promise((resolve) => {
+      let done = false;
+      this.form({ title: 'Enter your vault password', save: 'Continue', sub: reason,
+        fields: [{ id: 'vpw', label: 'Vault password (or recovery key)', value: '' }],
+        onSave: async (v) => { if (!(await Vault.verify(v.vpw || ''))) return 'That isn’t right.'; done = true; resolve(true); } });
+      const inp = $('#fm_vpw'); if (inp) { inp.type = 'password'; inp.autocomplete = 'current-password'; }
+      const obs = new MutationObserver(() => { if ($('#formModal').classList.contains('hidden')) { obs.disconnect(); if (!done) resolve(false); } });
+      obs.observe($('#formModal'), { attributes: true, attributeFilter: ['class'] });
+    });
+  },
+  /** Lock: finish writing, then reload so nothing decrypted stays in memory or on screen. */
+  async vaultLock() {
+    if (this._vaultLocking) return; this._vaultLocking = true;
+    try { await Vault.flush(); await SessionStore.pending; } catch (e) {}
+    location.reload();
+  },
+  renderVaultStatus() {
+    const row = $('#vaultRow'); if (!row) return;
+    const st = Vault.status();
+    row.classList.remove('hidden');
+    $('#vaultStatus').textContent = {
+      unavailable: 'Unavailable in this browser (it needs Web Crypto and storage that stays after you close the page).',
+      off: 'Off. Your records on this device aren’t encrypted. Turn on the vault to encrypt them with a password only you know.',
+      unlocked: `On and unlocked. Locks after ${+Store.state.settings?.vaultAuto || 5} min away.${Auth.user?.provider === 'cloud' ? ' Your cloud copy is encrypted too.' : ''} AES-256; the password never leaves this device.`,
+      locked: 'Locked.',
+    }[st];
+    $('#vaultSetBtn').textContent = st === 'off' ? 'Set up' : 'Manage';
+    $('#vaultSetBtn').disabled = st === 'unavailable';
+    $('#vaultLockBtn').classList.toggle('hidden', st !== 'unlocked');
+    if (st === 'unlocked') $('#bioRow')?.classList.add('hidden');   // fingerprint/face can't decrypt the vault (yet)
+  },
+  bindVault() {
+    $('#vaultSetBtn').addEventListener('click', () => (Vault.status() === 'off' ? this.vaultSetup() : this.vaultManage()));
+    $('#vaultLockBtn').addEventListener('click', () => this.vaultLock());
+    // Another tab saved: load its newer encrypted data (or reload, if the vault was turned off or replaced there).
+    window.addEventListener('storage', async (e) => {
+      const k = Store.key();
+      if (!Vault.unlocked(k)) return;
+      if (e.key === Vault.ringKey(k)) { const r = Vault.readRing(k); if (!r || r.id !== Vault.ring.id) return location.reload(); Vault.ring = r; return; }
+      if (e.key === k + '.vault' && e.newValue && !Vault.writing) {
+        try { const st = await Vault.open(JSON.parse(e.newValue), k + '|state'); if ((st.savedAt || 0) > (Store.state.savedAt || 0)) { Store.adopt(st); Vault.cache.state = Store.state; this.renderAll(); } } catch (x) {}
+      }
+    });
+    this.renderVaultStatus();
+  },
+  /** Turn the vault on: password → encrypted copy written and verified → recovery key shown and confirmed → plain copies removed. */
+  async vaultSetup() {
+    if (!Vault.available()) return toast('This browser can’t run the encrypted vault.');
+    // An account whose cloud data is already encrypted (vault made on another device): use that vault.
+    if (Auth.user?.provider === 'cloud' && Cloud.on()) {
+      try { const { data } = await (await Auth.supabase()).from('tiffo_data').select('data').eq('user_id', Auth.user.uid).maybeSingle(); if (data?.data?.vault) return this.vaultJoin(data.data.keys, false); } catch (e) {}
+    }
+    const cloud = Auth.user?.provider === 'cloud';
+    this.form({
+      title: 'Turn on the encrypted vault', save: 'Encrypt my data',
+      sub: `Tiffo will encrypt your financial records on this device${cloud ? ' and in the cloud' : ''} with a password only you know (AES-256; the password never leaves this device). You’ll get a recovery key in case you forget it.<br><br><b>Important:</b> if you forget both the password and the recovery key, nobody can decrypt your data${cloud ? ', on any device or in the cloud,' : ''} — not even Tiffo. It doesn’t protect against viruses, harmful browser extensions, or someone using Tiffo while it’s unlocked.`,
+      fields: [
+        { id: 'pw', label: 'Vault password (at least 10 characters)', value: '', hint: 'Use a passphrase you don’t use anywhere else, e.g. four unrelated words. Not your sign-in password.' },
+        { id: 'pw2', label: 'Type it again', value: '' },
+        { id: 'auto', label: 'Lock after I’ve been away for', type: 'select', value: '5', options: [['1', '1 minute'], ['5', '5 minutes'], ['15', '15 minutes'], ['30', '30 minutes'], ['60', '1 hour']] },
+        { id: 'ok', type: 'checkbox', label: 'I understand that a forgotten password and lost recovery key can’t be recovered.', value: false },
+      ],
+      onSave: async (v) => {
+        if ((v.pw || '').length < 10) return 'Use at least 10 characters.';
+        if (v.pw !== v.pw2) return 'The two passwords don’t match.';
+        if (/^(.)\1+$|^(password|1234567890|qwertyuiop)/i.test(v.pw)) return 'That password is too easy to guess.';
+        if (!v.ok) return 'Please tick the box to confirm you understand.';
+        let rk;
+        try { (Store.state.settings ||= {}).vaultAuto = +v.auto; Store.saveLocal(); rk = await Vault.enable(v.pw); }
+        catch (e) { Vault.abort(); return `Couldn’t set up the vault: ${e.message} Nothing was changed.`; }
+        setTimeout(async () => {
+          if (!(await this.showRecoveryKey(rk, true))) { Vault.abort(); this.renderVaultStatus(); toast('Vault not turned on. Nothing was changed.'); return; }
+          try { await Vault.activate(Store.key()); Store.save(); }
+          catch (e) { toast(`Something went wrong finishing the setup: ${escapeHTML(e.message)}. Your data is still here.`, { duration: 9000 }); }
+          this.renderVaultStatus(); this.renderSyncStatus();
+          toast(`🔐 Vault on. Your records are encrypted on this device${cloud ? ' and, after the next sync, in the cloud' : ''}.`, { duration: 7000 });
+          if (Cloud.on()) Cloud.push();
+        }, 0);
+      },
+    });
+    setTimeout(() => ['#fm_pw', '#fm_pw2'].forEach((id) => { const i = $(id); if (i) { i.type = 'password'; i.autocomplete = 'new-password'; } }), 10);
+  },
+  /** Show a recovery key once; the person types back its last group to show they saved it. → true when confirmed */
+  showRecoveryKey(rk, first) {
+    return new Promise((resolve) => {
+      let done = false;
+      const last = rk.split('-').at(-1);
+      this.form({
+        title: first ? 'Save your recovery key' : 'Your new recovery key', save: 'I’ve saved it',
+        sub: 'This key is the only other way into your vault if you forget the password. It’s shown <b>once</b>. Write it on paper or save it in a password manager, somewhere other than this device. Anyone who has it can open your vault.',
+        fields: [
+          { id: 'rk', type: 'note', label: '', html: `<div class="text-center font-mono text-lg font-bold tracking-wider select-all break-all py-2">${escapeHTML(rk)}</div>` },
+          { id: 'last', label: `To confirm, type the last group (${last.length} characters)`, value: '' },
+        ],
+        onSave: (v) => { if ((v.last || '').trim().toUpperCase() !== last) return 'That doesn’t match the last group of the key.'; done = true; resolve(true); },
+      });
+      const obs = new MutationObserver(() => { if ($('#formModal').classList.contains('hidden')) { obs.disconnect(); if (!done) resolve(false); } });
+      obs.observe($('#formModal'), { attributes: true, attributeFilter: ['class'] });
+    });
+  },
+  async vaultManage() {
+    if (!(await this.requireVault('Enter your vault password to change vault settings.'))) return;
+    setTimeout(() => this.form({
+      title: 'Encrypted vault', save: 'Save',
+      sub: 'Your records are encrypted with AES-256. The key is unlocked by your password or your recovery key, and is only kept in memory while Tiffo is open.',
+      fields: [
+        { id: 'auto', label: 'Lock after I’ve been away for', type: 'select', value: String(+Store.state.settings?.vaultAuto || 5), options: [['1', '1 minute'], ['5', '5 minutes'], ['15', '15 minutes'], ['30', '30 minutes'], ['60', '1 hour']] },
+        { id: 'act', label: 'Also', type: 'select', value: '', options: [['', 'Nothing else'], ['pw', 'Change the vault password'], ['rk', 'Make a new recovery key (the old one stops working)']] },
+      ],
+      danger: { label: 'Turn off the vault (stop encrypting)', fn: () => { this.closeForm(); setTimeout(() => this.vaultOff(), 0); } },
+      onSave: (v) => {
+        (Store.state.settings ||= {}).vaultAuto = +v.auto; Store.save(); this.renderVaultStatus();
+        if (v.act === 'pw') setTimeout(() => this.vaultChangePassword(false), 0);
+        if (v.act === 'rk') setTimeout(() => this.vaultNewRecovery(), 0);
+      },
+    }), 0);
+  },
+  vaultChangePassword(afterRecovery) {
+    this.form({
+      title: afterRecovery ? 'Set a new vault password' : 'Change the vault password', save: 'Change password',
+      sub: 'Your data isn’t re-encrypted, only the key that unlocks it. Your recovery key keeps working.',
+      fields: [
+        { id: 'cur', label: afterRecovery ? 'Your recovery key' : 'Current password (or recovery key)', value: '' },
+        { id: 'pw', label: 'New password (at least 10 characters)', value: '' }, { id: 'pw2', label: 'Type it again', value: '' },
+      ],
+      onSave: async (v) => {
+        if ((v.pw || '').length < 10) return 'Use at least 10 characters.';
+        if (v.pw !== v.pw2) return 'The two passwords don’t match.';
+        try { await Vault.changePassword(v.cur || '', v.pw); } catch (e) { return e.message; }
+        toast('🔐 Vault password changed.'); if (Cloud.on()) Cloud.push();
+      },
+    });
+    setTimeout(() => ['#fm_cur', '#fm_pw', '#fm_pw2'].forEach((id) => { const i = $(id); if (i) { i.type = 'password'; i.autocomplete = id === '#fm_cur' ? 'current-password' : 'new-password'; } }), 10);
+  },
+  vaultNewRecovery() {
+    this.form({ title: 'New recovery key', save: 'Make a new key', sub: 'The old recovery key will stop working.', fields: [{ id: 'cur', label: 'Vault password', value: '' }],
+      onSave: async (v) => {
+        let rk; try { rk = await Vault.newRecovery(v.cur || ''); } catch (e) { return e.message; }
+        setTimeout(async () => { await this.showRecoveryKey(rk, false); if (Cloud.on()) Cloud.push(); }, 0);
+      } });
+    setTimeout(() => { const i = $('#fm_cur'); if (i) { i.type = 'password'; i.autocomplete = 'current-password'; } }, 10);
+  },
+  async vaultOff() {
+    const cloud = Auth.user?.provider === 'cloud' && Cloud.on();
+    if (!(await askConfirm(`Turn off the vault? Your records will be stored unencrypted on this device${cloud ? ' and in the cloud' : ''} again.${cloud ? ' Your other devices will ask you to turn it off there too.' : ''}`, 'Turn off'))) return;
+    try {
+      if (cloud) { Cloud.turningOff = true; await Cloud.sync(); }
+      await Vault.disable();
+      toast('Vault turned off. Your records are no longer encrypted.');
+    } catch (e) { toast(`Couldn’t turn off the vault: ${escapeHTML(e.message)}. Nothing was changed.`, { duration: 8000 }); }
+    finally { Cloud.turningOff = false; this.renderVaultStatus(); this.renderSyncStatus(); }
+  },
+  /** This account's cloud data is encrypted (vault made on another device): unlock it here with the same vault password. */
+  vaultJoin(keys, mismatch) {
+    if (!keys) return;
+    this.form({
+      title: 'Your cloud data is encrypted', save: 'Unlock and sync',
+      sub: mismatch ? 'You set up a vault on this device and on another device separately. Enter the vault password (or recovery key) from your <b>other</b> device: this device will switch to that vault, and your entries here will be kept and merged.' : 'You turned on the encrypted vault on another device. Enter the same vault password (or recovery key) to unlock your data here. This device will be encrypted too, and your entries here will be merged in.',
+      fields: [{ id: 'vpw', label: 'Vault password or recovery key', value: '' }],
+      onSave: async (v) => {
+        try { await Vault.adopt(keys, v.vpw || ''); } catch (e) { return e.message; }
+        Cloud.vaultNeeded = null; Store.save();
+        setTimeout(async () => { if (await Cloud.pull()) this.afterRemoteUpdate?.(); this.renderAll(); this.renderVaultStatus(); toast('🔐 Unlocked and synced.'); }, 0);
+      },
+    });
+    setTimeout(() => { const i = $('#fm_vpw'); if (i) { i.type = 'password'; i.autocomplete = 'current-password'; } }, 10);
+  },
+  vaultCloudPrompt() {
+    const n = Cloud.vaultNeeded; if (!n || this._vaultPrompted) return; this._vaultPrompted = true;
+    if (n.off) return toast('🔐 The vault was turned off on another device. Turn it off here too to keep syncing (More → Settings).', { duration: 10000 });
+    toast('🔐 Your cloud data is encrypted.', { duration: 10000, action: { label: 'Unlock', fn: () => this.vaultJoin(n.keys, n.mismatch) } });
+  },
+
+  /** Ask for the PIN before a sensitive action (if a PIN is set). Resolves true if it's OK to go ahead. */
   requirePin(reason) {
+    if (Vault.unlocked()) return this.requireVault(reason);
     if (!Sec.on()) return Promise.resolve(true);
     return new Promise((resolve) => {
       let done = false;
@@ -6696,11 +7232,15 @@ const UI = {
     });
     this._lastActive = Date.now();
     for (const ev of ['pointerdown', 'keydown', 'scroll', 'touchstart']) window.addEventListener(ev, () => { if (!this.locked()) this._lastActive = Date.now(); }, { passive: true });
-    const check = () => { if (Sec.on() && !this.locked() && Date.now() - this._lastActive > (Sec.cfg().auto || 5) * 60000) this.lockNow(); };
+    const check = () => {
+      if (Vault.unlocked() && Date.now() - this._lastActive > (+Store.state.settings?.vaultAuto || 5) * 60000) return this.vaultLock();
+      if (Sec.on() && !Vault.active() && !this.locked() && Date.now() - this._lastActive > (Sec.cfg().auto || 5) * 60000) this.lockNow();
+    };
     setInterval(check, 15000);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); else this._hiddenAt = Date.now(); });
     $('#lockSetBtn').addEventListener('click', () => this.lockSettings());
-    $('#lockNowBtn').addEventListener('click', () => this.lockNow());
+    $('#lockNowBtn').addEventListener('click', () => (Vault.unlocked() ? this.vaultLock() : this.lockNow()));
+    this.bindVault();
     $('#bioBtn').addEventListener('click', () => this.bioToggle());
     $('#lockBio').addEventListener('click', () => this.bioUnlock());
     $('#signOutAllBtn').addEventListener('click', async () => {
@@ -6709,7 +7249,7 @@ const UI = {
       try { await (await Auth.supabase()).auth.signOut({ scope: 'global' }); } catch (e) { toast('Couldn’t reach the server. Check your connection and try again.'); return; }
       await Auth.signOut(); this.onUserChanged(); toast('Signed out on all devices.');
     });
-    if (Sec.on()) this.lockNow();
+    if (Sec.on() && !Vault.active()) this.lockNow();
   },
 
   /** Backup with an optional password (encrypted in this browser before saving). */
@@ -8459,6 +8999,7 @@ const UI = {
         this.closeAuth(); toast('📧 Almost done! We emailed you a link. Click it to confirm your account (check Spam too), then sign in.', { duration: 12000 }); return;
       }
       let hadData = Store.load();
+      if (Store.locked) { this.closeAuth(); await this.ensureVault(Store.key(), Auth.user?.email); hadData = Store.load(); }
       // Same email used for an older "this device only" account here? Bring those books along.
       const oldLocal = Auth.user && Auth.user.provider === 'cloud' && !hadData && LS.getItem(CONFIG.STORAGE_KEY + ':local:' + Auth.user.email);
       if (oldLocal) {
@@ -8539,7 +9080,8 @@ const UI = {
   },
   renderSyncStatus() {
     if (Auth.user && Auth.user.provider === 'cloud') $('#menuProvider').textContent = Cloud.label() || '☁️ Cloud account';
-    for (const el of $$('.save-status')) el.textContent = this.saveLabel();
+    const v = Vault.status() === 'unlocked' ? (Auth.user?.provider === 'cloud' && Cloud.on() ? '🔐 Encrypted on this device and in the cloud · ' : '🔐 Encrypted on this device · ') : '';
+    for (const el of $$('.save-status')) el.textContent = v + this.saveLabel();
   },
 
   renderAiLabel() {
@@ -8572,6 +9114,7 @@ const UI = {
   async onUserChanged() {
     if (Layout.focused) Layout.unfocus();
     Store.load();
+    if (Store.locked) { await this.ensureVault(Store.key(), Auth.user?.email); Store.load(); }
     Cloud.lastSync = 0; Cloud.setStatus(Cloud.on() ? 'syncing' : 'off');
     if (Cloud.on()) {
       const replaced = await Promise.race([Cloud.pull(), new Promise((r) => setTimeout(() => r(false), 6000))]);
@@ -8584,6 +9127,7 @@ const UI = {
     this.renderAccount();
     this.renderEmptyDoc();
     this.renderAll();
+    this.renderVaultStatus?.();
     Layout.apply();
   },
 
@@ -8904,8 +9448,12 @@ const UI = {
   async init() {
     $('#previewBanner').classList.toggle('hidden', LS.persistent);
     if (LS.getItem('tiffo.tutorialSeen')) $('#newHereLink').classList.add('hidden');
+    // Encrypted vault: unlock first (the sign-in session is inside it).
+    const ptr = Vault.pointer();
+    if (ptr && Vault.available() && Vault.active(ptr.base)) await this.ensureVault(ptr.base, ptr.label);
     await Auth.restore();
     Store.load();
+    if (Store.locked) { await this.ensureVault(Store.key(), Auth.user?.email); Store.load(); }
     if (Cloud.on()) await Promise.race([Cloud.pull(), new Promise((r) => setTimeout(r, 6000))]);
     Store.cleanupAutoDemo();
     Budgets.registerCategories();
