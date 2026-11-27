@@ -1,5 +1,5 @@
 // "Style Me With This": several styling directions around one piece she owns.
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useStore } from '../store.jsx';
 import { useToast } from '../components/common.jsx';
 import GarmentArt from '../components/GarmentArt.jsx';
@@ -23,7 +23,8 @@ export default function StyleMe({ id, go }) {
   if (!item || !mine) {
     return <div className="page"><div className="empty"><p className="small">That piece isn't in {profile.name === 'Me' ? 'your' : `${profile.name}'s`} closet.</p><button className="btn" onClick={() => go('#/closet')}>Back to the closet</button></div></div>;
   }
-  const outfits = (res?.outfits || []).map((r, i) => { const cur = edits[i] || r; return { ...cur, label: r.name, name: describe(cur.outfit), ctx: r.ctx }; });
+  const outfits = (res?.outfits || []).map((r, i) => { const cur = edits[i] || r; return { ...cur, label: r.name, name: describe(cur.outfit), ctx: r.ctx, alternative: r.alternative }; });
+  const strongCount = outfits.filter((r) => !r.alternative).length;
 
   function save(i, favorite = false) {
     const r = outfits[i];
@@ -52,20 +53,26 @@ export default function StyleMe({ id, go }) {
       {outfits.length > 0 && (
         <>
           <div className="results-head">
-            <div className="small">{outfits.length} directions · {ctx.prompt} · styled by the rules engine</div>
+            <div className="small">{strongCount ? `${strongCount} recommended` : 'No strong recommendation'}{outfits.length > strongCount ? ` · ${outfits.length - strongCount} alternative idea${outfits.length - strongCount > 1 ? 's' : ''}` : ''} · {ctx.prompt} · styled by the rules engine</div>
             {!comparing && <button className="btn sm" onClick={() => setComparing(true)}>Compare side by side</button>}
           </div>
           {comparing ? (
             <Compare results={outfits.slice(0, 3)} ctx={ctx} child={child} onClose={() => setComparing(false)} savedIdx={Object.keys(saved).map(Number)} onPick={(i) => save(i, true)} />
           ) : (
             <div className="outfit-grid">
-              {outfits.map((r, i) => (
+              {outfits.map((r, i) => (<Fragment key={i}>
+                {r.alternative && (i === 0 || !outfits[i - 1].alternative) && (
+                  <div className="alt-ideas-head">
+                    <b>Alternative styling ideas</b>
+                    <span className="tiny">{strongCount ? 'Weaker matches, shown for inspiration, not as recommendations.' : 'Nothing with this piece reaches our "good outfit" bar for this occasion, so these are ideas, not recommendations.'}</span>
+                  </div>
+                )}
                 <OutfitCard key={i} index={i} result={r} ctx={r.ctx || ctx} pool={owned} child={child} saved={!!saved[i]} savedId={saved[i]}
                   onReplace={(n) => { if (Object.values(n.outfit).some((g) => g?.id === item.id)) setEdits((e) => ({ ...e, [i]: n })); else toast('That change would drop this piece, so it was skipped.'); }}
                   onSave={() => save(i)}
                   onWore={() => { dispatch({ type: 'LOG_WEAR', entry: { slots: toSlots(r.outfit), context: r.ctx || ctx } }); toast('Added to Outfit History'); }}
                   onOpen={() => { dispatch({ type: 'LOAD_DRAFT', draft: { slots: toSlots(r.outfit), name: `${item.name} · ${r.label}`, context: r.ctx || ctx, choice } }); go('#/builder'); }} />
-              ))}
+              </Fragment>))}
             </div>
           )}
           {comparing && outfits.length > 3 && <p className="tiny">Comparing the first 3 directions.</p>}
