@@ -13,6 +13,7 @@ function drawPlate(cv,r,bg){
   const blob=(bx,by,rad,col,pts=9)=>{x.fillStyle=col;x.beginPath();for(let i=0;i<=pts;i++){const a=i/pts*Math.PI*2,rr=rad*(.75+R()*.4);const px=bx+Math.cos(a)*rr,py=by+Math.sin(a)*rr;i?x.lineTo(px,py):x.moveTo(px,py)}x.closePath();x.fill()};
   const specks=(n,rad,col,sz)=>{x.fillStyle=col;for(let i=0;i<n;i++){const a=R()*Math.PI*2,d=Math.sqrt(R())*rad;x.beginPath();x.ellipse(cx+Math.cos(a)*d,cy+Math.sin(a)*d,sz*(.6+R()*.8),sz*.5,R()*3,0,Math.PI*2);x.fill()}};
   const egg=(ex,ey,s)=>{x.fillStyle="#FBF8F1";x.beginPath();x.ellipse(ex,ey,38*s,28*s,R(),0,Math.PI*2);x.fill();x.fillStyle="#F2AE2E";x.beginPath();x.arc(ex+2,ey,15*s,0,Math.PI*2);x.fill();x.fillStyle="rgba(255,255,255,.35)";x.beginPath();x.arc(ex-3,ey-4,5*s,0,Math.PI*2);x.fill()};
+  if(typeof DISH_ART!=="undefined"&&DISH_ART.has(r.id)){ DISH_ART.draw(x,r,R); x.setTransform(1,0,0,1,0,0); return; }
   const hasEgg=r.ingredients.some(i=>i.k==="egg"||/egg/i.test(i.n||i.name||""));
   if(r.plating==="glass"){
     // a tall glass of smoothie or juice, top-down 3/4 view

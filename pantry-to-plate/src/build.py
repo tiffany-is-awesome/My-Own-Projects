@@ -3,7 +3,7 @@ import re, pathlib
 src = pathlib.Path(__file__).parent
 css = (src/"base.css").read_text() + "\n" + (src/"extra.css").read_text()
 body = (src/"body.html").read_text()
-js = "\n".join((src/f).read_text() for f in ["engine.js","recipes.js","ai.js","app.js","cloud.js","status.js","fix.js","plate.js","features.js","boot.js"])
+js = "\n".join((src/f).read_text() for f in ["engine.js","recipes.js","ai.js","app.js","cloud.js","status.js","fix.js","plate.js","dishart.js","features.js","boot.js"])
 js = js.replace('if (typeof module !== "undefined") module.exports = Engine;', '').replace('if (typeof module !== "undefined") module.exports = { RECIPES };', '')
 html = f'''<!DOCTYPE html>
 <html lang="en">

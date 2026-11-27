@@ -51,7 +51,7 @@ const AI={
   loadPuter(){
     if(window.puter) return Promise.resolve();
     if(this._pl) return this._pl;
-    this._pl=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="https://js.puter.com/v2/";sc.onload=()=>window.puter?res():rej(new Error("Puter missing"));sc.onerror=()=>{this._pl=null;rej(new Error("Couldn't load Puter"));};document.head.appendChild(sc);});
+    this._pl=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src="https://js.puter.com/v2/";sc.onload=()=>{ if(window.puter){ try{ window.puter.quiet=true; }catch(e){} res(); } else rej(new Error("Puter missing")); };sc.onerror=()=>{this._pl=null;rej(new Error("Couldn't load Puter"));};document.head.appendChild(sc);});
     return this._pl;
   },
   async puterSignedIn(){try{await this.loadPuter();return !!(await window.puter.auth.isSignedIn());}catch(e){return false;}},

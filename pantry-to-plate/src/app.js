@@ -136,6 +136,7 @@ function owns(name) {
 }
 /* Things you can't split nicely (eggs, garlic cloves) show as whole numbers when a recipe is scaled. */
 function niceAmount(q, u, k) {
+  if (q != null && ((u === "tsp" && q < 0.2) || (u === "tbsp" && q < 0.07))) return "a pinch";
   if (q != null && (k === "egg" || u === "clove") && Math.abs(q - Math.round(q)) > 0.01) return E.fmtAmount(Math.max(1, Math.round(q)), u) + (k === "egg" ? "" : "");
   return E.fmtAmount(q, u);
 }
