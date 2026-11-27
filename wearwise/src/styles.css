@@ -680,3 +680,23 @@ img { max-width: 100%; }
 .swap-note button { flex: none; background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.55); padding: 5px 10px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 @keyframes swapIn { from { opacity: 0; transform: translateY(-6px); } }
 @media (prefers-reduced-motion: reduce) { .swap-note { animation: none; } }
+
+/* How-to-use tour (points at the real buttons) */
+.tour { position: fixed; inset: 0; z-index: 90; }
+.tour-block { position: absolute; inset: 0; }
+.tour-spot { position: absolute; pointer-events: none; box-shadow: 0 0 0 9999px rgba(17,17,17,.62), 0 0 0 3px var(--accent); transition: all .25s ease; }
+.tour-spot.none { box-shadow: 0 0 0 9999px rgba(17,17,17,.62); }
+.tour-tip { position: absolute; width: min(22rem, calc(100vw - 2rem)); background: #fff; border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(0,0,0,.25); padding: 16px 16px 14px; transition: all .25s ease; }
+.tour-count { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.tour-title { margin: 4px 0 0; font-size: 16px; font-weight: 800; line-height: 1.3; }
+.tour-text { margin: 6px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.tour-actions { margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tour-actions > span { display: flex; gap: 8px; }
+.tour-skip { background: none; border: 0; padding: 8px 2px; font-size: 13px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.tour-skip:hover { color: var(--ink); }
+body.touring { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .tour-spot, .tour-tip { transition: none; } }
+.new-here { display: inline-block; margin-top: 10px; font-size: 13px; }
+.more-list button { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); text-align: left; font: inherit; color: inherit; cursor: pointer; display: grid; grid-template-columns: 1fr 20px; grid-template-rows: auto auto; padding: 14px 4px; }
+.more-list button b { font-size: 15px; } .more-list button .tiny { grid-row: 2; } .more-list button span[aria-hidden] { grid-row: 1 / 3; grid-column: 2; align-self: center; font-size: 22px; color: var(--ink-3); }
+.linklike.plain { color: inherit; font-weight: inherit; }

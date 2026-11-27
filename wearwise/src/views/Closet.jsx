@@ -147,7 +147,7 @@ export default function Closet({ go, initial = '' }) {
         <div style={{ display: 'flex', gap: 8 }}>
           {owned.length > 0 && <button className="btn ghost" onClick={() => go('#/insights')}>Insights</button>}
           {owned.length > 0 && <button className="btn" onClick={() => go('#/create')}>Create an Outfit</button>}
-          <button className="btn accent" onClick={() => setUploading(true)}>+ Add clothes</button>
+          <button className="btn accent" data-tour="add-clothes" onClick={() => setUploading(true)}>+ Add clothes</button>
         </div>
       </div>
       {owned.some((g) => !g.demo) && <BulkAiPhotos items={owned.filter((g) => !g.demo)} />}
@@ -191,7 +191,7 @@ export default function Closet({ go, initial = '' }) {
           <p className="h2" style={{ marginBottom: 8 }}>{who === 'My' ? 'Your' : who} closet is empty.</p>
           <p className="small">Add photos (several at once is fine) or add pieces by hand. Outfit suggestions only use what's in here.</p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn primary" onClick={() => setUploading(true)}>+ Add clothes</button>
+            <button className="btn primary" data-tour="add-clothes" onClick={() => setUploading(true)}>+ Add clothes</button>
             {!hasDemo && <button className="btn" onClick={() => { dispatch({ type: 'LOAD_DEMO' }); toast('Demo closet added'); }}>Try the demo closet</button>}
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useStore } from '../store.jsx';
 import { useAuth, supabase, cloudTable, syncControl } from '../auth.jsx';
 import { ConfirmButton, useToast, useUndoableDelete } from '../components/common.jsx';
 import TipJar, { tipsOn } from '../components/TipJar.jsx';
+import { startTour } from '../components/Tour.jsx';
 import { useAutoDemo, setAutoDemo } from '../components/AutoDemoPhotos.jsx';
 import { deleteCloudPhotos, forgetCaches, local as localPhotos } from '../photos.js';
 import { useClaudeStatus, puterUser, puterSignIn, puterSignOut } from '../ai/claude.js';
@@ -99,7 +100,9 @@ export default function Settings({ go }) {
 
   return (
     <div className="page narrow">
-      <div className="page-head"><div><div className="label">Settings</div><h1 className="h1">Settings</h1></div></div>
+      <div className="page-head"><div><div className="label">Settings</div><h1 className="h1">Settings</h1></div>
+        <button type="button" className="btn sm" onClick={startTour}>How to use Wearwise</button>
+      </div>
 
       <section className="settings-sec">
         <h2 className="h2">Account</h2>

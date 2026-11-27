@@ -1,3 +1,4 @@
+import { NewHereLink } from '../components/Tour.jsx';
 // Home: an honest start (empty closet → add clothes or try the demo), then quick actions.
 import { useMemo, useState } from 'react';
 import { HeroShowcase } from '../components/Motion.jsx';
@@ -76,6 +77,7 @@ export default function Welcome({ go }) {
             <span className="ai-badge">Your personal stylist</span>
             <h1 className="h1">{profile.name === 'Me' ? 'What are you dressing for?' : `What is ${profile.name} dressing for?`}</h1>
             <p className="muted small" style={{ margin: '4px 0 0' }}>{owned.length} pieces in {who} closet.{missing.length ? ` To build full outfits, add: ${missing.join(', ')}.` : ''}</p>
+            <NewHereLink />
           </div>
           <div className="quick-row" role="group" aria-label="Quick outfit for">
             {QUICK.map(([id, l]) => <button key={id} className="chip" onClick={() => { dispatch({ type: 'SET_CONTEXT', context: contextOf({ ...DEFAULT_CHOICE, occasion: id }), choice: { ...DEFAULT_CHOICE, occasion: id } }); go('#/create/go'); }}>{l}</button>)}
@@ -127,6 +129,7 @@ export default function Welcome({ go }) {
           <button className="btn accent" onClick={() => setUploading(true)}>Add {who} clothes</button>
           {!hasDemo && <button className="btn" onClick={() => { dispatch({ type: 'LOAD_DEMO' }); toast('Demo closet added. Remove it any time in Settings.'); go('#/home'); }}>Try the demo closet</button>}
         </div>
+        <NewHereLink />
         <p className="tiny">The demo closet is sample data, clearly labelled, and removable in one click.</p>
       </div>
       {uploading && <UploadModal onClose={() => setUploading(false)} onSaved={added} ownerName={profile.name} />}

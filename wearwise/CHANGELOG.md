@@ -8,6 +8,13 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-27 · "How to use Wearwise" tour
+
+- A 13-step tour that highlights the real buttons one at a time, like Tiffo's: My Closet, Add clothes, search, Create an Outfit, getting outfits, Saved, Calendar and More, Family, Turn on AI, Sign in, and Settings.
+- Back / Next / Skip, a step counter, arrow keys and Esc. It switches pages by itself, stays on screen on phones, and never covers the button it's pointing at.
+- Ends with "Your turn!": it opens Add clothes for an empty closet, or gets your first outfits if you already have clothes.
+- Ways to open it: "New here? Take the 1-minute tour" on Home (until you've taken it), More → How to use Wearwise, Settings → How to use Wearwise, and "How to use" in the footer.
+
 ## 2026-11-27 · Privacy rules verified on the live database
 
 Ran `supabase/wearwise-rls-test.sql` on the real Supabase project (two throwaway users inside one transaction, all rolled back; afterwards 0 test users, 0 rows, 0 photos left). Result:

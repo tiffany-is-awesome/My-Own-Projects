@@ -85,15 +85,15 @@ export default function Create({ go, autoRun = false }) {
       </div>
 
       {!formOpen && res ? (
-        <div className="ctx-summary">
+        <div className="ctx-summary" data-tour="create-form">
           <span className="small"><b>{res.ctx.occasionLabel}</b> · {res.ctx.weather} {res.ctx.tempC}°C{choice.style ? ` · ${choice.style}` : ''}{choice.prefs.length ? ` · ${choice.prefs.join(', ')}` : ''}{anchor ? ` · with the ${anchor.name}` : ''}</span>
           <span style={{ display: 'flex', gap: 8 }}>
             <button className="btn sm" onClick={() => setFormOpen(true)}>Change</button>
-            <button className="btn sm accent" onClick={run} disabled={busy}>{busy ? 'Styling…' : 'New ideas'}</button>
+            <button className="btn sm accent" data-tour="create-go" onClick={run} disabled={busy}>{busy ? 'Styling…' : 'New ideas'}</button>
           </span>
         </div>
       ) : (
-      <div className="create-form">
+      <div className="create-form" data-tour="create-form">
         <ContextPicker value={choice} onChange={setChoice} />
         <div className="ctx-row"><span className="label">Wear this piece <span className="muted">(optional)</span></span>
           <div className="anchor-row">
@@ -104,7 +104,7 @@ export default function Create({ go, autoRun = false }) {
             </select>
           </div></div>
         <div className="create-go">
-          <button className="btn accent" onClick={run} disabled={busy}>{busy ? 'Styling…' : res ? 'Get 3 new outfits' : 'Get 3 outfits'}</button>
+          <button className="btn accent" data-tour="create-go" onClick={run} disabled={busy}>{busy ? 'Styling…' : res ? 'Get 3 new outfits' : 'Get 3 outfits'}</button>
           <span className="tiny">
             {ai.status === 'ready' ? `${ai.name} picks the outfits from the details of your clothes (type, colors, fabric, warmth…), not by looking at your photos; the rules engine checks every one before you see it.`
               : ai.status === 'signin' ? <>Gemini is off until you sign in to Puter (free). The rules engine builds the outfits meanwhile. <button className="btn sm" onClick={() => puterSignIn().catch(() => toast('Sign-in was closed'))}>Sign in for Gemini</button></>
