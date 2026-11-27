@@ -1,6 +1,6 @@
 /* ───────── Design tokens (docs/UX-AND-ROADMAP.md §A2) ───────── */
 :root {
-  --ink: #1B1B1B; --ink-2: #5F5F5F; --ink-3: #9A9A9A;
+  --ink: #1B1B1B; --ink-2: #5F5F5F; --ink-3: #6B6B6B;
   --line: #E3E3E3; --stage: #F4F4F4; --paper: #FFFFFF;
   --accent: #D3121B; --good: #2F7D4F; --warn: #B5621B;
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
@@ -58,6 +58,7 @@ img { max-width: 100%; }
 .page { max-width: 1320px; margin: 0 auto; padding: 32px var(--pad) 80px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 .toolbar { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+.toolbar > * { min-width: 0; max-width: 100%; }
 .grid { display: grid; gap: 24px 20px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 1000px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -478,11 +479,11 @@ img { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .stage-item, .stage-layer, .hero-blob, .hero-title span, .loader-piece, .heart-btn .heart, .burst i, .hero-tag, .loader-text b { animation: none !important; }
 }
-.search-row { display: flex; gap: 8px; margin-bottom: 12px; }
-.search-box { flex: 1; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); padding: 0 12px; height: 42px; background: #fff; }
+.search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; min-width: 0; }
+.search-box { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); padding: 0 12px; height: 42px; background: #fff; }
 .search-box:focus-within { border-color: var(--ink); }
-.search-box input { flex: 1; border: 0; outline: 0; font-size: 14px; background: transparent; height: 100%; }
-.search-row .select.sm { height: 42px; }
+.search-box input { flex: 1; min-width: 0; border: 0; outline: 0; font-size: 14px; background: transparent; height: 100%; }
+.search-row .select.sm { height: 42px; flex: none; max-width: 42%; }
 .improve-btn { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; margin-top: 18px; padding: 14px 16px; border: 1px solid var(--ink); background: linear-gradient(110deg, #fff 40%, #FBF3EE 50%, #fff 60%); background-size: 250% 100%; animation: sheen 3.2s ease-in-out infinite; }
 .improve-btn:hover { background-color: var(--stage); }
 .improve-btn b { display: block; font-size: 14px; }
@@ -639,3 +640,15 @@ img { max-width: 100%; }
 @media (min-width: 761px) and (max-width: 900px) {
   .logo span:last-child { display: none; }
 }
+
+/* Phone fixes (2026-11-27 review) */
+.seg button { white-space: nowrap; }
+@media (max-width: 600px) {
+  .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .seg button { padding: 0 10px; letter-spacing: .05em; }
+  .slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .slot .label { overflow-wrap: anywhere; }
+}
+@media (max-width: 760px) { .results-head { scroll-margin-top: 178px; } }
+/* iPhone zooms the page when a text box under 16px is tapped */
+@media (max-width: 760px) { input[type="search"], input[type="text"], input[type="email"], input[type="password"], textarea, select { font-size: 16px; } }

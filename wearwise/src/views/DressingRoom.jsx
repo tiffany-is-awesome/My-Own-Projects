@@ -77,7 +77,7 @@ export default function DressingRoom({ go }) {
         <div className="dressing-left">
           <div className="stage-tools">
             <div className="seg" role="tablist" aria-label="Stage mode">
-              {[['flatlay', 'Flat-lay'], ['mannequin', 'Mannequin'], ['scene', 'Scene'], ['person', 'With your photo']].map(([m, l]) => (
+              {[['flatlay', 'Flat-lay'], ['mannequin', 'Mannequin'], ['scene', 'Scene'], ['person', 'Your photo']].map(([m, l]) => (
                 <button key={m} role="tab" aria-selected={stage.mode === m} className={stage.mode === m ? 'on' : ''} onClick={() => dispatch({ type: 'SET_STAGE', stage: { mode: m } })}>{l}</button>
               ))}
             </div>

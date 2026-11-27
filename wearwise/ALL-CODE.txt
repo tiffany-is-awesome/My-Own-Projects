@@ -3809,7 +3809,7 @@ export function ProductCard({ item, onClick, action, flag, place }) {
 }
 
 export function Meter({ value, max = 5 }) {
-  return <span className="meter" aria-label={`${value} of ${max}`}>{Array.from({ length: max }, (_, i) => <i key={i} className={i < value ? 'on' : ''} />)}</span>;
+  return <span className="meter" role="img" aria-label={`${value} of ${max}`}>{Array.from({ length: max }, (_, i) => <i key={i} className={i < value ? 'on' : ''} />)}</span>;
 }
 
 export function Modal({ title, onClose, children, wide }) {
@@ -3879,7 +3879,7 @@ export function ScoreBadge({ score }) {
   }, [score]); // eslint-disable-line react-hooks/exhaustive-deps
   const tier = score >= 85 ? 'great' : score >= 72 ? 'good' : 'fair';
   return (
-    <span className={'score-ring ' + tier} aria-label={`Score ${score} out of 100`}>
+    <span className={'score-ring ' + tier} role="img" aria-label={`Score ${score} out of 100`}>
       <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" className="track" /><circle cx="18" cy="18" r="15.5" className="arc" style={{ strokeDasharray: `${(shown / 100) * 97.4} 97.4` }} /></svg>
       <b>{shown}</b>
     </span>
@@ -5925,7 +5925,7 @@ export function forgetCaches() { idOf.clear(); dataOf.clear(); inCloud.clear(); 
 
 /* ───────── Design tokens (docs/UX-AND-ROADMAP.md §A2) ───────── */
 :root {
-  --ink: #1B1B1B; --ink-2: #5F5F5F; --ink-3: #9A9A9A;
+  --ink: #1B1B1B; --ink-2: #5F5F5F; --ink-3: #6B6B6B;
   --line: #E3E3E3; --stage: #F4F4F4; --paper: #FFFFFF;
   --accent: #D3121B; --good: #2F7D4F; --warn: #B5621B;
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
@@ -5983,6 +5983,7 @@ img { max-width: 100%; }
 .page { max-width: 1320px; margin: 0 auto; padding: 32px var(--pad) 80px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 .toolbar { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 24px; }
+.toolbar > * { min-width: 0; max-width: 100%; }
 .grid { display: grid; gap: 24px 20px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 1000px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -6403,11 +6404,11 @@ img { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .stage-item, .stage-layer, .hero-blob, .hero-title span, .loader-piece, .heart-btn .heart, .burst i, .hero-tag, .loader-text b { animation: none !important; }
 }
-.search-row { display: flex; gap: 8px; margin-bottom: 12px; }
-.search-box { flex: 1; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); padding: 0 12px; height: 42px; background: #fff; }
+.search-row { display: flex; gap: 8px; margin-bottom: 12px; width: 100%; min-width: 0; }
+.search-box { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); padding: 0 12px; height: 42px; background: #fff; }
 .search-box:focus-within { border-color: var(--ink); }
-.search-box input { flex: 1; border: 0; outline: 0; font-size: 14px; background: transparent; height: 100%; }
-.search-row .select.sm { height: 42px; }
+.search-box input { flex: 1; min-width: 0; border: 0; outline: 0; font-size: 14px; background: transparent; height: 100%; }
+.search-row .select.sm { height: 42px; flex: none; max-width: 42%; }
 .improve-btn { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; margin-top: 18px; padding: 14px 16px; border: 1px solid var(--ink); background: linear-gradient(110deg, #fff 40%, #FBF3EE 50%, #fff 60%); background-size: 250% 100%; animation: sheen 3.2s ease-in-out infinite; }
 .improve-btn:hover { background-color: var(--stage); }
 .improve-btn b { display: block; font-size: 14px; }
@@ -6564,6 +6565,18 @@ img { max-width: 100%; }
 @media (min-width: 761px) and (max-width: 900px) {
   .logo span:last-child { display: none; }
 }
+
+/* Phone fixes (2026-11-27 review) */
+.seg button { white-space: nowrap; }
+@media (max-width: 600px) {
+  .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .seg button { padding: 0 10px; letter-spacing: .05em; }
+  .slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .slot .label { overflow-wrap: anywhere; }
+}
+@media (max-width: 760px) { .results-head { scroll-margin-top: 178px; } }
+/* iPhone zooms the page when a text box under 16px is tapped */
+@media (max-width: 760px) { input[type="search"], input[type="text"], input[type="email"], input[type="password"], textarea, select { font-size: 16px; } }
 
 
 ====================================================================================================
@@ -6815,13 +6828,13 @@ export default function Calendar({ go }) {
           <button className="btn sm ghost" onClick={() => shift(1)} aria-label="Next month">›</button>
           {(ym.y !== now.getFullYear() || ym.m !== now.getMonth()) && <button className="btn sm" onClick={() => setYm({ y: now.getFullYear(), m: now.getMonth() })}>Today</button>}
         </div>
-        <div className="cal-grid" role="grid">
-          {WEEK.map((w) => <div key={w} className="cal-wd" role="columnheader">{w}</div>)}
+        <div className="cal-grid">
+          {WEEK.map((w) => <div key={w} className="cal-wd" aria-hidden="true">{w}</div>)}
           {cells.map((c) => {
             const p = plans.get(c.date);
             const trip = tripOf(c.date);
             return (
-              <button key={c.date} role="gridcell" className={'cal-cell' + (c.inMonth ? '' : ' out') + (c.date === t0 ? ' today' : '') + (p ? ' has-plan' : '') + (c.date < t0 ? ' past' : '')}
+              <button key={c.date} className={'cal-cell' + (c.inMonth ? '' : ' out') + (c.date === t0 ? ' today' : '') + (p ? ' has-plan' : '') + (c.date < t0 ? ' past' : '')}
                 onClick={() => setDay(c.date)} aria-label={`${nice(c.date)}${p ? ', planned: ' + p.name : ''}${worn.has(c.date) ? ', worn' : ''}`}>
                 <span className="cal-num">{c.day}</span>
                 {trip && <span className="cal-trip" title={trip.name}>{c.date === trip.start || c.day === 1 ? trip.name : ''}</span>}
@@ -7312,7 +7325,7 @@ export default function DressingRoom({ go }) {
         <div className="dressing-left">
           <div className="stage-tools">
             <div className="seg" role="tablist" aria-label="Stage mode">
-              {[['flatlay', 'Flat-lay'], ['mannequin', 'Mannequin'], ['scene', 'Scene'], ['person', 'With your photo']].map(([m, l]) => (
+              {[['flatlay', 'Flat-lay'], ['mannequin', 'Mannequin'], ['scene', 'Scene'], ['person', 'Your photo']].map(([m, l]) => (
                 <button key={m} role="tab" aria-selected={stage.mode === m} className={stage.mode === m ? 'on' : ''} onClick={() => dispatch({ type: 'SET_STAGE', stage: { mode: m } })}>{l}</button>
               ))}
             </div>
@@ -8463,6 +8476,7 @@ export default function Settings({ go }) {
           <li><b>Only on this device:</b> removing photo backgrounds, cropping, reading colors, outfit scoring and suggestions from the rules engine, matching typed inspiration looks, the calendar and trip planner.</li>
           <li><b>Sent to Google Gemini</b> (through Puter, only after you sign in to Puter and only when you use an AI feature):
             the <i>cut-out</i> of a clothing photo when you add it; the <i>whole</i> photo only if the cut-out failed <i>and</i> you tap "Ask Gemini using the whole photo"; an inspiration photo only when you tap "Identify the pieces"; and the <i>text details</i> of your clothes (names, colors, fabric, warmth…) when Gemini picks outfits or critiques one. Gemini picks outfits from these details; it doesn't look at your photos to do so.</li>
+          <li><b>Sent to an AI image model</b> (through Puter, only when you tap "Make a realistic AI photo" or "Realistic photo (AI)"): the text details of the piece or outfit, and for an outfit, your own photos of those pieces (so the AI can copy them). The picture that comes back is labelled AI and kept separately; it never replaces your photos.</li>
           <li><b>Saved to your account</b> (Supabase, only when you're signed in): your whole Wearwise data. Clothing and inspiration photos are kept as private files in your own account folder. Each account can only read its own data and photos.</li>
           <li><b>Saved in this browser:</b> the same data, so it works offline. "Delete all my data" below removes both copies.</li>
           <li><b>Shared lookbook links</b> contain the outfit names and each piece's name, type and colors, <i>no photos</i>. Anyone you send the link to can see those, as illustrations.</li>
