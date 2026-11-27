@@ -2869,7 +2869,9 @@ const Invest = {
     const t = String(text).toLowerCase(), act = this.active();
     const byName = act.find((h) => t.includes(h.name.toLowerCase()));
     if (byName) return byName;
-    const ty = this.guessType(text);
+    const ty = this.guessType(text), gn = this.guessName(text, ty).toLowerCase();
+    const byGuess = act.filter((h) => h.name.toLowerCase() === gn);
+    if (byGuess.length === 1) return byGuess[0];
     if (ty !== 'other') { const m = act.filter((h) => h.type === ty); if (m.length === 1) return m[0]; if (m.length > 1) return null; }
     if (/\b(my )?investments?\b/.test(t) && act.length === 1) return act[0];
     return null;
@@ -2892,19 +2894,24 @@ const Invest = {
     let cost = 0, units = 0, invested = 0, withdrawn = 0, realized = 0, dividends = 0, fees = 0, firstDate = null;
     const ev = this.events(h, iso);
     const after = (e, v) => e.date > v.date || (e.date === v.date && (e.at || 0) > (v.at || 0));   // same day: whichever happened later
-    const valueBefore = (idx, c) => {   // value just before sale #idx, for sales without units
+    // How each event changes what the holding is worth: fees paid on a buy are gone, not invested; a sale takes out what you got plus its fees.
+    const worth = (e) => e.type === 'buy' || e.type === 'open' ? e.amount - (e.fees || 0) : e.type === 'sell' ? -(e.amount + (e.fees || 0)) : 0;
+    // Interest-earning holdings (time deposits, bonds): each placement earns simple interest from its own date.
+    const rate = h.rate > 0 ? h.rate / 100 : 0, lots = [];
+    const grown = (d) => lots.reduce((x, l) => x + l.amt * (1 + rate * Math.max(0, (new Date(d) - new Date(l.date)) / 864e5) / 365), 0);
+    const valueBefore = (idx) => {   // value just before sale #idx, for sales without units
       const atIso = ev[idx].date, v = this.lastValuation(h, atIso);
-      if (!v) return c;
-      let x = v.value;
-      for (const e of ev.slice(0, idx)) if (after(e, v)) x += e.type === 'buy' || e.type === 'open' ? e.amount : e.type === 'sell' ? -(e.amount + e.fees) : 0;
-      return Math.max(x, 0.01);
+      if (v) { let x = v.value; for (const e of ev.slice(0, idx)) if (after(e, v)) x += worth(e); return Math.max(x, 0.01); }
+      if (rate && lots.length) return Math.max(grown(atIso), 0.01);
+      return Math.max(cost, 0.01);
     };
     for (const [idx, e] of ev.entries()) {
-      if (e.type === 'open' || e.type === 'buy') { cost += e.amount; units += e.units; invested += e.amount; fees += e.fees || 0; firstDate ||= e.date; }
+      if (e.type === 'open' || e.type === 'buy') { cost += e.amount; units += e.units; invested += e.amount; fees += e.fees || 0; firstDate ||= e.date; lots.push({ amt: e.amount - (e.fees || 0), date: e.date }); }
       else if (e.type === 'sell') {
-        const frac = e.all ? 1 : e.units && units > 0 ? Math.min(1, e.units / units) : Math.min(1, (e.amount + e.fees) / valueBefore(idx, cost));
+        const frac = e.all ? 1 : e.units && units > 0 ? Math.min(1, e.units / units) : Math.min(1, (e.amount + e.fees) / valueBefore(idx));
         const removed = cost * frac;
-        realized += e.amount - removed; cost -= removed; units = Math.max(0, units - (e.units || units * frac)); withdrawn += e.amount; fees += e.fees || 0;
+        realized += e.amount - removed; cost -= removed; units = e.all ? 0 : Math.max(0, units - (e.units || units * frac)); withdrawn += e.amount; fees += e.fees || 0;
+        for (const l of lots) l.amt *= 1 - frac;
       } else if (e.type === 'div') dividends += e.amount;
     }
     cost = round2(Math.max(0, cost));
@@ -2915,11 +2922,8 @@ const Invest = {
     if (closed) { value = 0; how = 'closed'; }
     else if (v) {
       value = v.value; how = v.how || 'manual'; asOf = v.date;
-      for (const e of ev) if (after(e, v)) { value += e.type === 'buy' ? e.amount : e.type === 'sell' ? -(e.amount + e.fees) : 0; if (e.type !== 'div') how = 'estimate'; }
-    } else if (h.rate && firstDate) {
-      const days = Math.max(0, (new Date(iso) - new Date(firstDate)) / 864e5);
-      value = cost * (1 + (h.rate / 100) * days / 365); how = 'estimate'; asOf = iso;
-    }
+      for (const e of ev) if (after(e, v)) { value += worth(e); if (e.type !== 'div') how = 'estimate'; }
+    } else if (rate && lots.length) { value = grown(iso); how = 'estimate'; asOf = iso; }
     value = round2(Math.max(0, value));
     const unrealized = round2(value - cost), gain = round2(value + withdrawn + dividends - invested);
     return { cost, units: Math.round(units * 1e6) / 1e6, invested: round2(invested), withdrawn: round2(withdrawn), realized: round2(realized), dividends: round2(dividends), fees: round2(fees),
