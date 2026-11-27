@@ -103,9 +103,9 @@ export default function Account() {
   return (
     <div className="account" ref={ref}>
       {!u ? (
-        <button className="btn sm" onClick={() => setOpen('signin')}>Sign in</button>
+        <button className="btn sm" data-tour="account" onClick={() => setOpen('signin')}>Sign in</button>
       ) : (
-        <button className="avatar" onClick={() => setMenu(!menu)} aria-expanded={menu} aria-label="Account menu" title={syncText}>
+        <button className="avatar" data-tour="account" onClick={() => setMenu(!menu)} aria-expanded={menu} aria-label="Account menu" title={syncText}>
           {name.charAt(0).toUpperCase()}
           <i className={'sync-dot ' + sync.status} />
         </button>

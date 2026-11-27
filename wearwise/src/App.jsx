@@ -1,3 +1,4 @@
+import Tour, { startTour } from './components/Tour.jsx';
 import AutoDemoPhotos from './components/AutoDemoPhotos.jsx';
 import { useEffect, useState } from 'react';
 import { useStore } from './store.jsx';
@@ -52,6 +53,7 @@ function MorePage() {
     <div className="page narrow">
       <div className="page-head"><div><div className="label">Wearwise</div><h1 className="h1">More</h1></div></div>
       <ul className="more-list">
+        <li><button type="button" onClick={startTour}><b>How to use Wearwise</b><span className="tiny">A one-minute tour of the buttons</span><span aria-hidden="true">›</span></button></li>
         {links.map(([h, t, d]) => <li key={h}><a href={h}><b>{t}</b><span className="tiny">{d}</span><span aria-hidden="true">›</span></a></li>)}
       </ul>
     </div>
@@ -155,6 +157,7 @@ export default function App() {
       </header>
       <main key={route || 'home'} className="view-enter">{view}</main>
       <AutoDemoPhotos />
+      <Tour />
       <nav className="tabbar" aria-label="Main (mobile)">
         {TABS.map(([h, l, d]) => {
           const on = h === '#/more' ? (route === 'more' || MOBILE_ALIAS[route] === 'more') : active === h && !MOBILE_ALIAS[route];
@@ -167,7 +170,7 @@ export default function App() {
         })}
       </nav>
       <footer className="footer">
-        Wearwise · AI stylist: Google Gemini via Puter (free, no key: sign in), checked by a built-in rules engine that also works on its own · saved in this browser, or to your account when you sign in · <a href="#/settings">Settings &amp; delete my data</a>{tipsOn() && <> · <a href="#/settings">🍩 Treat the developer</a></>}
+        Wearwise · AI stylist: Google Gemini via Puter (free, no key: sign in), checked by a built-in rules engine that also works on its own · saved in this browser, or to your account when you sign in · <button type="button" className="linklike plain" onClick={startTour}>How to use</button> · <a href="#/settings">Settings &amp; delete my data</a>{tipsOn() && <> · <a href="#/settings">🍩 Treat the developer</a></>}
       </footer>
     </>
   );
