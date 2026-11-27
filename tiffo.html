@@ -7049,8 +7049,9 @@ const UI = {
     const cloud = Auth.user?.provider === 'cloud';
     this.form({
       title: 'Turn on the encrypted vault', save: 'Encrypt my data',
-      sub: `Tiffo will encrypt your financial records on this device${cloud ? ' and in the cloud' : ''} with a password only you know (AES-256; the password never leaves this device). You’ll get a recovery key in case you forget it.<br><br><b>Important:</b> if you forget both the password and the recovery key, nobody can decrypt your data${cloud ? ', on any device or in the cloud,' : ''} — not even Tiffo. It doesn’t protect against viruses, harmful browser extensions, or someone using Tiffo while it’s unlocked.`,
+      sub: `Tiffo will encrypt your financial records on this device${cloud ? ' and in the cloud' : ''} with a password only you know (AES-256; the password never leaves this device). You’ll get a recovery key in case you forget it.`,
       fields: [
+        { id: 'warn', type: 'note', label: '', html: `<b>Important:</b> if you forget both the password and the recovery key, nobody can decrypt your data${cloud ? ', on any device or in the cloud,' : ''} — not even Tiffo. The vault doesn’t protect against viruses, harmful browser extensions, or someone using Tiffo while it’s unlocked.` },
         { id: 'pw', label: 'Vault password (at least 10 characters)', value: '', hint: 'Use a passphrase you don’t use anywhere else, e.g. four unrelated words. Not your sign-in password.' },
         { id: 'pw2', label: 'Type it again', value: '' },
         { id: 'auto', label: 'Lock after I’ve been away for', type: 'select', value: '5', options: [['1', '1 minute'], ['5', '5 minutes'], ['15', '15 minutes'], ['30', '30 minutes'], ['60', '1 hour']] },
@@ -7083,7 +7084,7 @@ const UI = {
       const last = rk.split('-').at(-1);
       this.form({
         title: first ? 'Save your recovery key' : 'Your new recovery key', save: 'I’ve saved it',
-        sub: 'This key is the only other way into your vault if you forget the password. It’s shown <b>once</b>. Write it on paper or save it in a password manager, somewhere other than this device. Anyone who has it can open your vault.',
+        sub: 'This key is the only other way into your vault if you forget the password. It’s shown only once. Write it on paper or save it in a password manager, somewhere other than this device. Anyone who has it can open your vault.',
         fields: [
           { id: 'rk', type: 'note', label: '', html: `<div class="text-center font-mono text-lg font-bold tracking-wider select-all break-all py-2">${escapeHTML(rk)}</div>` },
           { id: 'last', label: `To confirm, type the last group (${last.length} characters)`, value: '' },
@@ -7151,7 +7152,7 @@ const UI = {
     if (!keys) return;
     this.form({
       title: 'Your cloud data is encrypted', save: 'Unlock and sync',
-      sub: mismatch ? 'You set up a vault on this device and on another device separately. Enter the vault password (or recovery key) from your <b>other</b> device: this device will switch to that vault, and your entries here will be kept and merged.' : 'You turned on the encrypted vault on another device. Enter the same vault password (or recovery key) to unlock your data here. This device will be encrypted too, and your entries here will be merged in.',
+      sub: mismatch ? 'You set up a vault on this device and on another device separately. Enter the vault password (or recovery key) from your other device: this device will switch to that vault, and your entries here will be kept and merged.' : 'You turned on the encrypted vault on another device. Enter the same vault password (or recovery key) to unlock your data here. This device will be encrypted too, and your entries here will be merged in.',
       fields: [{ id: 'vpw', label: 'Vault password or recovery key', value: '' }],
       onSave: async (v) => {
         try { await Vault.adopt(keys, v.vpw || ''); } catch (e) { return e.message; }
