@@ -2462,7 +2462,11 @@ const Cloud = {
         if (r.error && !/duplicate|conflict|23505/i.test(r.error.message || r.error.code || '')) throw r.error;
         wrote = !r.error && r.data?.length;
       } else {
-        const r = await sb.from('tiffo_data').update({ data: Store.state, updated_at: stamp }).eq('user_id', Auth.user.uid).eq('updated_at', row.updated_at).select('user_id');
+        // Normally: only write if nobody wrote since we read. Last try: write the merged data anyway (it already includes what we just read),
+        // so a timestamp-format mismatch can never stop syncing altogether.
+        let q = sb.from('tiffo_data').update({ data: Store.state, updated_at: stamp }).eq('user_id', Auth.user.uid);
+        if (attempt < 3) q = q.eq('updated_at', row.updated_at);
+        const r = await q.select('user_id');
         if (r.error) throw r.error;
         wrote = r.data?.length;
       }
