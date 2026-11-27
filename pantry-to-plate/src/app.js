@@ -12,7 +12,7 @@ const PHOTO_BASE = "img/";
 function paint(cv, r) {
   if (!cv || !r) return;
   drawPlate(cv, r, null);
-  const ph = PHOTOS[r.id]; if (!ph) return;
+  const ph = PHOTOS[r.id]; if (!ph) { AIPhoto.attach(cv, r); return; }
   const img = new Image(); img.alt = r.title + (ph.ai ? " (AI-generated image)" : ""); img.decoding = "async"; img.loading = "lazy";
   img.className = cv.className + " dish-photo"; img.referrerPolicy = "no-referrer";
   img.onload = () => { if (cv.isConnected) { cv.replaceWith(img); requestAnimationFrame(() => img.classList.add("in")); } };
@@ -572,7 +572,7 @@ function renderDetail() {
   const safety = E.safetyNotes(m);
   box.innerHTML = `
     <div class="detail-top">
-      <div><div class="frame"><canvas id="plate" width="480" height="600" aria-label="Illustration of ${esc(r.title)}"></canvas></div>${PHOTOS[r.id] ? `<p class="photo-credit">${PHOTOS[r.id].page ? `<a href="${esc(PHOTOS[r.id].page)}" target="_blank" rel="noopener">${esc(PHOTOS[r.id].credit || "")}</a>` : esc(PHOTOS[r.id].credit || "")}${PHOTOS[r.id].ai ? " · AI-generated image" : ""}</p>` : `<p class="photo-credit">Illustration</p>`}</div>
+      <div><div class="frame"><canvas id="plate" width="480" height="600" aria-label="Illustration of ${esc(r.title)}"></canvas></div>${PHOTOS[r.id] ? `<p class="photo-credit">${PHOTOS[r.id].page ? `<a href="${esc(PHOTOS[r.id].page)}" target="_blank" rel="noopener">${esc(PHOTOS[r.id].credit || "")}</a>` : esc(PHOTOS[r.id].credit || "")}${PHOTOS[r.id].ai ? " · AI-generated image" : ""}</p>` : AIPhoto.caption(r)}</div>
       <div class="detail-head">
         <span class="label">${esc(r.cuisine)} · <span class="style-${(r.style || "").toLowerCase()}">${styleLabel(r)}</span></span>
         <h2>${esc(r.title)}</h2>
