@@ -8,6 +8,16 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-27 · Phone and accessibility polish
+
+- **Closet on phones:** the search box no longer pushes the page sideways (it caused a small side-scroll).
+- **Outfit results on phones:** after "Create", the "3 outfits for you" heading no longer hides under the sticky bar.
+- **Builder on phones:** the view tabs fit on one line ("Your photo" instead of "With your photo"), and the six slots sit in a neat 3×2 grid instead of a cramped row.
+- **iPhone:** tapping a text box no longer zooms the page in.
+- **Easier to read:** the light-grey text was too faint (contrast 2.8:1). It's now dark enough for the accessibility standard (WCAG AA) everywhere. An automated check (axe) now finds no problems on any of the 13 pages.
+- Calendar and score labels work properly with screen readers.
+- Settings → privacy now explains what's sent when you make an AI photo.
+
 ## 2026-11-26 · Realistic AI photos (Puter)
 
 - **Pieces without a photo:** "✦ Make a realistic AI photo" in the piece view, and "Make AI photos for N pieces without a photo" in the closet. Made from the piece's details (name, colors, fabric, fit) as a studio product photo.

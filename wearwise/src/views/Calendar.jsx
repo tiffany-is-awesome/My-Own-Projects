@@ -243,13 +243,13 @@ export default function Calendar({ go }) {
           <button className="btn sm ghost" onClick={() => shift(1)} aria-label="Next month">›</button>
           {(ym.y !== now.getFullYear() || ym.m !== now.getMonth()) && <button className="btn sm" onClick={() => setYm({ y: now.getFullYear(), m: now.getMonth() })}>Today</button>}
         </div>
-        <div className="cal-grid" role="grid">
-          {WEEK.map((w) => <div key={w} className="cal-wd" role="columnheader">{w}</div>)}
+        <div className="cal-grid">
+          {WEEK.map((w) => <div key={w} className="cal-wd" aria-hidden="true">{w}</div>)}
           {cells.map((c) => {
             const p = plans.get(c.date);
             const trip = tripOf(c.date);
             return (
-              <button key={c.date} role="gridcell" className={'cal-cell' + (c.inMonth ? '' : ' out') + (c.date === t0 ? ' today' : '') + (p ? ' has-plan' : '') + (c.date < t0 ? ' past' : '')}
+              <button key={c.date} className={'cal-cell' + (c.inMonth ? '' : ' out') + (c.date === t0 ? ' today' : '') + (p ? ' has-plan' : '') + (c.date < t0 ? ' past' : '')}
                 onClick={() => setDay(c.date)} aria-label={`${nice(c.date)}${p ? ', planned: ' + p.name : ''}${worn.has(c.date) ? ', worn' : ''}`}>
                 <span className="cal-num">{c.day}</span>
                 {trip && <span className="cal-trip" title={trip.name}>{c.date === trip.start || c.day === 1 ? trip.name : ''}</span>}

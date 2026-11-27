@@ -36,7 +36,7 @@ export function ProductCard({ item, onClick, action, flag, place }) {
 }
 
 export function Meter({ value, max = 5 }) {
-  return <span className="meter" aria-label={`${value} of ${max}`}>{Array.from({ length: max }, (_, i) => <i key={i} className={i < value ? 'on' : ''} />)}</span>;
+  return <span className="meter" role="img" aria-label={`${value} of ${max}`}>{Array.from({ length: max }, (_, i) => <i key={i} className={i < value ? 'on' : ''} />)}</span>;
 }
 
 export function Modal({ title, onClose, children, wide }) {
@@ -106,7 +106,7 @@ export function ScoreBadge({ score }) {
   }, [score]); // eslint-disable-line react-hooks/exhaustive-deps
   const tier = score >= 85 ? 'great' : score >= 72 ? 'good' : 'fair';
   return (
-    <span className={'score-ring ' + tier} aria-label={`Score ${score} out of 100`}>
+    <span className={'score-ring ' + tier} role="img" aria-label={`Score ${score} out of 100`}>
       <svg viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15.5" className="track" /><circle cx="18" cy="18" r="15.5" className="arc" style={{ strokeDasharray: `${(shown / 100) * 97.4} 97.4` }} /></svg>
       <b>{shown}</b>
     </span>
