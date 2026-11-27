@@ -8,6 +8,14 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-27 · Better cut-outs
+
+- **White or pale clothes on a light background** (a white tee on a beige sheet) are now cut out. Before, the background removal took the garment with it and gave up, keeping the whole photo. It now retries with finer settings first, but only accepts the result if a sensible amount of garment is left.
+- **Lint or crumbs just touching the garment's edge** are now removed. Before, they stayed attached because they counted as part of the garment. Thin parts of the garment itself (slip-dress straps, a chain) are left alone.
+- When nothing works (cream on nearly the same cream), the original photo is still kept, as before. Nothing is ever recolored.
+- Cut-out test: 9 kinds of photos (was 6), all pass.
+- Added `supabase/wearwise-rls-test.sql`: a safe check (everything is rolled back) that one user can't read, change or delete another user's closet or photos.
+
 ## 2026-11-27 · Outfit quality pass 3: occasions, variety, swaps
 
 - **Occasions now differ in character, not just how dressy they are.** Before, Work, Party and Church returned the exact same three outfits. Now:
