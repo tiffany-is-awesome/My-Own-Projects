@@ -6528,7 +6528,7 @@ const UI = {
     const h = HHSync.hh, owner = HHSync.isOwner(), myId = HHSync.myId();
     const people = HHSync.members.map((m) => `<li class="flex flex-wrap items-center gap-2 py-1.5">
       <span class="h-7 w-7 rounded-full grid place-items-center bg-rose-100 dark:bg-rose-900/40 text-xs font-bold text-rose-900 dark:text-rose-200" aria-hidden="true">${escapeHTML(m.display_name[0].toUpperCase())}</span>
-      <span class="flex-1 min-w-0 truncate">${escapeHTML(m.display_name)}${m.user_id === myId ? ' (you)' : ''}${m.role === 'owner' ? ' <span class="text-[11px] text-stone-400">· owner</span>' : ''}${!m.can_share ? ' <span class="text-[11px] text-orange-700 dark:text-orange-400">· can’t post</span>' : ''}</span>
+      <span class="flex-1 min-w-[6rem] break-words">${escapeHTML(m.display_name)}${m.user_id === myId ? ' (you)' : ''}${m.role === 'owner' ? ' <span class="text-[11px] text-stone-400">· owner</span>' : ''}${!m.can_share ? ' <span class="text-[11px] text-orange-700 dark:text-orange-400">· can’t post</span>' : ''}</span>
       ${owner && m.user_id !== myId ? `${btn('perm', m.can_share ? 'Stop posting' : 'Allow posting', `data-uid="${m.user_id}" data-on="${m.can_share ? 0 : 1}"`, 'border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800')}${btn('kick', 'Remove', `data-uid="${m.user_id}"`, 'text-rose-700 dark:text-rose-400 hover:underline')}` : ''}
     </li>`).join('');
     const feed = HHSync.items.slice(0, 25).map((it) => {
@@ -6569,7 +6569,7 @@ const UI = {
         this.renderHHSync(); toast(`👪 You joined ${escapeHTML(HHSync.hh?.name || 'the household')}.`); } });
     if (act === 'refresh') return run(() => HHSync.load(true));
     if (act === 'invite') {
-      const code = HHSync.hh.invite_code, msg = `Join our household “${HHSync.hh.name}” on Tiffo. Sign in, open More → Household, tap “Join with a code” and type: ${code}`;
+      const code = HHSync.hh.invite_code, msg = `Join our household “${HHSync.hh.name}” on Tiffo. Sign in, open Money → Household, tap “Join with a code” and type: ${code}`;
       return this.form({ title: 'Invite someone', save: 'Copy message', sub: 'Send this to people you trust. Anyone with the code can join and see what’s shared here, not the rest of your Tiffo.',
         fields: [{ id: 'msg', type: 'note', label: '', html: `<div class="text-center text-2xl font-bold tracking-widest tabular">${escapeHTML(code)}</div>` }, { id: 'text', type: 'textarea', label: 'Message', value: msg }],
         danger: HHSync.isOwner() ? { label: 'Make a new code (old one stops working)', fn: () => { this.closeForm(); run(() => HHSync.newCode(), '🔑 New invite code made. The old one no longer works.').then(() => this.hhAction('invite')); } } : null,
