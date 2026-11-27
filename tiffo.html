@@ -105,7 +105,7 @@
     </div>
 
     <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto">
-      <div id="balanceCard" class="rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white px-4 sm:px-5 py-2 shadow-lg shadow-violet-500/25 text-right transition-colors">
+      <div id="balanceCard" class="rounded-2xl bg-gradient-to-br from-slate-800 to-teal-700 text-white px-4 sm:px-5 py-2 shadow-md shadow-teal-900/20 text-right transition-colors">
         <div class="text-[11px] uppercase tracking-wider font-semibold text-white/80">Current Cash Balance</div>
         <div id="balanceDisplay" class="text-2xl sm:text-3xl font-extrabold tabular leading-tight">$0.00</div>
         <div id="balanceSub" class="text-[11px] text-white/75 tabular"></div>
@@ -130,6 +130,7 @@
           <hr class="my-1 border-stone-200 dark:border-stone-800" />
  <button type="button" id="aiToggleBtn" class="hidden w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800" role="menuitemcheckbox"></button>
           <button id="signOutBtn" class="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800" role="menuitem">Sign out</button>
+          <button id="signOutAllBtn" class="hidden w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800" role="menuitem">Sign out on all devices</button>
           <button id="deleteAccountBtn" class="w-full text-left rounded-lg px-3 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40" role="menuitem">Delete account & data</button>
         </div>
       </div>
@@ -157,9 +158,9 @@
         class="flex-1 rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-4 py-3 text-base placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
         placeholder="What happened? e.g. “Jollibee 350” or “Sahod 18,000”" />
       <div class="flex gap-3">
-        <button type="button" id="logBtn" class="flex-1 md:flex-none rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-semibold px-5 py-3 shadow-md shadow-emerald-500/25 transition">Log it</button>
+        <button type="button" id="logBtn" class="flex-1 md:flex-none whitespace-nowrap rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:brightness-110 text-white font-semibold px-5 py-3 shadow-md shadow-emerald-500/25 transition">Log it</button>
         <label for="fileInput" class="flex-1 md:flex-none cursor-pointer rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:brightness-110 text-white font-semibold px-5 py-3 text-center shadow-md shadow-fuchsia-500/25 transition whitespace-nowrap">
-          📷 Scan Receipt / Contract
+          📷 Scan<span class="hidden sm:inline"> Receipt / Contract</span>
         </label>
         <input id="fileInput" type="file" accept="image/*,.txt,text/plain" class="hidden" />
       </div>
@@ -180,6 +181,15 @@
     <div id="colLeft" class="lg:col-span-3 space-y-6">
 
       <!-- Month summary tiles -->
+      <!-- At a glance (Home) -->
+      <section data-tool="glance" data-tool-name="✨ At a glance" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <h2 class="font-bold text-lg leading-tight mb-2">At a glance</h2>
+        <ul id="glanceList" class="space-y-1.5"></ul>
+        <ul id="glanceMore" class="hidden space-y-1.5 mt-1.5"></ul>
+        <button type="button" id="glanceMoreBtn" class="hidden mt-2 text-sm font-semibold text-teal-700 dark:text-teal-400 hover:underline">Show more</button>
+        <p id="glanceEmpty" class="text-sm text-stone-500 dark:text-stone-400">Start by typing what you spent or earned above. Tiffo will tell you what it means here.</p>
+      </section>
+
       <section data-tool="summary" data-tool-name="📅 Monthly summary" data-tool-nocollapse class="grid grid-cols-3 gap-3">
         <div class="rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/70 dark:border-emerald-900/60 p-4">
           <div class="flex items-center gap-1.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300"><span class="h-5 w-5 rounded-md bg-emerald-500 text-white grid place-items-center text-[11px]">↗</span>In · this month</div>
@@ -310,6 +320,29 @@
         <div id="pocketEmpty" class="rounded-xl border-2 border-dashed border-fuchsia-200 dark:border-fuchsia-900/60 p-4 text-sm text-stone-500 dark:text-stone-400"></div>
         <div id="pocketGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
         <p id="pocketHint" class="hidden mt-3 text-[11px] text-stone-400">Type things like “send 500 to toys”, “move 200 from toys to necessities” or “take 100 out of toys”. Spending that mentions a pocket comes out of it.</p>
+      </section>
+
+      <!-- Household -->
+      <section data-tool="household" data-tool-name="🏠 Household" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3">
+            <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-rose-100 dark:bg-rose-900/40" aria-hidden="true">🏠</span>
+            <div><h2 class="font-bold text-lg leading-tight">Household</h2>
+            <p class="text-xs text-stone-500 dark:text-stone-400">Split shared costs, allowances and family goals.</p></div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="splitBtn" class="rounded-lg border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-sm font-semibold px-3 py-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/40">+ Shared expense</button>
+            <button type="button" id="allowanceBtn" class="rounded-lg border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-sm font-semibold px-3 py-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/40">+ Allowance</button>
+          </div>
+        </div>
+        <ul id="hhMembers" class="divide-y divide-stone-100 dark:divide-stone-800"></ul>
+        <div id="hhExtra" class="mt-3 space-y-1 text-sm"></div>
+        <p id="hhEmpty" class="rounded-xl border-2 border-dashed border-rose-200 dark:border-rose-900/60 p-4 text-sm text-stone-500 dark:text-stone-400">Live with family or housemates? Tap <b>+ Shared expense</b> or type <b>“Split groceries 3,000 with Ana”</b>. Only your share counts as your spending; the rest is what you owe each other.</p>
+        <div id="hhSync" class="mt-4 rounded-xl border border-rose-200 dark:border-rose-900/60 p-3 text-sm"></div>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-[11px] text-stone-400 flex-1 min-w-[12rem]">🔒 Private: only what you mark as shared is ever summarized. Other members’ own records are never stored here.</p>
+          <button type="button" id="hhShareBtn" class="hidden rounded-lg border border-stone-200 dark:border-stone-700 text-xs font-semibold px-2.5 py-1.5 hover:bg-stone-50 dark:hover:bg-stone-800">📋 Copy shared summary</button>
+        </div>
       </section>
 
       <!-- Family & friends: informal loans -->
@@ -472,6 +505,22 @@
         <p class="mt-2 text-[11px] text-stone-400">Estimates only. Amounts “in today’s money” remove inflation so you can compare with prices now. Real returns go up and down; this assumes a steady average. Tiffo isn’t a financial advisor.</p>
       </section>
 
+      <!-- Scam Check (More page) -->
+      <section data-tool="scam" data-tool-name="🛡️ Scam Check" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <div class="flex items-center gap-3 mb-3">
+          <span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-amber-100 dark:bg-amber-900/40" aria-hidden="true">🛡️</span>
+          <div><h2 class="font-bold text-lg leading-tight">Scam Check</h2>
+          <p class="text-xs text-stone-500 dark:text-stone-400">Paste a suspicious text, email, payment request, or investment or loan offer.</p></div>
+        </div>
+        <label for="scamInput" class="sr-only">Message to check</label>
+        <textarea id="scamInput" rows="4" placeholder="Paste the message here. Remove any real OTPs or passwords first; Tiffo never needs them." class="w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+        <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-[11px] text-stone-500 dark:text-stone-400">🔒 Checked on this device only. Nothing you paste is saved or sent.</p>
+          <button type="button" id="scamBtn" class="rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2">Check it</button>
+        </div>
+        <div id="scamResult" class="mt-3"></div>
+      </section>
+
       <section data-tool="records" data-tool-name="🗂️ Records" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
           <div class="flex items-center gap-3">
@@ -521,6 +570,13 @@
           <button type="button" id="toolsReset" class="w-full text-left rounded-lg px-3 py-2 text-sm hover:bg-stone-100 dark:hover:bg-stone-800">↺ Show everything again</button>
         </div>
       </div>
+          </div>
+          <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div class="min-w-0 flex-1"><div class="font-semibold text-sm">App lock</div><div id="lockStatus" class="text-xs text-stone-500 dark:text-stone-400">Off</div></div>
+            <div class="flex gap-2"><button type="button" id="lockSetBtn" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Set a PIN</button>
+            <button type="button" id="lockNowBtn" class="hidden rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">🔒 Lock now</button></div>
+          </div>
+          <div id="bioRow" class="hidden flex flex-wrap items-center justify-between gap-3 py-3"><div class="min-w-0 flex-1"><div class="font-semibold text-sm">Fingerprint or face unlock</div><div id="bioStatus" class="text-xs text-stone-500 dark:text-stone-400">Off</div></div>
+            <button type="button" id="bioBtn" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold hover:bg-stone-100 dark:hover:bg-stone-800">Turn on</button>
           </div>
           <div class="flex flex-wrap items-center justify-between gap-3 py-3"><div class="min-w-0"><div class="font-semibold text-sm">Backup</div><div class="save-status text-xs text-stone-500 dark:text-stone-400">Saved on this device</div></div>
             <div class="flex gap-2">
@@ -833,6 +889,20 @@
   </div>
 </div>
 
+<!-- ============================ LOCK SCREEN ============================ -->
+<div id="lockScreen" class="hidden fixed inset-0 z-[90] bg-stone-950/95 backdrop-blur-sm text-white flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
+  <form id="lockForm" class="w-full max-w-xs text-center" autocomplete="off">
+    <div class="mx-auto h-14 w-14 rounded-2xl grid place-items-center bg-gradient-to-br from-slate-700 to-teal-600 text-2xl font-bold">T</div>
+    <h2 id="lockTitle" class="mt-4 text-xl font-bold">Tiffo is locked</h2>
+    <p class="mt-1 text-sm text-stone-300">Enter your PIN</p>
+    <input id="lockPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" aria-label="PIN" class="mt-4 w-full rounded-xl bg-stone-800 border border-stone-700 px-4 py-3 text-center text-2xl tracking-[0.5em] tabular focus:outline-none focus:ring-2 focus:ring-teal-400" />
+    <p id="lockMsg" class="mt-2 min-h-[1.25rem] text-sm text-rose-300" role="alert"></p>
+    <button type="button" id="lockBtn" class="mt-2 w-full rounded-xl bg-teal-600 hover:bg-teal-500 font-semibold py-3">Unlock</button>
+    <button type="button" id="lockBio" class="hidden mt-2 w-full rounded-xl border border-stone-600 hover:bg-stone-800 font-semibold py-3">👆 Use fingerprint or face</button>
+    <button type="button" id="lockForgot" class="mt-3 text-sm text-stone-400 hover:text-white underline">Forgot PIN?</button>
+  </form>
+</div>
+
 <!-- ============================ TOUR: points at the real buttons ============================ -->
 <div id="tour" class="hidden fixed inset-0 z-[58]">
   <div id="tourBlock" class="absolute inset-0"></div>
@@ -887,6 +957,11 @@
     <label id="pfGoalRow" class="block"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Goal (optional)</span>
       <div class="relative mt-1"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 currency-symbol">₱</span>
       <input id="pfGoal" type="number" step="1" min="0" inputmode="decimal" placeholder="e.g. 5000" class="w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 pl-8 pr-3 py-2.5 tabular focus:outline-none focus:ring-2 focus:ring-fuchsia-500" /></div></label>
+    <div id="pfGoalExtra" class="grid grid-cols-2 gap-3">
+      <label class="block"><span class="text-xs font-semibold text-stone-600 dark:text-stone-300">Reach it by (optional)</span>
+        <input id="pfBy" type="date" class="mt-1 w-full rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-fuchsia-500" /></label>
+      <label class="flex items-end gap-2 pb-2.5 text-sm"><input id="pfFamily" type="checkbox" class="h-4 w-4 rounded" /> Family goal</label>
+    </div>
     <p id="pfError" class="hidden text-sm rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 px-3 py-2" role="alert"></p>
     <div class="flex items-center gap-2 pt-1">
       <button type="button" id="pfDelete" class="hidden mr-auto text-sm font-semibold text-rose-600 dark:text-rose-400 hover:underline">Delete pocket</button>
@@ -1052,6 +1127,63 @@ const localAmount = (usd) => {
   return Math.max(step, Math.round(v / step) * step);
 };
 const exampleMoney = (usd) => { const v = localAmount(usd); return Number.isInteger(v) ? fmt0(v) : fmt(v); };
+/** Format an amount in any currency (e.g. a foreign amount kept with an entry). */
+const fmtIn = (n, code) => { try { return new Intl.NumberFormat(CONFIG.LOCALE, { style: 'currency', currency: code }).format(n || 0); } catch (e) { return `${code} ${round2(n)}`; } };
+
+/* =========================================================================
+   FOREIGN CURRENCY — "Dinner $25" when Tiffo is in pesos.
+   Rates come from the European Central Bank's daily reference rates (via the
+   free Frankfurter service) when the browser can reach it, or from the person.
+   Nothing is converted silently: the rate, its source and date are shown, and
+   the original amount is kept with the entry.
+   ========================================================================= */
+const FX = {
+  SYM: { '€': 'EUR', '£': 'GBP', '¥': 'JPY', '￥': 'JPY', '₩': 'KRW', '₹': 'INR', '₫': 'VND', '฿': 'THB', '₦': 'NGN', '₱': 'PHP' },
+  WORDS: { dollar: 'USD', dollars: 'USD', bucks: 'USD', yen: 'JPY', euro: 'EUR', euros: 'EUR', pound: 'GBP', pounds: 'GBP', rupee: 'INR', rupees: 'INR', rupiah: 'IDR', ringgit: 'MYR', baht: 'THB', won: 'KRW', dong: 'VND', real: 'BRL', reais: 'BRL', rand: 'ZAR', naira: 'NGN', franc: 'CHF', francs: 'CHF', dirham: 'AED', dirhams: 'AED', riyal: 'SAR', riyals: 'SAR', yuan: 'CNY', rp: 'IDR', rm: 'MYR' },
+  DOLLAR_HOMES: ['USD', 'SGD', 'AUD', 'CAD', 'NZD', 'HKD', 'MXN'],
+  /** Which currency a marker like "$", "USD", "euros" means, from where this person lives. */
+  codeOf(marker) {
+    const m = String(marker || '').replace(/[.\s]/g, '').toLowerCase();
+    if (!m) return null;
+    if (m === '$') return this.DOLLAR_HOMES.includes(CURRENCY) ? CURRENCY : 'USD';
+    if (this.SYM[m]) return this.SYM[m];
+    if (/^(?:pesos?|piso|php)$/.test(m)) return CURRENCY === 'MXN' && m !== 'php' ? 'MXN' : 'PHP';
+    if (this.WORDS[m]) return this.WORDS[m] === 'USD' && this.DOLLAR_HOMES.includes(CURRENCY) && m !== 'usd' ? CURRENCY : this.WORDS[m];
+    const up = m.toUpperCase();
+    return CURRENCY_CODES.includes(up) ? up : null;
+  },
+  /** The first amount in a note that's in a currency other than Tiffo's. → { code, value } or null */
+  detect(text) {
+    for (const a of Parser.amountsIn(text)) {
+      const code = this.codeOf(a.cur);
+      if (code && code !== CURRENCY) return { code, value: a.value };
+    }
+    return null;
+  },
+  async fetchJSON(url) {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 6000);
+    try { const r = await fetch(url, { signal: ctl.signal }); return r.ok ? await r.json() : null; } catch (e) { return null; } finally { clearTimeout(t); }
+  },
+  /** Reference rate for 1 `from` in `to`, for a date (past dates use that day's rate). → { rate, date, source } or null */
+  async rate(from, to, date) {
+    const today = toISODate(new Date()), d = date && date < today ? date : 'latest', key = `${from}>${to}@${d}`;
+    const cache = ((Store.state.settings ||= {}).fx ||= {});
+    if (cache[key] && (d !== 'latest' || Date.now() - cache[key].at < 6 * 3600e3)) return cache[key];
+    let j = await this.fetchJSON(`https://api.frankfurter.dev/v1/${d}?base=${from}&symbols=${to}`);
+    if (!j?.rates?.[to]) j = await this.fetchJSON(`https://api.frankfurter.app/${d}?from=${from}&to=${to}`);
+    const v = j?.rates?.[to];
+    if (!(v > 0)) return null;
+    const out = { rate: v, date: j.date, source: 'European Central Bank reference rate', at: Date.now() };
+    cache[key] = out;
+    const keys = Object.keys(cache); if (keys.length > 40) keys.sort((a, b) => cache[a].at - cache[b].at).slice(0, keys.length - 40).forEach((k) => delete cache[k]);
+    Store.save();
+    return out;
+  },
+  lastManual(from, to) { return Store.state.settings?.fxManual?.[`${from}>${to}`] || null; },
+  saveManual(from, to, rate) { (((Store.state.settings ||= {}).fxManual ||= {})[`${from}>${to}`] = { rate, date: toISODate(new Date()) }); Store.save(); },
+  /** The note shown with an entry, e.g. "US$25.00 at 56.12". */
+  label(fx) { return `${fmtIn(fx.amount, fx.code)} at ${+fx.rate.toFixed(4)}`; },
+};
 
 /** Local YYYY-MM-DD (avoids UTC shift from toISOString). */
 const toISODate = (d) => {
@@ -1092,6 +1224,9 @@ function onSubmit(form, button, fn) {
 }
 
 function toast(msg, opts = {}) {
+  // Keep the screen usable: at most 2 messages at once (the newest win).
+  const box = document.getElementById('toasts');
+  while (box && box.children.length >= 2) box.firstElementChild.remove();
   const el = document.createElement('div');
   el.className = 'animate-in rounded-xl bg-stone-900 text-white dark:bg-white dark:text-stone-900 shadow-lg px-4 py-3 text-sm flex items-center gap-3';
   el.innerHTML = `<span class="flex-1">${msg}</span>`;
@@ -1413,7 +1548,8 @@ const Accounts = {
     return round2(b);
   },
   owes(a) { return !!(ACCOUNT_TYPES[a?.type] || {}).owe; },
-  cashList() { return this.list().filter((a) => !this.owes(a)); },
+  cashList() { return this.list().filter((a) => !this.owes(a) && !a.notMine); },
+  othersList() { return this.list().filter((a) => !this.owes(a) && a.notMine); },
   oweList() { return this.list().filter((a) => this.owes(a)); },
   /** Money you actually have: cash, e-wallets, banks. Debts (cards, loans) are kept separate. */
   total(upTo = null) { return round2(this.cashList().reduce((x, a) => x + this.balance(a, upTo), 0)); },
@@ -1669,7 +1805,7 @@ const Parser = {
       const mult = (m[3] || '').toLowerCase();
       if (mult === 'k' || mult === 'thousand') n *= 1000;
       if (mult === 'm' || mult === 'million') n *= 1e6;
-      out.push({ value: Math.abs(n), sign: m[2].startsWith('-') ? -1 : m[2].startsWith('+') ? 1 : 0, marked: !!(m[1] || m[4]), index: start,
+      out.push({ value: Math.abs(n), sign: m[2].startsWith('-') ? -1 : m[2].startsWith('+') ? 1 : 0, marked: !!(m[1] || m[4]), cur: (m[1] || m[4] || '').trim(), index: start,
         // "3 cakes", "2 tickets" — a small count right before a word
         qty: !m[1] && !m[4] && !mult && Number.isInteger(n) && n <= 99 && /^\s+(?!and\b|then\b|tapos\b|plus\b|at\b|on\b|for\b|from\b|to\b|via\b|using\b|yesterday\b|today\b|kahapon\b|each\b|every\b|only\b|lang\b|na\b|pesos?\b|php\b)[a-z]/i.test(after) });
     }
@@ -2062,6 +2198,24 @@ const Parser = {
     const acc = Debts.find(raw);
     if (acc && acc.type === 'loan' && amt && !/\b(bought|buy|purchased|borrowed|got a|took)\b/.test(t)) return { type: 'debt_pay', acc, amount: round2(amt.value) };
     return null;
+  },
+
+  /** "Split groceries 3,000 with Ana", "hati kami ni Ana sa Meralco 2,800", "Mom paid 3,000 for groceries, split with me". */
+  householdIntent(text) {
+    const raw = String(text || '').trim(), t = raw.toLowerCase();
+    if (!/\b(split|hati|hatian|shared|share it|share with)\b/.test(t) || /\b(stocks?|shares of)\b/.test(t)) return null;
+    const amt = this.extractAmount(raw);
+    if (!amt) return null;
+    const N = this.nameRe();
+    // Who: everything after "with / kay / ni / kina", split on "and / at / & / ,"
+    const wm = raw.match(/\b(?:with|kay|ni|kina)\s+(.+?)(?=\s+(?:sa|for|on|para)\b|[.;!]|$)/i);
+    const names = wm ? wm[1].replace(/[₱$]?\s?\d[\d,.]*\s*[km]?\b/gi, ' ').split(/\s*(?:,|\band\b|\bat\b|&)\s*/i).map((n) => this.cleanName(n.trim().split(/\s+/).slice(0, 2).join(' '))).filter((n) => n && !/^(Me|Us|Kami|Ako)$/i.test(n)) : [];
+    const payer = (raw.match(new RegExp(`^\\s*${N}\\s+paid\\b`)) || [])[1];
+    const paidBy = payer && !/^(i|we)$/i.test(payer) ? this.cleanName(payer) : 'me';
+    let desc = raw.replace(wm ? wm[0] : /^$/, ' ').replace(/[₱$]?\s?\d[\d,.]*\s*[km]?\b/gi, ' ').replace(/\b(split|hati(?:an)?|kami|shared?|share it|for|the|sa|paid|i|we|with|ni|kay|para)\b/gi, ' ');
+    if (payer) desc = desc.replace(new RegExp(`^\\s*${payer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'), ' ');
+    desc = desc.replace(/[,.]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return { type: 'split', total: round2(amt.value), with: names.filter((n) => n !== paidBy), paidBy, desc: desc.replace(/^./, (c) => c.toUpperCase()) || 'Shared expense', category: this.matchCategory(raw, 'expense') || 'Groceries' };
   },
 
   /** Notes about investments. → { type: 'invest_buy' | 'invest_value' | 'invest_div' | 'invest_sell', holding, amount, ... } or null */
@@ -2803,7 +2957,7 @@ const Invest = {
    ========================================================================= */
 const FREQS = { week: 'Weekly', semimonth: 'Twice a month', month: 'Monthly', quarter: 'Every 3 months', semiannual: 'Every 6 months', year: 'Yearly' };
 const BILL_KINDS = { bill: { icon: '🧾', label: 'Bill or utility' }, rent: { icon: '🏠', label: 'Rent or dues' }, subscription: { icon: '📺', label: 'Subscription' },
-  school: { icon: '🎒', label: 'School fees' }, membership: { icon: '🏋️', label: 'Membership' }, insurance: { icon: '🛡️', label: 'Insurance premium' }, other: { icon: '📌', label: 'Other' } };
+  school: { icon: '🎒', label: 'School fees' }, allowance: { icon: '🧒', label: 'Allowance (to a family member)' }, membership: { icon: '🏋️', label: 'Membership' }, insurance: { icon: '🛡️', label: 'Insurance premium' }, other: { icon: '📌', label: 'Other' } };
 const Bills = {
   list() { return (Store.state.bills ||= []); },
   active() { return this.list().filter((b) => !b.stopped); },
@@ -3018,6 +3172,440 @@ const Records = {
 };
 
 /* =========================================================================
+   HOUSEHOLD — shared expenses between people you live with.
+   Your Tiffo only ever holds YOUR side: your share is your spending, and the
+   rest is money owed between you (it shows in Family & friends). Other
+   members' personal records are never stored; a summary you share contains
+   shared items only.
+   ========================================================================= */
+const Household = {
+  members() { return (Store.state.settings?.household || []); },
+  setMembers(list) { (Store.state.settings ||= {}).household = [...new Set(list.map((x) => String(x).trim()).filter(Boolean))].slice(0, 12); Store.save(); },
+  addMember(name) { if (name && !this.members().some((m) => m.toLowerCase() === name.toLowerCase())) this.setMembers([...this.members(), name]); },
+  /**
+   * Record a shared expense. shares: { me: amount, [name]: amount, ... } summing to total.
+   * paidBy 'me' → expense (my share) + lent to each other person (their share).
+   * paidBy <name> → expense (my share) + borrowed from that person (my share), no cash out for the rest.
+   */
+  split({ total, description, category, date, paidBy = 'me', shares, accountId = Accounts.DEFAULT }) {
+    const group = uid(), made = [], mine = round2(shares.me || 0);
+    const base = { date, category: 'Loans', group, shared: true, source: 'household' };
+    if (paidBy === 'me') {
+      if (mine > 0) made.push(Store.addTransaction({ kind: 'expense', amount: mine, category, date, accountId, description: `${description} (my share)`, group, shared: true, source: 'household' }));
+      for (const [who, amt] of Object.entries(shares)) if (who !== 'me' && amt > 0) made.push(Store.addTransaction({ ...base, kind: 'lend', amount: round2(amt), person: who, accountId, description: `${who}’s share · ${description}` }));
+    } else {
+      // Someone else paid: my share is my spending, and I owe it to them. Cash doesn't move today.
+      if (mine > 0) {
+        made.push(Store.addTransaction({ kind: 'expense', amount: mine, category, date, accountId, description: `${description} (my share, ${paidBy} paid)`, group, shared: true, source: 'household' }));
+        made.push(Store.addTransaction({ ...base, kind: 'borrow', amount: mine, person: paidBy, accountId, description: `My share · ${description} (${paidBy} paid)` }));
+      }
+    }
+    for (const who of Object.keys(shares)) if (who !== 'me') this.addMember(who);
+    if (paidBy !== 'me') this.addMember(paidBy);
+    Store.save();
+    return made;
+  },
+  /** Equal split among me + names, with centavos rounding landing on me. */
+  equalShares(total, names, includeMe = true) {
+    const people = [...(includeMe ? ['me'] : []), ...names], each = Math.floor((total / people.length) * 100) / 100, out = {};
+    for (const p of people) out[p] = each;
+    out[people[0]] = round2(total - each * (people.length - 1));
+    return out;
+  },
+  /** Balances with each member (from Family & friends). Positive = they owe you. */
+  balances() { return this.members().map((m) => ({ name: m, net: round2(Loans.owedBy(m) - Loans.oweTo(m)) })); },
+  /** A summary of shared items only, to send to household members. */
+  summary(days = 31) {
+    const since = toISODate(new Date(Date.now() - days * 864e5));
+    const groups = {};
+    for (const t of Store.sorted()) if (t.shared && t.date >= since) (groups[t.group] ||= []).push(t);
+    const lines = [`Tiffo · shared household expenses since ${prettyDate(since)}`];
+    for (const g of Object.values(groups)) {
+      const exp = g.find((t) => Money.kind(t) === 'expense'), others = g.filter((t) => Money.kind(t) !== 'expense');
+      const desc = (exp?.description || others[0]?.description || '').replace(/\s*\(my share.*\)$/, '').replace(/^.*?·\s*/, '');
+      const total = round2((exp?.amount || 0) + others.filter((t) => Money.kind(t) === 'lend').reduce((a, t) => a + t.amount, 0));
+      lines.push(`• ${g[0].date} ${desc}: ${fmt(total || exp?.amount || 0)}${others.map((t) => Money.kind(t) === 'lend' ? ` · ${t.person}’s share ${fmt(t.amount)}` : ` · ${t.person} paid; my share ${fmt(t.amount)}`).join('')}`);
+    }
+    lines.push('', 'Balances:');
+    for (const b of this.balances()) lines.push(`• ${b.name}: ${b.net > 0 ? `owes me ${fmt(b.net)}` : b.net < 0 ? `I owe ${fmt(-b.net)}` : 'settled'}`);
+    return lines.join('\n');
+  },
+};
+
+/* =========================================================================
+   HOUSEHOLD SYNC — share chosen splits with family on their own phones.
+   Needs a Tiffo account (Supabase). The server only ever holds what someone
+   chose to post: a shared expense or a settle-up. Each person's own records
+   stay in their own account. Row-level security on the server makes sure
+   only members of a household can read its posts (see supabase/ in the repo).
+   ========================================================================= */
+const HHSync = {
+  hh: null, members: [], items: [], loadedAt: 0, loading: null, error: '',
+  cfg() { return Store.state.settings?.hhSync || null; },
+  setCfg(c) { (Store.state.settings ||= {}).hhSync = c; Store.save(); },
+  available() { return !!(Auth.user && Auth.user.provider === 'cloud' && Auth.user.uid); },
+  ready() { return !!(this.available() && this.hh && this.me()?.can_share); },
+  myId() { return Auth.user?.uid; },
+  me() { return this.members.find((m) => m.user_id === this.myId()) || null; },
+  myName() { return this.me()?.display_name || this.cfg()?.me || 'me'; },
+  isOwner() { return !!(this.hh && this.hh.owner === this.myId()); },
+  nameOf(uid) { return this.members.find((m) => m.user_id === uid)?.display_name || 'Someone who left'; },
+  same(a, b) { return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase(); },
+  async sb() { return Auth.supabase(); },
+  check(r) { if (r.error) throw new Error(r.error.message || 'The server said no.'); return r.data; },
+  async create(name, display) {
+    const d = this.check(await (await this.sb()).rpc('tiffo_create_household', { p_name: name, p_display: display }));
+    this.setCfg({ id: d.id, me: display, done: [], post: true });
+    await this.load(true);
+  },
+  async join(code, display) {
+    const id = this.check(await (await this.sb()).rpc('tiffo_join_household', { p_code: code.replace(/[^a-z0-9]/gi, ''), p_display: display }));
+    this.setCfg({ id, me: display, done: [], post: true });
+    await this.load(true);
+  },
+  /** Fetch the household, its members and the latest 100 posts. */
+  async load(force = false) {
+    const c = this.cfg();
+    if (!c || !this.available()) { this.hh = null; return; }
+    if (this.loading) return this.loading;
+    if (!force && Date.now() - this.loadedAt < 30000) return;
+    this.loading = (async () => {
+      try {
+        const sb = await this.sb();
+        const [h, m, it] = await Promise.all([
+          sb.from('tiffo_households').select('id,name,owner,invite_code').eq('id', c.id).maybeSingle(),
+          sb.from('tiffo_household_members').select('user_id,display_name,role,can_share').eq('household_id', c.id).order('joined_at'),
+          sb.from('tiffo_household_items').select('id,author,kind,data,created_at').eq('household_id', c.id).order('created_at', { ascending: false }).limit(100),
+        ]);
+        const hh = this.check(h);
+        if (!hh) { this.hh = null; this.members = []; this.items = []; this.setCfg(null); this.error = ''; this.gone = true; return; }
+        this.hh = hh; this.members = this.check(m) || []; this.items = this.check(it) || []; this.error = ''; this.loadedAt = Date.now();
+      } catch (e) { this.error = e.message || 'Couldn’t reach the server.'; }
+      finally { this.loading = null; }
+    })();
+    return this.loading;
+  },
+  async post(kind, data) {
+    const row = this.check(await (await this.sb()).from('tiffo_household_items').insert({ household_id: this.cfg().id, kind, data: { ...data, currency: CURRENCY, by: this.myName() } }).select('id,author,kind,data,created_at').single());
+    this.markDone(row.id); this.items.unshift(row);
+    return row;
+  },
+  markDone(id) { const c = this.cfg(); if (!c) return; c.done = [id, ...(c.done || []).filter((x) => x !== id)].slice(0, 500); Store.save(); },
+  isDone(id) { return (this.cfg()?.done || []).includes(id) || Store.state.transactions.some((t) => t.hhItem === id); },
+  async removeItem(id) { this.check(await (await this.sb()).from('tiffo_household_items').delete().eq('id', id)); this.items = this.items.filter((i) => i.id !== id); },
+  async leave() { this.check(await (await this.sb()).from('tiffo_household_members').delete().eq('household_id', this.cfg().id).eq('user_id', this.myId())); this.forget(); },
+  async deleteHousehold() { this.check(await (await this.sb()).from('tiffo_households').delete().eq('id', this.cfg().id)); this.forget(); },
+  async removeMember(uid) { this.check(await (await this.sb()).from('tiffo_household_members').delete().eq('household_id', this.cfg().id).eq('user_id', uid)); this.members = this.members.filter((m) => m.user_id !== uid); },
+  async setCanShare(uid, on) { this.check(await (await this.sb()).from('tiffo_household_members').update({ can_share: on }).eq('household_id', this.cfg().id).eq('user_id', uid)); const m = this.members.find((x) => x.user_id === uid); if (m) m.can_share = on; },
+  async newCode() { const code = this.check(await (await this.sb()).rpc('tiffo_new_invite_code', { p_household: this.cfg().id })); this.hh.invite_code = code; return code; },
+  forget() { this.setCfg(null); this.hh = null; this.members = []; this.items = []; this.loadedAt = 0; },
+  /** What a post means for me: { mine, payer, role } for a split; { dir, other } for a settle-up; or null if it's not about me. */
+  forMe(item) {
+    const d = item.data || {}, me = this.myName();
+    if (item.kind === 'split') {
+      const key = Object.keys(d.shares || {}).find((k) => this.same(k, me));
+      return { payerIsMe: this.same(d.payer, me), mine: key != null ? round2(d.shares[key]) : null };
+    }
+    if (item.kind === 'settle') {
+      if (this.same(d.to, me)) return { dir: 'in', other: d.from };
+      if (this.same(d.from, me)) return { dir: 'out', other: d.to };
+    }
+    return null;
+  },
+  /** Add someone else's post to my own Tiffo. Returns the new transactions. */
+  importItem(item, myShare) {
+    const d = item.data, me = this.myName();
+    let made = [];
+    if (item.kind === 'split') {
+      const mine = round2(myShare ?? this.forMe(item)?.mine ?? 0);
+      if (this.same(d.payer, me)) {
+        const shares = { me: mine };
+        for (const [k, v] of Object.entries(d.shares || {})) if (!this.same(k, me)) shares[k] = round2(v);
+        made = Household.split({ total: d.total, description: d.desc, category: d.category || 'Groceries', date: d.date, paidBy: 'me', shares });
+      } else made = Household.split({ total: d.total, description: d.desc, category: d.category || 'Groceries', date: d.date, paidBy: d.payer, shares: { me: mine } });
+    } else if (item.kind === 'settle') {
+      const f = this.forMe(item);
+      if (f) made = [Store.addTransaction({ kind: f.dir === 'in' ? 'repay_in' : 'repay_out', amount: d.amount, person: f.other, date: d.date, category: 'Loans', source: 'household', description: f.dir === 'in' ? `${f.other} settled up` : `Settled up with ${f.other}` })];
+    }
+    made.forEach((t) => (t.hhItem = item.id));
+    this.markDone(item.id);
+    Store.save();
+    return made;
+  },
+};
+
+/* =========================================================================
+   INSIGHTS — plain-English answers on Home. Each one links to where it lives.
+   ========================================================================= */
+const Insights = {
+  /** Your usual amount in a category (median of the last 120 days), if there's enough history. */
+  typical(category, exceptId = null) {
+    const since = toISODate(new Date(Date.now() - 120 * 864e5));
+    const xs = Store.state.transactions.filter((t) => t.id !== exceptId && Money.kind(t) === 'expense' && t.category === category && t.date >= since).map((t) => t.amount).sort((a, b) => a - b);
+    if (xs.length < 3) return null;
+    return xs[Math.floor(xs.length / 2)];
+  },
+  isUnusual(amount, category, exceptId = null) {
+    const m = this.typical(category, exceptId);
+    return m != null && amount > Math.max(m * 5, m + 3000);
+  },
+  monthSpend(y, m, uptoDay = 31) {
+    const pre = `${y}-${String(m + 1).padStart(2, '0')}`, by = {};
+    let total = 0;
+    for (const t of Store.state.transactions) if (t.date.startsWith(pre) && +t.date.slice(8, 10) <= uptoDay) { const s = Money.spend(t); if (s) { total += s; by[t.category] = (by[t.category] || 0) + s; } }
+    return { total: round2(total), by };
+  },
+  list() {
+    const out = [], now = new Date(), y = now.getFullYear(), m = now.getMonth(), day = now.getDate();
+    const cur = this.monthSpend(y, m, day), prevD = new Date(y, m - 1, 1), prev = this.monthSpend(prevD.getFullYear(), prevD.getMonth(), day);
+    const free = Pockets.free(), cash = Store.balance();
+    out.push({ p: 10, icon: '💵', page: 'money', text: Pockets.list().length ? `<b>${fmt0(free)}</b> free to use (${fmt0(cash)} in cash, the rest set aside in pockets).` : `You have <b>${fmt0(cash)}</b> in cash, e-wallets and banks.` });
+    if (cur.total || prev.total) {
+      const diff = cur.total - prev.total, pct = prev.total ? Math.round((diff / prev.total) * 100) : null;
+      const top = Object.entries(cur.by).sort((a, b) => b[1] - a[1])[0];
+      const moved = Object.keys({ ...cur.by, ...prev.by }).map((k) => [k, (cur.by[k] || 0) - (prev.by[k] || 0)]).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0];
+      let txt = `You’ve spent <b>${fmt0(cur.total)}</b> this month`;
+      if (pct != null && Math.abs(pct) >= 5) txt += `, <b>${Math.abs(pct)}% ${pct > 0 ? 'more' : 'less'}</b> than by this day last month`;
+      if (moved && Math.abs(moved[1]) >= 1 && pct != null && Math.abs(pct) >= 5) txt += `, mostly ${moved[1] > 0 ? 'more' : 'less'} on ${escapeHTML(moved[0])}`;
+      txt += '.';
+      if (top) txt += ` Biggest: ${CATEGORIES[top[0]]?.icon || ''} ${escapeHTML(top[0])} (${fmt0(top[1])}).`;
+      out.push({ p: pct != null && pct >= 20 ? 9 : 8, icon: pct != null && pct >= 20 ? '📈' : '🧾', page: 'activity', text: txt });
+    }
+    for (const b of Store.state.budgets || []) {
+      const st = Budgets.stats(b);
+      if (st && st.limit && st.pct >= 80) out.push({ p: st.pct >= 100 ? 9.5 : 7, icon: st.pct >= 100 ? '⚠️' : '🎯', page: 'plan', text: st.pct >= 100 ? `<b>${escapeHTML(b.name)}</b> is over budget by ${fmt0(-st.left)}.` : `<b>${escapeHTML(b.name)}</b>: ${Math.round(st.pct)}% used, ${fmt0(st.left)} left.` });
+    }
+    const tl = Timeline.items(14), over = tl.filter((i) => i.overdue);
+    if (over.length) out.push({ p: 9.8, icon: '⏰', page: 'plan', text: `<b>${over.length} overdue:</b> ${over.slice(0, 2).map((i) => escapeHTML(i.title)).join(', ')}${over.length > 2 ? '…' : ''}.` });
+    const soon = tl.filter((i) => !i.overdue && i.amount).slice(0, 3);
+    if (soon.length) out.push({ p: 8.5, icon: '📅', page: 'plan', text: `Due soon: ${soon.map((i) => `${escapeHTML(i.title)} <b>${fmt0(i.amount)}</b> ${escapeHTML(prettyDate(i.date).toLowerCase())}`).join(' · ')}.` });
+    for (const p of Pockets.list().filter((p) => p.goal)) {
+      const bal = Pockets.balance(p), left = p.goal - bal;
+      if (left <= 0) out.push({ p: 6, icon: '🎉', page: 'money', text: `${escapeHTML(p.emoji)} <b>${escapeHTML(p.name)}</b> goal reached (${fmt0(p.goal)})!` });
+      else out.push({ p: 5, icon: escapeHTML(p.emoji), page: 'money', text: `<b>${escapeHTML(p.name)}</b>: ${Math.round((bal / p.goal) * 100)}% of ${fmt0(p.goal)}${p.by ? ` · save ${fmt0(Pockets.perMonth(p))}/month to reach it by ${escapeHTML(new Date(p.by + 'T00:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' }))}` : ''}.` });
+    }
+    // Safety warnings (brief 05): short on cash for what's due, heavy debt payments, unusual or doubled charges, new repeating charges.
+    const due30 = Timeline.items(30).filter((i) => i.amount).reduce((a, i) => a + i.amount, 0);
+    if (due30 > 0 && due30 > cash) out.push({ p: 9.7, icon: '⚠️', page: 'plan', text: `Bills and payments due in the next 30 days (<b>${fmt0(due30)}</b>) are more than your cash (${fmt0(cash)}).` });
+    const inc3 = (() => { let x = 0; for (let k = 1; k <= 3; k++) { const d = new Date(y, m - k, 1), pre = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; x += Store.state.transactions.filter((t) => t.date.startsWith(pre)).reduce((a, t) => a + Money.earn(t), 0); } return x / 3; })();
+    const debtMonthly = Accounts.oweList().reduce((a, acc) => { if (!Accounts.owedOn(acc)) return a; if (acc.type === 'credit') { const st = Debts.statement(acc); return a + (st?.minDue || 0); } return a + (Debts.plans().some((pl) => pl.accountId === acc.id) ? 0 : (Debts.payment(acc) || 0)); }, 0)
+      + Debts.plans().filter((pl) => pl.via !== 'card' && (Debts.planStatus()[pl.id]?.left || 0) > 0).reduce((a, pl) => a + pl.perPay, 0);
+    if (inc3 > 0 && debtMonthly / inc3 >= 0.4) out.push({ p: 8.2, icon: '💳', page: 'money', text: `About <b>${Math.round((debtMonthly / inc3) * 100)}%</b> of your monthly income goes to debt payments (${fmt0(debtMonthly)} a month). Above 40% is usually considered high.` });
+    const wk = toISODate(new Date(Date.now() - 7 * 864e5));
+    const odd = Store.state.transactions.filter((t) => t.date >= wk && Money.kind(t) === 'expense' && this.isUnusual(t.amount, t.category, t.id)).sort((a, b) => b.amount - a.amount)[0];
+    if (odd) out.push({ p: 7.8, icon: '🔎', page: 'activity', text: `Unusual: <b>${fmt0(odd.amount)}</b> on ${escapeHTML(odd.category)} (${escapeHTML(odd.description.slice(0, 40))}) is much more than your usual ${fmt0(this.typical(odd.category, odd.id))}. Typo?` });
+    const dbl = Bills.duplicates().find((d) => d.type === 'charge');
+    if (dbl) out.push({ p: 8, icon: '⚠️', page: 'plan', text: `Possible double charge: ${dbl.text}` });
+    const sug = Bills.detect()[0];
+    if (sug) out.push({ p: 6.8, icon: '🔁', page: 'plan', text: `New repeating charge? <b>${escapeHTML(sug.name)}</b> ${fmt0(sug.amount)} seems ${FREQS[sug.freq].toLowerCase()}. Track it in Bills, or tell Tiffo it isn’t.` });
+    const owed = Accounts.owed(), lt = Loans.totals();
+    if (owed) out.push({ p: 6.5, icon: '💳', page: 'money', text: `You owe <b>${fmt0(owed)}</b> on cards and loans.` });
+    if (lt.theyOwe) out.push({ p: 4, icon: '👥', page: 'money', text: `People owe you <b>${fmt0(lt.theyOwe)}</b>.` });
+    if (lt.youOwe) out.push({ p: 4.5, icon: '👥', page: 'money', text: `You owe family &amp; friends <b>${fmt0(lt.youOwe)}</b>.` });
+    const nwS = NetWorth.series(2), nw = nwS[1], d = round2(nw.net - nwS[0].net);
+    if (nw.own || nw.owe) out.push({ p: 5.5, icon: '📊', page: 'money', text: `Net worth <b>${fmt0(nw.net)}</b>${d ? ` (${d > 0 ? '▲' : '▼'} ${fmt0(Math.abs(d))} since last month)` : ''}.` });
+    const iv = Invest.totals();
+    if (iv.value) out.push({ p: 3, icon: '📈', page: 'money', text: `Investments worth <b>${fmt0(iv.value)}</b> (${iv.gain >= 0 ? '+' : '−'}${fmt0(Math.abs(iv.gain))} overall${iv.estimated ? ', includes estimates' : ''}).` });
+    return out.sort((a, b) => b.p - a.p);
+  },
+};
+
+/* =========================================================================
+   SECURITY — app lock (PIN) and password-protected backups.
+   Honest limits: the PIN screen stops someone casually opening Tiffo on this
+   device; it does NOT encrypt the data stored in this browser. Backups made
+   with a password ARE encrypted (AES-GCM, key from PBKDF2-SHA-256).
+   The PIN is never stored, only a salted PBKDF2 hash of it.
+   ========================================================================= */
+const Sec = {
+  b64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); },
+  unb64(s) { return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); },
+  async kdf(secret, salt, iterations, usage) {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, usage === 'bits' ? ['deriveBits'] : ['deriveKey']);
+    if (usage === 'bits') return crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, base, 256);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  },
+  /* ----- PIN lock ----- */
+  ITER: 150000,
+  cfg() { return Store.state.settings?.lock || null; },
+  on() { return !!this.cfg()?.hash; },
+  async setPin(pin, autoMin = 5) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const hash = await this.kdf(pin, salt, this.ITER, 'bits');
+    const bio = this.cfg()?.bio;
+    (Store.state.settings ||= {}).lock = { salt: this.b64(salt), hash: this.b64(hash), iter: this.ITER, auto: autoMin, fails: 0, until: 0, ...(bio ? { bio } : {}) };
+    Store.save();
+  },
+  off() { if (Store.state.settings) delete Store.state.settings.lock; Store.save(); },
+  /** → { ok } or { ok:false, wait: seconds } — after 3 wrong tries, waits double each time (30s, 60s, 120s…). */
+  async verify(pin) {
+    const c = this.cfg(); if (!c) return { ok: true };
+    const now = Date.now();
+    if (c.until && now < c.until) return { ok: false, wait: Math.ceil((c.until - now) / 1000) };
+    const h = this.b64(await this.kdf(String(pin), this.unb64(c.salt), c.iter || this.ITER, 'bits'));
+    if (h === c.hash) { c.fails = 0; c.until = 0; Store.save(); return { ok: true }; }
+    c.fails = (c.fails || 0) + 1;
+    if (c.fails >= 3) c.until = now + 30000 * Math.pow(2, Math.min(c.fails - 3, 6));
+    Store.save();
+    return { ok: false, wait: c.until && c.until > now ? Math.ceil((c.until - now) / 1000) : 0, left: Math.max(0, 3 - c.fails) };
+  },
+  /* ----- encrypted backups ----- */
+  BACKUP_ITER: 250000,
+  async encrypt(obj, password) {
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await this.kdf(password, salt, this.BACKUP_ITER, 'key');
+    const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+    return { app: 'Tiffo', format: 1, encrypted: true, cipher: 'AES-GCM-256', kdf: { alg: 'PBKDF2-SHA-256', iter: this.BACKUP_ITER, salt: this.b64(salt) }, iv: this.b64(iv), exportedAt: new Date().toISOString(), data: this.b64(data) };
+  },
+  async decrypt(file, password) {
+    const key = await this.kdf(password, this.unb64(file.kdf.salt), file.kdf.iter, 'key');
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: this.unb64(file.iv) }, key, this.unb64(file.data));   // throws if the password is wrong
+    return JSON.parse(new TextDecoder().decode(plain));
+  },
+};
+
+/* =========================================================================
+   FINGERPRINT / FACE UNLOCK — uses the phone's or computer's own check
+   (WebAuthn, "platform authenticator"). Tiffo never sees the fingerprint or
+   face; the device only says "verified" and signs a fresh challenge, which
+   Tiffo checks against the public key saved when it was turned on.
+   Same strength as the PIN screen: a convenience lock, not encryption.
+   ========================================================================= */
+const Bio = {
+  _ok: null,
+  async supported() {
+    if (this._ok != null) return this._ok;
+    try { this._ok = !!(window.PublicKeyCredential && window.isSecureContext && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+    catch (e) { this._ok = false; }
+    return this._ok;
+  },
+  on() { return !!Sec.cfg()?.bio; },
+  b64url(buf) { return Sec.b64(buf).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); },
+  async enroll() {
+    const cred = await navigator.credentials.create({ publicKey: {
+      challenge: crypto.getRandomValues(new Uint8Array(32)), rp: { name: 'Tiffo' },
+      user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'tiffo-app-lock', displayName: 'Tiffo app lock' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+      timeout: 60000, attestation: 'none' } });
+    const pk = cred.response.getPublicKey?.(), alg = cred.response.getPublicKeyAlgorithm?.() ?? -7;
+    Sec.cfg().bio = { id: Sec.b64(cred.rawId), pk: pk ? Sec.b64(pk) : null, alg };
+    Store.save();
+  },
+  off() { if (Sec.cfg()) { delete Sec.cfg().bio; Store.save(); } },
+  /** DER-encoded ECDSA signature → the raw r‖s form WebCrypto expects. */
+  derToRaw(der) {
+    let i = 2; if (der[1] & 0x80) i += der[1] & 0x7f;
+    const part = () => { i++; const len = der[i++]; let v = der.slice(i, i + len); i += len; while (v.length > 32 && v[0] === 0) v = v.slice(1); const out = new Uint8Array(32); out.set(v, 32 - v.length); return out; };
+    const r = part(), s = part(), raw = new Uint8Array(64); raw.set(r); raw.set(s, 32); return raw;
+  },
+  /** → true only if the device verified the person and signed this exact challenge with the saved key. */
+  async unlock() {
+    const b = Sec.cfg()?.bio; if (!b) return false;
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const a = await navigator.credentials.get({ publicKey: { challenge, allowCredentials: [{ type: 'public-key', id: Sec.unb64(b.id) }], userVerification: 'required', timeout: 60000 } });
+    if (!a) return false;
+    const r = a.response, ad = new Uint8Array(r.authenticatorData), cd = JSON.parse(new TextDecoder().decode(r.clientDataJSON));
+    if (cd.type !== 'webauthn.get' || cd.challenge !== this.b64url(challenge) || cd.origin !== location.origin) return false;
+    if (!(ad[32] & 0x04)) return false;   // "user verified" flag: fingerprint/face/device PIN actually checked
+    if (!b.pk) return true;               // older browsers don't give the public key; the checks above still apply
+    const rsa = b.alg === -257;
+    const key = await crypto.subtle.importKey('spki', Sec.unb64(b.pk), rsa ? { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' } : { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', r.clientDataJSON)), signed = new Uint8Array(ad.length + 32);
+    signed.set(ad); signed.set(hash, ad.length);
+    const sig = new Uint8Array(r.signature);
+    return crypto.subtle.verify(rsa ? 'RSASSA-PKCS1-v1_5' : { name: 'ECDSA', hash: 'SHA-256' }, key, rsa ? sig : this.derToRaw(sig), signed);
+  },
+};
+
+/* =========================================================================
+   SCAM CHECK — looks for common warning signs in a pasted message or offer.
+   Runs only on this device; nothing pasted is saved or sent. It can point out
+   warning signs; it can never confirm that something is safe.
+   ========================================================================= */
+const ScamCheck = {
+  SIGNS: [
+    { id: 'secrets', level: 3, title: 'Asks for your OTP, PIN, password or card details',
+      re: [/\b(otp|one[- ]time (?:pin|password|code)|verification code|auth(?:entication)? code|mpin|\bpin\b|password|passcode|cvv|cvc|security code|card number|expiry date|6[- ]digit code)\b/i],
+      why: 'Banks, GCash, Maya and real companies never ask for these by text, chat, email or call. Anyone with your OTP can take your money.',
+      tip: 'Never share an OTP, PIN, password or card code with anyone, even someone who says they’re from your bank.' },
+    { id: 'remote', level: 3, title: 'Asks you to install an app or share your screen',
+      re: [/\b(anydesk|teamviewer|rustdesk|quick ?support|screen ?shar(?:e|ing)|install (?:this|the) app|download (?:this|the) app|apk)\b/i],
+      why: 'Remote-access apps let a stranger see and control your phone, including your banking apps.',
+      tip: 'Don’t install apps or share your screen because someone asked you to.' },
+    { id: 'advance', level: 3, title: 'Wants you to pay a fee first',
+      re: [/\b(processing|release|clearance|customs|activation|registration|insurance|verification|handling|withdrawal|unlock(?:ing)?|tax) fee\b/i, /\bpay (?:a |the )?(?:small )?(?:fee|amount|deposit) (?:first|before|to (?:claim|release|receive|withdraw|get))\b/i, /\b(?:bago (?:ma-?release|makuha)|bayad muna)\b/i],
+      why: 'Real prizes, loans and refunds don’t make you pay first to receive them. Advance fees are the most common scam pattern.',
+      tip: 'If you have to pay to receive money, assume it’s a scam.' },
+    { id: 'guarantee', level: 3, title: 'Promises guaranteed or very high returns',
+      re: [/\b(guaranteed?|sure (?:profit|income|kita)|no risk|risk[- ]free|zero risk|double your (?:money|investment)|walang talo|siguradong kita|fixed (?:daily|weekly) (?:income|returns?))\b/i, /\b\d{1,3}(?:\.\d+)?\s*%\s*(?:per|a|every|kada)\s*(?:day|week|month|araw|linggo|buwan)\b/i, /\b(?:x2|x3|2x|3x|triple)\b.*\b(?:money|investment|puhunan)\b/i],
+      why: 'Every real investment can lose money. Promises like “guaranteed” or several percent a day or month are classic signs of a Ponzi or pyramid scheme.',
+      tip: 'Check whether the company and the product are registered with the SEC before investing.' },
+    { id: 'urgent', level: 2, title: 'Pressures you to act right away',
+      re: [/\b(urgent|immediately|right now|asap|within \d+ (?:hours?|minutes?|mins?)|today only|last chance|final notice|expires? (?:today|soon|tonight)|limited slots?|act now|agad|ngayon na|bilisan)\b/i, /\b(?:account|card|wallet|sim) (?:will be |has been |is )?(?:suspended|blocked|deactivated|closed|locked|frozen)\b/i],
+      why: 'Scammers rush you so you don’t stop to check. Real banks give you time and let you call their official hotline.',
+      tip: 'Slow down. Nothing legitimate needs you to act in the next few minutes.' },
+    { id: 'secret', level: 2, title: 'Asks you to keep it secret',
+      re: [/\b(don'?t tell|do not tell|keep (?:this|it) (?:a )?(?:secret|confidential|between us)|between (?:you and me|us)|wag mong sabihin|huwag mong ipagsabi|atin-atin lang|confidential)\b/i],
+      why: 'Secrecy stops you from asking family or friends, who might spot the scam.',
+      tip: 'Talk to someone you trust before sending money.' },
+    { id: 'payment', level: 2, title: 'Unusual way to pay',
+      re: [/\b(gift ?cards?|google play cards?|itunes|steam cards?|load|e-?load|crypto|bitcoin|btc|usdt|tether|binance|western union|money ?gram|palawan|cebuana)\b/i, /\b(?:send|transfer|padala)\b.*\b(?:personal|this|my) (?:gcash|maya|account|number)\b/i, /\b(?:to|sa)\s+(?:this|ito|ang)\s+(?:gcash|maya)\s+(?:number|account)\b/i],
+      why: 'Gift cards, load, crypto and payments to a personal e-wallet are hard to trace or reverse. Real businesses use official payment channels.',
+      tip: 'Pay companies only through their official app or website that you open yourself.' },
+    { id: 'link', level: 2, title: 'Has a link to “verify” or “claim”',
+      re: [/\b(bit\.ly|tinyurl|t\.co|is\.gd|cutt\.ly|rb\.gy|shorturl|s\.id)\b/i, /\b(?:click|tap|open|visit)\b.{0,40}\b(?:link|here|below)\b/i, /https?:\/\/\S*(?:verify|secure|login|update|claim|reward|prize|refund)\S*/i, /\b(?:g-?cash|maya|bdo|bpi|metrobank|landbank|lazada|shopee)[-.]\w*\.(?:com|net|xyz|top|online|site|info|ph)\b/i],
+      why: 'Fake links copy real login pages to steal your details. Short links hide where they really go.',
+      tip: 'Don’t tap links in messages. Open your bank or e-wallet app yourself instead.' },
+    { id: 'prize', level: 2, title: 'Says you won something you didn’t join',
+      re: [/\b(congratulations|you(?:'ve| have)? won|winner|nanalo ka|prize|raffle|lucky draw|selected|claim your)\b/i],
+      why: 'You can’t win a raffle or promo you never entered.',
+      tip: 'Ignore prizes you didn’t sign up for. Check the company’s official page if unsure.' },
+    { id: 'impersonate', level: 2, title: 'Claims to be a bank, e-wallet, courier or government office',
+      re: [/\b(bdo|bpi|metrobank|landbank|security bank|unionbank|gcash|maya|paymaya|bsp|bir|sss|philhealth|pag-?ibig|lbc|j&t|jrs|ninja ?van|dhl|fedex|customs|meralco|globe|smart|dito|shopee|lazada|nbi|pnp)\b/i],
+      why: 'Scammers often pretend to be well-known companies or agencies to sound trustworthy. The name alone proves nothing.',
+      tip: 'Contact the company using the hotline or app you look up yourself, not the number in the message.' },
+    { id: 'family', level: 2, title: 'Says it’s someone you know, from a new number',
+      re: [/\b(new number|bagong number|changed (?:my )?number|lost my phone|nawala (?:ang )?phone)\b/i, /\b(?:mom|ma|dad|pa|anak|kuya|ate|tita|tito)\b.{0,40}\b(?:emergency|hospital|ospital|need money|kailangan ng pera|padalhan)\b/i],
+      why: 'A common trick: someone pretends to be family with a “new number” and an emergency.',
+      tip: 'Call the person on their old number, or ask something only they would know.' },
+    { id: 'job', level: 2, title: 'Easy money for simple tasks',
+      re: [/\b(like and (?:follow|subscribe)|simple tasks?|task (?:commission|income)|earn (?:₱|php|p)?\s?\d[\d,]* (?:daily|a day|per day|araw-araw)|work from home.{0,30}(?:earn|kita)|recharge your (?:account|balance)|commission per (?:order|task))\b/i],
+      why: '“Task” jobs pay small amounts at first, then ask you to deposit money to unlock bigger tasks, which you never get back.',
+      tip: 'A real job never asks you to pay or “recharge” to get paid.' },
+    { id: 'loan', level: 2, title: 'A loan offer that seems too easy',
+      re: [/\b(no credit check|no requirements|instant approval|approved (?:instantly|na agad)|walang requirements|1 ?valid id lang|loan approved)\b/i],
+      why: 'Fake lenders approve “instantly”, then demand fees before releasing the loan. Some real online lenders also harass borrowers or misuse contacts.',
+      tip: 'Check that a lender is registered with the SEC, and never pay to “release” a loan.' },
+    { id: 'wrongsend', level: 2, title: '“Wrong send”: they want money returned',
+      re: [/\b(wrong send|sent (?:it )?to you by mistake|na-?wrong send|nagkamali ako ng send|pakibalik|please return (?:the|my) money)\b/i],
+      why: 'Scammers send a fake receipt (or a real payment from a stolen account) and ask you to return it to a different number.',
+      tip: 'Check your actual balance in your app. If money truly arrived by mistake, contact your e-wallet’s official support, not the sender.' },
+  ],
+  check(text) {
+    const t = String(text || '');
+    const hits = [];
+    for (const s of this.SIGNS) {
+      const found = [];
+      for (const re of s.re) { const m = t.match(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g')); if (m) found.push(...m); }
+      if (found.length) hits.push({ ...s, found: [...new Set(found.map((x) => x.trim()))].slice(0, 4) });
+    }
+    // A bank/agency name alone is normal; only count it alongside another sign.
+    const others = hits.filter((h) => h.id !== 'impersonate');
+    const list = others.length ? hits : [];
+    const score = list.reduce((a, h) => a + h.level, 0), strong = list.some((h) => h.level === 3);
+    const verdict = !list.length ? 'none' : strong || score >= 5 ? 'high' : 'some';
+    return { hits: list.sort((a, b) => b.level - a.level), score, verdict };
+  },
+  highlight(text, hits) {
+    let html = escapeHTML(text);
+    const words = [...new Set(hits.flatMap((h) => h.found))].sort((a, b) => b.length - a.length).slice(0, 25);
+    for (const w of words) { const e = escapeHTML(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); html = html.replace(new RegExp(e, 'gi'), (m) => `<mark class="rounded bg-amber-200/80 dark:bg-amber-700/60 px-0.5">${m}</mark>`); }
+    return html;
+  },
+};
+
+/* =========================================================================
    RETIREMENT — simple projections with labelled assumptions. Never a promise.
    ========================================================================= */
 const Retire = {
@@ -3154,9 +3742,9 @@ const Backup = {
   build() {
     return { app: 'Tiffo', format: this.FORMAT, schema: Store.SCHEMA, exportedAt: new Date().toISOString(), currency: CURRENCY, data: JSON.parse(JSON.stringify(Store.state)) };
   },
-  download() {
-    const json = JSON.stringify(this.build(), null, 1);
-    const name = `tiffo-backup-${toISODate(new Date())}.json`;
+  async download(password = null) {
+    const json = JSON.stringify(password ? await Sec.encrypt(this.build(), password) : this.build(), null, 1);
+    const name = `tiffo-backup-${toISODate(new Date())}${password ? '-protected' : ''}.json`;
     try {
       const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
       const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
@@ -3375,6 +3963,14 @@ const Pockets = {
     return best;
   },
 
+  /** Saving needed per month to reach a pocket's goal by its date. */
+  perMonth(p) {
+    if (!p.goal || !p.by) return null;
+    const left = p.goal - this.balance(p); if (left <= 0) return 0;
+    const now = new Date(), by = new Date(p.by + 'T00:00:00');
+    const months = Math.max(1, (by.getFullYear() - now.getFullYear()) * 12 + (by.getMonth() - now.getMonth()));
+    return round2(left / months);
+  },
   create(name, { emoji, goal = null, exact = false } = {}) {
     const clean = (exact ? name : name.replace(new RegExp(`\\b${this.WORDS}s?\\b`, 'gi'), '')).replace(/\s+/g, ' ').trim().slice(0, 30);
     const title = clean.replace(/\b\w/g, (c) => c.toUpperCase());
@@ -4564,8 +5160,8 @@ const Exporter = {
 const Nav = {
   PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More' },
   // Which page each card lives on.
-  OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', retire: 'plan', timeline: 'plan', bills: 'plan', insurance: 'plan', records: 'more', spending: 'plan', profit: 'plan',
-    networth: 'money', accounts: 'money', invest: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
+  OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', retire: 'plan', timeline: 'plan', bills: 'plan', insurance: 'plan', records: 'more', scam: 'more', spending: 'plan', profit: 'plan',
+    glance: 'home', household: 'money', networth: 'money', accounts: 'money', invest: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
   page: 'home',
   pageOf(el) { return this.OF[el.dataset.tool] || 'more'; },
   read() { const m = location.hash.match(/^#(home|activity|plan|money|more)\b/); this.page = m ? m[1] : 'home'; },
@@ -4750,8 +5346,8 @@ const UI = {
     const el = $('#balanceDisplay');
     el.textContent = fmt(b);
     const card = $('#balanceCard');
-    ['from-indigo-600', 'via-violet-600', 'to-fuchsia-600'].forEach((c) => card.classList.toggle(c, b >= 0));
-    ['from-rose-600', 'via-rose-500', 'to-orange-500'].forEach((c) => card.classList.toggle(c, b < 0));
+    ['from-slate-800', 'to-teal-700'].forEach((c) => card.classList.toggle(c, b >= 0));
+    ['from-rose-700', 'to-orange-600'].forEach((c) => card.classList.toggle(c, b < 0));
     if (this.lastBalance !== null && this.lastBalance !== b) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
     this.lastBalance = b;
     $('#balanceSub').textContent = Pockets.list().length ? `${fmt0(Pockets.free())} free · ${fmt0(Pockets.total())} in pockets`
@@ -4856,7 +5452,7 @@ const UI = {
   renderAll() {
     // Each card draws on its own, so one problem never blanks out the rest of the app.
     for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
-      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderTimeline(), () => this.renderBills(), () => this.renderPolicies(), () => this.renderRecords(), () => this.renderSyncStatus()]) {
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderTimeline(), () => this.renderBills(), () => this.renderPolicies(), () => this.renderRecords(), () => this.renderHousehold(), () => this.renderGlance(), () => this.renderLockStatus(), () => this.renderSyncStatus()]) {
       try { f(); } catch (e) { console.error('Render problem', e); }
     }
   },
@@ -5089,6 +5685,8 @@ const UI = {
     if (ai) return this.handleAssetNote(text, ai);
     const ii = Parser.investIntent(text);
     if (ii) return this.handleInvestNote(text, ii);
+    const hi = Parser.householdIntent(text);
+    if (hi) { this.splitForm({ total: hi.total, with: hi.with, paidBy: hi.paidBy, desc: hi.desc, category: hi.category }); this._afterForm = () => { $('#noteInput').value = ''; $('#parsePreview').innerHTML = ''; }; return; }
     if (Reminders.isReminder(text)) {
       const r = Store.addReminder(Reminders.parse(text));
       $('#noteInput').value = ''; $('#parsePreview').innerHTML = '';
@@ -5131,6 +5729,11 @@ const UI = {
     if (!items.length) return;
     const first = items[0];
     if (first.kind === 'statement') { this.handleStatement(text, first); return; }
+    const fx = FX.detect(text);
+    if (fx) {
+      if (items.length > 1) { toast(`Tiffo found an amount in ${fx.code}. Log foreign-currency amounts one at a time so each gets the right rate.`, { duration: 6500 }); return; }
+      return this.fxForm(text, first, fx);
+    }
     if (items.length === 1 && !first.amount && !(first.kind === 'forgive' && first.person)) {
       toast(`I couldn't find an amount. Try something like “Spent ${exampleMoney(15)} on gas”.`);
       $('#noteInput').focus();
@@ -5141,6 +5744,7 @@ const UI = {
       it.amount = (it.side === 'mine' ? Loans.oweTo(it.person) : Loans.owedBy(it.person)) || null;
       if (!it.amount) { it.needs.push('amount'); it.why.unshift(`${it.person} doesn’t owe anything in Tiffo yet`); }
     }
+    for (const it of items) if (it.kind === 'expense' && it.amount && Insights.isUnusual(it.amount, it.category)) it.needs.push('unusual');
     const sure = (it) => it.confidence >= 0.75 && !it.needs.length && !(it.account && !it.account.id);
     if (items.every(sure)) {
       const saved = items.map((it) => this.recordEntry(it, text));
@@ -5159,6 +5763,38 @@ const UI = {
     this.reviewEntries(items, text);
   },
 
+  /** A note in another currency: show the rate (looked up, or typed), then the usual check card. Nothing is saved yet. */
+  async fxForm(text, it, fx) {
+    const date = it.date || toISODate(new Date());
+    toast(`💱 Looking up the ${fx.code} rate…`, { duration: 2500 });
+    const r = await FX.rate(fx.code, CURRENCY, date), man = FX.lastManual(fx.code, CURRENCY);
+    const rate = r?.rate ?? man?.rate ?? '';
+    this.form({
+      title: `Convert ${fx.code} to ${CURRENCY}`, save: 'Next',
+      sub: r ? `${escapeHTML(r.source)} (${escapeHTML(prettyDate(r.date).replace(/^(Today|Yesterday)$/, (x) => x.toLowerCase()))}): 1 ${fx.code} = ${+r.rate.toFixed(4)} ${CURRENCY}. Banks and cards usually charge a little more, so type what you were actually charged if you know it.`
+        : `Tiffo couldn’t look up a rate for ${fx.code} right now${man ? ` (the one below is the rate you used last time, ${escapeHTML(prettyDate(man.date))})` : ''}. Type the rate your bank, card or money changer used.`,
+      fields: [
+        { id: 'orig', label: `Amount in ${fx.code}`, type: 'number', value: fx.value },
+        { id: 'rate', label: `1 ${fx.code} = how many ${CURRENCY}?`, type: 'number', value: rate },
+        { id: 'actual', label: `Or the exact amount charged in ${CURRENCY} (optional)`, type: 'number', value: '', hint: 'From your bank app or card statement. If you type it, Tiffo works out the real rate.' },
+      ],
+      onSave: (v) => {
+        if (!(v.orig > 0)) return `Type the amount in ${fx.code}.`;
+        let amount, rt, source;
+        if (v.actual > 0) { amount = round2(v.actual); rt = amount / v.orig; source = 'amount charged'; }
+        else {
+          if (!(v.rate > 0)) return `Type the rate, or the amount charged in ${CURRENCY}.`;
+          rt = v.rate; amount = round2(v.orig * v.rate);
+          source = r && Math.abs(rt - r.rate) < 1e-9 ? `${r.source}, ${r.date}` : 'your rate';
+        }
+        if (source === 'your rate' || source === 'amount charged') FX.saveManual(fx.code, CURRENCY, +rt.toFixed(6));
+        const item = { ...it, amount, fx: { code: fx.code, amount: round2(v.orig), rate: +rt.toFixed(6), source, date: r?.date || date }, needs: ['fx', ...(it.needs || []).filter((n) => n !== 'amount')] };
+        if (item.kind === 'expense' && Insights.isUnusual(amount, item.category)) item.needs.push('unusual');
+        setTimeout(() => this.reviewEntries([item], text), 0);
+      },
+    });
+  },
+
   /** Save one parsed entry. Returns the transaction. */
   recordEntry(it, text = '') {
     const kind = it.kind;
@@ -5174,7 +5810,9 @@ const UI = {
     const t = Store.addTransaction({
       kind, amount: it.amount || 0, category: it.category, date: it.date || toISODate(new Date()), description: it.description, ...(kind === 'forgive' && it.side === 'mine' ? { side: 'mine' } : {}),
       accountId, source: 'note', ...(it.person ? { person: it.person } : {}), ...(it.repeat ? { repeat: it.repeat } : {}), ...(pk ? { pocketId: pk.id } : {}),
+      ...(it.fx ? { fx: { ...it.fx, rate: +(round2(it.amount) / it.fx.amount).toFixed(6) } } : {}),
     });
+    if (t.fx && !String(t.description || '').includes(fmtIn(t.fx.amount, t.fx.code))) t.description = `${t.description || 'Entry'} (${FX.label(t.fx)})`;
     t.fresh = true;
     this.linkObligations(t);
     return t;
@@ -5259,13 +5897,15 @@ const UI = {
         gift_or_loan: 'Was this a gift, a loan, or a payment?', who_paid: `Was this pay for work, a gift, or ${it.person || 'someone'} paying you back?`, repay_or_income: `${it.person} owes you money. Is this them paying you back?`,
         installment: 'Paid in installments? For now, log just today’s payment (the first installment). Installment tracking is coming soon.',
         credit_card: 'Paying a credit card bill isn’t new spending. Add your card in Money → Accounts (type: Credit card), and Tiffo will count card purchases as spending and payments as paying off the card.', invest_out: 'Only the gain from an investment is income. Check the type.',
+        unusual: `That’s much more than your usual ${it.category} (about ${fmt0(Insights.typical(it.category) || 0)}). Please check the amount.`,
+        fx: it.fx ? `${fmtIn(it.fx.amount, it.fx.code)} at ${+it.fx.rate.toFixed(4)} = ${fmt(it.amount)} (${it.fx.source}). The original amount is kept with the entry.` : '',
         accounts: 'Which of your accounts did the money move between?', future: 'This date is in the future. Did it already happen?', big: 'That’s a big amount. Please double-check it.', amount: 'How much was it?', person: 'Who was it with?',
       };
       const tips = it.needs.map((n) => asks[n]).filter(Boolean);
       if (it.account && !it.account.id) tips.push(`${it.account.name} isn’t one of your accounts yet. Pick where the money came from, or add ${it.account.name}.`);
       const accOpts = this.accountOptions(it);
       const fields = [
-        { id: 'tip', type: 'note', label: '', html: `<b>Tiffo wasn’t sure.</b> ${escapeHTML(tips[0] || (why.length ? 'It looks like ' + why[0] + '.' : 'Please check the details.'))}${it.aiGuess ? '<br><span class="text-[11px] opacity-80">✨ The free AI suggested these details.</span>' : ''}` },
+        { id: 'tip', type: 'note', label: '', html: `<b>${it.needs[0] === 'fx' ? '💱 Converted.' : 'Tiffo wasn’t sure.'}</b> ${escapeHTML(tips[0] || (why.length ? 'It looks like ' + why[0] + '.' : 'Please check the details.'))}${it.aiGuess ? '<br><span class="text-[11px] opacity-80">✨ The free AI suggested these details.</span>' : ''}` },
         { id: 'kind', label: 'What happened?', type: 'select', value: it.kind || 'expense', options: this.KIND_CHOICES },
         { id: 'amount', label: 'Amount', type: 'number', value: it.amount ?? '', show: (v) => v.kind !== 'forgive' || true, hint: it.kind === 'forgive' ? 'Leave empty to forgive everything they still owe.' : '' },
         { id: 'person', label: 'Who?', value: it.person || '', placeholder: 'e.g. Maria, Mom, Kuya', show: (v) => loanKinds.includes(v.kind) || v.kind === 'gift_in', hint: people.length ? `People so far: ${people.slice(0, 8).join(', ')}` : '' },
@@ -5372,6 +6012,8 @@ const UI = {
   },
 
   livePreview(text) {
+    const hi = text.trim() && Parser.householdIntent(text);
+    if (hi) { $('#parsePreview').innerHTML = `🧺 Shared: <b>${escapeHTML(hi.desc)}</b> ${fmt(hi.total)}${hi.with.length ? ' with ' + hi.with.map(escapeHTML).join(' & ') : ''}${hi.paidBy !== 'me' ? ` · ${escapeHTML(hi.paidBy)} paid` : ''} · you’ll confirm the split`; return; }
     const ii = text.trim() && !Parser.debtIntent(text) && !Parser.assetIntent(text) && Parser.investIntent(text);
     if (ii) {
       const nm = ii.holding ? escapeHTML(ii.holding.name) : 'an investment';
@@ -5592,7 +6234,7 @@ const UI = {
         { id: 'mode', label: 'How?', type: 'select', value: cur ? 'merge' : 'replace', options: [['merge', 'Add what’s missing (keep my current data, skip duplicates)'], ['replace', 'Replace everything with the backup']] },
         { id: 'warn', type: 'note', label: '', html: '⚠️ Replacing removes what’s on this device now. You can undo right after.', show: (x) => x.mode === 'replace' && cur > 0 },
       ],
-      onSave: (x) => {
+      onSave: async (x) => {
         const r = Backup.restore(v, x.mode);
         Budgets.registerCategories(); this.applyCurrency(); this.renderAll();
         toast(x.mode === 'replace' ? `✅ Restored ${r.added} entries.` : `✅ Added ${r.added} entries${r.skipped ? `, skipped ${r.skipped} already here` : ''}.`,
@@ -5676,6 +6318,363 @@ const UI = {
       b.closest('div.flex').remove(); toast('↩ Restored.');
     }, { once: false });
   },
+  /* ---------- scam check ---------- */
+  runScamCheck() {
+    const text = $('#scamInput').value.trim();
+    if (!text) { $('#scamResult').innerHTML = '<p class="text-sm text-stone-500">Paste a message first.</p>'; return; }
+    const r = ScamCheck.check(text);
+    const head = { high: ['bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900', '🚩 Strong warning signs', 'This looks like a common scam. Don’t send money, codes or personal details.'],
+      some: ['bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900', '⚠️ Some warning signs', 'Be careful. Check it through an official channel before doing anything.'],
+      none: ['bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700', 'No common warning signs found', 'That does NOT mean it’s safe. Scams change all the time. If it involves money, verify it yourself first.'] }[r.verdict];
+    $('#scamResult').innerHTML = `<div class="rounded-xl border ${head[0]} p-3">
+        <div class="font-bold">${head[1]}</div><p class="text-sm mt-0.5">${head[2]}</p></div>
+      ${r.hits.map((h) => `<div class="mt-2 rounded-xl border border-stone-200 dark:border-stone-800 p-3 text-sm">
+        <div class="font-semibold">${h.level === 3 ? '🚩' : '⚠️'} ${escapeHTML(h.title)}</div>
+        <div class="text-[12px] text-stone-500 dark:text-stone-400 mt-0.5">Found: ${h.found.map((f) => `“${escapeHTML(f)}”`).join(', ')}</div>
+        <p class="mt-1">${escapeHTML(h.why)}</p><p class="mt-1 font-medium">👉 ${escapeHTML(h.tip)}</p></div>`).join('')}
+      ${r.hits.length ? `<details class="mt-2 text-sm"><summary class="cursor-pointer font-semibold">Show the message with warning signs marked</summary><div class="mt-1 rounded-lg bg-stone-50 dark:bg-stone-950 p-2 whitespace-pre-wrap break-words">${ScamCheck.highlight(text, r.hits)}</div></details>` : ''}
+      <div class="mt-2 rounded-xl bg-teal-50/70 dark:bg-teal-950/25 border border-teal-200/70 dark:border-teal-900/50 p-3 text-sm">
+        <div class="font-semibold">Always safe to do</div>
+        <ul class="mt-1 list-disc pl-5 space-y-0.5"><li>Never share OTPs, PINs, passwords or card codes. No real company asks for them.</li>
+        <li>Contact the company through its official app, or a hotline you look up yourself, not the number or link in the message.</li>
+        <li>Ask someone you trust before sending money, especially if you’re being rushed.</li>
+        <li>If you already sent money or a code, contact your bank or e-wallet right away through its official app to report it.</li></ul></div>`;
+  },
+
+  /* ---------- app lock ---------- */
+  renderLockStatus() {
+    const on = Sec.on();
+    $('#lockStatus').innerHTML = on ? `On · locks after ${Sec.cfg().auto} min away. <span class="opacity-80">Keeps out a casual onlooker; it doesn’t encrypt your data.</span>` : 'Off. Add a PIN so someone picking up your phone can’t open Tiffo.';
+    $('#lockSetBtn').textContent = on ? 'Change or turn off' : 'Set a PIN';
+    $('#lockNowBtn').classList.toggle('hidden', !on);
+    $('#signOutAllBtn')?.classList.toggle('hidden', !(Auth.user && Auth.user.provider === 'cloud'));
+    $('#lockBio').classList.toggle('hidden', !(on && Bio.on()));
+    Bio.supported().then((ok) => {
+      $('#bioRow').classList.toggle('hidden', !(ok && on));
+      $('#bioStatus').innerHTML = Bio.on() ? 'On. Open Tiffo with your fingerprint or face; the PIN still works too. <span class="opacity-80">Same protection as the PIN: it doesn’t encrypt your data.</span>' : 'Open Tiffo with your phone’s fingerprint or face check instead of typing the PIN.';
+      $('#bioBtn').textContent = Bio.on() ? 'Turn off' : 'Turn on';
+    });
+  },
+  async bioToggle() {
+    if (Bio.on()) { Bio.off(); this.renderLockStatus(); toast('Fingerprint/face unlock is off. Use your PIN.'); return; }
+    if (!(await this.requirePin('Enter your PIN to turn on fingerprint or face unlock.'))) return;
+    try { await Bio.enroll(); this.renderLockStatus(); toast('👆 Done. Next time Tiffo locks, tap “Use fingerprint or face”.', { duration: 6000 }); }
+    catch (e) { toast(e?.name === 'NotAllowedError' ? 'Cancelled, or this browser doesn’t allow fingerprint/face unlock on this page.' : 'This device or browser couldn’t set up fingerprint/face unlock.', { duration: 6000 }); }
+  },
+  async bioUnlock() {
+    try {
+      if (await Bio.unlock()) { $('#lockScreen').classList.add('hidden'); $('#lockScreen').classList.remove('flex'); document.body.style.overflow = ''; this._lastActive = Date.now(); return; }
+      $('#lockMsg').textContent = 'That didn’t work. Use your PIN.';
+    } catch (e) { $('#lockMsg').textContent = 'Fingerprint/face check was cancelled. Use your PIN, or try again.'; }
+  },
+  /** Ask for the PIN before a sensitive action (if a PIN is set). Resolves true/false. */
+  requirePin(reason) {
+    if (!Sec.on()) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      let done = false;
+      this.form({ title: 'Enter your PIN', save: 'Continue', sub: reason,
+        fields: [{ id: 'pin', label: 'PIN', value: '', placeholder: '••••' }],
+        onSave: async (v) => { const r = await Sec.verify(v.pin || ''); if (!r.ok) return r.wait ? `Too many tries. Wait ${r.wait} seconds.` : 'That PIN isn’t right.'; done = true; resolve(true); } });
+      const inp = $('#fm_pin'); if (inp) { inp.type = 'password'; inp.inputMode = 'numeric'; inp.autocomplete = 'off'; }
+      const obs = new MutationObserver(() => { if ($('#formModal').classList.contains('hidden')) { obs.disconnect(); if (!done) resolve(false); } });
+      obs.observe($('#formModal'), { attributes: true, attributeFilter: ['class'] });
+    });
+  },
+  async lockSettings() {
+    const on = Sec.on();
+    if (on && !(await this.requirePin('Enter your current PIN to change the lock.'))) return;
+    setTimeout(() => this.form({
+      title: on ? 'App lock' : 'Set a PIN', save: 'Save',
+      sub: 'A PIN stops someone who picks up your phone or computer from opening Tiffo. It does not encrypt the data stored in this browser: someone with technical skill and access to this device could still read it. Use your phone’s screen lock too, and sign out on shared computers.',
+      fields: [
+        { id: 'pin', label: on ? 'New PIN (4 to 8 digits)' : 'PIN (4 to 8 digits)', value: '', placeholder: '••••' },
+        { id: 'pin2', label: 'Type it again', value: '', placeholder: '••••' },
+        { id: 'auto', label: 'Lock after I’ve been away for', type: 'select', value: String(Sec.cfg()?.auto || 5), options: [['1', '1 minute'], ['5', '5 minutes'], ['15', '15 minutes'], ['30', '30 minutes']] },
+      ],
+      danger: on ? { label: 'Turn off the lock', fn: () => { Sec.off(); this.closeForm(); this.renderLockStatus(); toast('🔓 App lock is off.'); } } : null,
+      onSave: async (v) => {
+        if (!/^\d{4,8}$/.test(v.pin || '')) return 'Use 4 to 8 digits.';
+        if (v.pin !== v.pin2) return 'The two PINs don’t match.';
+        if (/^(\d)\1+$/.test(v.pin) || '0123456789'.includes(v.pin) || '9876543210'.includes(v.pin)) return 'That PIN is too easy to guess. Try another.';
+        await Sec.setPin(v.pin, +v.auto || 5); this.renderLockStatus();
+        toast(`🔒 PIN set. Tiffo locks after ${+v.auto || 5} min away.`);
+      },
+    }), 0);
+    setTimeout(() => ['#fm_pin', '#fm_pin2'].forEach((id) => { const i = $(id); if (i) { i.type = 'password'; i.inputMode = 'numeric'; i.autocomplete = 'new-password'; } }), 10);
+  },
+  lockNow() {
+    if (!Sec.on()) return;
+    this.closeForm?.();
+    $('#lockScreen').classList.remove('hidden'); $('#lockScreen').classList.add('flex');
+    $('#lockPin').value = ''; $('#lockMsg').textContent = '';
+    $('#lockBio').classList.toggle('hidden', !Bio.on());
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => $('#lockPin').focus(), 50);
+  },
+  locked() { return !$('#lockScreen').classList.contains('hidden'); },
+  bindLock() {
+    onSubmit($('#lockForm'), $('#lockBtn'), async () => {
+      const r = await Sec.verify($('#lockPin').value);
+      if (r.ok) { $('#lockScreen').classList.add('hidden'); $('#lockScreen').classList.remove('flex'); document.body.style.overflow = ''; this._lastActive = Date.now(); return; }
+      $('#lockPin').value = '';
+      $('#lockMsg').textContent = r.wait ? `Too many wrong tries. Wait ${r.wait} seconds.` : `That PIN isn’t right.${r.left ? ` ${r.left} more ${r.left === 1 ? 'try' : 'tries'} before a short wait.` : ''}`;
+    });
+    $('#lockForgot').addEventListener('click', async () => {
+      if (Auth.user && Auth.user.provider === 'cloud') {
+        if (!(await askConfirm('To reset your PIN, sign in again with your email and password. Your data is safe in your account.', 'Sign in again'))) return;
+        Sec.off(); await Auth.signOut(); $('#lockScreen').classList.add('hidden'); document.body.style.overflow = ''; location.reload();
+        return;
+      }
+      if (!(await askConfirm('This device isn’t signed in to a Tiffo account, so the PIN can’t be reset safely. The only way in is to erase Tiffo’s data on this device. If you have a backup file, you can restore it afterwards. Erase and start over?', 'Erase this device’s data'))) return;
+      try { LS.removeItem(Store.key()); } catch (e) {}
+      location.reload();
+    });
+    this._lastActive = Date.now();
+    for (const ev of ['pointerdown', 'keydown', 'scroll', 'touchstart']) window.addEventListener(ev, () => { if (!this.locked()) this._lastActive = Date.now(); }, { passive: true });
+    const check = () => { if (Sec.on() && !this.locked() && Date.now() - this._lastActive > (Sec.cfg().auto || 5) * 60000) this.lockNow(); };
+    setInterval(check, 15000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); else this._hiddenAt = Date.now(); });
+    $('#lockSetBtn').addEventListener('click', () => this.lockSettings());
+    $('#lockNowBtn').addEventListener('click', () => this.lockNow());
+    $('#bioBtn').addEventListener('click', () => this.bioToggle());
+    $('#lockBio').addEventListener('click', () => this.bioUnlock());
+    $('#signOutAllBtn').addEventListener('click', async () => {
+      $('#accountMenu').classList.add('hidden');
+      if (!(await askConfirm('Sign out of Tiffo on every phone and computer, including this one?', 'Sign out everywhere'))) return;
+      try { await (await Auth.supabase()).auth.signOut({ scope: 'global' }); } catch (e) { toast('Couldn’t reach the server. Check your connection and try again.'); return; }
+      await Auth.signOut(); this.onUserChanged(); toast('Signed out on all devices.');
+    });
+    if (Sec.on()) this.lockNow();
+  },
+
+  /** Backup with an optional password (encrypted in this browser before saving). */
+  backupForm() {
+    this.form({
+      title: 'Download a backup', save: 'Download',
+      sub: 'One file with everything in Tiffo. Keep it somewhere safe, like Google Drive or your email.',
+      fields: [
+        { id: 'protect', type: 'checkbox', label: 'Protect it with a password (recommended)', value: true },
+        { id: 'pw', label: 'Password (at least 8 characters)', value: '', show: (v) => v.protect },
+        { id: 'pw2', label: 'Type it again', value: '', show: (v) => v.protect, hint: 'The file is encrypted with this password. If you forget it, the backup can’t be opened, and Tiffo can’t recover it.' },
+      ],
+      onSave: async (v) => {
+        if (v.protect) {
+          if ((v.pw || '').length < 8) return 'Use at least 8 characters.';
+          if (v.pw !== v.pw2) return 'The two passwords don’t match.';
+        } else if (!(await this.requirePin('Enter your PIN to download an unprotected backup.'))) return 'Cancelled.';
+        await Backup.download(v.protect ? v.pw : null);
+      },
+    });
+    setTimeout(() => ['#fm_pw', '#fm_pw2'].forEach((id) => { const i = $(id); if (i) { i.type = 'password'; i.autocomplete = 'new-password'; } }), 10);
+  },
+  /** An encrypted backup file: ask for its password, then show the usual preview. */
+  restoreEncrypted(obj, fileName) {
+    this.form({
+      title: 'This backup is password-protected', save: 'Open it', sub: escapeHTML(fileName),
+      fields: [{ id: 'pw', label: 'Backup password', value: '' }],
+      onSave: async (v) => {
+        try { const plain = await Sec.decrypt(obj, v.pw || ''); setTimeout(() => this.restoreForm(Backup.validate(plain), fileName), 0); }
+        catch (e) { return 'Wrong password, or the file is damaged.'; }
+      },
+    });
+    setTimeout(() => { const i = $('#fm_pw'); if (i) { i.type = 'password'; i.autocomplete = 'off'; } }, 10);
+  },
+
+  /* ---------- at a glance (Home) ---------- */
+  renderGlance() {
+    const all = Insights.list(), first = all.slice(0, 4), rest = all.slice(4);
+    const li = (x) => `<li><button type="button" data-goto="${x.page}" class="w-full flex gap-2.5 text-left rounded-lg px-2 py-1.5 hover:bg-stone-50 dark:hover:bg-stone-800/50"><span class="text-base leading-6" aria-hidden="true">${x.icon}</span><span class="text-sm leading-6">${x.text}</span></button></li>`;
+    const hasData = Store.state.transactions.length || Accounts.list().length > 1 || Store.state.initialBalance;
+    $('#glanceEmpty').classList.toggle('hidden', !!hasData);
+    $('#glanceList').innerHTML = hasData ? first.map(li).join('') : '';
+    $('#glanceMore').innerHTML = hasData ? rest.map(li).join('') : '';
+    $('#glanceMoreBtn').classList.toggle('hidden', !hasData || !rest.length);
+    $('#glanceMoreBtn').textContent = $('#glanceMore').classList.contains('hidden') ? `Show ${rest.length} more` : 'Show less';
+  },
+
+  /* ---------- household ---------- */
+  renderHousehold() {
+    const ms = Household.balances(), allowances = Bills.active().filter((b) => b.kind === 'allowance'), goals = Pockets.list().filter((p) => p.family);
+    const shared = Store.state.transactions.some((t) => t.shared);
+    this.renderHHSync();
+    $('#hhEmpty').classList.toggle('hidden', !!(ms.length || allowances.length || goals.length));
+    $('#hhShareBtn').classList.toggle('hidden', !shared);
+    $('#hhMembers').innerHTML = ms.map((m) => `<li data-member="${escapeHTML(m.name)}" class="flex items-center gap-3 py-2">
+      <span class="h-8 w-8 rounded-full grid place-items-center bg-rose-100 dark:bg-rose-900/40 font-bold text-rose-900 dark:text-rose-200" aria-hidden="true">${escapeHTML(m.name[0].toUpperCase())}</span>
+      <span class="flex-1 min-w-0 truncate font-semibold">${escapeHTML(m.name)} <span class="font-normal text-sm ${m.net > 0 ? 'text-teal-700 dark:text-teal-400' : m.net < 0 ? 'text-orange-700 dark:text-orange-400' : 'text-stone-500'}">${m.net > 0 ? `owes you ${fmt0(m.net)}` : m.net < 0 ? `you owe ${fmt0(-m.net)}` : 'all settled'}</span></span>
+      ${m.net ? '<button type="button" class="hh-settle text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline">Settle up</button>' : ''}
+    </li>`).join('');
+    const yr = String(new Date().getFullYear()), sharedSpend = Store.state.transactions.filter((t) => t.shared && Money.kind(t) === 'expense' && t.date.slice(0, 7) === toISODate(new Date()).slice(0, 7)).reduce((a, t) => a + t.amount, 0);
+    $('#hhExtra').innerHTML = [
+      sharedSpend ? `<div>🧺 Your share of household costs this month: <b>${fmt0(sharedSpend)}</b></div>` : '',
+      ...allowances.map((b) => `<div>🧒 Allowance: <b>${escapeHTML(b.name)}</b> ${fmt0(b.amount || 0)} ${(FREQS[b.freq] || '').toLowerCase()} · next ${escapeHTML(prettyDate(b.nextDue))}</div>`),
+      ...goals.map((p) => { const bal = Pockets.balance(p), pm = Pockets.perMonth(p); return `<div>${escapeHTML(p.emoji)} Family goal <b>${escapeHTML(p.name)}</b>: ${fmt0(bal)}${p.goal ? ` of ${fmt0(p.goal)}` : ''}${pm ? ` · ${fmt0(pm)}/month to reach it by ${escapeHTML(new Date(p.by + 'T00:00:00').toLocaleDateString([], { month: 'short', year: 'numeric' }))}` : ''}</div>`; }),
+    ].join('');
+  },
+  /* ---------- household sync (family on their own phones) ---------- */
+  renderHHSync() {
+    const el = $('#hhSync'); if (!el) return;
+    const btn = (act, label, extra = '', cls = 'border border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 hover:bg-rose-50 dark:hover:bg-rose-950/40') => `<button type="button" data-hh="${act}" ${extra} class="rounded-lg ${cls} text-xs font-semibold px-2.5 py-1.5">${label}</button>`;
+    const head = '<div class="font-semibold">👪 Share with family on their own phones</div>';
+    if (!HHSync.available()) { el.innerHTML = `${head}<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">Sign in with a Tiffo account (top right) to make a household. Then the expenses you choose to share show up in each other’s Tiffo, ready to add.</p>`; return; }
+    const c = HHSync.cfg();
+    if (!c) { el.innerHTML = `${head}<p class="mt-1 text-xs text-stone-500 dark:text-stone-400">Make a household and send the invite code to family or housemates, or join theirs. Only expenses you choose to share are posted; the rest of your Tiffo stays private.</p><div class="mt-2 flex flex-wrap gap-2">${btn('create', '+ Make a household')}${btn('join', 'Join with a code')}</div>`; return; }
+    if (!HHSync.hh) {
+      if (!HHSync.loading && !HHSync.error) HHSync.load().then(() => this.renderHHSync());
+      el.innerHTML = HHSync.error ? `${head}<p class="mt-1 text-xs text-rose-700 dark:text-rose-400">Couldn’t load your household: ${escapeHTML(HHSync.error)}</p><div class="mt-2">${btn('refresh', '↻ Try again')}</div>` : `${head}<p class="mt-1 text-xs text-stone-500">Loading…</p>`;
+      return;
+    }
+    if (Date.now() - HHSync.loadedAt > 60000 && !HHSync.loading) HHSync.load().then(() => this.renderHHSync());
+    const h = HHSync.hh, owner = HHSync.isOwner(), myId = HHSync.myId();
+    const people = HHSync.members.map((m) => `<li class="flex flex-wrap items-center gap-2 py-1.5">
+      <span class="h-7 w-7 rounded-full grid place-items-center bg-rose-100 dark:bg-rose-900/40 text-xs font-bold text-rose-900 dark:text-rose-200" aria-hidden="true">${escapeHTML(m.display_name[0].toUpperCase())}</span>
+      <span class="flex-1 min-w-[6rem] break-words">${escapeHTML(m.display_name)}${m.user_id === myId ? ' (you)' : ''}${m.role === 'owner' ? ' <span class="text-[11px] text-stone-400">· owner</span>' : ''}${!m.can_share ? ' <span class="text-[11px] text-orange-700 dark:text-orange-400">· can’t post</span>' : ''}</span>
+      ${owner && m.user_id !== myId ? `${btn('perm', m.can_share ? 'Stop posting' : 'Allow posting', `data-uid="${m.user_id}" data-on="${m.can_share ? 0 : 1}"`, 'border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800')}${btn('kick', 'Remove', `data-uid="${m.user_id}"`, 'text-rose-700 dark:text-rose-400 hover:underline')}` : ''}
+    </li>`).join('');
+    const feed = HHSync.items.slice(0, 25).map((it) => {
+      const d = it.data || {}, mine = it.author === myId, f = HHSync.forMe(it), done = mine || HHSync.isDone(it.id), other = d.currency && d.currency !== CURRENCY;
+      const money = (n) => (other ? fmtIn(n, d.currency) : fmt(n));
+      let what;
+      if (it.kind === 'split') what = `🧺 <b>${escapeHTML(d.desc || 'Shared expense')}</b> ${money(d.total)} · ${escapeHTML(d.payer)} paid${f?.mine != null && !f.payerIsMe ? ` · your share <b>${money(f.mine)}</b>` : ''}`;
+      else if (it.kind === 'settle') what = `🤝 ${escapeHTML(d.from)} paid ${escapeHTML(d.to)} <b>${money(d.amount)}</b>`;
+      else what = escapeHTML(it.kind);
+      const canAdd = !done && !other && (it.kind === 'split' ? !!f || true : !!f);
+      const actions = [
+        done ? `<span class="text-[11px] text-teal-700 dark:text-teal-400">${mine ? 'Posted by you' : '✓ In your Tiffo'}</span>` : other ? `<span class="text-[11px] text-stone-400">In ${escapeHTML(d.currency)}; add it by hand</span>` : canAdd ? btn('add', 'Add to my Tiffo', `data-id="${it.id}"`, 'bg-rose-600 hover:bg-rose-700 text-white') + btn('skip', 'Not for me', `data-id="${it.id}"`, 'text-stone-500 hover:underline') : '',
+        mine || owner ? btn('del', '🗑', `data-id="${it.id}" aria-label="Delete this post" title="Delete this post"`, 'text-stone-400 hover:text-rose-700') : '',
+      ].join('');
+      return `<li class="py-2"><div>${what}</div><div class="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-stone-400"><span>${escapeHTML(HHSync.nameOf(it.author))} · ${escapeHTML(prettyDate(d.date || it.created_at.slice(0, 10)))}</span>${actions}</div></li>`;
+    }).join('');
+    const pending = HHSync.items.filter((it) => it.author !== myId && !HHSync.isDone(it.id)).length;
+    el.innerHTML = `<div class="flex flex-wrap items-center justify-between gap-2"><div class="font-semibold">👪 ${escapeHTML(h.name)}${pending ? ` <span class="ml-1 rounded-full bg-rose-600 text-white text-[11px] px-1.5 py-0.5">${pending} new</span>` : ''}</div>
+      <div class="flex flex-wrap gap-2">${btn('refresh', '↻', 'aria-label="Refresh" title="Refresh"', 'border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800')}${btn('invite', '+ Invite')}</div></div>
+      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${people}</ul>
+      <div class="mt-3 text-xs font-semibold text-stone-500">Shared in this household</div>
+      <ul class="divide-y divide-stone-100 dark:divide-stone-800">${feed || '<li class="py-2 text-xs text-stone-500">Nothing yet. When you save a shared expense, tick “Post to this household”.</li>'}</ul>
+      ${HHSync.me()?.can_share === false ? '<p class="mt-2 text-xs text-orange-700 dark:text-orange-400">The owner turned off posting for you. You can still see and add what others share.</p>' : ''}
+      <div class="mt-3 flex flex-wrap gap-3 text-xs">${owner ? btn('delhh', 'Delete household', '', 'text-rose-700 dark:text-rose-400 hover:underline') : btn('leave', 'Leave household', '', 'text-rose-700 dark:text-rose-400 hover:underline')}</div>`;
+  },
+  async hhAction(act, b) {
+    const run = async (fn, ok) => { try { await fn(); if (ok) toast(ok); } catch (e) { toast(`Couldn’t do that: ${escapeHTML(e.message || 'no connection')}`, { duration: 6000 }); } this.renderHHSync(); this.renderHousehold(); };
+    const nameField = { id: 'me', label: 'Your name in the household', value: '', placeholder: 'e.g. Mom, Kuya, Ana', hint: 'What the others will see. They’ll use it when splitting with you, so keep it the same as what they call you.' };
+    if (act === 'create') return this.form({ title: 'Make a household', save: 'Make it', sub: 'You’ll get an invite code to send to family or housemates. Only expenses you choose to share are posted; your other records stay private.',
+      fields: [{ id: 'name', label: 'Household name', value: '', placeholder: 'e.g. Our home, Condo 12B' }, nameField],
+      onSave: async (v) => { if (!(v.name || '').trim()) return 'Type a name for the household.'; if (!(v.me || '').trim()) return 'Type your name.';
+        try { await HHSync.create(v.name.trim().slice(0, 60), v.me.trim().slice(0, 40)); } catch (e) { return e.message; }
+        this.renderHHSync(); setTimeout(() => this.hhAction('invite'), 0); } });
+    if (act === 'join') return this.form({ title: 'Join a household', save: 'Join', sub: 'Ask the person who made it for the invite code.',
+      fields: [{ id: 'code', label: 'Invite code', value: '', placeholder: '10 letters and numbers' }, nameField],
+      onSave: async (v) => { if ((v.code || '').replace(/[^a-z0-9]/gi, '').length < 6) return 'Type the invite code.'; if (!(v.me || '').trim()) return 'Type your name.';
+        try { await HHSync.join(v.code, v.me.trim().slice(0, 40)); } catch (e) { return e.message; }
+        this.renderHHSync(); toast(`👪 You joined ${escapeHTML(HHSync.hh?.name || 'the household')}.`); } });
+    if (act === 'refresh') return run(() => HHSync.load(true));
+    if (act === 'invite') {
+      const code = HHSync.hh.invite_code, msg = `Join our household “${HHSync.hh.name}” on Tiffo. Sign in, open Money → Household, tap “Join with a code” and type: ${code}`;
+      return this.form({ title: 'Invite someone', save: 'Copy message', sub: 'Send this to people you trust. Anyone with the code can join and see what’s shared here, not the rest of your Tiffo.',
+        fields: [{ id: 'msg', type: 'note', label: '', html: `<div class="text-center text-2xl font-bold tracking-widest tabular">${escapeHTML(code)}</div>` }, { id: 'text', type: 'textarea', label: 'Message', value: msg }],
+        danger: HHSync.isOwner() ? { label: 'Make a new code (old one stops working)', fn: () => { this.closeForm(); run(() => HHSync.newCode(), '🔑 New invite code made. The old one no longer works.').then(() => this.hhAction('invite')); } } : null,
+        onSave: async (v) => { try { await navigator.clipboard.writeText(v.text || msg); toast('📋 Copied. Paste it in Messenger or Viber.'); } catch (e) { return 'Couldn’t copy. Select the message and copy it yourself.'; } } });
+    }
+    const id = b?.dataset.id, item = id && HHSync.items.find((i) => i.id === id);
+    if (act === 'skip' && item) { HHSync.markDone(item.id); return this.renderHHSync(); }
+    if (act === 'add' && item) {
+      const f = HHSync.forMe(item), d = item.data;
+      const finish = (share) => { const made = HHSync.importItem(item, share); this.renderAll(); toast(`✓ Added to your Tiffo${made.length ? '' : ' (nothing to record for you)'}`, { action: made.length ? { label: 'Undo', fn: () => { made.forEach((t) => Store.removeTransaction(t.id, true)); HHSync.cfg().done = HHSync.cfg().done.filter((x) => x !== item.id); Store.save(); UI.renderAll(); } } : null }); };
+      if (item.kind === 'split' && (f?.mine == null || f.payerIsMe)) {
+        const n = Math.max(1, Object.keys(d.shares || {}).length);
+        return this.form({ title: 'Your share', save: 'Add', sub: `${escapeHTML(d.desc)} ${fmt(d.total)}, posted by ${escapeHTML(d.by || HHSync.nameOf(item.author))}. ${f?.payerIsMe ? 'It says you paid. ' : 'Your name isn’t on it, so tell Tiffo your part. '}Only your share counts as your spending.`,
+          fields: [{ id: 'share', label: 'My share', type: 'number', value: f?.mine ?? round2(d.total / (n + (f?.mine == null ? 1 : 0))) }],
+          onSave: (v) => { if (v.share == null || v.share < 0 || v.share > d.total) return 'Your share should be between 0 and the total.'; finish(round2(v.share)); } });
+      }
+      return finish();
+    }
+    if (act === 'del' && item) { if (!(await askConfirm('Delete this post for everyone in the household? Entries people already added to their own Tiffo stay there.', 'Delete'))) return; return run(() => HHSync.removeItem(item.id), 'Deleted.'); }
+    if (act === 'perm') return run(() => HHSync.setCanShare(b.dataset.uid, b.dataset.on === '1'));
+    if (act === 'kick') { if (!(await askConfirm(`Remove ${escapeHTML(HHSync.nameOf(b.dataset.uid))} from the household? They won’t see new posts. What they already added to their own Tiffo stays theirs.`, 'Remove'))) return; return run(() => HHSync.removeMember(b.dataset.uid), 'Removed.'); }
+    if (act === 'leave') { if (!(await askConfirm('Leave this household? You’ll stop seeing its posts. Everything already in your own Tiffo stays.', 'Leave'))) return; return run(() => HHSync.leave(), 'You left the household.'); }
+    if (act === 'delhh') { if (!(await askConfirm('Delete this household and all its posts for everyone? Entries already in people’s own Tiffo stay there. This can’t be undone.', 'Delete household'))) return; return run(() => HHSync.deleteHousehold(), 'Household deleted.'); }
+  },
+  /** After saving a split or settle-up: post it if the person ticked the box. */
+  async hhPost(kind, data) {
+    let row = null;
+    try { row = await HHSync.post(kind, data); toast(`👪 Posted to ${escapeHTML(HHSync.hh.name)}.`); }
+    catch (e) { toast(`Saved in your Tiffo, but couldn’t post to the household: ${escapeHTML(e.message || 'no connection')}`, { duration: 7000 }); }
+    this.renderHHSync();
+    return row;
+  },
+  hhPostField() {
+    return { id: 'hhPost', type: 'checkbox', label: `Post to ${HHSync.hh?.name || 'my household'} so the others can add it`, value: HHSync.cfg()?.post !== false, show: () => HHSync.ready(), hint: 'Only this entry is shared. Nothing else in your Tiffo is.' };
+  },
+
+  /** Split a shared expense. Your share is your spending; the rest is owed between you. */
+  splitForm(pre = {}) {
+    const members = [...new Set([...Household.members(), ...(pre.with || [])])];
+    const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]);
+    const fields = [
+      { id: 'desc', label: 'What was it?', value: pre.desc || '', placeholder: 'e.g. Groceries, Meralco, Rent' },
+      { id: 'total', label: 'Total amount', type: 'number', value: pre.total ?? '' },
+      { id: 'paidBy', label: 'Who paid?', type: 'select', value: pre.paidBy || 'me', options: [['me', 'I paid'], ...members.map((m) => [m, `${m} paid`])] },
+      { id: 'newPerson', label: 'Split with (new person, optional)', value: '', placeholder: 'e.g. Ana', hint: members.length ? 'Tick people below, or add someone new.' : 'Type the name of who you share with.' },
+      ...members.map((m, i) => ({ id: `w${i}`, type: 'checkbox', label: `Split with ${m}`, value: (pre.with || []).includes(m) || (!pre.with && members.length === 1) })),
+      { id: 'how', label: 'How to split', type: 'select', value: 'equal', options: [['equal', 'Equally'], ['custom', 'Custom amounts']] },
+      { id: 'myShare', label: 'My share (custom)', type: 'number', value: '', show: (v) => v.how === 'custom', hint: 'The rest is split equally among the others.' },
+      { id: 'category', label: 'Category', type: 'select', value: pre.category || 'Groceries', options: this.catOptions('expense') },
+      { id: 'account', label: 'Paid from', type: 'select', value: Accounts.DEFAULT, options: cashOpts, show: (v) => v.paidBy === 'me' && cashOpts.length > 1, advanced: true },
+      { id: 'date', label: 'Date', type: 'date', value: pre.date || toISODate(new Date()), advanced: true },
+      this.hhPostField(),
+    ];
+    this.form({
+      title: 'Shared expense', save: 'Save', sub: 'Your share counts as your spending. The rest is money owed between you, so it isn’t counted twice.', fields,
+      onSave: (v) => {
+        if (!v.desc) return 'Type what it was for.';
+        if (!v.total || v.total <= 0) return 'Type the total.';
+        const withNames = members.filter((m, i) => v[`w${i}`]);
+        const np = (v.newPerson || '').trim().slice(0, 30);
+        if (np) withNames.push(np.replace(/^./, (c) => c.toUpperCase()));
+        if (v.paidBy !== 'me' && !withNames.includes(v.paidBy)) withNames.push(v.paidBy);
+        if (!withNames.length) return 'Choose who you split it with.';
+        let shares;
+        if (v.how === 'custom') {
+          if (v.myShare == null || v.myShare < 0 || v.myShare > v.total) return 'Your share should be between 0 and the total.';
+          const others = withNames, rest = round2(v.total - v.myShare), each = Math.floor((rest / others.length) * 100) / 100;
+          shares = { me: round2(v.myShare) }; others.forEach((o, i) => { shares[o] = i === 0 ? round2(rest - each * (others.length - 1)) : each; });
+        } else shares = Household.equalShares(v.total, withNames);
+        const made = Household.split({ total: round2(v.total), description: v.desc.slice(0, 60), category: v.category, date: v.date || toISODate(new Date()), paidBy: v.paidBy, shares, accountId: v.account || Accounts.DEFAULT });
+        if (HHSync.ready()) {
+          HHSync.cfg().post = !!v.hhPost; Store.save();
+          if (v.hhPost) {
+            const me = HHSync.myName(), named = {};
+            for (const [k, amt] of Object.entries(shares)) named[k === 'me' ? me : k] = round2(amt);
+            this.hhPost('split', { desc: v.desc.slice(0, 60), total: round2(v.total), category: v.category, date: v.date || toISODate(new Date()), payer: v.paidBy === 'me' ? me : v.paidBy, shares: named })
+              .then((row) => { if (row) { made.forEach((t) => (t.hhItem = row.id)); Store.save(); } });
+          }
+        }
+        this.renderAll();
+        toast(`🧺 ${escapeHTML(v.desc)} ${fmt(v.total)} · your share ${fmt(shares.me || 0)}${v.paidBy === 'me' ? ` · ${withNames.map((n) => `${escapeHTML(n)} owes you ${fmt(shares[n] || 0)}`).join(', ')}` : ` · you owe ${escapeHTML(v.paidBy)} ${fmt(shares.me || 0)}`}`,
+          { duration: 7000, action: { label: 'Undo', fn: () => { made.forEach((t) => Store.removeTransaction(t.id, true)); UI.renderAll(); } } });
+      },
+    });
+  },
+  settleForm(name) {
+    const net = round2(Loans.owedBy(name) - Loans.oweTo(name)), they = net > 0;
+    const cashOpts = Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]);
+    this.form({
+      title: `Settle up with ${name}`, save: 'Save', sub: they ? `${name} owes you ${fmt(net)}.` : `You owe ${name} ${fmt(-net)}.`,
+      fields: [
+        { id: 'amount', label: they ? `${name} paid you` : `You paid ${name}`, type: 'number', value: Math.abs(net) },
+        { id: 'account', label: they ? 'Went into' : 'Paid from', type: 'select', value: Accounts.DEFAULT, options: cashOpts, show: () => cashOpts.length > 1 },
+        { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()), advanced: true },
+        this.hhPostField(),
+      ],
+      onSave: (v) => {
+        if (!v.amount || v.amount <= 0) return 'Type the amount.';
+        if (HHSync.ready() && v.hhPost) { const me = HHSync.myName(); this.hhPost('settle', { from: they ? name : me, to: they ? me : name, amount: round2(v.amount), date: v.date || toISODate(new Date()) }); }
+        const t = this.recordEntry({ kind: they ? 'repay_in' : 'repay_out', amount: round2(v.amount), person: name, date: v.date || toISODate(new Date()), category: 'Loans', accountId: v.account || Accounts.DEFAULT, description: they ? `${name} settled up` : `Settled up with ${name}` });
+        this.renderAll(); this.savedToast([t]);
+      },
+    });
+  },
+
   /* ---------- coming up (timeline) ---------- */
   renderTimeline() {
     const items = Timeline.items(45);
@@ -6449,8 +7448,9 @@ const UI = {
         <button type="button" class="acct-edit h-7 w-7 rounded-md text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800" aria-label="Edit ${escapeHTML(a.name)}">⋯</button>
       </li>`;
     };
-    const has = Accounts.cashList(), owes = Accounts.oweList();
+    const has = Accounts.cashList(), owes = Accounts.oweList(), others = Accounts.othersList();
     $('#acctList').innerHTML = has.map(row).join('')
+      + (others.length ? `<li class="pt-3 pb-1 text-[11px] font-bold text-stone-400">Others’ money you track (not counted as yours)</li>` + others.map(row).join('') : '')
       + (owes.length ? `<li class="pt-2.5 flex justify-between text-xs text-stone-500 dark:text-stone-400"><span>You owe ${fmt(Accounts.owed())} on ${owes.length} card${owes.length > 1 ? 's/loans' : '/loan'}</span><a href="#money" class="font-semibold text-orange-700 dark:text-orange-400 hover:underline" onclick="document.querySelector('[data-tool=debts]').scrollIntoView({behavior:'smooth'});return false">See Cards &amp; loans ↓</a></li>` : '');
     $('#moveAcctBtn').classList.toggle('hidden', Accounts.list().length < 2);
     $('#moveAcctBtn').textContent = owes.length ? '⇄ Move money / pay a card' : '⇄ Move money';
@@ -6468,6 +7468,8 @@ const UI = {
           hint: a ? 'If this doesn’t match your app or bank, type the real amount and Tiffo will adjust.' : 'Leave empty for ₱0.' },
         { id: 'owed', label: a ? 'How much you owe right now' : 'How much do you owe on it now?', type: 'number', value: a && Accounts.owes(a) ? Accounts.owedOn(a) : (pre.owed ?? ''), show: isOwe,
           hint: 'Check your app or latest statement. Leave empty for ₱0.' },
+        { id: 'notMine', type: 'checkbox', label: 'This is someone else’s money I keep track of (don’t count it as mine)', value: !!a?.notMine, show: (v) => !isOwe(v), advanced: true },
+        { id: 'owner', label: 'Whose account? (optional)', value: a?.owner || '', placeholder: 'e.g. Mom', show: (v) => !isOwe(v) && v.notMine, advanced: true },
         { id: 'drawdown', type: 'checkbox', label: 'I just got this loan, and the money went into one of my accounts', value: !!pre.drawdown, show: (v) => !a && v.type === 'loan' },
         { id: 'into', label: 'Which account got the money?', type: 'select', value: Accounts.DEFAULT, options: Accounts.cashList().map((x) => [x.id, `${Accounts.icon(x)} ${x.name}`]), show: (v) => !a && v.type === 'loan' && v.drawdown },
         { id: 'limit', label: 'Credit limit (optional)', type: 'number', value: a?.limit ?? '', show: (v) => v.type === 'credit' },
@@ -6506,6 +7508,7 @@ const UI = {
           if (v.dueDay) acc.dueDay = v.dueDay; else delete acc.dueDay;
           if (v.dueDay && v.dueDay !== hadDue) this.dueReminder(acc);
         } else if (v.bal != null) Accounts.setOpening(acc, Accounts.opening(acc) + (v.bal - Accounts.balance(acc)));
+        if (!isOwe(v)) { if (v.notMine) { acc.notMine = true; acc.owner = (v.owner || '').slice(0, 30) || undefined; } else { delete acc.notMine; delete acc.owner; } }
         Store.save(); this.renderAll(); toast(a ? 'Account updated.' : `${Accounts.icon(acc)} Added ${escapeHTML(acc.name)}.`);
       },
       danger: a && a.id !== Accounts.DEFAULT ? { label: 'Remove account', fn: async () => {
@@ -6579,7 +7582,7 @@ const UI = {
         <div class="text-sm font-semibold truncate mt-1">${escapeHTML(p.name)}</div>
         <div class="text-lg font-extrabold tabular ${bal < 0 ? 'text-rose-600 dark:text-rose-400' : ''}">${fmt(bal)}</div>
         ${pct != null ? `<div class="mt-1 h-1.5 rounded-full bg-stone-200/70 dark:bg-stone-700 overflow-hidden"><div class="h-full rounded-full" style="width:${pct}%;background:${p.color}"></div></div>
-          <div class="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5 tabular">${Math.round(pct)}% of ${fmt0(p.goal)} goal</div>` : ''}
+          <div class="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5 tabular">${Math.round(pct)}% of ${fmt0(p.goal)} goal${p.by && Pockets.perMonth(p) ? ` · ${fmt0(Pockets.perMonth(p))}/mo to make it by ${escapeHTML(new Date(p.by + 'T00:00:00').toLocaleDateString([], { month: 'short', year: '2-digit' }))}` : pct >= 100 ? ' 🎉' : ''}${p.family ? ' · family' : ''}</div>` : ''}
         <div class="mt-2 grid grid-cols-2 gap-1.5">
           <button type="button" class="pk-add rounded-lg text-xs font-semibold py-1.5 text-white hover:brightness-110" style="background:${p.color}">+ Add</button>
           <button type="button" class="pk-take rounded-lg text-xs font-semibold py-1.5 border border-stone-300 dark:border-stone-700 hover:bg-white/70 dark:hover:bg-stone-800">− Take out</button>
@@ -6609,6 +7612,9 @@ const UI = {
     $('#pfName').value = pocket && kind === 'edit' ? pocket.name : '';
     $('#pfEmoji').value = pocket && kind === 'edit' ? pocket.emoji : '';
     $('#pfGoal').value = pocket && kind === 'edit' && pocket.goal ? pocket.goal : '';
+    $('#pfBy').value = pocket && kind === 'edit' && pocket.by ? pocket.by : '';
+    $('#pfFamily').checked = !!(pocket && kind === 'edit' && pocket.family);
+    show('#pfGoalExtra', kind === 'new' || kind === 'edit');
     $('#pfAmount').value = '';
     $('#pfError').classList.add('hidden');
     $('#pocketModal').classList.remove('hidden'); $('#pocketModal').classList.add('flex');
@@ -6629,11 +7635,12 @@ const UI = {
       if (kind === 'new') {
         if (amount > Pockets.free() + 0.001) return err(`Only ${fmt(Math.max(0, Pockets.free()))} is free to put in.`);
         const p = Pockets.create(name, { emoji: $('#pfEmoji').value.trim() || null, goal });
+        p.by = $('#pfBy').value || null; p.family = $('#pfFamily').checked || undefined;
         Store.save();
         if (amount) Pockets.move(amount, null, p.id, 'Opening amount');
         toast(`👛 New pocket: ${escapeHTML(p.emoji + ' ' + p.name)}${amount ? ` with ${fmt(amount)}` : ''}`);
       } else {
-        pocket.name = name.slice(0, 30); pocket.emoji = $('#pfEmoji').value.trim() || Pockets.emojiFor(name); pocket.goal = goal;
+        pocket.name = name.slice(0, 30); pocket.emoji = $('#pfEmoji').value.trim() || Pockets.emojiFor(name); pocket.goal = goal; pocket.by = $('#pfBy').value || null; pocket.family = $('#pfFamily').checked || undefined;
         Store.save(); toast('Pocket updated.');
       }
     } else {
@@ -6961,12 +7968,12 @@ const UI = {
       { page: 'home', el: '#logBtn', title: 'Press Log (or Enter)', text: 'Tiffo works out what it was. If it isn’t sure, it shows you a quick card to check before saving anything.' },
       { page: 'home', el: 'label[for="fileInput"]', title: 'Scan a receipt or contract', text: 'Tiffo reads it and explains it in plain English. For receipts, you check the amount and date before anything is saved.' },
       { page: 'home', el: '#balanceCard', title: 'Your money right now', text: 'The total in all your accounts: cash, GCash, banks.' },
-      { page: 'home', el: '[data-tool="summary"]', title: 'This month at a glance', text: 'Money in, money out, and what’s left. The charts below show where it went.' },
+      { page: 'home', el: '[data-tool="glance"]', title: 'At a glance', text: 'Tiffo tells you what matters in plain words: what’s free to spend, how this month compares, what’s due soon. Tap a line to go there.' },
       { page: 'home', el: '[data-nav="activity"]', title: 'Activity', text: 'Every entry, newest first. Tap a category to change it, or delete a mistake.' },
-      { page: 'home', el: '[data-nav="plan"]', title: 'Plan', text: `Budgets and reminders. You can type these too: “15% for groceries” or “remind me to pay rent on the 30th”.` },
-      { page: 'home', el: '[data-nav="money"]', title: 'Money', text: 'Your accounts, pockets (money set aside, like “toys”), and 👥 family & friends: money you lent or borrowed.' },
+      { page: 'home', el: '[data-nav="plan"]', title: 'Plan', text: `What’s coming up, bills and subscriptions, insurance, budgets and a retirement planner. You can type these too: “15% for groceries” or “Meralco due Friday”.` },
+      { page: 'home', el: '[data-nav="money"]', title: 'Money', text: 'Your net worth, accounts, investments, cards & loans, pockets, household and 👥 family & friends.' },
       { page: 'home', el: '#remBellBtn', title: 'Reminders bell', text: 'A red number means something is due.' },
-      { page: 'home', el: '[data-nav="more"]', title: 'More', text: 'Documents, settings (currency, starting balance, day or night), choosing what you see, and this tour again.' },
+      { page: 'home', el: '[data-nav="more"]', title: 'More', text: 'Documents, yearly records, backup, settings (currency, day or night), choosing what you see, and this tour again.' },
       { page: 'home', el: '#noteInput', title: 'Your turn!', text: `Try typing your first note now, like “Groceries ${fmt0(500)}”.`, last: true },
     ];
   },
@@ -7327,6 +8334,19 @@ const UI = {
     $('#addAssetBtn').addEventListener('click', () => this.assetForm());
     $('#addHoldingBtn').addEventListener('click', () => this.holdingForm());
     $('#addBillBtn').addEventListener('click', () => this.billForm());
+    $('#scamBtn').addEventListener('click', () => this.runScamCheck());
+    this.bindLock();
+    $('#splitBtn').addEventListener('click', () => this.splitForm());
+    $('#hhSync').addEventListener('click', (e) => { const b = e.target.closest('[data-hh]'); if (b) this.hhAction(b.dataset.hh, b); });
+    $('#allowanceBtn').addEventListener('click', () => this.billForm(null, { kind: 'allowance', category: 'Family Support', name: 'Allowance for ', freq: 'week', nextDue: Debts.addPeriods(toISODate(new Date()), 0) }));
+    $('#hhMembers').addEventListener('click', (e) => { const li = e.target.closest('[data-member]'); if (li && e.target.closest('.hh-settle')) this.settleForm(li.dataset.member); });
+    $('#hhShareBtn').addEventListener('click', async () => {
+      const txt = Household.summary();
+      try { await navigator.clipboard.writeText(txt); toast('📋 Copied a summary of shared expenses only. Paste it in Messenger or Viber.'); }
+      catch (e) { this.form({ title: 'Shared summary', save: 'Done', sub: 'Copy this text. It includes shared items only.', fields: [{ id: 's', type: 'textarea', label: '', value: txt }], onSave: () => {} }); }
+    });
+    $('#glanceList').parentElement.addEventListener('click', (e) => { const b = e.target.closest('[data-goto]'); if (b) Nav.go(b.dataset.goto); });
+    $('#glanceMoreBtn').addEventListener('click', () => { $('#glanceMore').classList.toggle('hidden'); this.renderGlance(); });
     $('#addPolicyBtn').addEventListener('click', () => this.policyForm());
     $('#tlList').addEventListener('click', (e) => { const li = e.target.closest('[data-tl]'); const it = li && this._tl?.[+li.dataset.tl]; if (!it) return;
       if (e.target.closest('.tl-pay')) this.payTimelineItem(it);
@@ -7490,13 +8510,15 @@ const UI = {
     $('#exportBtn').addEventListener('click', () => Exporter.download());
     $('#exportBtn2').addEventListener('click', () => Exporter.download());
     $('#trashBtn').addEventListener('click', () => this.trashView());
-    $('#backupBtn').addEventListener('click', () => Backup.download());
+    $('#backupBtn').addEventListener('click', () => this.backupForm());
     $('#restoreInput').addEventListener('change', async (e) => {
       const f = e.target.files[0]; e.target.value = '';
       if (!f) return;
       if (f.size > 25 * 1024 * 1024) return toast('That file is too big to be a Tiffo backup.');
       let obj; try { obj = JSON.parse(await f.text()); } catch (err) { return toast('That file couldn’t be read. Pick the .json file Tiffo downloaded.'); }
-      this.restoreForm(Backup.validate(obj), f.name);
+      if (!(await this.requirePin('Enter your PIN to restore a backup.'))) return;
+      if (obj && obj.encrypted) { setTimeout(() => this.restoreEncrypted(obj, f.name), 0); return; }
+      setTimeout(() => this.restoreForm(Backup.validate(obj), f.name), 0);
     });
     const undoSafety = { label: 'Undo', fn: () => { if (Backup.undo()) toast('↩ Your data is back.'); } };
     $('#loadDemoBtn').addEventListener('click', async () => {
@@ -7505,6 +8527,7 @@ const UI = {
       seedDemoData(); Budgets.registerCategories(); this.applyCurrency(); this.renderAll(); toast('Demo data loaded.', { duration: 8000, action: undoSafety });
     });
     $('#clearAllBtn').addEventListener('click', async () => {
+      if (!(await this.requirePin('Enter your PIN to delete everything.'))) return;
       const n = Store.state.transactions.length;
       if (!(await askConfirm(`Delete ALL ${n} entries, accounts, pockets, budgets and scans? Tip: download a backup first (More → Settings). You can undo this right after.`, 'Delete everything'))) return;
       Backup.safety();

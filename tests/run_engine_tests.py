@@ -301,6 +301,201 @@ with sync_playwright() as p:
     check('records gov contributions', {'sss': r['gov'].get('SSS', 0), 'ph': r['gov'].get('PhilHealth', 0), 'pi': r['gov'].get('Pag-IBIG', 0)}, sss=1350, ph=500, pi=200)
     check('records business vs personal', {'b': r['business']['income'], 'p': r['personal']['income']}, b=5000, p=18000)
 
+    # ---------- Phase F: household, goals, overview ----------
+    # 32. You paid a shared expense: your share is spending, the others owe you; cash shows the full payment
+    reset(20000)
+    pg.evaluate("Household.split({ total: 3000, description: 'Groceries', category: 'Groceries', date: toISODate(new Date()), paidBy: 'me', shares: Household.equalShares(3000, ['Ana']) })")
+    check('split: I paid', {**state(), 'ana': pg.evaluate("Loans.owedBy('Ana')")}, cash=17000, spent=1500, theyOwe=1500, ana=1500)
+    # three ways, centavos land on me
+    pg.evaluate("Household.split({ total: 1000, description: 'Pizza', category: 'Meals', date: toISODate(new Date()), paidBy: 'me', shares: Household.equalShares(1000, ['Ana','Ben']) })")
+    check('split three ways', {'me': pg.evaluate("Store.state.transactions.filter(t=>t.description==='Pizza (my share)')[0].amount"), 'ben': pg.evaluate("Loans.owedBy('Ben')")}, me=333.34, ben=333.33)
+
+    # 33. Someone else paid: my share is spending, I owe them, no cash moves today; settle up later
+    reset(20000)
+    pg.evaluate("Household.split({ total: 3000, description: 'Groceries', category: 'Groceries', date: toISODate(new Date()), paidBy: 'Mom', shares: Household.equalShares(3000, ['Mom']) })")
+    check('split: Mom paid', {**state(), 'mom': pg.evaluate("Loans.oweTo('Mom')")}, cash=20000, spent=1500, youOwe=1500, mom=1500)
+    form_submit("UI.settleForm('Mom')")
+    check('settle up', state(), cash=18500, youOwe=0, spent=1500)
+
+    # 34. Split via a note
+    reset(20000)
+    note('Split groceries 3,000 with Ana')
+    check('split note', state(), spent=1500, theyOwe=1500, cash=17000)
+
+    # 35. Goals with a date: monthly amount needed
+    reset(20000)
+    pg.evaluate("() => { const p = Pockets.create('House fund', { goal: 12000 }); p.by = Bills.step(toISODate(new Date()), 'month', 6); p.family = true; Pockets.move(3000, null, p.id); }")
+    check('goal per month', {'pm': pg.evaluate("Pockets.perMonth(Pockets.find('House fund'))")}, pm=1500)
+
+    # 36. Someone else's account you track isn't counted as yours
+    reset(20000)
+    pg.evaluate("() => { const a = Accounts.create('Mom GCash','ewallet'); a.notMine = true; a.owner = 'Mom'; Accounts.setOpening(a, 50000); }")
+    check('others\' money excluded', {'cash': state()['cash'], 'net': nw()['net']}, cash=20000, net=20000)
+
+    # 37. Overview insights speak plainly and are ordered by importance
+    reset(20000)
+    pg.evaluate("""() => { const d = new Date(), y = d.getFullYear(), m = d.getMonth(), day = String(Math.min(d.getDate(), 28)).padStart(2,'0');
+      const prev = new Date(y, m - 1, 1), pm = `${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}-01`;
+      Store.addTransaction({kind:'expense', amount:1000, category:'Groceries', date: pm, description:'g'});
+      Store.addTransaction({kind:'expense', amount:2000, category:'Groceries', date: `${y}-${String(m+1).padStart(2,'0')}-01`, description:'g'}); }""")
+    ins = pg.evaluate("Insights.list().map(i => i.text)")
+    check('insight compares months', {'ok': 1 if any('100% more' in t and 'Groceries' in t for t in ins) else 0}, ok=1)
+
+    # ---------- Phase G: safety & security ----------
+    # 38. PIN is stored only as a salted hash; wrong tries slow down; correct PIN works
+    reset(10000)
+    pg.evaluate("Sec.setPin('482913', 5)")
+    st = pg.evaluate("JSON.stringify(Store.state.settings.lock)")
+    check('PIN not stored in plain text', {'plain': 1 if '482913' in st else 0, 'hashed': 1 if pg.evaluate("Sec.cfg().hash.length > 20") else 0}, plain=0, hashed=1)
+    r = [pg.evaluate("Sec.verify('000000')") for _ in range(3)]
+    check('3 wrong tries → wait', {'wait': 1 if r[-1].get('wait', 0) >= 25 else 0, 'ok': 1 if any(x['ok'] for x in r) else 0}, wait=1, ok=0)
+    check('locked out even with right PIN during wait', {'ok': 1 if pg.evaluate("Sec.verify('482913')")['ok'] else 0}, ok=0)
+    pg.evaluate("Sec.cfg().until = 0")
+    check('right PIN after the wait', {'ok': 1 if pg.evaluate("Sec.verify('482913')")['ok'] else 0}, ok=1)
+
+    # 39. Password-protected backup: encrypted, opens with the password, refuses a wrong one
+    reset(10000); note('Groceries 1,234 at Puregold')
+    enc = pg.evaluate("Sec.encrypt(Backup.build(), 'correct horse 9').then(JSON.stringify)")
+    check('backup is encrypted', {'leak': 1 if 'Puregold' in enc or '1234' in enc else 0}, leak=0)
+    ok = pg.evaluate("e => Sec.decrypt(JSON.parse(e), 'correct horse 9').then(d => d.data.transactions.length)", enc)
+    bad = pg.evaluate("e => Sec.decrypt(JSON.parse(e), 'wrong password').then(() => 'opened').catch(() => 'refused')", enc)
+    check('decrypts with password, refuses wrong one', {'n': ok, 'bad': 1 if bad == 'refused' else 0}, n=1, bad=1)
+
+    # 40. A malicious backup can't run code: descriptions are shown as text
+    reset(10000)
+    evil = {"app": "Tiffo", "format": 1, "data": {"transactions": [{"id": "x1", "date": "2026-11-01", "amount": 5, "kind": "expense", "category": "Meals", "description": "<img src=x onerror=window.__pwned=1>"}]}}
+    pg.evaluate("e => { Backup.restore(Backup.validate(e), 'replace'); UI.renderAll(); Nav.go('activity'); }", evil)
+    pg.wait_for_timeout(50)
+    check('no code injection from imports', {'img': pg.evaluate("document.querySelectorAll('#ledgerList img').length"), 'pwned': 1 if pg.evaluate("!!window.__pwned") else 0}, img=0, pwned=0)
+
+    # 41. Scam Check finds warning signs, never calls something safe
+    samples = {'GCash: Your account will be suspended within 24 hours. Verify at gcash-verify.top and enter the 6-digit OTP.': 'high',
+               'Congratulations! You won P50,000. To claim pay the processing fee to this GCash number.': 'high',
+               'Earn 5% per day guaranteed! No risk.': 'high',
+               'Na-wrong send ko po sa inyo 2,000, pakibalik po.': 'some',
+               'BDO: Your statement for November is now available in the BDO app.': 'none',
+               'Meeting moved to 3pm tomorrow.': 'none'}
+    got = {t: pg.evaluate("t => ScamCheck.check(t).verdict", t) for t in samples}
+    check('scam check verdicts', {'right': sum(1 for t in samples if got[t] == samples[t])}, right=len(samples))
+    pg.evaluate("Nav.go('more')"); pg.evaluate("document.getElementById('scamInput').value='Meeting moved to 3pm tomorrow.'; UI.runScamCheck()")
+    check('no "safe" verdict wording', {'notsafe': 1 if 'does NOT mean it’s safe' in pg.inner_text('#scamResult') else 0}, notsafe=1)
+
+    # 42. Unusual amounts ask first; cash shortfall is warned
+    reset(5000)
+    pg.evaluate("""() => { for (const d of ['2026-10-01','2026-10-15','2026-11-01','2026-11-10']) Store.addTransaction({kind:'expense', amount:300, category:'Meals', date:d, description:'lunch'}); }""")
+    pg.evaluate("async t => { document.getElementById('noteInput').value = t; await UI.submitNote(t); }", 'lunch 35,000')
+    asked = not pg.evaluate("document.getElementById('formModal').classList.contains('hidden')")
+    tip = pg.inner_text('#fmFields') if asked else ''
+    pg.evaluate("UI.closeForm()")
+    check('unusual amount asks first', {'asked': 1 if asked and 'much more than your usual' in tip else 0, 'saved': pg.evaluate("Store.state.transactions.length")}, asked=1, saved=4)
+    bill(name='Rent', amount=8000, nextDue=pg.evaluate("Debts.addPeriods(toISODate(new Date()), 0).slice(0,8) + '28'"), category='Rent', kind='rent')
+    check('cash shortfall warned', {'w': 1 if any('more than your cash' in t for t in pg.evaluate("Insights.list().map(i => i.text)")) else 0}, w=1)
+
+    # 43. Foreign currency: detected, rate shown with its source, nothing saved until confirmed, original kept
+    reset(10000)
+    det = pg.evaluate("""() => ['Dinner $25', 'Lunch 350', 'Taxi ₱200', 'Coffee €4.50', 'Souvenir 1000 yen', 'Hotel USD 120', 'Grab 250 pesos'].map(t => (FX.detect(t) || {}).code || '-').join(',')""")
+    check('detects foreign amounts', {'ok': 1 if det == 'USD,-,-,EUR,JPY,USD,-' else 0}, ok=1)
+    if det != 'USD,-,-,EUR,JPY,USD,-': fails.append('detected: ' + det)
+    pg.evaluate("""() => { window.__fx = []; window.fetch = async (u) => { window.__fx.push(String(u)); return { ok: true, json: async () => ({ date: '2026-11-19', rates: { PHP: 58.5 } }) }; }; }""")
+    pg.evaluate("async t => { document.getElementById('noteInput').value = t; await UI.submitNote(t); }", 'Dinner $25')
+    pg.wait_for_timeout(60)
+    sub = pg.inner_text('#formModal')
+    check('rate form shows source, nothing saved yet', {'src': 1 if 'European Central Bank' in sub else 0, 'rate': pg.evaluate("+document.getElementById('fm_rate').value"), 'saved': pg.evaluate("Store.state.transactions.length")}, src=1, rate=58.5, saved=0)
+    pg.evaluate("UI.submitForm()"); pg.wait_for_timeout(60)
+    card = pg.inner_text('#formModal')
+    check('then a check card', {'card': 1 if 'Converted' in card and pg.evaluate("+document.getElementById('fm_amount').value") == 1462.5 else 0, 'saved': pg.evaluate("Store.state.transactions.length")}, card=1, saved=0)
+    pg.evaluate("UI.submitForm()"); pg.wait_for_timeout(60)
+    t = pg.evaluate("Store.state.transactions[0]")
+    check('saved converted, original kept', {'amt': t['amount'], 'orig': t['fx']['amount'], 'usd': 1 if t['fx']['code'] == 'USD' else 0, 'desc': 1 if '$25.00' in t['description'] else 0, 'cash': pg.evaluate("Store.balance()")}, amt=1462.5, orig=25, usd=1, desc=1, cash=10000 - 1462.5)
+    # what the bank actually charged wins; offline falls back to the person's own rate
+    pg.evaluate("() => { window.fetch = async () => { throw new Error('offline'); }; }")
+    pg.evaluate("async t => { document.getElementById('noteInput').value = t; await UI.submitNote(t); }", 'Coffee €4.50 yesterday')
+    pg.wait_for_timeout(60)
+    offline = 'couldn’t look up' in pg.inner_text('#formModal')
+    pg.evaluate("document.getElementById('fm_actual').value = '290'; UI.submitForm()"); pg.wait_for_timeout(60); pg.evaluate("UI.submitForm()"); pg.wait_for_timeout(60)
+    t2 = pg.evaluate("Store.state.transactions.find(t => t.fx && t.fx.code === 'EUR')")
+    check('offline + amount charged', {'offline': 1 if offline else 0, 'amt': t2['amount'], 'rate': round(t2['fx']['rate'], 4)}, offline=1, amt=290, rate=round(290 / 4.5, 4))
+    pg.evaluate("async t => { document.getElementById('noteInput').value = t; await UI.submitNote(t); }", 'Croissant €3')
+    pg.wait_for_timeout(60)
+    check('remembers your last rate', {'rate': round(pg.evaluate("+document.getElementById('fm_rate').value"), 4)}, rate=round(290 / 4.5, 4))
+    pg.evaluate("UI.closeForm()")
+    check('multi-entry foreign note refused, nothing saved', {'n': (pg.evaluate("async t => { await UI.submitNote(t); return Store.state.transactions.length; }", 'Lunch $10 and taxi $5'))}, n=2)
+
+    # 44. Household sync: post a split, another member adds their share (fake server, real client code)
+    reset(10000)
+    pg.evaluate(r"""() => {
+      const db = { hh: [], mem: [], items: [] }; window.__db = db; let n = 0;
+      const tbl = { tiffo_households: 'hh', tiffo_household_members: 'mem', tiffo_household_items: 'items' };
+      const q = (name) => { const rows = () => db[tbl[name]]; let f = [], op = 'select', payload = null, single = false;
+        const run = () => { let r = rows().filter(x => f.every(([k, v]) => x[k] === v));
+          if (op === 'insert') { const row = { id: 'i' + (++n), author: window.__me, created_at: new Date().toISOString(), ...payload }; rows().push(row); r = [row]; }
+          if (op === 'delete') { db[tbl[name]] = rows().filter(x => !r.includes(x)); }
+          if (op === 'update') r.forEach(x => Object.assign(x, payload));
+          return Promise.resolve({ data: single ? (r[0] || null) : r, error: null }); };
+        const o = { select() { return o; }, eq(k, v) { f.push([k, v]); return o; }, order() { return o; }, limit() { return o; },
+          insert(p) { op = 'insert'; payload = p; return o; }, delete() { op = 'delete'; return o; }, update(p) { op = 'update'; payload = p; return o; },
+          single() { single = true; return run(); }, maybeSingle() { single = true; return run(); }, then(a, b) { return run().then(a, b); } };
+        return o; };
+      Auth.sb = { from: q, rpc: async (fn, a) => {
+        if (fn === 'tiffo_create_household') { const id = 'h1'; db.hh.push({ id, name: a.p_name, owner: window.__me, invite_code: 'ABCDE12345' }); db.mem.push({ household_id: id, user_id: window.__me, display_name: a.p_display, role: 'owner', can_share: true }); return { data: { id, invite_code: 'ABCDE12345' }, error: null }; }
+        if (fn === 'tiffo_join_household') { const h = db.hh.find(h => h.invite_code === a.p_code.toUpperCase()); if (!h) return { data: null, error: { message: 'That invite code doesn’t match any household' } }; db.mem.push({ household_id: h.id, user_id: window.__me, display_name: a.p_display, role: 'member', can_share: true }); return { data: h.id, error: null }; }
+      } };
+      window.__me = 'u-mom'; Auth.user = { id: 'sb:u-mom', uid: 'u-mom', name: 'x', provider: 'cloud' };
+    }""")
+    pg.evaluate("HHSync.create('Our home', 'Mom')")
+    pg.wait_for_timeout(50)
+    check('household made', {'ok': 1 if pg.evaluate("HHSync.hh && HHSync.hh.name === 'Our home' && HHSync.ready()") else 0}, ok=1)
+    pg.evaluate("UI.closeForm(); UI.splitForm({ total: 3000, with: ['Ana', 'Kuya'], desc: 'Groceries' })"); pg.wait_for_timeout(40)
+    pg.evaluate("document.getElementById('fm_hhPost').checked = true; UI.submitForm()"); pg.wait_for_timeout(120)
+    item = pg.evaluate("__db.items[0]")
+    check('split posted with names, mine marked', {'n': pg.evaluate("__db.items.length"), 'total': item['data']['total'], 'ana': item['data']['shares'].get('Ana', 0), 'mom': item['data']['shares'].get('Mom', 0), 'payerMom': 1 if item['data']['payer'] == 'Mom' else 0, 'tagged': pg.evaluate("Store.state.transactions.filter(t => t.hhItem).length")}, n=1, total=3000, ana=1000, mom=1000, payerMom=1, tagged=3)
+    check('nothing private posted', {'keys': len(set(item['data'].keys()) - {'desc', 'total', 'category', 'date', 'payer', 'shares', 'currency', 'by'})}, keys=0)
+    # Ana on her own phone (a fresh Tiffo)
+    reset(5000)
+    pg.evaluate("() => { window.__me = 'u-ana'; Auth.user = { id: 'sb:u-ana', uid: 'u-ana', name: 'y', provider: 'cloud' }; Object.assign(HHSync, { hh: null, members: [], items: [], loadedAt: 0 }); }")
+    pg.evaluate("HHSync.join('abcde-12345', 'Ana')")
+    pg.evaluate("Nav.go('more'); UI.renderHHSync()"); pg.wait_for_timeout(60)
+    panel = pg.inner_text('#hhSync')
+    check('member sees the post with her share', {'seen': 1 if 'Groceries' in panel and 'your share' in panel and '1 new' in panel else 0}, seen=1)
+    pg.evaluate("document.querySelector('#hhSync [data-hh=\"add\"]').click()"); pg.wait_for_timeout(60)
+    s = state()
+    check('added: her share is spending, she owes Mom', {**s, 'mom': pg.evaluate("Loans.oweTo('Mom')")}, spent=1000, youOwe=1000, mom=1000, cash=5000)
+    pg.evaluate("UI.renderHHSync()")
+    check('no double add', {'btn': pg.evaluate("document.querySelectorAll('#hhSync [data-hh=\"add\"]').length"), 'in': 1 if '✓ In your Tiffo' in pg.inner_text('#hhSync') else 0}, btn=0, **{'in': 1})
+    # Ana settles up and posts it; Mom adds it
+    pg.evaluate("UI.settleForm('Mom')"); pg.wait_for_timeout(40)
+    pg.evaluate("document.getElementById('fm_hhPost').checked = true; UI.submitForm()"); pg.wait_for_timeout(120)
+    check('Ana settled', {'youOwe': state()['youOwe'], 'posts': pg.evaluate("__db.items.length")}, youOwe=0, posts=2)
+    reset(10000)
+    pg.evaluate("() => { window.__me = 'u-mom'; Auth.user = { id: 'sb:u-mom', uid: 'u-mom', name: 'x', provider: 'cloud' }; Store.state.settings.hhSync = { id: 'h1', me: 'Mom', done: [], post: true }; Store.save(); Object.assign(HHSync, { hh: null, loadedAt: 0 }); }")
+    pg.evaluate("HHSync.load(true)")
+    pg.evaluate("HHSync.importItem(HHSync.items.find(i => i.kind === 'settle'))")
+    check('Mom gets the repayment', {'cash': state()['cash'], 'income': state()['income']}, cash=11000, income=0)
+    pg.evaluate("() => { Auth.user = null; Auth.sb = null; Object.assign(HHSync, { hh: null, members: [], items: [] }); }")
+
+    # 45. Fingerprint/face unlock: a virtual authenticator stands in for the phone's sensor
+    ctx = b.new_context(timezone_id='Asia/Manila'); bp = ctx.new_page()
+    bp.on('pageerror', lambda e: errs.append(str(e)))
+    bp.route('**/chart.umd.min.js', lambda r: r.fulfill(body=stub, content_type='text/javascript'))
+    for pat in ['**/cdn.tailwindcss.com/**', '**/supabase-js@2', '**/js.puter.com/**']:
+        bp.route(pat, lambda r: r.fulfill(body='', content_type='text/javascript'))
+    bp.route('https://tiffo.test/', lambda r: r.fulfill(body=html.read_text(), content_type='text/html'))
+    cdp = ctx.new_cdp_session(bp); cdp.send('WebAuthn.enable')
+    auth = cdp.send('WebAuthn.addVirtualAuthenticator', {'options': {'protocol': 'ctap2', 'transport': 'internal', 'hasUserVerification': True, 'isUserVerified': True, 'hasResidentKey': False}})
+    bp.goto('https://tiffo.test/'); bp.wait_for_timeout(600)
+    bp.evaluate("async () => { Store.state = Store.blank(); await Sec.setPin('4831', 5); }")
+    on = bp.evaluate("async () => { await Bio.enroll(); return Bio.on() && !!Sec.cfg().bio.pk; }")
+    unlocked = bp.evaluate("() => Bio.unlock()")
+    bp.evaluate("async () => { await Sec.setPin('7294', 5); }")
+    kept = bp.evaluate("Bio.on()")
+    cdp.send('WebAuthn.setUserVerified', {'authenticatorId': auth['authenticatorId'], 'isUserVerified': False})
+    refused = bp.evaluate("() => Bio.unlock().then(ok => ok ? 'opened' : 'refused').catch(() => 'refused')")
+    cdp.send('WebAuthn.setUserVerified', {'authenticatorId': auth['authenticatorId'], 'isUserVerified': True})
+    bp.evaluate("() => { const c = Sec.cfg(); c.bio.pk = (() => { const k = Sec.unb64(c.bio.pk); k[k.length - 1] ^= 1; return Sec.b64(k); })(); }")
+    wrongkey = bp.evaluate("() => Bio.unlock().then(ok => ok ? 'opened' : 'refused').catch(() => 'refused')")
+    check('biometric unlock', {'on': 1 if on else 0, 'unlock': 1 if unlocked else 0, 'kept after PIN change': 1 if kept else 0, 'unverified refused': 1 if refused == 'refused' else 0, 'wrong key refused': 1 if wrongkey == 'refused' else 0},
+          on=1, unlock=1, **{'kept after PIN change': 1, 'unverified refused': 1, 'wrong key refused': 1})
+    ctx.close()
     b.close()
 
 for f in fails: print('✗', f)
