@@ -550,3 +550,12 @@ aside.gc-ings b{color:var(--accent)}
 .signin-list li{display:flex;gap:10px;align-items:flex-start;text-align:left;line-height:1.45}
 .signin-list .ic{color:var(--accent);width:22px;height:22px;flex:0 0 22px;margin-top:1px}
 #authBox .btn.big[data-act=puter-connect]{width:100%;justify-content:center}
+
+/* Realistic AI photos: shimmer while one is being made, and the demo note */
+canvas.making-photo{animation:photoShimmer 1.6s ease-in-out infinite}
+@keyframes photoShimmer{0%,100%{filter:saturate(1) brightness(1)}50%{filter:saturate(.75) brightness(1.08)}}
+.photo-credit.demo-note{display:flex;flex-wrap:wrap;align-items:center;gap:6px;background:var(--cream);border:1px solid #EFE2BF;border-radius:var(--r-sm);padding:7px 10px;color:#5A4A2A}
+.photo-credit.demo-note .ic{color:var(--amber);width:16px;height:16px}
+.photo-credit.demo-note span{flex:1 1 180px}
+.photo-credit.demo-note .linkbtn{font-weight:700}
+@media (prefers-reduced-motion:reduce){canvas.making-photo{animation:none}}

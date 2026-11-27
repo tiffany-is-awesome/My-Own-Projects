@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { critique } from './critic.js';
 import { buildContext } from './context.js';
 import { generateOutfits } from './generator.js';
-import { OCCASIONS } from '../data/closet.js';
+import { OCCASIONS, DEMO_CLOSET as DEMO } from '../data/closet.js';
 import { BOLD, SMALL, item } from './quality.fixture.js';
 
 const ctxOf = (o) => buildContext(o, OCCASIONS);
@@ -126,5 +126,34 @@ describe('quality bar', () => {
     const big = generateOutfits(BOLD, ctxOf({ occasion: 'everyday', weather: 'warm' }));
     expect(big.outfits).toHaveLength(3);
     for (const o of big.outfits) expect(o.critique.overall).toBeGreaterThanOrEqual(GOOD);
+  });
+});
+
+describe('occasions differ in character, not only formality', () => {
+  const DEMO_CLOSET = DEMO;
+  const top = (occasion, weather = 'warm') => generateOutfits(DEMO_CLOSET, ctxOf({ occasion, weather })).outfits;
+  const key = (r) => r.map((x) => x.name).join('|');
+  it('work, party and church no longer give the same three outfits', () => {
+    expect(key(top('party'))).not.toBe(key(top('work')));
+    expect(key(top('church', 'mild'))).not.toBe(key(top('work', 'mild')));
+  });
+  it('a party gets a standout piece (the satin dress); an all-neutral office look is called out', () => {
+    expect(top('party').some((x) => x.outfit.top?.category === 'dress')).toBe(true);
+    const office = critique({ top: by(DEMO_CLOSET, 'Oxford Button-Down Shirt'), bottom: by(DEMO_CLOSET, 'Smart Ankle Pants'), outer: by(DEMO_CLOSET, 'Unstructured Blazer'), shoes: by(DEMO_CLOSET, 'Suede Penny Loafers') }, ctxOf({ occasion: 'party', weather: 'mild' }));
+    expect(JSON.stringify(office.pillars)).toMatch(/more office than party|like work clothes/);
+  });
+  it('shorts are marked down for work and church', () => {
+    const o = { top: by(DEMO_CLOSET, 'Oxford Button-Down Shirt'), bottom: by(DEMO_CLOSET, 'Linen-Blend Easy Shorts'), shoes: by(DEMO_CLOSET, 'Suede Penny Loafers') };
+    const trousers = { ...o, bottom: by(DEMO_CLOSET, 'Smart Ankle Pants') };
+    for (const occasion of ['work', 'church']) {
+      expect(critique(o, ctxOf({ occasion, weather: 'warm' })).overall).toBeLessThan(critique(trousers, ctxOf({ occasion, weather: 'warm' })).overall);
+    }
+  });
+  it('the three suggestions share few pieces', () => {
+    for (const occasion of ['everyday', 'date', 'party', 'vacation']) {
+      const r = top(occasion);
+      const ids = r.map((x) => ['top', 'bottom', 'outer', 'shoes'].map((k) => x.outfit[k]?.id).filter(Boolean));
+      for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) expect(ids[i].filter((x) => ids[j].includes(x)).length).toBeLessThanOrEqual(2);
+    }
   });
 });

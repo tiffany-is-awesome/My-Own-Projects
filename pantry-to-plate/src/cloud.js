@@ -13,7 +13,7 @@ const Cloud={
   },
   async adopt(){
     // The AI works as soon as you're signed in; saving the kitchen is a separate step that can't block it.
-    S.puterConnected=true; renderAiStatus();
+    S.puterConnected=true; renderAiStatus(); setTimeout(()=>rerender(),0); // pictures start turning into realistic photos
     let u=null; try{ u=await window.puter.auth.getUser(); }catch(e){ console.warn("Couldn't read the Puter profile",e); }
     if(!u||!u.uuid||!window.puter.kv){ this.user=null; this.setStatus("Not synced"); renderAccount(); return; }
     this.user={ id:"puter:"+u.uuid, name:u.username||"you" };

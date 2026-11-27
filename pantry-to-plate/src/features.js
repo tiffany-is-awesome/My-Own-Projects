@@ -530,7 +530,7 @@ document.addEventListener("keydown", e => {
 /* =====================================================================
    PHOTO & RECEIPT SCANNING (uses the free AI; you confirm everything)
    ===================================================================== */
-const VISION_MODELS = ["google/gemini-3.5-flash", "gemini-3-flash-preview", "gpt-6-luna"];
+const VISION_MODELS = ["google/gemini-3.5-flash", "google/gemini-3.6-flash", "google/gemini-2.5-flash"];
 function scanAvailable() { return AI.ready && AI.mode === "puter"; }
 function openScan(kind) {
   if (!scanAvailable()) {

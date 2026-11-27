@@ -1,7 +1,7 @@
 import { OutfitAiLook, outfitPieces } from './AiPhoto.jsx';
 import { useStore } from '../store.jsx';
 // Building blocks for "choose → get outfits → compare → save".
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Stage from './Stage.jsx';
 import { PieceList, ScoreBadge, HeartButton, Verdict, WardrobePicker } from './common.jsx';
 import { OCCASIONS, STYLES, SLOTS } from '../data/closet.js';
@@ -72,10 +72,34 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
   const [showAlts, setShowAlts] = useState(false);
   const alts = showAlts ? alternatives(result.outfit, ctx, pool) : [];
   const c = result.critique;
+  // After a swap: bring the picture back into view and say what changed (with Undo).
+  const [swap, setSwap] = useState(null); // { prev, text }
+  const stageRef = useRef(null);
+  useEffect(() => {
+    if (!swap) return;
+    const el = stageRef.current, r = el?.getBoundingClientRect();
+    if (r && (r.top < 60 || r.bottom > window.innerHeight)) el.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    const t = setTimeout(() => setSwap(null), 7000);
+    return () => clearTimeout(t);
+  }, [swap]);
+  const doSwap = (next) => {
+    const changed = SLOTS.filter((k) => (next.outfit[k]?.id || null) !== (result.outfit[k]?.id || null));
+    const added = changed.map((k) => next.outfit[k]).filter(Boolean);
+    const removed = changed.map((k) => result.outfit[k]).filter(Boolean);
+    const what = added.length ? `Swapped in: ${added.map((g) => g.name).join(', ')}` : `Removed: ${removed.map((g) => g.name).join(', ')}`;
+    setSwap({ prev: result, text: `${what} · ${result.critique.overall} → ${next.critique.overall}` });
+    onReplace(next);
+  };
   return (
     <article className="outfit-card" aria-label={`Outfit ${index + 1}`}>
-      <div className="outfit-card-stage">
+      <div className="outfit-card-stage" ref={stageRef}>
         <Stage outfit={result.outfit} mode={mode} compact child={child} />
+        {swap && (
+          <div className="swap-note" role="status">
+            <span>{swap.text}</span>
+            <button onClick={() => { onReplace(swap.prev); setSwap(null); }}>Undo</button>
+          </div>
+        )}
         <div className="seg mini-seg">
           <button className={mode === 'flatlay' ? 'on' : ''} onClick={() => setMode('flatlay')}>Flat-lay</button>
           <button className={mode === 'mannequin' ? 'on' : ''} onClick={() => setMode('mannequin')}>Mannequin</button>
@@ -109,7 +133,7 @@ export function OutfitCard({ result, ctx, pool, index, child = false, onReplace,
           <div className="alts">
             {alts.length === 0 && <p className="tiny">No other combinations from your available clothes improve or vary this one.</p>}
             {alts.map((a) => (
-              <button key={a.id} className="alt" onClick={() => { onReplace(withCritique(a.outfit, ctx, result)); setShowAlts(false); }}>
+              <button key={a.id} className="alt" onClick={() => { doSwap(withCritique(a.outfit, ctx, result)); setShowAlts(false); }}>
                 <span>{a.label}</span>
                 <span className={'tiny ' + (a.delta >= 0 ? 'up' : 'down')}>{a.score} ({a.delta >= 0 ? '+' : ''}{a.delta})</span>
               </button>

@@ -12,7 +12,7 @@ const PHOTO_BASE = "img/";
 function paint(cv, r) {
   if (!cv || !r) return;
   drawPlate(cv, r, null);
-  const ph = PHOTOS[r.id]; if (!ph) return;
+  const ph = PHOTOS[r.id]; if (!ph) { AIPhoto.attach(cv, r); return; }
   const img = new Image(); img.alt = r.title + (ph.ai ? " (AI-generated image)" : ""); img.decoding = "async"; img.loading = "lazy";
   img.className = cv.className + " dish-photo"; img.referrerPolicy = "no-referrer";
   img.onload = () => { if (cv.isConnected) { cv.replaceWith(img); requestAnimationFrame(() => img.classList.add("in")); } };
@@ -33,7 +33,13 @@ const STORE_KEY = "p2p.v3";
 function snapshot() { return { v: 3, owner: S.owner || null, feedback: S.feedback || {}, pantry: S.pantry, staples: S.staples, saved: S.saved, collections: S.collections, week: S.week, history: S.history, plan: S.plan, cooking: S.cooking, prefs: S.prefs, sample: S.sample, savedAt: S.savedAt || 0 }; }
 function saveLocal() { try { localStorage.setItem(STORE_KEY, JSON.stringify(snapshot())); } catch (e) {} }
 // Each save is always newer than anything this device has already seen, even if another device's clock runs ahead.
-function persist() { S.savedAt = Math.max(Date.now(), (S.savedAt || 0) + 1); saveLocal(); if (typeof Cloud !== "undefined") Cloud.schedule(); }
+let wasSample = false;
+function autoBasics() { return [E.DEFAULT_STAPLES, E.DEFAULT_STAPLES.concat(["onion", "fish_sauce", "flour"])].some(set => set.length === S.staples.length && set.every(k => S.staples.includes(k))); }
+function persist() {
+  // When the example kitchen becomes yours, its example basics go too (the same rule as on reload), so recipes never change after a refresh.
+  if (wasSample && !S.sample && !(S.prefs && S.prefs.staplesChosen) && autoBasics()) S.staples = [];
+  wasSample = S.sample;
+  S.savedAt = Math.max(Date.now(), (S.savedAt || 0) + 1); saveLocal(); if (typeof Cloud !== "undefined") Cloud.schedule(); }
 function applySnapshot(d) {
   if (!d) return;
   if (d.v !== 3) d = migrateV2(d);
@@ -44,8 +50,8 @@ function applySnapshot(d) {
   S.feedback = d.feedback || {};
   S.staples = Array.isArray(d.staples) ? d.staples : [];
   // Basics used to be ticked automatically. Only keep them if the person chose them (or it's the example kitchen).
-  const auto = [E.DEFAULT_STAPLES, E.DEFAULT_STAPLES.concat(["onion", "fish_sauce", "flour"])].some(set => set.length === S.staples.length && set.every(k => S.staples.includes(k)));
-  if (!d.sample && auto && !(d.prefs && d.prefs.staplesChosen)) S.staples = [];
+  if (!d.sample && autoBasics() && !(d.prefs && d.prefs.staplesChosen)) S.staples = [];
+  wasSample = !!d.sample;
   S.saved = d.saved || []; S.collections = d.collections || []; S.week = d.week || [];
   S.plan = d.plan && d.plan.days ? d.plan : { days: {} }; S.cooking = d.cooking && d.cooking.rid ? d.cooking : null;
   S.history = d.history || []; S.prefs = Object.assign({ servings: null, maxTime: 0, cuisine: "any", diet: [], equipment: ["stove", "blender"], kind: "meals" }, d.prefs || {});
@@ -95,7 +101,7 @@ function seedKitchen() {
   ]);
   S.staples = E.DEFAULT_STAPLES.concat(["onion", "fish_sauce", "flour"]);
   S.collections = ["Weeknight", "Fridge clean-out"];
-  S.saved = []; S.week = []; S.history = []; S.sample = true;
+  S.saved = []; S.week = []; S.history = []; S.sample = true; wasSample = true;
 }
 function load() {
   let d = null;
@@ -572,7 +578,7 @@ function renderDetail() {
   const safety = E.safetyNotes(m);
   box.innerHTML = `
     <div class="detail-top">
-      <div><div class="frame"><canvas id="plate" width="480" height="600" aria-label="Illustration of ${esc(r.title)}"></canvas></div>${PHOTOS[r.id] ? `<p class="photo-credit">${PHOTOS[r.id].page ? `<a href="${esc(PHOTOS[r.id].page)}" target="_blank" rel="noopener">${esc(PHOTOS[r.id].credit || "")}</a>` : esc(PHOTOS[r.id].credit || "")}${PHOTOS[r.id].ai ? " · AI-generated image" : ""}</p>` : `<p class="photo-credit">Illustration</p>`}</div>
+      <div><div class="frame"><canvas id="plate" width="480" height="600" aria-label="Illustration of ${esc(r.title)}"></canvas></div>${PHOTOS[r.id] ? `<p class="photo-credit">${PHOTOS[r.id].page ? `<a href="${esc(PHOTOS[r.id].page)}" target="_blank" rel="noopener">${esc(PHOTOS[r.id].credit || "")}</a>` : esc(PHOTOS[r.id].credit || "")}${PHOTOS[r.id].ai ? " · AI-generated image" : ""}</p>` : AIPhoto.caption(r)}</div>
       <div class="detail-head">
         <span class="label">${esc(r.cuisine)} · <span class="style-${(r.style || "").toLowerCase()}">${styleLabel(r)}</span></span>
         <h2>${esc(r.title)}</h2>
