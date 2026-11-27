@@ -12,5 +12,9 @@ with sync_playwright() as p:
     pg.goto('http://localhost:8765/unique-ava.html?x=1#access_token=abc&type=signup'); pg.wait_for_timeout(800)
     ok('sign-in token in the hash survives the forward', 'wearwise.html?x=1#access_token=abc' in pg.url, pg.url)
     ok('tab title', pg.title().startswith('Wearwise'), pg.title())
+    # An expired / already-used email link comes back with an error: it must be explained, not silently ignored
+    pg.goto('http://localhost:8765/unique-ava.html#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired'); pg.wait_for_timeout(1800)
+    t=' '.join(pg.locator('.toast').all_inner_texts())
+    ok('expired email link (via the old address): explained, with a Sign in button', 'expired or was already used' in t and pg.url.endswith('wearwise.html#/home'), t[:80])
     b.close()
 print('SUMMARY', sum(res), '/', len(res))

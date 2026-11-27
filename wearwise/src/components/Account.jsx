@@ -88,6 +88,18 @@ export default function Account() {
   const ref = useRef();
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 30000); return () => clearInterval(t); }, []);
+  // A confirmation or password-reset link that has expired or was already used comes back as
+  // #error=…&error_description=… Say what happened and offer the way forward, then tidy the address.
+  useEffect(() => {
+    const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    if (!h.get('error') && !h.get('error_description')) return;
+    const why = h.get('error_code') === 'otp_expired' || /expired|invalid/i.test(h.get('error_description') || '')
+      ? 'That email link has expired or was already used.'
+      : `That email link didn't work (${(h.get('error_description') || h.get('error')).slice(0, 120)}).`;
+    history.replaceState(null, '', window.location.pathname + window.location.search + '#/home');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    toast({ text: `${why} If your account is already confirmed, just sign in; otherwise use "Forgot password" or sign up again for a new link.`, action: { label: 'Sign in', run: () => setOpen('signin') } });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!menu) return;
     const close = (e) => { if (!ref.current?.contains(e.target)) setMenu(false); };

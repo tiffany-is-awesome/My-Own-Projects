@@ -700,3 +700,6 @@ body.touring { overflow: hidden; }
 .more-list button { width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); text-align: left; font: inherit; color: inherit; cursor: pointer; display: grid; grid-template-columns: 1fr 20px; grid-template-rows: auto auto; padding: 14px 4px; }
 .more-list button b { font-size: 15px; } .more-list button .tiny { grid-row: 2; } .more-list button span[aria-hidden] { grid-row: 1 / 3; grid-column: 2; align-self: center; font-size: 22px; color: var(--ink-3); }
 .linklike.plain { color: inherit; font-weight: inherit; }
+/* Style Me With This: weaker matches are grouped and labelled, not presented as recommendations */
+.alt-ideas-head { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; padding: 14px 0 4px; border-top: 1px solid var(--line); margin-top: 6px; }
+.alt-ideas-head b { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }

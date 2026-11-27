@@ -7,7 +7,7 @@
 //   explain(outfit, critique, ctx)          → plain-language "why this works"
 //   familyLook(members, ctx)                → one coordinated outfit per family member
 
-import { critique, isDress, isComplete, short, comfortOf, occ } from './critic.js';
+import { critique, isDress, isComplete, short, comfortOf, occ, GOOD } from './critic.js';
 import { isNeutral, hexToHsl, hueDistance } from './color.js';
 import { slotOf } from '../data/closet.js';
 
@@ -204,7 +204,7 @@ const shared = (a, b) => CORE.filter((k) => a[k] && b[k] && a[k].id === b[k].id)
  * @returns {{ outfits: Array<{ name, outfit, critique, why }>, missing: string[] }}
  */
 /** The quality bar for a suggestion to be shown as a recommendation (the "Good outfit" verdict starts at 78). */
-export const GOOD = 76;
+export { GOOD }; // one bar for recommendations and for the "Good outfit" label (see critic.js)
 
 export function generateOutfits(pool, ctx, anchor = null) {
   const missing = missingForOutfit(pool);
@@ -261,15 +261,25 @@ export function styleWithThis(pool, anchor, ctx) {
   const out = [];
   for (const d of dirs) {
     const dctx = { ...ctx, ...d.ctx, prefs: [...(ctx.prefs || []).filter((p) => !['simple', 'standout'].includes(p)), ...(d.ctx.prefs || [])] };
-    const list = candidates(avail, dctx, anchor, 25);
-    const pick = list.find(({ o }) => !out.some((x) => key(x.raw) === key(o) || shared(x.raw, o) >= 3));
-    if (!pick) continue;
-    const full = accessorize(pick.o, dctx, avail, anchor);
-    const c = critique(full, dctx);
-    if (c.overall < 55 && out.length >= 3) continue;   // only keep weak directions if we'd have fewer than 3
-    out.push({ raw: pick.o, name: d.name, direction: d.id, outfit: full, critique: c, why: explain(full, c, dctx), ctx: dctx });
+    const list = candidates(avail, dctx, anchor, 25).filter(({ o }) => !out.some((x) => key(x.raw) === key(o) || shared(x.raw, o) >= 3));
+    // Same bar as everywhere else: the first look in this direction that is a real recommendation (≥ GOOD, no
+    // deal-breaker). If none reaches it, keep the best attempt as an "alternative idea", clearly labelled; a look
+    // with a deal-breaker is never shown.
+    let best = null;
+    for (const { o } of list.slice(0, 6)) {
+      const full = accessorize(o, dctx, avail, anchor);
+      const c = critique(full, dctx);
+      if (c.dealBreakers.length) continue;
+      if (!best || c.overall > best.c.overall) best = { o, full, c };
+      if (c.overall >= GOOD) break;
+    }
+    if (!best) continue;
+    const alternative = best.c.overall < GOOD;
+    out.push({ raw: best.o, name: d.name, direction: d.id, outfit: best.full, critique: best.c, why: explain(best.full, best.c, dctx), ctx: dctx, alternative });
     if (out.length >= 4) break;
   }
+  // Recommendations first, then the alternative ideas.
+  out.sort((a, b) => Number(a.alternative) - Number(b.alternative));
   return { outfits: out.map(({ raw, ...r }) => r), missing: [] };
 }
 

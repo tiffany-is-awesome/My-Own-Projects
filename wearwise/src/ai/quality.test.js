@@ -157,3 +157,31 @@ describe('occasions differ in character, not only formality', () => {
     }
   });
 });
+
+describe('one quality bar everywhere', () => {
+  it('a recommended outfit (score ≥ 76) is never labelled mediocre', async () => {
+    const { verdictOf, GOOD } = await import('./critic.js');
+    const fake = (overall) => ({ overall, dealBreakers: [], pillars: [{ id: 'color', score: overall, cons: [] }] });
+    expect(GOOD).toBe(76);
+    for (let s = GOOD; s <= 100; s++) expect(['Good outfit', 'Great look']).toContain(verdictOf(fake(s)).label);
+    expect(verdictOf(fake(GOOD - 1)).label).toBe('Okay, not exciting');
+  });
+  it('Style Me With This: recommendations pass the bar; anything weaker is marked as an alternative idea; never a deal-breaker', async () => {
+    const { styleWithThis, GOOD } = await import('./generator.js');
+    let alts = 0, total = 0;
+    for (const anchor of DEMO.filter((g) => ['top', 'bottom', 'dress', 'outerwear', 'shoes'].includes(g.category))) {
+      for (const [occasion, weather] of [['everyday', 'warm'], ['work', 'mild'], ['party', 'cool'], ['wedding', 'warm'], ['sports', 'hot']]) {
+        const r = styleWithThis(DEMO, anchor, ctxOf({ occasion, weather }));
+        r.outfits.forEach((x, i) => {
+          total++;
+          expect(x.critique.dealBreakers.length).toBe(0);
+          if (x.alternative) { alts++; expect(x.critique.overall).toBeLessThan(GOOD); }
+          else expect(x.critique.overall).toBeGreaterThanOrEqual(GOOD);
+          if (i > 0 && !x.alternative) expect(r.outfits[i - 1].alternative).toBeFalsy(); // recommendations first
+        });
+      }
+    }
+    expect(total).toBeGreaterThan(100);
+    console.log(`Style Me With This: ${total - alts} recommendations, ${alts} labelled alternative ideas`);
+  });
+});

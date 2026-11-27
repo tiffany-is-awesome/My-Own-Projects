@@ -432,12 +432,15 @@ function finish(o, ctx) {
  * A plain, honest verdict for any outfit, never flattering: what a frank friend with good taste would say.
  * @returns {{ label, tone: 'great'|'good'|'okay'|'no', line }}
  */
+/** The score from which an outfit is recommended (and called a "Good outfit"). */
+export const GOOD = 76;
+
 export function verdictOf(c) {
   const worst = c.pillars.slice().sort((a, b) => a.score - b.score)[0];
   const firstCon = worst?.cons?.[0];
   if (c.dealBreakers?.length) return { label: "Doesn't work", tone: 'no', line: c.dealBreakers[0] };
   if (c.overall >= 88) return { label: 'Great look', tone: 'great', line: firstCon ? `Small note: ${firstCon.charAt(0).toLowerCase()}${firstCon.slice(1)}` : 'Nothing to fix.' };
-  if (c.overall >= 78) return { label: 'Good outfit', tone: 'good', line: firstCon || 'Solid and easy to wear.' };
+  if (c.overall >= GOOD) return { label: 'Good outfit', tone: 'good', line: firstCon || 'Solid and easy to wear.' };
   if (c.overall >= 68) return { label: 'Okay, not exciting', tone: 'okay', line: firstCon ? `Wearable, but ${firstCon.charAt(0).toLowerCase()}${firstCon.slice(1)}` : 'Wearable, but it won\'t turn heads.' };
   return { label: 'Not recommended', tone: 'no', line: firstCon || 'Several things are working against each other here.' };
 }

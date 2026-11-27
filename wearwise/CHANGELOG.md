@@ -8,6 +8,14 @@
 **Live site:** https://tiffany-is-awesome.github.io/My-Own-Projects/wearwise.html (the old `unique-ava.html` forwards here)
 **Design & architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · [`docs/UX-AND-ROADMAP.md`](docs/UX-AND-ROADMAP.md) · setup: [`SETUP.md`](SETUP.md)
 
+## 2026-11-27 · Final verification: one quality bar, expired email links
+
+- **One quality bar:** "Good outfit" now starts at 76, the same score from which outfits are recommended. Before, a recommended 76–77 outfit was labelled "Okay, not exciting".
+- **Style Me With This** uses the same bar. Each direction tries several looks and keeps the first that reaches 76. If none does, its best attempt is shown under "Alternative styling ideas", labelled as a weaker match, after the recommendations. A look with a deal-breaker is never shown. On the demo closet (258 cases), the old code showed 98 unlabelled looks under 76 (lowest 54) and 89 with a deal-breaker; now 251 recommendations pass the bar, 7 are labelled alternatives, and none has a deal-breaker.
+- **Fixed:** an expired or already-used confirmation or password-reset link used to land on Home with no message. It now explains what happened, with a Sign in button, and cleans up the address.
+- Supabase checked again on the live project: setup read back and the rolled-back behaviour test run, all 14 checks as expected.
+- Tests: 72 unit tests, 177 browser checks, all pass.
+
 ## 2026-11-27 · Final verification pass
 
 - **Fixed:** with Gemini on, if the AI found good outfits but the rules engine had no good one of its own, the rules engine's below-the-bar "closest option" was added next to the AI's outfits (with a contradictory note). The AI path now only tops up with outfits that pass the same bar (score ≥ 76, no deal-breaker). When no AI suggestion passes, it shows exactly what the rules engine shows on its own. New tests: 300 random AI answers, all shown outfits pass the bar; the forced case fails on the old code and passes on the new.
