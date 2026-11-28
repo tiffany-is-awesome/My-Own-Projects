@@ -49,7 +49,7 @@ with sync_playwright() as p:
     js("() => { CURRENCY = 'PHP'; LS.removeItem('tiffo.biz.staff'); Store.state = Store.blank(); Store.state.initialBalance = 10000; Store.save(); document.querySelectorAll('#authScreen,#onboarding').forEach(e => e && e.classList.add('hidden')); }")
     js("() => { const b = Biz.create({ name: 'Sunny Side Café', type: 'resto', cash: 2000, bankName: 'BPI', bank: 50000, taxMode: 'none' }); Biz.accounts(b.id)[0].name = 'Cash drawer'; }")
     ids = js("() => { const b = Biz.current(), a = Biz.accounts(b.id); return { cash: a[0].id, bank: a[1].id }; }")
-    check('restaurant tools on by default', {'m': ','.join(js("() => Biz.modules(Biz.current())"))}, m='pos,team,marketing')
+    check('restaurant tools on by default', {'m': ','.join(js("() => Biz.modules(Biz.current())"))}, m='pos,team,marketing,production')
     js("() => { const b = Biz.current(); b.modules = [...Biz.modules(b), 'projects', 'locations']; }")
     coffee = js("() => Biz.saveItem(Biz.current().id, { kind: 'product', name: 'Coffee', price: 120, cost: 40, track: true, opening: 50, category: 'Drinks' }).id")
     ens = js("() => Biz.saveItem(Biz.current().id, { kind: 'product', name: 'Ensaymada', price: 60, cost: 25, track: true, opening: 30, category: 'Pastry' }).id")

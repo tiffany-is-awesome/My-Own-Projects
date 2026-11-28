@@ -3694,7 +3694,8 @@ const Biz = {
     const x = item || { id: uid(), bizId, createdAt: Date.now() };
     Object.assign(x, { kind: v.kind === 'service' ? 'service' : 'product', name: String(v.name).trim().slice(0, 80), sku: (v.sku || '').trim().slice(0, 40), category: (v.category || '').trim().slice(0, 40),
       unit: (v.unit || (v.kind === 'service' ? 'job' : 'pc')).trim().slice(0, 12), price: round2(+v.price || 0), cost: round2(+v.cost || 0), status: v.status || 'active', notes: (v.notes || '').slice(0, 500),
-      track: v.kind !== 'service' && !!v.track, reorder: Math.max(0, +v.reorder || 0), leadDays: Math.max(0, +v.leadDays || 0) || 14 });
+      track: v.kind !== 'service' && !!v.track, batches: v.kind !== 'service' && !!v.track && !!(v.batches ?? item?.batches), taxClass: ['vatable', 'exempt', 'zero'].includes(v.taxClass) ? v.taxClass : item?.taxClass || 'vatable',
+      forSale: v.ingredientOnly !== undefined ? !v.ingredientOnly : v.forSale !== undefined ? v.forSale !== false : item ? item.forSale !== false : true, reorder: Math.max(0, +v.reorder || 0), leadDays: Math.max(0, +v.leadDays || 0) || 14 });
     if (!item) this.col('bizItems').push(x);
     if (!item && x.track && +v.opening > 0) this.move(bizId, { itemId: x.id, type: 'opening', qty: +v.opening, unitCost: x.cost, date: this.today(), reason: 'Starting stock' });
     Store.save(); return x;
@@ -3720,20 +3721,28 @@ const Biz = {
     const disc = round2(lineDisc + (discount || 0));
     const net = round2(gross - disc);                                // what the customer is charged before tax-on-top
     const rate = tax.mode === 'none' ? 0 : (+tax.rate || 0) / 100;
-    const taxAmt = tax.mode === 'exclusive' ? round2(net * rate) : tax.mode === 'inclusive' ? round2(net - net / (1 + rate)) : 0;
+    // Only VATable lines carry tax; the sale's own discount is shared across lines in proportion.
+    const lineNet = (l) => l.qty * l.price - (l.discount || 0), base = lines.reduce((x, l) => x + lineNet(l), 0);
+    const part = (cls) => base > 0 ? lines.filter((l) => (l.taxClass || 'vatable') === cls).reduce((x, l) => x + lineNet(l), 0) / base : cls === 'vatable' ? 1 : 0;
+    const taxable = round2(net * part('vatable'));
+    const taxAmt = tax.mode === 'exclusive' ? round2(taxable * rate) : tax.mode === 'inclusive' ? round2(taxable - taxable / (1 + rate)) : 0;
     const total = tax.mode === 'exclusive' ? round2(net + taxAmt) : net;
     const cogs = round2(lines.reduce((x, l) => x + l.qty * (l.unitCost || 0), 0));
-    return { gross, discount: disc, net, tax: taxAmt, total, revenue: round2(total - taxAmt), cogs };
+    const exemptNet = round2(net * part('exempt')), zeroNet = round2(net * part('zero'));
+    return { gross, discount: disc, net, tax: taxAmt, total, revenue: round2(total - taxAmt), cogs, vatableNet: round2(total - taxAmt - exemptNet - zeroNet), exemptNet, zeroNet };
   },
   nextNo(b, kind) { const n = (b.next ||= { invoice: 1, sale: 1 })[kind]++; return (kind === 'invoice' ? b.invPrefix || 'INV-' : b.salePrefix || 'S-') + String(n).padStart(4, '0'); },
   /** Record a sale or an invoice. paid: amount received now (0 = all on credit). Returns the sale. */
   recordSale(bizId, s) {
     const b = this.get(bizId);
     if (!b) throw new Error('Pick a business first.');
+    const planned = {};
     const lines = (s.lines || []).map((l) => {
       const it = l.itemId && this.find('bizItems', l.itemId);
-      const avg = this.tracked?.(it) ? this.stockOf(it.id, s.date || this.today()).avg : 0;
-      return { itemId: l.itemId || null, name: String(l.name || it?.name || 'Item').slice(0, 80), qty: +l.qty, price: round2(+l.price), discount: round2(+l.discount || 0), unitCost: round2(this.tracked?.(it) && avg > 0 ? avg : l.unitCost != null ? +l.unitCost : it?.cost || 0) };
+      const skip = it ? (planned[it.id] || 0) : 0; if (it) planned[it.id] = skip + (+l.qty || 0);
+      const avg = this.tracked?.(it) ? (this.outCost ? this.outCost(it, +l.qty || 1, { date: s.date || this.today(), skip, batchNo: l.batchNo }) : this.stockOf(it.id, s.date || this.today()).avg) : 0;
+      return { itemId: l.itemId || null, name: String(l.name || it?.name || 'Item').slice(0, 80), qty: +l.qty, price: round2(+l.price), discount: round2(+l.discount || 0), unitCost: round2(this.tracked?.(it) && avg > 0 ? avg : l.unitCost != null ? +l.unitCost : it?.cost || 0),
+        taxClass: l.taxClass || it?.taxClass || 'vatable', ...(l.batchNo ? { batchNo: l.batchNo } : {}) };
     }).filter((l) => l.qty > 0);
     if (!s.allowNoStock && this.tracked) {   // selling more than you have needs a yes
       const need = {}; for (const l of lines) if (l.itemId && this.tracked(this.find('bizItems', l.itemId))) need[l.itemId] = (need[l.itemId] || 0) + l.qty;
@@ -3765,7 +3774,7 @@ const Biz = {
       locationId: s.locationId || null, shiftId: s.shiftId || null, soldBy: this.actor?.()?.id || s.soldBy || null, projectId: s.projectId || null, campaignId: s.campaignId || promo?.campaignId || null,
       promoId: promo?.id || null, promoDiscount, pointsRedeemed: pts, pointsDiscount: ptsDiscount };
     this.col('bizSales').push(sale);
-    for (const l of lines) if (l.itemId && this.tracked?.(this.find('bizItems', l.itemId))) this.move(bizId, { itemId: l.itemId, type: 'sale', qty: -l.qty, unitCost: l.unitCost, date: sale.date, refType: 'sale', refId: sale.id, reason: sale.no, locationId: sale.locationId });
+    for (const l of lines) if (l.itemId && this.tracked?.(this.find('bizItems', l.itemId))) this.move(bizId, { itemId: l.itemId, type: 'sale', qty: -l.qty, unitCost: l.unitCost, date: sale.date, refType: 'sale', refId: sale.id, reason: sale.no, locationId: sale.locationId, ...(l.batchNo ? { batchNo: l.batchNo } : {}) });
     const L = sale.customerId && this.loyalty?.(b);
     if (pts) this.col('bizPoints').push({ id: uid(), bizId, customerId: sale.customerId, saleId: sale.id, pts: -pts, type: 'redeem', date: sale.date });
     if (L && +L.spend > 0) { const earn = Math.floor(sale.revenue / +L.spend); if (earn > 0) this.col('bizPoints').push({ id: uid(), bizId, customerId: sale.customerId, saleId: sale.id, pts: earn, type: 'earn', date: sale.date }); }
@@ -3815,7 +3824,8 @@ const Biz = {
     if (!(amt > 0) || !this.money(amt)) throw new Error('Type the amount.');
     if (!v.unpaid && !this.find('bizAccounts', v.accountId)) throw new Error('Pick the account it was paid from.');
     const e = { id: uid(), bizId, date: v.date || this.today(), amount: amt, category: BIZ_EXPENSE_CATS.includes(v.category) ? v.category : 'Other', vendor: (v.vendor || '').slice(0, 80), accountId: v.unpaid ? null : v.accountId, notes: (v.notes || '').slice(0, 500), createdAt: Date.now(),
-      ...(v.unpaid ? { unpaid: true, supplierId: v.supplierId || null, dueDate: v.dueDate || null } : {}), campaignId: v.campaignId || null, projectId: v.projectId || null };
+      ...(v.unpaid ? { unpaid: true, supplierId: v.supplierId || null, dueDate: v.dueDate || null } : {}), campaignId: v.campaignId || null, projectId: v.projectId || null, ...(+v.vat > 0 ? { vat: round2(+v.vat) } : {}) };
+    if (e.vat && e.vat >= amt) throw new Error('The VAT can’t be more than the amount.');
     this.col('bizExpenses').push(e); Store.save(); return e;
   },
   /** Owner puts money in (dir 'in') or takes it out ('out'). Optional linked personal entry: a transfer on the personal side, never income or spending. */
@@ -3946,6 +3956,7 @@ Object.assign(Biz, {
   moves(itemId, upTo = '9999-12-31') { return this.col('bizStock').filter((m) => m.itemId === itemId && m.date <= upTo).sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at); },
   /** On hand and weighted-average cost after every movement up to a date. */
   stockOf(itemId, upTo) {
+    const it0 = this.costingOf && this.find('bizItems', itemId); if (it0 && this.costingOf(it0) === 'fifo') return this.stockFifo(itemId, upTo);
     let qty = 0, avg = 0, value = 0;
     for (const m of this.moves(itemId, upTo)) {
       if (m.qty > 0) {                                                   // coming in: received at its cost, or returned/un-voided at the cost it left with
@@ -3969,12 +3980,12 @@ Object.assign(Biz, {
     const cur = this.stockOf(itemId);
     if (v.type === 'opening' || (v.type === 'adjust' && q > 0)) {
       const cost = v.unitCost != null && v.unitCost !== '' ? +v.unitCost : it.cost || cur.avg;
-      this.move(bizId, { itemId, type: v.type, qty: Math.abs(q), unitCost: cost, date: v.date || this.today(), reason: v.reason || '', locationId: v.locationId || null });
+      this.move(bizId, { itemId, type: v.type, qty: Math.abs(q), unitCost: cost, date: v.date || this.today(), reason: v.reason || '', locationId: v.locationId || null, ...(v.batchNo ? { batchNo: v.batchNo, expiry: v.expiry || null } : {}) });
     } else {
       const n = Math.abs(q);
       const here = this.multiLoc?.(bizId) ? this.stockAt(itemId, v.locationId || null) : cur.qty;
       if (n > here + 0.0001) throw new Error(`Only ${here} in stock${this.multiLoc?.(bizId) ? ' there' : ''}.`);
-      this.move(bizId, { itemId, type: ['damage', 'expired'].includes(v.type) ? v.type : 'adjust', qty: -n, unitCost: cur.avg, date: v.date || this.today(), reason: v.reason || '', locationId: v.locationId || null });
+      this.move(bizId, { itemId, type: ['damage', 'expired'].includes(v.type) ? v.type : 'adjust', qty: -n, unitCost: this.outCost ? this.outCost(it, n, { batchNo: v.batchNo }) : cur.avg, date: v.date || this.today(), reason: v.reason || '', locationId: v.locationId || null, ...(v.batchNo ? { batchNo: v.batchNo } : {}) });
     }
     Store.save();
   },
@@ -4030,7 +4041,7 @@ Object.assign(Biz, {
       const cost = +(r.unitCost ?? l.unitCost);
       if (r.unitCost != null && r.unitCost !== '' && Math.abs(cost - l.unitCost) > 0.0001) { p.history.push({ at: Date.now(), line: i, was: { unitCost: l.unitCost } }); l.unitCost = round2(cost); }
       const landed = l.unitCost + (ordered > 0 ? p.shipping * (l.unitCost / ordered) : 0);
-      if (good) { this.move(p.bizId, { itemId: l.itemId, type: 'receive', qty: good, unitCost: landed, date, refType: 'purchase', refId: p.id, reason: p.no, locationId: v.locationId || p.locationId || null }); any = true; }
+      if (good) { this.move(p.bizId, { itemId: l.itemId, type: 'receive', qty: good, unitCost: landed, date, refType: 'purchase', refId: p.id, reason: p.no, locationId: v.locationId || p.locationId || null, ...(r.batchNo ? { batchNo: String(r.batchNo).slice(0, 40), expiry: r.expiry || null } : {}) }); any = true; }
       if (bad) {   // billed, but never sellable: in and straight out as damaged, so it shows as a stock loss
         this.move(p.bizId, { itemId: l.itemId, type: 'damage', qty: 0, damagedQty: bad, lossValue: round2(bad * landed), unitCost: landed, date, refType: 'purchase', refId: p.id, reason: `${p.no}: ${bad} arrived damaged` }); any = true;
       }
@@ -4249,7 +4260,7 @@ Object.assign(Biz, {
     if (!(q > 0)) throw new Error('Type how many.');
     const have = this.stockAt(it.id, from);
     if (q > have + 0.0001) throw new Error(`Only ${have} at ${this.locations(bizId).find((l) => l.id === from)?.name}.`);
-    const avg = this.stockOf(it.id).avg, date = v.date || this.today(), ref = uid();
+    const avg = this.outCost ? this.outCost(it, q) : this.stockOf(it.id).avg, date = v.date || this.today(), ref = uid();
     this.move(bizId, { itemId: it.id, type: 'transfer', qty: -q, unitCost: avg, date, locationId: from, refType: 'transfer', refId: ref, reason: v.reason || 'Transfer' });
     this.move(bizId, { itemId: it.id, type: 'transfer', qty: q, unitCost: avg, date, locationId: to, refType: 'transfer', refId: ref, reason: v.reason || 'Transfer' });
     Store.save();
@@ -4520,6 +4531,264 @@ Object.assign(Biz, {
   wrap('closeShift', 'sell', () => null);
   wrap('openShift', 'sell', () => null);
 })();
+
+/* =========================================================================
+   TIFFO BUSINESS — phase 4: FIFO costing option, batches & expiry, recalls,
+   recipes & production, marketplace fees, recurring billing, analytics and
+   Philippine tax summaries.
+   • Costing: weighted average (default) or FIFO, per business, from the day
+     it's switched. Stock "layers" also carry batch numbers and expiry dates;
+     batch-tracked items go out first-expiring-first-out unless a batch is named.
+   • Production moves value from ingredients into finished goods: no profit
+     or loss until the goods are sold. Labour and overheads are only in the
+     recipe's estimated cost, because they're already expenses (payroll, rent).
+   • Fees a platform keeps are expenses linked to the sale; the deposit is
+     what's left. Tax summaries are estimates from the owner's records and
+     settings, never filings. Reference facts carry their source and check date.
+   ========================================================================= */
+BIZ_ARRAYS.push('bizProduction', 'bizRecalls', 'bizRecurring');
+for (const c of ['Marketplace & payment fees']) if (!BIZ_EXPENSE_CATS.includes(c)) BIZ_EXPENSE_CATS.splice(BIZ_EXPENSE_CATS.length - 1, 0, c);
+Object.assign(BIZ_STOCK_TYPES, { produce: 'Made (production)', 'produce-use': 'Used in production', transfer: 'Moved between locations' });
+BIZ_MODULES.production = 'Recipes & production';
+BIZ_MODULES.recurring = 'Recurring billing';
+for (const t of ['food', 'resto', 'maker']) if (!BIZ_MODULE_DEFAULTS[t].includes('production')) BIZ_MODULE_DEFAULTS[t].push('production');
+for (const t of ['subscription', 'service', 'freelance']) if (!BIZ_MODULE_DEFAULTS[t].includes('recurring')) BIZ_MODULE_DEFAULTS[t].push('recurring');
+/** Philippine reference facts, each with its source. Checked 28 Nov 2026; shown with that date. Tiffo never fills these in silently. */
+const PH_TAX_REF = {
+  checked: '2026-11-28',
+  vatRate: { value: 12, text: 'VAT is 12% of gross sales of goods, or gross receipts from services (NIRC Sections 106 and 108).', src: 'https://efps.bir.gov.ph/efps-war/EFPSWeb_war/help/help2550m2006.html', srcName: 'BIR, Form 2550M guidelines' },
+  ptRate: { value: 3, text: 'Non-VAT businesses under the VAT threshold generally pay 3% percentage tax on gross sales or receipts (NIRC Section 116, 3% again from 1 July 2023).', src: 'https://foi.gov.ph/requests/clarification-on-vat-and-pt', srcName: 'BIR reply via eFOI' },
+  threshold: { value: 3000000, text: 'The VAT threshold in the law is ₱3,000,000 of gross sales or receipts in 12 months (NIRC Section 109(BB)). The Ease of Paying Taxes Act says it is adjusted every 3 years using the CPI, so check the current figure with the BIR.', src: 'https://www.pwc.com/ph/en/tax/tax-publications/tax-alerts/2024/tax-alert-24.html', srcName: 'RR 3-2024 summary (PwC)' },
+  invoice: { text: 'Since RR 7-2024 (Ease of Paying Taxes Act), the “Invoice” is the main document for sales of goods and services; official receipts are no longer used for sales.', src: 'https://www.pwc.com/ph/en/tax/tax-publications/taxwise-or-otherwise/2024/compliance-change-on-invoicing-under-eopt.html', srcName: 'RR 7-2024 summary (PwC)' },
+};
+
+Object.assign(Biz, {
+  /* ----- costing & stock layers ----- */
+  costingOf(it) { const b = it && this.get(it.bizId); return b?.costing === 'fifo' ? 'fifo' : 'average'; },
+  /** Replay an item's movements as layers (cost, batch, expiry). Outgoing stock takes: the named batch, else first-expiring (batch items), else oldest. */
+  layers(itemId, upTo) {
+    const it = this.find('bizItems', itemId), fifo = this.costingOf(it) === 'fifo', fefo = !!it?.batches, switched = this.get(it?.bizId)?.costingFrom || '0000';
+    let L = [], deficit = 0, avg = 0, qtyAll = 0; const alloc = {};
+    const order = () => fefo ? [...L].sort((a, x) => (a.expiry || '9999').localeCompare(x.expiry || '9999') || a.n - x.n) : L;
+    let n = 0;
+    for (const m of this.moves(itemId, upTo)) {
+      if (!m.qty) continue;
+      if (m.qty > 0) {
+        let q = m.qty; const c = m.unitCost != null ? m.unitCost : avg;
+        avg = qtyAll + q > 0 ? (Math.max(qtyAll, 0) * avg + q * c) / (Math.max(qtyAll, 0) + q) : c; qtyAll += q;
+        if (deficit > 0) { const d = Math.min(deficit, q); deficit -= d; q -= d; }
+        if (q > 0) L.push({ n: n++, qty: q, cost: c, batchNo: m.batchNo || null, expiry: m.expiry || null, date: m.date });
+      } else {
+        let need = -m.qty; qtyAll += m.qty; const took = [];
+        const pick = m.batchNo ? [...L.filter((l) => l.batchNo === m.batchNo), ...order().filter((l) => l.batchNo !== m.batchNo)] : order();
+        for (const l of pick) { if (need <= 0) break; const t = Math.min(l.qty, need); l.qty = round2(l.qty - t); need = round2(need - t); took.push({ batchNo: l.batchNo, qty: t, cost: l.cost }); }
+        L = L.filter((l) => l.qty > 0.00001);
+        if (need > 0) { deficit += need; took.push({ batchNo: null, qty: need, cost: fifo && m.date >= switched ? (took.at(-1)?.cost ?? avg) : avg }); }
+        alloc[m.id] = took;
+      }
+    }
+    return { layers: L, deficit, alloc, avg };
+  },
+  /** FIFO value/average when the business uses FIFO; otherwise the phase-2 average. */
+  stockFifo(itemId, upTo) {
+    const r = this.layers(itemId, upTo), qty = round2(r.layers.reduce((a, l) => a + l.qty, 0) - r.deficit), value = round2(r.layers.reduce((a, l) => a + l.qty * l.cost, 0));
+    return { qty, avg: qty > 0 ? round2((value / qty) * 10000) / 10000 : round2(r.avg * 10000) / 10000, value };
+  },
+  /** Cost per unit of the next `qty` going out (after `skip` units already planned in the same sale). */
+  outCost(it, qty, opts = {}) {
+    if (!this.tracked(it)) return null;
+    if (this.costingOf(it) !== 'fifo') return this.stockOf(it.id, opts.date).avg;
+    const r = this.layers(it.id, opts.date), fefo = !!it.batches;
+    const L = opts.batchNo ? [...r.layers.filter((l) => l.batchNo === opts.batchNo), ...r.layers.filter((l) => l.batchNo !== opts.batchNo)] : fefo ? [...r.layers].sort((a, x) => (a.expiry || '9999').localeCompare(x.expiry || '9999') || a.n - x.n) : r.layers;
+    let skip = opts.skip || 0, need = qty, cost = 0, last = r.avg;
+    for (const l of L) { let q = l.qty; const s = Math.min(skip, q); skip -= s; q -= s; if (q <= 0) continue; const t = Math.min(q, need); cost += t * l.cost; need -= t; last = l.cost; if (need <= 0) break; }
+    if (need > 0) cost += need * last;
+    return qty > 0 ? round2((cost / qty) * 10000) / 10000 : last;
+  },
+  setCosting(bizId, method) {
+    const b = this.get(bizId); if (!['average', 'fifo'].includes(method)) throw new Error('Pick a costing method.');
+    if ((b.costing || 'average') === method) return b;
+    b.costing = method; b.costingFrom = this.today(); this.log(bizId, 'Costing method changed', method === 'fifo' ? 'FIFO (first in, first out)' : 'Weighted average'); Store.save(); return b;
+  },
+
+  /* ----- batches, expiry & recalls ----- */
+  batchesOf(itemId, upTo) {
+    const g = {};
+    for (const l of this.layers(itemId, upTo).layers) { const k = l.batchNo || '—'; (g[k] ||= { batchNo: l.batchNo, qty: 0, expiry: l.expiry, value: 0 }); g[k].qty = round2(g[k].qty + l.qty); g[k].value = round2(g[k].value + l.qty * l.cost); if (l.expiry && (!g[k].expiry || l.expiry < g[k].expiry)) g[k].expiry = l.expiry; }
+    return Object.values(g).sort((a, x) => (a.expiry || '9999').localeCompare(x.expiry || '9999'));
+  },
+  expiring(bizId, days) {
+    const b = this.get(bizId), today = this.today(), lim = toISODate(new Date(Date.now() + (days ?? b.expiryDays ?? 14) * 864e5)), out = [];
+    for (const i of this.items(bizId).filter((x) => this.tracked(x) && x.batches)) for (const bt of this.batchesOf(i.id)) if (bt.expiry && bt.expiry <= lim && bt.qty > 0) out.push({ item: i, ...bt, expired: bt.expiry < today });
+    return out.sort((a, x) => a.expiry.localeCompare(x.expiry));
+  },
+  /** Which sales took stock from a batch (from the same first-expiring-first-out replay). */
+  batchSales(itemId, batchNo) {
+    const r = this.layers(itemId), out = [];
+    for (const m of this.moves(itemId)) if (m.type === 'sale' && r.alloc[m.id]?.some((t) => t.batchNo === batchNo)) {
+      const s = this.find('bizSales', m.refId); out.push({ sale: s, qty: r.alloc[m.id].filter((t) => t.batchNo === batchNo).reduce((a, t) => a + t.qty, 0), customer: this.find('bizCustomers', s?.customerId)?.name || 'Walk-in' });
+    }
+    return out;
+  },
+  recall(bizId, v) {
+    const it = this.find('bizItems', v.itemId); if (!it?.batches) throw new Error('Pick a batch-tracked item.');
+    if (!v.batchNo) throw new Error('Type the batch number.');
+    const sales = this.batchSales(it.id, v.batchNo), left = this.batchesOf(it.id).find((b) => b.batchNo === v.batchNo)?.qty || 0;
+    const r = { id: uid(), bizId, itemId: it.id, batchNo: v.batchNo, reason: (v.reason || '').slice(0, 300), date: v.date || this.today(), soldQty: round2(sales.reduce((a, s) => a + s.qty, 0)), sales: sales.map((s) => ({ saleId: s.sale?.id, qty: s.qty })), inStock: left, createdAt: Date.now() };
+    this.col('bizRecalls').push(r); this.log(bizId, 'Batch recall', `${it.name} batch ${v.batchNo}`); Store.save(); return r;
+  },
+
+  /* ----- recipes & production ----- */
+  saveRecipe(itemId, v) {
+    const it = this.find('bizItems', itemId); if (!this.tracked(it)) throw new Error('Turn on stock tracking for this product first.');
+    const lines = (v.lines || []).filter((l) => l.itemId && +l.qty > 0).map((l) => ({ itemId: l.itemId, qty: +l.qty }));
+    if (!lines.length) throw new Error('Add at least one ingredient.');
+    if (lines.some((l) => l.itemId === itemId)) throw new Error('A product can’t be its own ingredient.');
+    for (const l of lines) if (!this.tracked(this.find('bizItems', l.itemId))) throw new Error(`${this.find('bizItems', l.itemId)?.name || 'An ingredient'} isn’t stock-tracked.`);
+    if (!(+v.yield > 0)) throw new Error('Type how many one batch makes.');
+    const prev = it.recipe ? this.recipeCost(it).perUnit : null;
+    it.recipe = { lines, yield: +v.yield, labor: round2(+v.labor || 0), packaging: round2(+v.packaging || 0), other: round2(+v.other || 0), lastCost: prev };
+    Store.save(); return it.recipe;
+  },
+  /** Estimated cost from today's ingredient costs. Labour/packaging/other are estimates per batch for pricing, not stock value. */
+  recipeCost(it) {
+    const r = it.recipe; if (!r) return null;
+    const ing = r.lines.map((l) => { const x = this.find('bizItems', l.itemId), c = this.tracked(x) ? this.outCost(x, l.qty) || x.cost || 0 : x?.cost || 0; return { name: x?.name || '?', unit: x?.unit || '', qty: l.qty, unitCost: c, cost: round2(c * l.qty) }; });
+    const materials = round2(ing.reduce((a, x) => a + x.cost, 0)), extra = round2(r.labor + r.packaging + r.other), perBatch = round2(materials + extra), perUnit = round2(perBatch / r.yield);
+    return { ing, materials, extra, perBatch, perUnit, materialsPerUnit: round2(materials / r.yield), price: it.price, profit: round2(it.price - perUnit), margin: it.price > 0 ? round2(((it.price - perUnit) / it.price) * 100) : null, change: r.lastCost != null ? round2(perUnit - r.lastCost) : null };
+  },
+  /** Make finished goods: ingredients leave at their cost; finished goods come in at the materials cost ÷ what was actually made. */
+  produce(bizId, v) {
+    this.guard?.('stock');
+    const it = this.find('bizItems', v.itemId), r = it?.recipe; if (!r) throw new Error('This product has no recipe.');
+    const batches = +v.batches; if (!(batches > 0)) throw new Error('How many batches?');
+    const planned = round2(r.yield * batches), actual = v.actual === '' || v.actual == null ? planned : round2(+v.actual);
+    if (!(actual > 0)) throw new Error('Type how many were actually made.');
+    if (it.batches && !v.batchNo) throw new Error('Type a batch number for this product.');
+    const date = v.date || this.today(), loc = v.locationId || null, need = r.lines.map((l) => ({ ...l, qty: round2(l.qty * batches), x: this.find('bizItems', l.itemId) }));
+    if (!v.allowNoStock) for (const l of need) { const have = this.multiLoc?.(bizId) ? this.stockAt(l.itemId, loc) : this.stockOf(l.itemId).qty; if (l.qty > have + 0.0001) { const e = new Error(`Only ${have} ${l.x.unit || ''} of ${l.x.name} in stock (needs ${l.qty}).`.replace('  ', ' ')); e.noStock = true; throw e; } }
+    const run = { id: uid(), bizId, itemId: it.id, batches, planned, actual, waste: round2(Math.max(0, planned - actual)), date, batchNo: v.batchNo || null, expiry: v.expiry || null, locationId: loc, note: (v.note || '').slice(0, 300), createdAt: Date.now() };
+    let materials = 0;
+    for (const l of need) { const c = this.outCost(l.x, l.qty, { date }); materials += l.qty * c; this.move(bizId, { itemId: l.itemId, type: 'produce-use', qty: -l.qty, unitCost: c, date, locationId: loc, refType: 'production', refId: run.id, reason: `${it.name} × ${batches}` }); }
+    run.materials = round2(materials); run.unitCost = round2((materials / actual) * 10000) / 10000;
+    this.move(bizId, { itemId: it.id, type: 'produce', qty: actual, unitCost: run.unitCost, date, locationId: loc, batchNo: run.batchNo, expiry: run.expiry, refType: 'production', refId: run.id, reason: run.batchNo ? `Batch ${run.batchNo}` : 'Production' });
+    this.col('bizProduction').push(run); this.log(bizId, 'Production', `${it.name}: ${actual} made${run.waste ? `, ${run.waste} short of plan` : ''}`); Store.save(); return run;
+  },
+
+  /* ----- marketplace & payment fees ----- */
+  feeRules(b) { return b.feeRules || []; },
+  /** Fees from the owner's own rules for a channel (no built-in platform rates). */
+  suggestFees(bizId, channel, amount) {
+    return this.feeRules(this.get(bizId)).filter((r) => r.channel === channel).map((r) => ({ name: r.name, amount: round2(amount * (+r.pct || 0) / 100 + (+r.fixed || 0)) })).filter((f) => f.amount > 0);
+  },
+  /** A fee the platform kept from a sale's payout: an expense linked to the sale, taken from the account the payout went into. */
+  addSaleFee(saleId, v) {
+    const s = this.find('bizSales', saleId), amt = round2(+v.amount);
+    if (!s || s.status === 'void') throw new Error('That sale isn’t open.');
+    if (!(amt > 0)) throw new Error('Type the fee.');
+    const acc = v.accountId || this.col('bizPayments').filter((p) => p.saleId === s.id).at(-1)?.accountId;
+    if (!this.find('bizAccounts', acc)) throw new Error('Pick the account the payout went into.');
+    const paid = this.paidOn(s), fees = this.saleFees(s);
+    if (round2(fees + amt) > paid + 0.005) throw new Error(`Fees can’t be more than what was paid (${fmt(paid)}). Record the fee when the payout arrives.`);
+    const e = this.addExpense(s.bizId, { amount: amt, category: 'Marketplace & payment fees', vendor: v.name || s.channel || 'Platform', accountId: acc, date: v.date || s.date, notes: `${s.no}: ${v.name || 'fee'}` });
+    e.saleId = s.id; e.feeName = String(v.name || 'Fee').slice(0, 40); Store.save(); return e;
+  },
+  saleFees(s) { return round2(this.of('bizExpenses', s.bizId).filter((e) => e.saleId === s.id).reduce((a, e) => a + e.amount, 0)); },
+  netReceived(s) { return round2(this.paidOn(s) - this.refundedCash(s) - this.saleFees(s)); },
+
+  /* ----- recurring billing ----- */
+  saveRecurring(bizId, v, r = null) {
+    if (!this.find('bizCustomers', v.customerId)) throw new Error('Pick the customer.');
+    const lines = (v.lines || []).filter((l) => (l.itemId || l.name) && +l.qty > 0).map((l) => { const it = l.itemId && this.find('bizItems', l.itemId); return { itemId: it?.id || null, name: String(l.name || it?.name || 'Item').slice(0, 80), qty: +l.qty, price: round2(l.price !== '' && l.price != null ? +l.price : it?.price || 0) }; });
+    if (!lines.length) throw new Error('Add what you bill.');
+    if (!['week', 'month', 'quarter', 'days'].includes(v.every)) throw new Error('Pick how often.');
+    if (v.every === 'days' && !(+v.days > 0)) throw new Error('Type the number of days.');
+    const x = r || { id: uid(), bizId, createdAt: Date.now(), created: [] };
+    Object.assign(x, { customerId: v.customerId, lines, every: v.every, days: +v.days || 0, start: v.start || x.start || this.today(), next: r ? x.next : v.start || this.today(), end: v.end || null, dueDays: Math.max(0, +v.dueDays || 0), active: v.active !== false, notes: (v.notes || '').slice(0, 300) });
+    if (!r) this.col('bizRecurring').push(x);
+    Store.save(); return x;
+  },
+  stepDate(iso, every, days) {
+    const d = new Date(iso + 'T00:00:00');
+    if (every === 'week') d.setDate(d.getDate() + 7); else if (every === 'days') d.setDate(d.getDate() + days);
+    else { const day = new Date(iso + 'T00:00:00').getDate(); d.setDate(1); d.setMonth(d.getMonth() + (every === 'quarter' ? 3 : 1)); d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); }
+    return toISODate(d);
+  },
+  /** Invoices that are due to be created up to today (the owner confirms before they're made). */
+  recurringDue(bizId, upTo = this.today()) {
+    const out = [];
+    for (const r of this.of('bizRecurring', bizId).filter((x) => x.active)) { let d = r.next; while (d <= upTo && (!r.end || d <= r.end) && out.length < 500) { out.push({ r, date: d }); d = this.stepDate(d, r.every, r.days); } }
+    return out;
+  },
+  generateRecurring(bizId, upTo = this.today()) {
+    const made = [];
+    for (const { r, date } of this.recurringDue(bizId, upTo)) {
+      const s = this.recordSale(bizId, { kind: 'invoice', customerId: r.customerId, lines: r.lines, paid: 0, date, dueDate: toISODate(new Date(new Date(date + 'T00:00:00').getTime() + r.dueDays * 864e5)), notes: `Recurring billing${r.notes ? ': ' + r.notes : ''}`, allowNoStock: true });
+      s.recurringId = r.id; r.created.push(s.id); r.next = this.stepDate(date, r.every, r.days); made.push(s);
+    }
+    Store.save(); return made;
+  },
+  recurringStats(r) {
+    const s = r.created.map((id) => this.find('bizSales', id)).filter((x) => x && x.status !== 'void'), today = this.today();
+    return { count: s.length, billed: round2(s.reduce((a, x) => a + x.total, 0)), paid: round2(s.reduce((a, x) => a + this.paidOn(x), 0)), owed: round2(s.reduce((a, x) => a + this.dueOn(x), 0)), late: s.filter((x) => this.dueOn(x) > 0 && x.dueDate && x.dueDate < today).length };
+  },
+
+  /* ----- analytics: each figure comes with what it means, or null when there isn't enough data ----- */
+  analytics(bizId, from, to) {
+    const r = this.report(bizId, from, to), days = Math.round((new Date(to) - new Date(from)) / 864e5) + 1;
+    const pTo = toISODate(new Date(new Date(from + 'T00:00:00').getTime() - 864e5)), pFrom = toISODate(new Date(new Date(from + 'T00:00:00').getTime() - days * 864e5)), p = this.report(bizId, pFrom, pTo);
+    const pct = (a, b) => b > 0 ? round2(((a - b) / b) * 100) : null;
+    const sales = this.of('bizSales', bizId).filter((s) => s.status !== 'void'), inR = sales.filter((s) => s.date >= from && s.date <= to);
+    const named = [...new Set(inR.map((s) => s.customerId).filter(Boolean))];
+    const repeat = named.filter((c) => sales.filter((s) => s.customerId === c && s.date <= to).length >= 2).length;
+    const isNew = named.filter((c) => !sales.some((s) => s.customerId === c && s.date < from));
+    const invStart = this.inventoryValue(bizId, pTo), invEnd = this.inventoryValue(bizId, to), avgInv = round2((invStart + invEnd) / 2);
+    const turnover = avgInv > 0 && r.cogs > 0 ? round2(r.cogs / avgInv) : null;
+    const mkt = round2(this.of('bizExpenses', bizId).filter((e) => e.date >= from && e.date <= to && (e.category === 'Advertising & marketing' || e.campaignId)).reduce((a, e) => a + e.amount, 0));
+    const gm = r.netSales > 0 ? r.grossProfit / r.netSales : null;
+    const since = toISODate(new Date(Date.now() - 60 * 864e5));
+    const slow = this.items(bizId).filter((i) => this.tracked(i) && this.stockOf(i.id).qty > 0 && !this.of('bizStock', bizId).some((m) => m.itemId === i.id && m.type === 'sale' && m.date >= since)).map((i) => ({ name: i.name, qty: this.stockOf(i.id).qty, value: this.stockOf(i.id).value }));
+    const byDay = [0, 0, 0, 0, 0, 0, 0]; for (const s of inR) byDay[new Date(s.date + 'T00:00:00').getDay()] += s.revenue;
+    const byItem = {}; for (const s of inR) { const base = s.lines.reduce((a, x) => a + x.qty * x.price - (x.discount || 0), 0); for (const l of s.lines) { const k = l.name; (byItem[k] ||= { name: k, qty: 0, revenue: 0, profit: 0 }); const rev = base > 0 ? round2(s.revenue * (l.qty * l.price - (l.discount || 0)) / base) : 0; byItem[k].qty += l.qty; byItem[k].revenue = round2(byItem[k].revenue + rev); byItem[k].profit = round2(byItem[k].profit + rev - l.qty * (l.unitCost || 0)); } }
+    return {
+      from, to, pFrom, pTo, r, p,
+      revenueGrowth: pct(r.netSales, p.netSales), expenseGrowth: pct(r.expenses, p.expenses),
+      grossMargin: r.grossMargin, netMargin: r.netMargin,
+      aov: inR.length ? round2(r.netSales / inR.length) : null,
+      repeatRate: named.length ? round2((repeat / named.length) * 100) : null, namedCustomers: named.length, newCustomers: isNew.length,
+      turnover, daysOfStock: turnover ? round2(days / turnover) : null, invStart, invEnd,
+      breakEven: gm && gm > 0 ? round2(r.expenses / gm) : null,
+      cac: mkt > 0 && isNew.length ? round2(mkt / isNew.length) : null, marketing: mkt,
+      slow, byDay: byDay.map((x) => round2(x)), top: Object.values(byItem).sort((a, x) => x.profit - a.profit).slice(0, 5),
+    };
+  },
+
+  /* ----- Philippine tax summary (estimates from records; not a filing) ----- */
+  taxProfile(b) { return b.taxProfile || { reg: 'unsure' }; },
+  taxSummary(bizId, from, to) {
+    const b = this.get(bizId), tp = this.taxProfile(b), inR = (d) => d >= from && d <= to;
+    const sales = this.of('bizSales', bizId).filter((s) => s.status !== 'void' && inR(s.date)), rets = this.of('bizReturns', bizId).filter((x) => inR(x.date));
+    const sum = (a, f) => round2(a.reduce((x, y) => x + (f(y) || 0), 0));
+    const retShare = (cls) => sum(rets, (x) => { const s = this.find('bizSales', x.saleId); const tot = (s?.vatableNet || 0) + (s?.exemptNet || 0) + (s?.zeroNet || 0); return tot > 0 ? x.revenue * ((s[cls] || 0) / tot) : cls === 'vatableNet' ? x.revenue : 0; });
+    const vatable = round2(sum(sales, (s) => s.vatableNet != null ? s.vatableNet : s.revenue) - retShare('vatableNet'));
+    const exempt = round2(sum(sales, (s) => s.exemptNet || 0) - retShare('exemptNet')), zero = round2(sum(sales, (s) => s.zeroNet || 0) - retShare('zeroNet'));
+    const outputVat = round2(sum(sales, (s) => s.tax) - sum(rets, (x) => x.tax)), inputVat = sum(this.of('bizExpenses', bizId).filter((e) => inR(e.date)), (e) => e.vat);
+    const gross = round2(sum(sales, (s) => s.revenue) - sum(rets, (x) => x.revenue));
+    const y0 = toISODate(new Date(new Date(to + 'T00:00:00').getTime() - 364 * 864e5)), last12 = round2(this.of('bizSales', bizId).filter((s) => s.status !== 'void' && s.date >= y0 && s.date <= to).reduce((a, s) => a + s.revenue, 0) - this.of('bizReturns', bizId).filter((x) => x.date >= y0 && x.date <= to).reduce((a, x) => a + x.revenue, 0));
+    const out = { reg: tp.reg, from, to, gross, vatable: tp.reg === 'vat' ? vatable : null, exempt: tp.reg === 'vat' ? exempt : null, zero: tp.reg === 'vat' ? zero : null, outputVat, inputVat, last12, threshold: PH_TAX_REF.threshold.value };
+    if (tp.reg === 'vat') out.vatPayable = round2(outputVat - inputVat);
+    if (tp.reg === 'nonvat') out.ptRate = +tp.ptRate || null, out.ptEstimate = tp.ptRate ? round2(gross * tp.ptRate / 100) : null;
+    return out;
+  },
+  /** Monthly rows for the summary (for the accountant). */
+  taxByMonth(bizId, from, to) {
+    const rows = []; let d = from.slice(0, 7) + '-01';
+    while (d <= to) { const end = toISODate(new Date(+d.slice(0, 4), +d.slice(5, 7), 0)); rows.push({ month: d.slice(0, 7), ...this.taxSummary(bizId, d < from ? from : d, end > to ? to : end) }); d = toISODate(new Date(+d.slice(0, 4), +d.slice(5, 7), 1)); }
+    return rows;
+  },
+});
+/* Phase 4 actions follow the same role rules. */
+for (const [fn, act] of [['saveRecipe', 'products'], ['recall', 'stock'], ['addSaleFee', 'sell'], ['saveRecurring', 'sell'], ['generateRecurring', 'sell'], ['setCosting', 'settings']]) { const f = Biz[fn]; Biz[fn] = function (...a) { Biz.guard(act); return f.apply(this, a); }; }
 
 /* =========================================================================
    ICONS — simple one-colour line icons in place of colourful emoji.
@@ -5361,7 +5630,7 @@ const Backup = {
   ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans', 'assets', 'holdings', 'bills', 'policies',
     'businesses', 'bizAccounts', 'bizItems', 'bizCustomers', 'bizSales', 'bizPayments', 'bizExpenses', 'bizOwner', 'bizTransfers',
     'bizStock', 'bizOrders', 'bizSuppliers', 'bizPurchases', 'bizSupplierPays', 'bizReturns', 'bizLoans', 'bizLoanPays',
-    'bizShifts', 'bizCashCounts', 'bizEmployees', 'bizAttend', 'bizPayruns', 'bizRemits', 'bizProjects', 'bizTasks', 'bizTime', 'bizPromos', 'bizCampaigns', 'bizPoints', 'bizLocations', 'bizLog'],
+    'bizShifts', 'bizCashCounts', 'bizEmployees', 'bizAttend', 'bizPayruns', 'bizRemits', 'bizProjects', 'bizTasks', 'bizTime', 'bizPromos', 'bizCampaigns', 'bizPoints', 'bizLocations', 'bizLog', 'bizProduction', 'bizRecalls', 'bizRecurring'],
   lastAt() { return Store.state.settings?.lastBackupAt || 0; },
 
   build() {
@@ -8064,10 +8333,10 @@ const UI = {
         <p class="mt-3 text-[11px] text-stone-400">Tiffo keeps records; it isn’t official tax filing or accounting advice.</p></div>`;
       return;
     }
-    const staff = Biz.actor(), need = { overview: 'reports', sell: 'sell', pos: 'sell', invoices: 'sell', orders: 'orders', customers: 'customers', products: 'products', stock: 'stock', suppliers: 'purchases', expenses: 'expenses', reports: 'reports', marketing: 'marketing', settings: 'settings' };
-    const mod = { pos: 'pos', team: 'team', projects: 'projects', marketing: 'marketing' };
+    const staff = Biz.actor(), need = { overview: 'reports', sell: 'sell', pos: 'sell', invoices: 'sell', orders: 'orders', customers: 'customers', products: 'products', stock: 'stock', suppliers: 'purchases', expenses: 'expenses', reports: 'reports', marketing: 'marketing', settings: 'settings', production: 'products', recurring: 'sell', tax: 'reports' };
+    const mod = { pos: 'pos', team: 'team', projects: 'projects', marketing: 'marketing', production: 'production', recurring: 'recurring' };
     const tabs = [['overview', 'Overview'], ['pos', 'POS'], ['sell', 'Sell'], ['invoices', 'Sales & invoices'], ['orders', 'Orders'], ['customers', 'Customers'], ['products', 'Products & services'], ['stock', 'Stock'], ['suppliers', 'Suppliers & purchases'], ['expenses', 'Expenses'],
-      ['team', 'Team'], ['projects', 'Projects & time'], ['marketing', 'Marketing'], ['reports', 'Reports'], ['settings', 'Settings']]
+      ['production', 'Production'], ['recurring', 'Recurring'], ['team', 'Team'], ['projects', 'Projects & time'], ['marketing', 'Marketing'], ['reports', 'Reports'], ['tax', 'Tax'], ['settings', 'Settings']]
       .filter(([k]) => (!mod[k] || Biz.on(mod[k], b)) && (!need[k] || Biz.can(need[k])));
     if (!tabs.some(([k]) => k === this.bizTab)) this.bizTab = tabs[0]?.[0] || 'team';
     const others = staff ? [b] : Biz.list();
@@ -8083,7 +8352,7 @@ const UI = {
       <div id="bizBody" class="mt-3"></div>`;
     const body = $('#bizBody');
     document.documentElement.classList.toggle('staff-mode', !!staff);
-    const f = { pos: this.bizPos, team: this.bizTeam, projects: this.bizProjectsView, marketing: this.bizMarketing, overview: this.bizOverview, sell: this.bizSell, invoices: this.bizInvoices, orders: this.bizOrders, customers: this.bizCustomers, products: this.bizProducts, stock: this.bizStock, suppliers: this.bizSuppliersView, expenses: this.bizExpensesView, reports: this.bizReports, settings: this.bizSettings }[this.bizTab] || this.bizOverview;
+    const f = { production: this.bizProduction, recurring: this.bizRecurringView, tax: this.bizTaxView, pos: this.bizPos, team: this.bizTeam, projects: this.bizProjectsView, marketing: this.bizMarketing, overview: this.bizOverview, sell: this.bizSell, invoices: this.bizInvoices, orders: this.bizOrders, customers: this.bizCustomers, products: this.bizProducts, stock: this.bizStock, suppliers: this.bizSuppliersView, expenses: this.bizExpensesView, reports: this.bizReports, settings: this.bizSettings }[this.bizTab] || this.bizOverview;
     body.innerHTML = f.call(this, b);
     if (this.bizTab === 'sell') this.bizSellUpdate();
     if (this.bizTab === 'pos') { this.posRefresh(); const q = $('#posSearch'); if (q && this.posFocus !== false && window.innerWidth >= 640) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }
@@ -8096,6 +8365,8 @@ const UI = {
     return `<div class="flex flex-wrap gap-2">${qa.map(([k, l]) => `<button type="button" data-biz="qa-${k}" class="rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 px-3 py-2 text-sm font-semibold">${l}</button>`).join('')}</div>
       ${o.overdue.length ? `<div class="mt-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-3 text-sm">⚠️ <b>${o.overdue.length} overdue ${o.overdue.length === 1 ? 'invoice' : 'invoices'}</b>, ${this.bizMoney(o.overdue.reduce((x, s) => x + Biz.dueOn(s), 0))} still owed. <button type="button" data-biztab="invoices" class="underline font-semibold">See them</button></div>` : ''}
       ${o.low.length ? `<div class="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-sm">📦 <b>Running low:</b> ${o.low.slice(0, 4).map((x) => `${escapeHTML(x.i.name)} (${x.avail} left)`).join(', ')}${o.low.length > 4 ? ` and ${o.low.length - 4} more` : ''}. <button type="button" data-biztab="stock" class="underline font-semibold">See stock</button></div>` : ''}
+      ${(() => { const ex = Biz.expiring(b.id), due = Biz.on('recurring', b) ? Biz.recurringDue(b.id) : []; return (ex.length ? `<div class="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-sm">⏳ <b>${ex.length} ${ex.length === 1 ? 'batch' : 'batches'}</b> expired or expiring soon. <button type="button" data-biztab="stock" class="underline font-semibold">See stock</button></div>` : '')
+        + (due.length ? `<div class="mt-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900 p-3 text-sm">🔁 <b>${due.length} recurring ${due.length === 1 ? 'invoice is' : 'invoices are'}</b> due to be created. <button type="button" data-biztab="recurring" class="underline font-semibold">Review</button></div>` : ''); })()}
       ${o.orders.length ? `<div class="mt-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900 p-3 text-sm">📋 <b>${o.orders.length} open ${o.orders.length === 1 ? 'order' : 'orders'}</b> to fulfil. <button type="button" data-biztab="orders" class="underline font-semibold">See orders</button></div>` : ''}
       <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
         ${tile('Sales today', this.bizMoney(o.today.netSales), `${o.today.count} ${o.today.count === 1 ? 'sale' : 'sales'}`, 'Sales recorded today, excluding tax, whether paid or not.')}
@@ -8121,7 +8392,7 @@ const UI = {
   bizNewDraft(kind = 'sale') { const b = Biz.current(); this.bizDraft = { kind, lines: [], customerId: '', discount: 0, pay: kind === 'invoice' ? 'none' : 'full', paid: 0, accountId: Biz.accounts(b.id)[0]?.id || '', method: 'cash', date: toISODate(new Date()), dueDate: toISODate(new Date(Date.now() + 14 * 864e5)), notes: '', allow: false }; },
   bizSell(b) {
     if (!this.bizDraft || this.bizDraft.bizId !== b.id) { this.bizNewDraft(this.bizDraft?.kind); this.bizDraft.bizId = b.id; }
-    const d = this.bizDraft, items = Biz.items(b.id), custs = Biz.customers(b.id), accs = Biz.accounts(b.id);
+    const d = this.bizDraft, items = Biz.items(b.id).filter((i) => i.forSale !== false), custs = Biz.customers(b.id), accs = Biz.accounts(b.id);
     const inp = 'rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-950 px-2.5 py-2 text-sm';
     return `<div class="flex gap-1 rounded-lg bg-stone-100 dark:bg-stone-800 p-1 w-fit text-sm">
         <button type="button" data-biz="kind-sale" class="px-3 py-1 rounded-md font-semibold ${d.kind === 'sale' ? 'bg-white dark:bg-stone-900 shadow' : ''}">Sale</button>
@@ -8209,6 +8480,7 @@ const UI = {
           <div class="text-right tabular"><div class="font-semibold">${fmt(s.total)}</div>${due && st !== 'void' ? `<div class="text-[11px] text-rose-600">${fmt(due)} owed</div>` : ''}</div></div>
           <div class="mt-1 flex flex-wrap gap-2 text-xs">${due && st !== 'void' ? `<button type="button" data-biz="pay" data-id="${s.id}" class="rounded-lg bg-teal-600 text-white px-2.5 py-1 font-semibold">Record payment</button>` : ''}
           <button type="button" data-biz="view" data-id="${s.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">View / print</button>
+          ${st !== 'void' && Biz.paidOn(s) > 0 ? `<button type="button" data-biz4="fee" data-id="${s.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">Fees</button>${Biz.saleFees(s) ? `<span class="text-stone-500 self-center">fees ${fmt(Biz.saleFees(s))}, got ${fmt(Biz.netReceived(s))}</span>` : ''}` : ''}
           ${st !== 'void' ? `<button type="button" data-biz="return" data-id="${s.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">Return / refund</button>` : ''}${Biz.returnsValue(s) ? `<span class="text-stone-500 self-center">↩ ${fmt(Biz.returnsValue(s))} returned</span>` : ''}
           ${st !== 'void' && !Biz.paidOn(s) ? `<button type="button" data-biz="void" data-id="${s.id}" class="text-stone-500 hover:text-rose-600 hover:underline">Void</button>` : ''}</div></li>`;
       }).join('') || '<li class="py-3 text-sm text-stone-500">No sales here yet.</li>'}</ul>`;
@@ -8233,7 +8505,8 @@ const UI = {
       ${s.tax.mode !== 'none' ? `<tr><td>Tax ${s.tax.rate}% ${s.tax.mode === 'inclusive' ? '(included)' : ''}</td><td style="text-align:right;padding-left:24px">${e(fmt(s.tax))}</td></tr>` : ''}
       <tr style="font-weight:700;font-size:15px"><td>Total</td><td style="text-align:right;padding-left:24px">${e(fmt(s.total))}</td></tr>${Biz.returnsValue(s) ? `<tr><td>Returned</td><td style="text-align:right;padding-left:24px">−${e(fmt(Biz.returnsValue(s)))}</td></tr>` : ''}<tr><td>Paid</td><td style="text-align:right;padding-left:24px">${e(fmt(round2(Biz.paidOn(s) - Biz.refundedCash(s))))}</td></tr><tr style="font-weight:700"><td>Balance due</td><td style="text-align:right;padding-left:24px">${e(fmt(Biz.dueOn(s)))}</td></tr></table>
       ${s.notes ? `<p style="margin-top:16px;font-size:12px">${e(s.notes)}</p>` : ''}
-      <p style="margin-top:24px;font-size:10px;color:#a8a29e">Prepared with Tiffo. ${s.status === 'void' ? 'VOID. ' : ''}This document is not an official BIR receipt unless your business is registered to issue it this way.</p></div>`;
+      <p style="margin-top:24px;font-size:10px;color:#a8a29e">Prepared with Tiffo. ${s.status === 'void' ? 'VOID. ' : ''}This document is not an official BIR receipt unless your business is registered to issue it this way.</p>${s.tax.mode !== 'none' && (s.exemptNet || s.zeroNet) ? `<p style="font-size:11px;color:#57534e;margin-top:8px">VATable ${e(fmt(s.vatableNet))} · VAT-exempt ${e(fmt(s.exemptNet))} · Zero-rated ${e(fmt(s.zeroNet))} · VAT ${e(fmt(s.tax))}</p>` : ''}
+      <p style="font-size:10px;color:#a8a29e;margin-top:16px">Made with Tiffo. This is a record of the sale, not a BIR-registered invoice.</p></div>`;
   },
   bizViewSale(id) {
     const s = Biz.find('bizSales', id);
@@ -8280,6 +8553,9 @@ const UI = {
         ...(i ? [] : [{ id: 'opening', label: 'How many you have now', type: 'number', value: '', show: (v) => v.kind === 'product' && v.track }]),
         { id: 'reorder', label: 'Warn me when it drops to', type: 'number', value: i?.reorder || '', show: (v) => v.kind === 'product' && v.track, advanced: true },
         { id: 'leadDays', label: 'Days a supplier takes to deliver', type: 'number', value: i?.leadDays || '', show: (v) => v.kind === 'product' && v.track, advanced: true },
+        { id: 'batches', type: 'checkbox', label: 'Track batches & expiry dates', value: !!i?.batches, show: (v) => v.kind === 'product' && v.track, advanced: true },
+        { id: 'ingredientOnly', type: 'checkbox', label: 'Ingredient or supply only (not sold)', value: i ? i.forSale === false : false, show: (v) => v.kind === 'product' && v.track, advanced: true },
+        ...(Biz.taxProfile(b).reg === 'vat' ? [{ id: 'taxClass', label: 'VAT', type: 'select', value: i?.taxClass || 'vatable', options: [['vatable', 'VATable'], ['exempt', 'VAT-exempt'], ['zero', 'Zero-rated']], hint: 'Only if your accountant says this item is exempt or zero-rated.', advanced: true }] : []),
         { id: 'unit', label: 'Unit', value: i?.unit || '', placeholder: 'pc, box, kg, hour', advanced: true }, { id: 'sku', label: 'Code / SKU', value: i?.sku || '', advanced: true },
         { id: 'category', label: 'Category', value: i?.category || '', advanced: true }, { id: 'notes', label: 'Notes', type: 'textarea', value: i?.notes || '', advanced: true },
         ...(i ? [{ id: 'status', label: 'Status', type: 'select', value: i.status, options: [['active', 'Active'], ['archived', 'Archived (hidden when selling)']] }] : [])],
@@ -8306,6 +8582,7 @@ const UI = {
         { id: 'acc', label: 'Paid from', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]), show: (v) => !v.unpaid },
         { id: 'sup', label: 'Supplier', type: 'select', value: '', options: [['', '—'], ...Biz.suppliers(b.id).map((x) => [x.id, x.name])], show: (v) => v.unpaid }, { id: 'dueDate', label: 'Due by', type: 'date', value: '', show: (v) => v.unpaid },
         { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) }, { id: 'notes', label: 'Notes', value: '', advanced: true },
+        ...(Biz.taxProfile(b).reg === 'vat' ? [{ id: 'vat', label: 'VAT shown on the supplier’s invoice', type: 'number', value: '', hint: 'Input VAT, for your tax summary. Leave empty if none.', advanced: true }] : []),
         ...(Biz.on('marketing', b) && Biz.of('bizCampaigns', b.id).length ? [{ id: 'camp', label: 'For campaign', type: 'select', value: '', options: [['', '—'], ...Biz.of('bizCampaigns', b.id).map((c) => [c.id, c.name])], advanced: true }] : []),
         ...(Biz.on('projects', b) && Biz.of('bizProjects', b.id).length ? [{ id: 'proj', label: 'For project', type: 'select', value: '', options: [['', '—'], ...Biz.of('bizProjects', b.id).filter((p) => p.status !== 'done').map((p) => [p.id, p.name])], advanced: true }] : [])],
       onSave: (v) => { try { Biz.addExpense(b.id, { ...v, accountId: v.acc, supplierId: v.sup, campaignId: v.camp, projectId: v.proj }); } catch (e) { return e.message; } this.renderBiz(); toast('💸 Expense saved.'); } });
@@ -8341,6 +8618,7 @@ const UI = {
       ${(() => { const by = this.bizBy || 'method', opts = [['method', 'Payment method'], ['channel', 'Channel'], ['customer', 'Customer'], ['employee', 'Staff'], ...(Biz.multiLoc(b.id) ? [['location', 'Location']] : []), ...(Biz.on('marketing', b) ? [['campaign', 'Campaign']] : []), ...(Biz.on('projects', b) ? [['project', 'Project']] : [])];
         const rows = Biz.breakdown(b.id, from, to, by); return `<h4 class="mt-4 font-semibold">Sales by <select id="bizBy" class="ml-1 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-1.5 py-0.5 text-sm">${opts.map(([k, l]) => `<option value="${k}" ${by === k ? 'selected' : ''}>${l}</option>`).join('')}</select></h4>
         <table class="mt-1 w-full text-sm"><tr class="text-xs text-stone-500"><td></td><td class="text-right">Sales</td><td class="text-right">Amount</td><td class="text-right">Gross profit</td></tr>${rows.map((x) => `<tr><td class="py-0.5">${escapeHTML(x.label)}</td><td class="text-right tabular">${x.count}</td><td class="text-right tabular">${fmt(x.revenue)}</td><td class="text-right tabular">${fmt(x.profit)}</td></tr>`).join('') || '<tr><td class="text-stone-500">No sales in this period.</td></tr>'}</table>`; })()}
+      ${this.bizInsights(b, from, to)}
       ${r.avgSale != null ? `<p class="mt-3 text-xs text-stone-500">Average sale ${fmt(r.avgSale)} over ${r.count} sales.</p>` : ''}
       <p class="mt-3 text-[11px] text-stone-400">Records to help you and your accountant; not official tax filing or advice.</p>`;
   },
@@ -8355,6 +8633,7 @@ const UI = {
         <div class="mt-2 flex flex-wrap gap-2"><button type="button" data-biz="add-acc" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">+ Account</button><button type="button" data-biz="move" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">Move between accounts</button><button type="button" data-biz="qa-owner" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">Owner money</button></div></div></div>
       ${this.bizLoansBlock(b)}
       ${this.bizSettings3(b)}
+      ${this.bizSettings4(b)}
       <button type="button" data-biz="delete" class="mt-4 text-sm text-rose-700 dark:text-rose-400 hover:underline">Delete this business…</button>`;
   },
   /* ---------- Tiffo Business phase 3 screens ---------- */
@@ -8364,7 +8643,7 @@ const UI = {
   /* POS */
   bizPos(b) {
     const sh = Biz.openShiftFor(b.id), cart = (this.posCart ||= { lines: [], method: 'cash', customerId: '', promo: '', points: 0, tendered: '', locationId: null });
-    const items = Biz.items(b.id), q = (this.posQ || '').toLowerCase(), cat = this.posCat || '';
+    const items = Biz.items(b.id).filter((i) => i.forSale !== false), q = (this.posQ || '').toLowerCase(), cat = this.posCat || '';
     const cats = [...new Set(items.map((i) => i.category).filter(Boolean))];
     const shown = items.filter((i) => (!cat || i.category === cat) && (!q || i.name.toLowerCase().includes(q) || (i.sku || '').toLowerCase() === q || (i.barcode || '') === q)).slice(0, 40);
     const t = this.posTotals(b);
@@ -8402,7 +8681,7 @@ const UI = {
     const sub = round2(c.lines.reduce((x, l) => x + l.qty * l.price, 0)); let extra = 0, err = '', promoAmt = 0, ptsAmt = 0;
     if (c.promo) { try { promoAmt = Biz.promoFor(b.id, c.promo, sub).amount; extra += promoAmt; } catch (e) { err = e.message; } }
     const L = Biz.loyalty(b); if (L && c.points > 0) { ptsAmt = round2(Math.floor(c.points) * (+L.value || 0)); extra += ptsAmt; }
-    const t = Biz.totals(c.lines, extra, b.tax); return { ...t, promoAmt, ptsAmt, err };
+    const t = Biz.totals(c.lines.map((l) => ({ ...l, taxClass: Biz.find('bizItems', l.itemId)?.taxClass })), extra, b.tax); return { ...t, promoAmt, ptsAmt, err };
   },
   posTotalsHTML(t) {
     const r = (l, v, cls = '') => `<div class="flex justify-between ${cls}"><span>${l}</span><span class="tabular">${v}</span></div>`;
@@ -8678,6 +8957,174 @@ const UI = {
       onSave: (v) => { if (!v.name?.trim()) return 'Type a name.'; Biz.saveLocation(b.id, v); this.renderBiz(); } });
     if (act === 'transfer-stock') return this.bizTransferForm(id);
   },
+  /* ---------- Tiffo Business phase 4 screens ---------- */
+  bizProduction(b) {
+    const made = Biz.items(b.id, true).filter((i) => Biz.tracked(i) && i.forSale !== false), runs = Biz.of('bizProduction', b.id).sort((a, x) => x.date.localeCompare(a.date) || x.createdAt - a.createdAt).slice(0, 10);
+    return `<p class="text-sm text-stone-600 dark:text-stone-400">A recipe says what goes into one batch. Making a batch takes the ingredients out of stock and adds the finished goods at what the ingredients cost.</p>
+      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${made.map((i) => { const c = Biz.recipeCost(i); return `<li class="py-2.5"><div class="flex flex-wrap justify-between gap-2"><div><b>${escapeHTML(i.name)}</b>
+          ${c ? `<div class="text-[11px] text-stone-500">${c.ing.map((x) => `${x.qty} ${escapeHTML(x.unit)} ${escapeHTML(x.name)}`).join(', ')} → ${i.recipe.yield} ${escapeHTML(i.unit || 'pcs')}</div>
+          <div class="text-[11px] text-stone-500">Estimated cost each ${fmt(c.perUnit)} (ingredients ${fmt(c.materialsPerUnit)}${c.extra ? ` + labour, packaging & other ${fmt(round2(c.extra / i.recipe.yield))}` : ''}) · sells for ${fmt(i.price)} · profit each <b class="${c.profit < 0 ? 'text-rose-600' : ''}">${fmt(c.profit)}</b>${c.margin != null ? ` (${c.margin}%)` : ''}
+          ${c.change ? ` · <span class="${c.change > 0 ? 'text-rose-600' : 'text-emerald-600'}">${c.change > 0 ? 'up' : 'down'} ${fmt(Math.abs(c.change))} since the recipe was last saved</span>` : ''}</div>` : '<div class="text-[11px] text-stone-500">No recipe yet.</div>'}</div>
+          <div class="flex flex-wrap gap-1.5 items-start">${c ? this.bizSmallBtn(`data-biz4="produce" data-id="${i.id}"`, 'Make a batch', true) : ''}${this.bizSmallBtn(`data-biz4="recipe" data-id="${i.id}"`, c ? 'Edit recipe' : 'Add recipe')}</div></div></li>`; }).join('') || '<li class="py-3 text-sm text-stone-500">Add the products you make, and the ingredients you buy, as stock-tracked products first.</li>'}</ul>
+      ${runs.length ? `<div class="mt-3 text-xs font-semibold text-stone-500">Recent production</div><ul class="divide-y divide-stone-100 dark:divide-stone-800">${runs.map((r) => `<li class="py-1.5 flex flex-wrap justify-between gap-2 text-sm"><span>${escapeHTML(prettyDate(r.date))} · ${escapeHTML(Biz.find('bizItems', r.itemId)?.name || '')} × ${r.batches}${r.batchNo ? ` · batch ${escapeHTML(r.batchNo)}` : ''}${r.expiry ? ` · expires ${escapeHTML(prettyDate(r.expiry))}` : ''}
+          <span class="text-[11px] text-stone-500"> · planned ${r.planned}, made ${r.actual}${r.waste ? `, <span class="text-amber-700 dark:text-amber-300">${r.waste} short</span>` : ''}</span></span><span class="tabular">${fmt(r.materials)} · ${fmt(r.unitCost)} each</span></li>`).join('')}</ul>` : ''}
+      <p class="mt-2 text-[11px] text-stone-500">Stock value counts ingredients only. Labour, packaging and other costs in a recipe are estimates for pricing, because you already record them as expenses (payroll, supplies, rent).</p>`;
+  },
+  bizRecipeForm(itemId) {
+    const it = Biz.find('bizItems', itemId), b = Biz.current(), r = it.recipe || { lines: [], yield: '' }, ings = Biz.items(b.id, true).filter((i) => Biz.tracked(i) && i.id !== itemId);
+    if (!ings.length) return toast('Add your ingredients as stock-tracked products first (tick “Ingredient only” so they stay out of the POS).');
+    const rows = [...r.lines]; while (rows.length < 8) rows.push({ itemId: '', qty: '' });
+    this.form({ title: `Recipe: ${it.name}`, save: 'Save recipe', sub: 'One batch. Ingredient costs come from your stock.',
+      fields: [{ id: 'yield', label: `One batch makes (${it.unit || 'pcs'})`, type: 'number', value: r.yield },
+        ...rows.flatMap((l, n) => [{ id: `i${n}`, label: n ? `Ingredient ${n + 1}` : 'Ingredient', type: 'select', value: l.itemId, options: [['', '—'], ...ings.map((x) => [x.id, `${x.name}${x.unit ? ' (' + x.unit + ')' : ''}`])], ...(n > 3 ? { advanced: true } : {}) },
+          { id: `q${n}`, label: 'Amount per batch', type: 'number', value: l.qty, show: (v) => !!v[`i${n}`] }]),
+        { id: 'labor', label: 'Labour per batch (estimate)', type: 'number', value: r.labor || '', advanced: true }, { id: 'packaging', label: 'Packaging per batch (if not an ingredient)', type: 'number', value: r.packaging || '', advanced: true },
+        { id: 'other', label: 'Other costs per batch (gas, electricity…)', type: 'number', value: r.other || '', advanced: true }],
+      onSave: (v) => { try { Biz.saveRecipe(itemId, { yield: v.yield, labor: v.labor, packaging: v.packaging, other: v.other, lines: rows.map((_, n) => ({ itemId: v[`i${n}`], qty: v[`q${n}`] })) }); } catch (x) { return x.message; } this.renderBiz(); toast('✓ Recipe saved.'); } });
+  },
+  bizProduceForm(itemId, allow = {}) {
+    const it = Biz.find('bizItems', itemId), b = Biz.current(), c = Biz.recipeCost(it), locs = Biz.multiLoc(b.id) ? Biz.locations(b.id) : null;
+    this.form({ title: `Make ${it.name}`, save: 'Record production', sub: `One batch makes ${it.recipe.yield}. Ingredients for one batch: ${c.ing.map((x) => `${x.qty} ${x.unit} ${x.name}`).join(', ')}.`,
+      fields: [{ id: 'batches', label: 'Batches', type: 'number', value: 1 }, { id: 'actual', label: 'How many were actually made (empty = as planned)', type: 'number', value: '' },
+        ...(it.batches ? [{ id: 'batchNo', label: 'Batch number', value: `${toISODate(new Date()).replace(/-/g, '')}-${(Biz.of('bizProduction', b.id).filter((r) => r.itemId === itemId).length + 1)}` }, { id: 'expiry', label: 'Best before / expiry', type: 'date', value: '' }] : []),
+        ...(locs ? [{ id: 'loc', label: 'Where', type: 'select', value: '', options: locs.map((l) => [l.id || '', l.name]) }] : []),
+        { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()), advanced: true }, { id: 'note', label: 'Note', value: '', advanced: true }],
+      onSave: (v) => {
+        try { const r = Biz.produce(b.id, { itemId, batches: v.batches, actual: v.actual, batchNo: v.batchNo, expiry: v.expiry, locationId: v.loc || null, date: v.date, note: v.note, ...allow }); this.renderBiz(); toast(`✓ ${r.actual} ${escapeHTML(it.name)} made at ${fmt(r.unitCost)} each.`); }
+        catch (x) { if (x.noStock) { setTimeout(async () => { if (await askConfirm(`${x.message} Record it anyway (stock will show below zero until you count it)?`, 'Record anyway')) this.bizProduceForm(itemId, { allowNoStock: true }); }, 0); return; } return x.message; }
+      } });
+  },
+  bizRecurringView(b) {
+    const rs = Biz.of('bizRecurring', b.id), due = Biz.recurringDue(b.id), every = { week: 'Every week', month: 'Every month', quarter: 'Every 3 months', days: 'Every %d days' };
+    return `<div class="flex flex-wrap items-center justify-between gap-2"><span class="text-sm">${rs.filter((r) => r.active).length} active schedules</span>
+        <div class="flex flex-wrap gap-2">${due.length && Biz.can('sell') ? `<button type="button" data-biz4="gen-recurring" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">Create ${due.length} due ${due.length === 1 ? 'invoice' : 'invoices'}</button>` : ''}<button type="button" data-biz4="recurring" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold">+ Schedule</button></div></div>
+      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${rs.map((r) => { const s = Biz.recurringStats(r), tot = round2(r.lines.reduce((a, l) => a + l.qty * l.price, 0)); return `<li class="py-2.5 flex flex-wrap justify-between gap-2"><div><b>${escapeHTML(Biz.find('bizCustomers', r.customerId)?.name || '')}</b> · ${fmt(tot)} ${every[r.every].replace('%d', r.days)}${r.active ? '' : ' <span class="text-[11px] text-stone-400">(paused)</span>'}
+          <div class="text-[11px] text-stone-500">${r.lines.map((l) => `${l.qty}× ${escapeHTML(l.name)}`).join(', ')} · next ${escapeHTML(prettyDate(r.next))}${r.end ? ` · ends ${escapeHTML(prettyDate(r.end))}` : ''}</div>
+          <div class="text-[11px] text-stone-500">${s.count} invoices · billed ${fmt(s.billed)} · paid ${fmt(s.paid)}${s.owed ? ` · <span class="text-rose-600">${fmt(s.owed)} owed${s.late ? `, ${s.late} late` : ''}</span>` : ''}</div></div>${this.bizSmallBtn(`data-biz4="recurring" data-id="${r.id}"`, 'Edit')}</li>`; }).join('') || '<li class="py-3 text-sm text-stone-500">No schedules. Use one for customers you bill regularly, like a monthly retainer or subscription.</li>'}</ul>
+      <p class="mt-2 text-[11px] text-stone-500">Tiffo shows when invoices are due to be made and creates them only when you tap the button. It never charges anyone.</p>`;
+  },
+  bizRecurringForm(r = null) {
+    const b = Biz.current(), custs = Biz.customers(b.id), items = Biz.items(b.id).filter((i) => i.forSale !== false);
+    if (!custs.length) return toast('Add the customer first.');
+    const rows = [...(r?.lines || [])]; while (rows.length < 3) rows.push({ itemId: '', qty: '', price: '' });
+    this.form({ title: r ? 'Recurring billing' : 'New recurring billing', save: 'Save', danger: r ? { label: r.active ? 'Pause' : 'Resume', fn: () => { r.active = !r.active; Store.save(); this.renderBiz(); } } : undefined,
+      fields: [{ id: 'cust', label: 'Customer', type: 'select', value: r?.customerId || custs[0].id, options: custs.map((c) => [c.id, c.name]) },
+        ...rows.flatMap((l, n) => [{ id: `it${n}`, label: n ? `Item ${n + 1}` : 'Item', type: 'select', value: l.itemId || (l.name ? '__custom' : ''), options: [['', '—'], ...items.map((i) => [i.id, `${i.name} · ${fmt(i.price)}`]), ['__custom', 'Something else']] },
+          { id: `nm${n}`, label: 'Description', value: l.itemId ? '' : l.name || '', show: (v) => v[`it${n}`] === '__custom' }, { id: `q${n}`, label: 'Quantity', type: 'number', value: l.qty || (n ? '' : 1), show: (v) => !!v[`it${n}`] },
+          { id: `p${n}`, label: 'Price (empty = product price)', type: 'number', value: l.itemId ? (l.price !== Biz.find('bizItems', l.itemId)?.price ? l.price : '') : l.price, show: (v) => !!v[`it${n}`] }]),
+        { id: 'every', label: 'How often', type: 'select', value: r?.every || 'month', options: [['week', 'Every week'], ['month', 'Every month'], ['quarter', 'Every 3 months'], ['days', 'Every … days']] }, { id: 'days', label: 'Days', type: 'number', value: r?.days || '', show: (v) => v.every === 'days' },
+        { id: 'start', label: r ? 'Next invoice' : 'First invoice', type: 'date', value: r?.next || toISODate(new Date()) }, { id: 'dueDays', label: 'Customer pays within (days)', type: 'number', value: r?.dueDays ?? 7 },
+        { id: 'end', label: 'Last invoice on or before', type: 'date', value: r?.end || '', advanced: true }, { id: 'notes', label: 'Note on invoices', value: r?.notes || '', advanced: true }],
+      onSave: (v) => {
+        const lines = rows.map((_, n) => ({ itemId: v[`it${n}`] && v[`it${n}`] !== '__custom' ? v[`it${n}`] : null, name: v[`nm${n}`], qty: v[`q${n}`], price: v[`p${n}`] })).filter((l, n) => v[`it${n}`]);
+        try { const x = Biz.saveRecurring(b.id, { customerId: v.cust, lines, every: v.every, days: v.days, start: v.start, dueDays: v.dueDays, end: v.end, notes: v.notes }, r); if (r) x.next = v.start || x.next; Store.save(); } catch (e) { return e.message; }
+        this.renderBiz();
+      } });
+  },
+  bizFeeForm(saleId) {
+    const s = Biz.find('bizSales', saleId), b = Biz.current(), sug = Biz.suggestFees(b.id, s.channel, s.total), accs = Biz.accounts(b.id);
+    this.form({ title: `Fees on ${s.no}`, save: 'Record fee', sub: `Paid ${fmt(Biz.paidOn(s))}; fees so far ${fmt(Biz.saleFees(s))}; you actually got ${fmt(Biz.netReceived(s))}. A fee the platform kept is an expense linked to this sale.`,
+      fields: [{ id: 'name', label: 'Fee', value: sug[0]?.name || 'Platform commission' }, { id: 'amount', label: 'Amount', type: 'number', value: sug[0]?.amount || '', hint: sug.length ? 'From your fee rules for this channel. Check it against the payout.' : '' },
+        { id: 'acc', label: 'Deducted from the payout into', type: 'select', value: Biz.col('bizPayments').filter((p) => p.saleId === s.id).at(-1)?.accountId || accs[0]?.id, options: accs.map((a) => [a.id, a.name]) }],
+      onSave: (v) => { try { Biz.addSaleFee(saleId, { name: v.name, amount: v.amount, accountId: v.acc }); } catch (x) { return x.message; } this.renderBiz(); toast('✓ Fee recorded.'); } });
+  },
+  bizInsights(b, from, to) {
+    const a = Biz.analytics(b.id, from, to), na = '<span class="text-stone-400">not enough data</span>', pc = (x) => x == null ? na : `${x > 0 ? '+' : ''}${x}%`;
+    const ind = (label, val, help) => `<div class="rounded-xl border border-stone-200 dark:border-stone-800 p-2.5"><div class="text-[11px] uppercase tracking-wide text-stone-500">${label}</div><div class="font-bold tabular">${val}</div><div class="text-[11px] text-stone-500">${help}</div></div>`;
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], maxD = Math.max(...a.byDay, 1);
+    return `<h4 class="mt-4 font-semibold">How the business is doing <span class="text-xs font-normal text-stone-500">compared with ${escapeHTML(prettyDate(a.pFrom))} – ${escapeHTML(prettyDate(a.pTo))}</span></h4>
+      <div class="mt-1 grid grid-cols-2 sm:grid-cols-3 gap-2">
+        ${ind('Sales growth', pc(a.revenueGrowth), 'Net sales compared with the same length of time just before.')}
+        ${ind('Expense growth', pc(a.expenseGrowth), 'Expenses compared with the period before.')}
+        ${ind('Gross margin', a.grossMargin == null ? na : a.grossMargin + '%', 'Of every ₱100 of sales, what’s left after the cost of what you sold.')}
+        ${ind('Net margin', a.netMargin == null ? na : a.netMargin + '%', 'What’s left after all expenses too.')}
+        ${ind('Average sale', a.aov == null ? na : fmt(a.aov), 'Net sales ÷ number of sales.')}
+        ${ind('Repeat customers', a.repeatRate == null ? na : a.repeatRate + '%', `Of ${a.namedCustomers} named customers this period, how many have bought more than once.`)}
+        ${ind('Break-even sales', a.breakEven == null ? na : fmt(a.breakEven), 'Sales needed in a period like this to cover its expenses, at the current gross margin.')}
+        ${ind('Stock turnover', a.turnover == null ? na : `${a.turnover}× (${a.daysOfStock} days)`, 'How many times you sold through your average stock; days = how long stock lasts.')}
+        ${ind('Cost per new customer', a.cac == null ? na : fmt(a.cac), `Marketing spend (${fmt(a.marketing)}) ÷ ${a.newCustomers} new named customers. Only a rough guide.`)}
+      </div>
+      ${a.top.length ? `<div class="mt-3 text-xs font-semibold text-stone-500">Most profitable items</div><table class="w-full text-sm">${a.top.map((x) => `<tr><td class="py-0.5">${escapeHTML(x.name)}</td><td class="text-right tabular">${x.qty} sold</td><td class="text-right tabular">${fmt(x.profit)} profit</td></tr>`).join('')}</table>` : ''}
+      ${a.slow.length ? `<div class="mt-3 text-xs font-semibold text-stone-500">Slow movers <span class="font-normal">(in stock, no sales in 60 days)</span></div><ul class="text-sm">${a.slow.slice(0, 6).map((x) => `<li class="flex justify-between"><span>${escapeHTML(x.name)} · ${x.qty} left</span><span class="tabular">${fmt(x.value)} tied up</span></li>`).join('')}</ul>` : ''}
+      ${a.byDay.some((x) => x) ? `<div class="mt-3 text-xs font-semibold text-stone-500">Sales by day of the week</div><div class="mt-1 flex items-end gap-1 h-20">${a.byDay.map((x, n) => `<div class="flex-1 flex flex-col items-center gap-0.5"><div class="w-full rounded-t bg-teal-500/80" style="height:${Math.round((x / maxD) * 56)}px" title="${days[n]} ${fmt(x)}"></div><span class="text-[10px] text-stone-500">${days[n]}</span></div>`).join('')}</div>` : ''}`;
+  },
+  bizTaxView(b) {
+    const per = this.bizTaxPer || 'quarter', today = toISODate(new Date()), y = +today.slice(0, 4), m = +today.slice(5, 7), q0 = Math.floor((m - 1) / 3) * 3;
+    const [from, to] = per === 'month' ? Biz.monthRange(0) : per === 'quarter' ? [toISODate(new Date(y, q0, 1)), toISODate(new Date(y, q0 + 3, 0))] : per === 'lastq' ? [toISODate(new Date(y, q0 - 3, 1)), toISODate(new Date(y, q0, 0))] : [`${y}-01-01`, `${y}-12-31`];
+    const tp = Biz.taxProfile(b), t = Biz.taxSummary(b.id, from, to), rows = Biz.taxByMonth(b.id, from, to), R = PH_TAX_REF;
+    const row = (l, v, cls = '') => `<tr class="${cls}"><td class="py-1">${l}</td><td class="py-1 text-right tabular">${v}</td></tr>`;
+    const near = t.last12 >= R.threshold.value * 0.8;
+    return `<div class="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-xs">These are estimates from what you recorded in Tiffo and your settings, to help you and your accountant. They aren’t a tax return or tax advice. File with the BIR’s own forms.</div>
+      <div class="mt-3 flex flex-wrap items-center gap-2"><select id="bizTaxPer" class="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-2 py-1.5 text-sm">${[['month', 'This month'], ['quarter', 'This quarter'], ['lastq', 'Last quarter'], ['year', 'This year']].map(([k, l]) => `<option value="${k}" ${per === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <span class="text-sm">Registered as: <b>${{ vat: 'VAT', nonvat: 'Non-VAT (percentage tax)', unsure: 'not set' }[tp.reg]}</b></span>${this.bizSmallBtn('data-biz4="taxprofile"', 'Change')}
+        <button type="button" data-biz4="tax-csv" data-from="${from}" data-to="${to}" class="ml-auto rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1.5 text-sm font-semibold">⬇ CSV for your accountant</button></div>
+      <table class="mt-2 w-full text-sm">${row('Sales (net of returns, before VAT)', fmt(t.gross))}
+        ${tp.reg === 'vat' ? `${row('<span class="pl-3">VATable</span>', fmt(t.vatable))}${row('<span class="pl-3">VAT-exempt</span>', fmt(t.exempt))}${row('<span class="pl-3">Zero-rated</span>', fmt(t.zero))}
+          ${row('Output VAT (on your sales)', fmt(t.outputVat))}${row('Input VAT (on purchases you recorded with VAT)', '−' + fmt(t.inputVat))}${row('<b>VAT payable (estimate)</b>', `<b>${fmt(t.vatPayable)}</b>`, 'border-t border-stone-200 dark:border-stone-700')}`
+        : tp.reg === 'nonvat' ? (t.ptRate ? row(`<b>Percentage tax at ${t.ptRate}% (estimate)</b>`, `<b>${fmt(t.ptEstimate)}</b>`, 'border-t border-stone-200 dark:border-stone-700') : row('Percentage tax', '<span class="text-stone-500">set your rate first</span>'))
+        : row('Tax', '<span class="text-stone-500">set how you’re registered first</span>')}</table>
+      ${rows.length > 1 ? `<table class="mt-2 w-full text-xs"><tr class="text-stone-500"><td>Month</td><td class="text-right">Sales</td>${tp.reg === 'vat' ? '<td class="text-right">Output VAT</td><td class="text-right">Input VAT</td>' : ''}</tr>${rows.map((x) => `<tr><td>${x.month}</td><td class="text-right tabular">${fmt(x.gross)}</td>${tp.reg === 'vat' ? `<td class="text-right tabular">${fmt(x.outputVat)}</td><td class="text-right tabular">${fmt(x.inputVat)}</td>` : ''}</tr>`).join('')}</table>` : ''}
+      <p class="mt-2 text-sm">Sales in the last 12 months: <b class="tabular">${fmt(t.last12)}</b>${tp.reg !== 'vat' && near ? ` <span class="text-amber-700 dark:text-amber-300">· close to or over the VAT threshold in the law (${fmt(R.threshold.value)}). Talk to your accountant about VAT registration.</span>` : ''}</p>
+      <div class="mt-3 rounded-xl border border-stone-200 dark:border-stone-800 p-3 text-xs"><div class="font-semibold text-sm">Philippine reference</div>
+        <ul class="mt-1 grid gap-1.5">${['vatRate', 'ptRate', 'threshold', 'invoice'].map((k) => `<li>${escapeHTML(R[k].text)} <a href="${R[k].src}" target="_blank" rel="noopener noreferrer" class="underline text-teal-700 dark:text-teal-300">${escapeHTML(R[k].srcName)}</a></li>`).join('')}</ul>
+        <p class="mt-1.5 text-stone-500">Checked ${escapeHTML(prettyDate(R.checked))}. Rules change, so confirm with the BIR or your accountant. Tiffo doesn’t track filing deadlines.</p></div>`;
+  },
+  bizTaxProfileForm() {
+    const b = Biz.current(), tp = Biz.taxProfile(b);
+    this.form({ title: 'How you’re registered with the BIR', save: 'Save', sub: 'Tiffo uses this only to sort your records into a summary. Check your Certificate of Registration (Form 2303).',
+      fields: [{ id: 'reg', label: 'Registration', type: 'select', value: tp.reg, options: [['unsure', 'Not sure yet'], ['vat', 'VAT-registered'], ['nonvat', 'Non-VAT (percentage tax)']] },
+        { id: 'useVat', type: 'checkbox', label: `Charge VAT on sales at ${PH_TAX_REF.vatRate.value}% (${PH_TAX_REF.vatRate.srcName}), included in prices`, value: b.tax.mode !== 'none' && +b.tax.rate === PH_TAX_REF.vatRate.value, show: (v) => v.reg === 'vat' },
+        { id: 'ptRate', label: 'Percentage tax rate you pay (%)', type: 'number', value: tp.ptRate ?? '', hint: `${PH_TAX_REF.ptRate.text} Type the rate yourself.`, show: (v) => v.reg === 'nonvat' },
+        { id: 'tin', label: 'TIN', value: tp.tin || b.regNo || '', advanced: true }, { id: 'rdo', label: 'RDO code', value: tp.rdo || '', advanced: true }],
+      onSave: (v) => {
+        b.taxProfile = { reg: v.reg, ptRate: v.reg === 'nonvat' && v.ptRate !== '' ? +v.ptRate : null, tin: (v.tin || '').slice(0, 20), rdo: (v.rdo || '').slice(0, 10), checked: PH_TAX_REF.checked };
+        if (v.reg === 'vat' && v.useVat) b.tax = { mode: b.tax.mode === 'exclusive' ? 'exclusive' : 'inclusive', rate: PH_TAX_REF.vatRate.value };
+        if (v.reg === 'nonvat') b.tax = { mode: 'none', rate: 0 };
+        Biz.log(b.id, 'Tax registration set', v.reg); Store.save(); this.renderBiz();
+      } });
+  },
+  bizSettings4(b) {
+    const rules = Biz.feeRules(b);
+    return `<div class="mt-3 grid gap-3 sm:grid-cols-2">
+      ${this.bizCard('Stock costing', `<p class="mt-1 text-sm">${b.costing === 'fifo' ? `<b>FIFO</b> (first in, first out) since ${escapeHTML(prettyDate(b.costingFrom))}` : '<b>Weighted average</b>'}</p><p class="text-[11px] text-stone-500">Average: every unit costs the average of what you paid. FIFO: the oldest stock is sold first, at what it cost. Ask your accountant which to use, and keep it the same.</p>
+        <div class="mt-2">${this.bizSmallBtn('data-biz4="costing"', 'Change')}</div>`)}
+      ${this.bizCard('Platform & payment fees', `<p class="text-[11px] text-stone-500">Your own fee rules per channel, from your platform’s statement. Tiffo suggests them when you record a fee; it has no built-in platform rates.</p>
+        <ul class="mt-1 text-sm">${rules.map((r) => `<li>${escapeHTML(r.channel)} · ${escapeHTML(r.name)}: ${r.pct ? r.pct + '%' : ''}${r.pct && r.fixed ? ' + ' : ''}${r.fixed ? fmt(r.fixed) : ''}</li>`).join('') || '<li class="text-stone-500">None.</li>'}</ul><div class="mt-2">${this.bizSmallBtn('data-biz4="fees"', 'Edit rules')}</div>`)}
+      ${this.bizCard('Expiry warnings', `<p class="mt-1 text-sm">Warn ${b.expiryDays ?? 14} days before a batch expires.</p><div class="mt-2">${this.bizSmallBtn('data-biz4="expirydays"', 'Change')}</div>`)}
+    </div>`;
+  },
+  async bizAct4(act, id, el) {
+    const b = Biz.current();
+    if (act === 'recipe') return this.bizRecipeForm(id);
+    if (act === 'produce') return this.bizProduceForm(id);
+    if (act === 'recurring') return this.bizRecurringForm(id ? Biz.find('bizRecurring', id) : null);
+    if (act === 'gen-recurring') { const due = Biz.recurringDue(b.id), tot = round2(due.reduce((a, d) => a + d.r.lines.reduce((x, l) => x + l.qty * l.price, 0), 0));
+      if (!(await askConfirm(`Create ${due.length} ${due.length === 1 ? 'invoice' : 'invoices'} (about ${fmt(tot)}) for ${[...new Set(due.map((d) => Biz.find('bizCustomers', d.r.customerId)?.name))].join(', ')}? They’ll be unpaid until the customers pay.`, 'Create'))) return;
+      try { const made = Biz.generateRecurring(b.id); this.renderBiz(); toast(`✓ ${made.length} ${made.length === 1 ? 'invoice' : 'invoices'} created.`); } catch (x) { toast(escapeHTML(x.message)); } return; }
+    if (act === 'fee') return this.bizFeeForm(id);
+    if (act === 'taxprofile') return this.bizTaxProfileForm();
+    if (act === 'tax-csv') { const rows = Biz.taxByMonth(b.id, el.dataset.from, el.dataset.to), tp = Biz.taxProfile(b);
+      const head = ['Month', 'Sales (net, before VAT)', ...(tp.reg === 'vat' ? ['VATable', 'VAT-exempt', 'Zero-rated', 'Output VAT', 'Input VAT', 'VAT payable (estimate)'] : tp.reg === 'nonvat' ? ['Percentage tax (estimate)'] : [])];
+      const csv = [head, ...rows.map((x) => [x.month, x.gross, ...(tp.reg === 'vat' ? [x.vatable, x.exempt, x.zero, x.outputVat, x.inputVat, x.vatPayable] : tp.reg === 'nonvat' ? [x.ptEstimate ?? ''] : [])])].map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      try { const l = document.createElement('a'); l.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })); l.download = `${b.name.replace(/[^\w-]+/g, '-')}-tax-summary-${el.dataset.from}-to-${el.dataset.to}.csv`; document.body.appendChild(l); l.click(); l.remove(); } catch (x) { toast('Couldn’t save the file here.'); } return; }
+    if (act === 'costing') return this.form({ title: 'Stock costing', save: 'Save', sub: 'Changing applies from today. Past sales keep the cost they had.', fields: [{ id: 'm', label: 'Method', type: 'select', value: b.costing || 'average', options: [['average', 'Weighted average'], ['fifo', 'FIFO (first in, first out)']] }],
+      onSave: (v) => { try { Biz.setCosting(b.id, v.m); } catch (x) { return x.message; } this.renderBiz(); } });
+    if (act === 'fees') return this.form({ title: 'Fee rules', save: 'Save', sub: 'One per line: channel, fee name, percent, fixed amount. Channels: store, facebook, instagram, tiktok, website, marketplace, messages, other.',
+      fields: [{ id: 'r', label: 'Rules', type: 'textarea', value: Biz.feeRules(b).map((r) => `${r.channel}, ${r.name}, ${r.pct || 0}, ${r.fixed || 0}`).join('\n'), placeholder: 'marketplace, Commission, 5, 0\nwebsite, Card fee, 3.5, 15' }],
+      onSave: (v) => { const rules = String(v.r || '').split('\n').map((l) => l.split(',').map((x) => x.trim())).filter((x) => x[0] && x[1]).map(([channel, name, pct, fixed]) => ({ channel: channel.toLowerCase().slice(0, 20), name: name.slice(0, 40), pct: Math.max(0, +pct || 0), fixed: Math.max(0, +fixed || 0) }));
+        b.feeRules = rules; Biz.log(b.id, 'Fee rules changed', `${rules.length} rules`); Store.save(); this.renderBiz(); } });
+    if (act === 'expirydays') return this.form({ title: 'Expiry warnings', save: 'Save', fields: [{ id: 'd', label: 'Warn this many days before', type: 'number', value: b.expiryDays ?? 14 }], onSave: (v) => { b.expiryDays = Math.max(0, Math.min(365, +v.d || 0)); Store.save(); this.renderBiz(); } });
+    if (act === 'writeoff') { const [itemId, batchNo] = [el.dataset.item, el.dataset.batch], bt = Biz.batchesOf(itemId).find((x) => x.batchNo === batchNo);
+      if (!(await askConfirm(`Write off ${bt.qty} of batch ${batchNo} as expired (${fmt(bt.value)})?`, 'Write off'))) return;
+      try { Biz.adjustStock(b.id, itemId, { type: 'expired', qty: bt.qty, reason: `Batch ${batchNo} expired`, batchNo }); this.renderBiz(); toast('✓ Written off.'); } catch (x) { toast(escapeHTML(x.message)); } return; }
+    if (act === 'recall') { const items = Biz.items(b.id, true).filter((i) => i.batches);
+      return this.form({ title: 'Batch recall', save: 'Find sales', sub: 'Tiffo lists who bought from the batch (from your sales records) and how much is still in stock.',
+        fields: [{ id: 'item', label: 'Product', type: 'select', value: el.dataset.item || items[0]?.id, options: items.map((i) => [i.id, i.name]) }, { id: 'batch', label: 'Batch number', value: el.dataset.batch || '' }, { id: 'reason', label: 'Reason', value: '' }],
+        onSave: (v) => { let r; try { r = Biz.recall(b.id, { itemId: v.item, batchNo: v.batch.trim(), reason: v.reason }); } catch (x) { return x.message; }
+          const who = r.sales.map((x) => { const s = Biz.find('bizSales', x.saleId); return `${s?.no} · ${Biz.find('bizCustomers', s?.customerId)?.name || 'Walk-in'} · ${x.qty}`; });
+          setTimeout(() => this.form({ title: `Recall: batch ${r.batchNo}`, save: 'Close', fields: [{ id: 'h', type: 'note', label: '', html: `<p class="text-sm">Sold: <b>${r.soldQty}</b> · still in stock: <b>${r.inStock}</b></p><ul class="mt-1 text-xs">${who.map((w) => `<li>${escapeHTML(w)}</li>`).join('') || '<li>No sales from this batch.</li>'}</ul>` }], onSave: () => {} }), 0);
+          this.renderBiz(); } }); }
+  },
   /* ---------- Tiffo Business phase 2 screens ---------- */
   bizOrders(b) {
     const os = Biz.of('bizOrders', b.id).sort((a, x) => x.date.localeCompare(a.date) || x.createdAt - a.createdAt);
@@ -8698,13 +9145,15 @@ const UI = {
     const items = Biz.items(b.id).filter((i) => Biz.tracked(i));
     const total = Biz.inventoryValue(b.id);
     return `<div class="flex flex-wrap items-center justify-between gap-2 text-sm"><span>Stock value <b class="tabular">${fmt(total)}</b> <span class="text-[11px] text-stone-500">(at average cost, not selling price)</span></span>
-        <button type="button" data-biz="qa-product" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold">+ Product</button></div>
+        <span class="flex gap-2">${items.some((i) => i.batches) ? `<button type="button" data-biz4="recall" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold">Batch recall</button>` : ''}<button type="button" data-biz="qa-product" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold">+ Product</button></span></div>
+      ${(() => { const ex = Biz.expiring(b.id); return ex.length ? `<div class="mt-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-2.5 text-sm">${ex.slice(0, 5).map((x) => `${escapeHTML(x.item.name)} batch ${escapeHTML(x.batchNo || '—')}: ${x.qty} ${x.expired ? '<b class="text-rose-600">expired</b>' : 'expires'} ${escapeHTML(prettyDate(x.expiry))}`).join('<br>')}</div>` : ''; })()}
       <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${items.map((i) => {
         const st = Biz.stockOf(i.id), res = Biz.reserved(i.id), inc = Biz.incoming(i.id), avail = round2(st.qty - res), low = i.reorder > 0 && avail <= i.reorder, sug = low ? Biz.suggestReorder(i) : null;
         return `<li class="py-2.5"><div class="flex flex-wrap justify-between gap-2"><div><b>${escapeHTML(i.name)}</b> ${low ? '<span class="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-0.5 text-[11px] font-semibold">Low</span>' : ''}${st.qty <= 0 ? ' <span class="rounded-full bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 px-2 py-0.5 text-[11px] font-semibold">Out of stock</span>' : ''}
           <div class="text-[11px] text-stone-500">On hand ${st.qty} · held for orders ${res} · available ${avail}${inc ? ` · coming ${inc}` : ''} · avg cost ${fmt(st.avg)}${i.reorder ? ` · reorder at ${i.reorder}` : ''}${sug ? ` · suggested order: ${sug} (from the last 60 days of sales)` : ''}</div></div>
           <div class="tabular text-sm">${fmt(st.value)}</div></div>
           ${Biz.multiLoc(b.id) ? `<div class="text-[11px] text-stone-500">${Biz.locations(b.id).map((l) => `${escapeHTML(l.name)} ${Biz.stockAt(i.id, l.id)}`).join(' · ')}</div>` : ''}
+          ${i.batches ? `<div class="text-[11px] text-stone-500">${Biz.batchesOf(i.id).map((x) => { const exp = x.expiry && x.expiry < toISODate(new Date()); return `<span class="${exp ? 'text-rose-600' : ''}">${x.batchNo ? 'Batch ' + escapeHTML(x.batchNo) : 'No batch'}: ${x.qty}${x.expiry ? ` (${exp ? 'expired' : 'exp.'} ${escapeHTML(prettyDate(x.expiry))})` : ''}</span>${exp && x.batchNo ? ` <button type="button" data-biz4="writeoff" data-item="${i.id}" data-batch="${escapeHTML(x.batchNo)}" class="underline">write off</button>` : ''}`; }).join(' · ') || 'No batches in stock.'}</div>` : ''}
           <div class="mt-1 flex gap-2 text-xs">${Biz.multiLoc(b.id) ? `<button type="button" data-biz3="transfer-stock" data-id="${i.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">Move</button>` : ''}<button type="button" data-biz="adjust" data-id="${i.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">Adjust stock</button><button type="button" data-biz="moves" data-id="${i.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">History</button></div></li>`;
       }).join('') || '<li class="py-3 text-sm text-stone-500">No stock items yet. Turn on “Track stock” on a product to count it here.</li>'}</ul>`;
   },
@@ -8763,10 +9212,11 @@ const UI = {
     const p = Biz.find('bizPurchases', id);
     const fields = p.lines.flatMap((l, i) => { const left = round2(l.qty - l.received - l.damaged - l.missing); return left > 0 ? [
       { id: `g${i}`, label: `${l.name}: arrived in good condition (of ${left})`, type: 'number', value: left }, { id: `d${i}`, label: 'Damaged', type: 'number', value: '', advanced: true }, { id: `m${i}`, label: 'Missing (won’t be billed)', type: 'number', value: '', advanced: true },
-      { id: `c${i}`, label: 'Actual cost each', type: 'number', value: l.unitCost, advanced: true }] : []; });
+      { id: `c${i}`, label: 'Actual cost each', type: 'number', value: l.unitCost, advanced: true },
+      ...(Biz.find('bizItems', l.itemId)?.batches ? [{ id: `b${i}`, label: 'Batch / lot number', value: '' }, { id: `x${i}`, label: 'Expiry', type: 'date', value: '' }] : [])] : []; });
     this.form({ title: `Receive ${p.no}`, save: 'Add to stock', sub: 'Good items go into stock at their cost (plus a share of shipping). You then owe the supplier for what arrived. It isn’t an expense.',
       fields: [...fields, { id: 'date', label: 'Date received', type: 'date', value: toISODate(new Date()) }],
-      onSave: (v) => { try { Biz.receive(id, { date: v.date, lines: p.lines.map((l, i) => ({ good: v[`g${i}`], damaged: v[`d${i}`], missing: v[`m${i}`], unitCost: v[`c${i}`] })) }); } catch (e) { return e.message; } this.renderBiz(); toast('📦 Stock received.'); } });
+      onSave: (v) => { try { Biz.receive(id, { date: v.date, lines: p.lines.map((l, i) => ({ good: v[`g${i}`], damaged: v[`d${i}`], missing: v[`m${i}`], unitCost: v[`c${i}`], batchNo: (v[`b${i}`] || '').trim(), expiry: v[`x${i}`] })) }); } catch (e) { return e.message; } this.renderBiz(); toast('📦 Stock received.'); } });
   },
   bizPaySupplierForm(kind, id) {
     const b = Biz.current(), accs = Biz.accounts(b.id), due = kind === 'po' ? Biz.purchaseDue(Biz.find('bizPurchases', id)) : Biz.billDue(Biz.find('bizExpenses', id));
@@ -8799,9 +9249,10 @@ const UI = {
     const o = Biz.find('bizOrders', id), b = Biz.current(), accs = Biz.accounts(b.id);
     this.form({ title: `Complete ${o.no}`, save: 'Record the sale', sub: `Total ${fmt(o.total)}. This records the sale: stock leaves, and it counts as revenue today.`,
       fields: [{ id: 'paid', label: 'Paid now', type: 'number', value: o.total }, { id: 'acc', label: 'Money went into', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) },
-        { id: 'due', label: 'If not fully paid, due by', type: 'date', value: toISODate(new Date(Date.now() + 14 * 864e5)), advanced: true }],
+        { id: 'due', label: 'If not fully paid, due by', type: 'date', value: toISODate(new Date(Date.now() + 14 * 864e5)), advanced: true },
+        { id: 'fee', label: 'Fees the platform kept', type: 'number', value: Biz.suggestFees(b.id, o.channel, o.total).reduce((a, f) => a + f.amount, 0) || '', hint: Biz.feeRules(b).some((r) => r.channel === o.channel) ? 'From your fee rules. Check it against the payout.' : 'Commission or payment fees taken out of the payout, if any.', show: (v) => v.paid > 0, advanced: !Biz.feeRules(b).some((r) => r.channel === o.channel) }],
       onSave: async (v) => {
-        try { const s = Biz.completeOrder(id, { paid: v.paid || 0, accountId: v.acc, dueDate: v.due, ...allow }); this.renderBiz(); toast(`✓ ${escapeHTML(o.no)} → ${escapeHTML(s.no)}.`); }
+        try { const s = Biz.completeOrder(id, { paid: v.paid || 0, accountId: v.acc, dueDate: v.due, ...allow }); if (+v.fee > 0) Biz.addSaleFee(s.id, { name: 'Platform fees', amount: v.fee, accountId: v.acc }); this.renderBiz(); toast(`✓ ${escapeHTML(o.no)} → ${escapeHTML(s.no)}.`); }
         catch (e) {
           if (e.belowCost || e.noStock) { setTimeout(async () => { if (await askConfirm(`${e.message} Complete it anyway?`, 'Yes')) this.bizCompleteForm(id, { ...allow, ...(e.belowCost ? { allowBelowCost: true } : { allowNoStock: true }) }); }, 0); return; }
           return e.message;
@@ -8874,6 +9325,7 @@ const UI = {
       if (id === 'bizFrom' || id === 'bizTo') { this[id] = e.target.value; return this.renderBiz(); }
       if (id === 'bizProj') { this.bizProj = +e.target.value; return this.renderBiz(); }
       if (id === 'bizBy') { this.bizBy = e.target.value; return this.renderBiz(); }
+      if (id === 'bizTaxPer') { this.bizTaxPer = e.target.value; return this.renderBiz(); }
       if (id === 'posCust') { this.posCart.customerId = e.target.value; this.posCart.points = 0; return this.renderBiz(); }
       if (id === 'posLoc') { this.posCart.locationId = e.target.value || null; return this.renderBiz(); }
       if (id === 'posPromo') { this.posCart.promo = e.target.value.trim().toUpperCase(); return this.posRefresh(); }
@@ -8899,6 +9351,7 @@ const UI = {
     });
     root.addEventListener('click', async (e) => {
       const t = e.target.closest('[data-biztab]'); if (t) { this.bizTab = t.dataset.biztab; return this.renderBiz(); }
+      const a4 = e.target.closest('[data-biz4]'); if (a4) return this.bizAct4(a4.dataset.biz4, a4.dataset.id, a4);
       const a3 = e.target.closest('[data-biz3]'); if (a3) return this.bizAct3(a3.dataset.biz3, a3.dataset.id, a3);
       const a = e.target.closest('[data-biz]'); if (!a) return;
       const act = a.dataset.biz, id = a.dataset.id, b = Biz.current();
