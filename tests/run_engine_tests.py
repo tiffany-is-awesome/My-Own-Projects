@@ -14,7 +14,8 @@ with sync_playwright() as p:
     pg.clock.set_fixed_time('2026-11-20T10:00:00+08:00')
     pg.on('pageerror', lambda e: errs.append(str(e)))
     pg.route('**/chart.umd.min.js', lambda r: r.fulfill(body=stub, content_type='text/javascript'))
-    for pat in ['**/cdn.tailwindcss.com/**', '**/supabase-js@2', '**/js.puter.com/**']:
+    pg.add_init_script(stub)
+    for pat in ['**/cdn.tailwindcss.com/**', '**/supabase-js@2**', '**/js.puter.com/**']:
         pg.route(pat, lambda r: r.fulfill(body='', content_type='text/javascript'))
     pg.goto(html.as_uri()); pg.wait_for_timeout(600)
 
@@ -477,7 +478,8 @@ with sync_playwright() as p:
     ctx = b.new_context(timezone_id='Asia/Manila'); bp = ctx.new_page()
     bp.on('pageerror', lambda e: errs.append(str(e)))
     bp.route('**/chart.umd.min.js', lambda r: r.fulfill(body=stub, content_type='text/javascript'))
-    for pat in ['**/cdn.tailwindcss.com/**', '**/supabase-js@2', '**/js.puter.com/**']:
+    bp.add_init_script(stub)
+    for pat in ['**/cdn.tailwindcss.com/**', '**/supabase-js@2**', '**/js.puter.com/**']:
         bp.route(pat, lambda r: r.fulfill(body='', content_type='text/javascript'))
     bp.route('https://tiffo.test/', lambda r: r.fulfill(body=html.read_text(), content_type='text/html'))
     cdp = ctx.new_cdp_session(bp); cdp.send('WebAuthn.enable')
