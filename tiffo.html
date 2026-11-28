@@ -116,6 +116,8 @@
         <span id="remBadge" class="hidden absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full text-white text-[11px] font-bold place-items-center ring-2 ring-white dark:ring-stone-900"></span>
       </button>
 
+      <button id="bizBtn" type="button" class="rounded-xl h-10 px-3 text-sm font-semibold border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 hover:bg-stone-50 dark:hover:bg-stone-800 flex items-center gap-1.5" title="Your business workspace (kept separate from personal money)"><span aria-hidden="true">💼</span><span class="hidden sm:inline">Business</span><span class="sr-only sm:hidden">Business</span></button>
+
       <!-- Account -->
       <div class="relative">
         <button id="accountBtn" class="rounded-xl h-10 px-3 text-sm font-semibold bg-stone-900 text-white dark:bg-white dark:text-stone-900 hover:opacity-90 transition flex items-center gap-2" aria-haspopup="menu">
@@ -621,6 +623,12 @@
     <!-- ---------------------------- RIGHT ---------------------------- -->
 
     <div id="colRight" class="lg:col-span-2 space-y-6">
+
+      <!-- Tiffo Business workspace -->
+      <section data-tool="biz" data-tool-name="💼 Business" data-tool-nocollapse class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
+        <h2 class="font-bold text-lg flex items-center gap-2.5 mb-2"><span class="h-9 w-9 rounded-xl grid place-items-center text-lg bg-teal-100 dark:bg-teal-900/50" aria-hidden="true">💼</span>Business</h2>
+        <div id="bizRoot"></div>
+      </section>
 
       <!-- Reminders -->
       <section data-tool="reminders" data-tool-name="⏰ Reminders" class="rounded-2xl bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 shadow-sm p-4 sm:p-5">
@@ -1563,6 +1571,9 @@ const KINDS = {
   asset_buy: { dir: -1, report: null,      label: 'Bought (asset)',  icon: '🏠' },
   asset_sell:{ dir: +1, report: null,      label: 'Sold (asset)',    icon: '🏷️' },
   transfer:  { dir: 0,  report: null,      label: 'Transfer',        icon: '⇄' },
+  // Owner money moving to/from a Tiffo Business workspace: a transfer on the personal side (never spending or income).
+  to_business:   { dir: -1, report: null, label: 'Put into my business', icon: '💼' },
+  from_business: { dir: +1, report: null, label: 'Taken from my business', icon: '💼' },
 };
 const Money = {
   kind(t) { return KINDS[t.kind] ? t.kind : (t.type === 'income' ? 'income' : 'expense'); },
@@ -3606,6 +3617,247 @@ const HHSync = {
 };
 
 /* =========================================================================
+   TIFFO BUSINESS — a separate ledger per business (see claude/tiffo-business-architecture.md).
+   Every record carries bizId; personal engines never read these collections.
+   Accounting (accrual, kept simple):
+   • A sale/invoice is revenue on its date; cash counts only when a payment is recorded.
+   • Unpaid = receivable. A payment on an invoice reduces it; it never makes a second sale.
+   • Tax only if the owner configures a rate. Collected tax is a liability, not revenue.
+   • Cost of goods sold = qty × the item's cost at the time of sale (stored on the line).
+   • Owner contributions/withdrawals are equity: never revenue or expenses.
+   ========================================================================= */
+const BIZ_TYPES = {
+  shop: 'Online shop', retail: 'Physical store', home: 'Home-based business', food: 'Food business / bakery', resto: 'Restaurant or café',
+  freelance: 'Freelancer / consultant', service: 'Service provider', digital: 'Digital products', wholesale: 'Wholesale', maker: 'Small manufacturer',
+  reseller: 'Reseller / distributor', subscription: 'Subscription business', other: 'Other',
+};
+const BIZ_EXPENSE_CATS = ['Rent', 'Utilities', 'Internet', 'Supplies', 'Equipment', 'Packaging', 'Shipping', 'Advertising & marketing', 'Transportation',
+  'Software & subscriptions', 'Repairs', 'Salaries & wages', 'Professional fees', 'Taxes & permits', 'Insurance', 'Bank & payment fees', 'Inventory purchases', 'Other'];
+const BIZ_METHODS = { cash: 'Cash', gcash: 'GCash', maya: 'Maya', bank: 'Bank transfer', card: 'Card', cod: 'Cash on delivery', other: 'Other' };
+const BIZ_ARRAYS = ['businesses', 'bizAccounts', 'bizItems', 'bizCustomers', 'bizSales', 'bizPayments', 'bizExpenses', 'bizOwner', 'bizTransfers'];
+
+const Biz = {
+  col(k) { return (Store.state[k] ||= []); },
+  list() { return this.col('businesses').filter((b) => !b.archived); },
+  get(id) { return this.col('businesses').find((b) => b.id === id) || null; },
+  current() { const id = Store.state.settings?.activeBiz; return this.get(id) && !this.get(id).archived ? this.get(id) : this.list()[0] || null; },
+  setCurrent(id) { (Store.state.settings ||= {}).activeBiz = id; Store.save(); },
+  of(k, bizId) { return this.col(k).filter((x) => x.bizId === bizId); },
+  find(k, id) { return this.col(k).find((x) => x.id === id) || null; },
+  today() { return toISODate(new Date()); },
+  money(x) { return typeof x === 'number' && Number.isFinite(x) && x >= 0 && x < 1e12; },
+
+  /** New business with a cash account (and optional bank/e-wallet). */
+  create(p) {
+    const b = { id: uid(), name: String(p.name).trim().slice(0, 80), type: p.type || 'other', desc: p.desc || '', currency: p.currency || CURRENCY,
+      tax: { mode: p.taxMode || 'none', rate: +p.taxRate || 0 }, regNo: p.regNo || '', address: p.address || '', contact: p.contact || '', website: p.website || '',
+      startDate: p.startDate || this.today(), fyStart: +p.fyStart || 1, invPrefix: 'INV-', salePrefix: 'S-', next: { invoice: 1, sale: 1 }, createdAt: Date.now() };
+    this.col('businesses').push(b);
+    this.addAccount(b.id, { name: 'Cash on hand', type: 'cash', opening: +p.cash || 0 });
+    if (p.bankName) this.addAccount(b.id, { name: p.bankName, type: 'bank', opening: +p.bank || 0 });
+    this.setCurrent(b.id);
+    Store.save();
+    return b;
+  },
+  addAccount(bizId, a) {
+    const acc = { id: uid(), bizId, name: String(a.name).trim().slice(0, 60), type: a.type || 'cash', opening: round2(+a.opening || 0), openingDate: a.openingDate || this.today(), createdAt: Date.now() };
+    this.col('bizAccounts').push(acc); Store.save(); return acc;
+  },
+  accounts(bizId) { return this.of('bizAccounts', bizId).filter((a) => !a.archived); },
+  /** Balance of a business account on a date: opening + money in − money out. */
+  balance(acc, upTo = '9999-12-31') {
+    let x = acc.openingDate && acc.openingDate > upTo ? 0 : acc.opening || 0;
+    for (const p of this.of('bizPayments', acc.bizId)) if (p.accountId === acc.id && p.date <= upTo) x += p.amount;
+    for (const e of this.of('bizExpenses', acc.bizId)) if (e.accountId === acc.id && e.date <= upTo) x -= e.amount;
+    for (const o of this.of('bizOwner', acc.bizId)) if (o.accountId === acc.id && o.date <= upTo) x += o.dir === 'in' ? o.amount : -o.amount;
+    for (const t of this.of('bizTransfers', acc.bizId)) if (t.date <= upTo) { if (t.from === acc.id) x -= t.amount; if (t.to === acc.id) x += t.amount; }
+    return round2(x);
+  },
+  cash(bizId, upTo) { return round2(this.accounts(bizId).reduce((x, a) => x + this.balance(a, upTo), 0)); },
+
+  /* ----- products & services ----- */
+  saveItem(bizId, v, item = null) {
+    const x = item || { id: uid(), bizId, createdAt: Date.now() };
+    Object.assign(x, { kind: v.kind === 'service' ? 'service' : 'product', name: String(v.name).trim().slice(0, 80), sku: (v.sku || '').trim().slice(0, 40), category: (v.category || '').trim().slice(0, 40),
+      unit: (v.unit || (v.kind === 'service' ? 'job' : 'pc')).trim().slice(0, 12), price: round2(+v.price || 0), cost: round2(+v.cost || 0), status: v.status || 'active', notes: (v.notes || '').slice(0, 500) });
+    if (!item) this.col('bizItems').push(x);
+    Store.save(); return x;
+  },
+  items(bizId, all = false) { return this.of('bizItems', bizId).filter((i) => all || i.status !== 'archived'); },
+  margin(i) { return i.price > 0 ? round2(((i.price - i.cost) / i.price) * 100) : null; },
+
+  /* ----- customers ----- */
+  saveCustomer(bizId, v, c = null) {
+    const x = c || { id: uid(), bizId, createdAt: Date.now() };
+    Object.assign(x, { name: String(v.name).trim().slice(0, 80), phone: (v.phone || '').slice(0, 40), email: (v.email || '').slice(0, 80), address: (v.address || '').slice(0, 200),
+      type: v.type || 'regular', tags: (v.tags || '').slice(0, 100), notes: (v.notes || '').slice(0, 1000), creditLimit: +v.creditLimit || 0 });
+    if (!c) this.col('bizCustomers').push(x);
+    Store.save(); return x;
+  },
+  customers(bizId) { return this.of('bizCustomers', bizId).filter((c) => !c.archived); },
+
+  /* ----- sales & invoices ----- */
+  /** Totals for sale lines. taxMode: none | exclusive (tax added on top) | inclusive (tax inside the price). */
+  totals(lines, discount = 0, tax = { mode: 'none', rate: 0 }) {
+    const gross = round2(lines.reduce((x, l) => x + l.qty * l.price, 0));
+    const lineDisc = round2(lines.reduce((x, l) => x + (l.discount || 0), 0));
+    const disc = round2(lineDisc + (discount || 0));
+    const net = round2(gross - disc);                                // what the customer is charged before tax-on-top
+    const rate = tax.mode === 'none' ? 0 : (+tax.rate || 0) / 100;
+    const taxAmt = tax.mode === 'exclusive' ? round2(net * rate) : tax.mode === 'inclusive' ? round2(net - net / (1 + rate)) : 0;
+    const total = tax.mode === 'exclusive' ? round2(net + taxAmt) : net;
+    const cogs = round2(lines.reduce((x, l) => x + l.qty * (l.unitCost || 0), 0));
+    return { gross, discount: disc, net, tax: taxAmt, total, revenue: round2(total - taxAmt), cogs };
+  },
+  nextNo(b, kind) { const n = (b.next ||= { invoice: 1, sale: 1 })[kind]++; return (kind === 'invoice' ? b.invPrefix || 'INV-' : b.salePrefix || 'S-') + String(n).padStart(4, '0'); },
+  /** Record a sale or an invoice. paid: amount received now (0 = all on credit). Returns the sale. */
+  recordSale(bizId, s) {
+    const b = this.get(bizId);
+    if (!b) throw new Error('Pick a business first.');
+    const lines = (s.lines || []).map((l) => {
+      const it = l.itemId && this.find('bizItems', l.itemId);
+      return { itemId: l.itemId || null, name: String(l.name || it?.name || 'Item').slice(0, 80), qty: +l.qty, price: round2(+l.price), discount: round2(+l.discount || 0), unitCost: round2(l.unitCost != null ? +l.unitCost : it?.cost || 0) };
+    }).filter((l) => l.qty > 0);
+    if (!lines.length) throw new Error('Add at least one item with a quantity.');
+    for (const l of lines) { if (!this.money(l.price) || !(l.qty > 0 && l.qty < 1e7)) throw new Error(`Check the price and quantity of ${l.name}.`); }
+    const tax = s.tax || b.tax || { mode: 'none', rate: 0 };
+    const t = this.totals(lines, +s.discount || 0, tax);
+    if (t.net < 0) throw new Error('The discount is bigger than the sale.');
+    if (!s.allowBelowCost) { const low = lines.find((l) => l.unitCost > 0 && l.qty * l.price - l.discount < l.qty * l.unitCost - 0.005); if (low) { const e = new Error(`${low.name} would sell below its cost (${fmt(low.unitCost)} each).`); e.belowCost = true; throw e; } }
+    const paid = round2(+s.paid || 0);
+    if (paid < 0 || paid > t.total + 0.005) throw new Error(`The amount paid can’t be more than the total (${fmt(t.total)}).`);
+    if (paid > 0 && !this.find('bizAccounts', s.accountId)) throw new Error('Pick the account the money went into.');
+    if (s.customerId && !this.find('bizCustomers', s.customerId)) throw new Error('That customer isn’t in this business.');
+    const kind = s.kind === 'invoice' ? 'invoice' : 'sale';
+    const sale = { id: uid(), bizId, kind, no: this.nextNo(b, kind), date: s.date || this.today(), dueDate: kind === 'invoice' ? s.dueDate || null : null,
+      customerId: s.customerId || null, lines, discount: round2(+s.discount || 0), tax: { ...tax }, ...t, status: 'open', method: s.method || 'cash', channel: s.channel || '', notes: (s.notes || '').slice(0, 1000), createdAt: Date.now(), history: [] };
+    this.col('bizSales').push(sale);
+    if (paid > 0) this.col('bizPayments').push({ id: uid(), bizId, saleId: sale.id, customerId: sale.customerId, date: sale.date, amount: paid, accountId: s.accountId, method: s.method || 'cash', createdAt: Date.now() });
+    Store.save();
+    return sale;
+  },
+  paidOn(sale) { return round2(this.col('bizPayments').filter((p) => p.saleId === sale.id).reduce((x, p) => x + p.amount, 0)); },
+  dueOn(sale) { return sale.status === 'void' ? 0 : Math.max(0, round2(sale.total - this.paidOn(sale))); },
+  payStatus(sale) {
+    if (sale.status === 'void') return 'void';
+    const paid = this.paidOn(sale), due = this.dueOn(sale);
+    if (due <= 0.004) return 'paid';
+    if (sale.dueDate && sale.dueDate < this.today()) return 'overdue';
+    return paid > 0 ? 'partial' : 'unpaid';
+  },
+  /** A customer pays (part of) a sale or invoice: cash up, receivable down. Never a new sale. */
+  receivePayment(saleId, p) {
+    const sale = this.find('bizSales', saleId);
+    if (!sale || sale.status === 'void') throw new Error('That sale isn’t open.');
+    const amt = round2(+p.amount), due = this.dueOn(sale);
+    if (!(amt > 0)) throw new Error('Type the amount received.');
+    if (amt > due + 0.005) throw new Error(`Only ${fmt(due)} is still owed on ${sale.no}.`);
+    if (!this.find('bizAccounts', p.accountId)) throw new Error('Pick the account the money went into.');
+    const pay = { id: uid(), bizId: sale.bizId, saleId, customerId: sale.customerId, date: p.date || this.today(), amount: amt, accountId: p.accountId, method: p.method || 'cash', createdAt: Date.now() };
+    this.col('bizPayments').push(pay); Store.save(); return pay;
+  },
+  /** Void keeps the record (and its history) but takes it out of every total. Only before any payment. */
+  voidSale(saleId, reason) {
+    const sale = this.find('bizSales', saleId);
+    if (!sale) return;
+    if (this.paidOn(sale) > 0) throw new Error('This sale has payments. Refunds come in the next update; for now, void only unpaid sales.');
+    sale.history.push({ at: Date.now(), was: { status: sale.status }, reason: reason || '' });
+    sale.status = 'void'; Store.save();
+  },
+  customerBalance(c) { return round2(this.of('bizSales', c.bizId).filter((s) => s.customerId === c.id).reduce((x, s) => x + this.dueOn(s), 0)); },
+  receivables(bizId) { return round2(this.of('bizSales', bizId).reduce((x, s) => x + this.dueOn(s), 0)); },
+
+  /* ----- expenses, owner money, transfers ----- */
+  addExpense(bizId, v) {
+    const amt = round2(+v.amount);
+    if (!(amt > 0) || !this.money(amt)) throw new Error('Type the amount.');
+    if (!this.find('bizAccounts', v.accountId)) throw new Error('Pick the account it was paid from.');
+    const e = { id: uid(), bizId, date: v.date || this.today(), amount: amt, category: BIZ_EXPENSE_CATS.includes(v.category) ? v.category : 'Other', vendor: (v.vendor || '').slice(0, 80), accountId: v.accountId, notes: (v.notes || '').slice(0, 500), createdAt: Date.now() };
+    this.col('bizExpenses').push(e); Store.save(); return e;
+  },
+  /** Owner puts money in (dir 'in') or takes it out ('out'). Optional linked personal entry: a transfer on the personal side, never income or spending. */
+  ownerMove(bizId, v) {
+    const amt = round2(+v.amount);
+    if (!(amt > 0) || !this.money(amt)) throw new Error('Type the amount.');
+    if (!this.find('bizAccounts', v.accountId)) throw new Error('Pick the business account.');
+    if (v.dir === 'out' && this.balance(this.find('bizAccounts', v.accountId), v.date || this.today()) < amt - 0.005) throw new Error('That account doesn’t have that much.');
+    const o = { id: uid(), bizId, dir: v.dir === 'out' ? 'out' : 'in', date: v.date || this.today(), amount: amt, accountId: v.accountId, notes: (v.notes || '').slice(0, 300), createdAt: Date.now() };
+    if (v.personal) {
+      const b = this.get(bizId);
+      const t = Store.addTransaction({ kind: o.dir === 'in' ? 'to_business' : 'from_business', amount: amt, date: o.date, category: 'Business', accountId: v.personalAccountId || Accounts.DEFAULT,
+        description: o.dir === 'in' ? `Put into ${b.name}` : `Taken from ${b.name}`, bizOwnerId: o.id });
+      o.personalTxId = t.id;
+    }
+    this.col('bizOwner').push(o); Store.save(); return o;
+  },
+  transfer(bizId, v) {
+    const amt = round2(+v.amount);
+    if (!(amt > 0) || v.from === v.to || !this.find('bizAccounts', v.from) || !this.find('bizAccounts', v.to)) throw new Error('Pick two different accounts and an amount.');
+    const t = { id: uid(), bizId, date: v.date || this.today(), amount: amt, from: v.from, to: v.to, createdAt: Date.now() };
+    this.col('bizTransfers').push(t); Store.save(); return t;
+  },
+
+  /* ----- reports ----- */
+  /** Profit & loss + cash for [from, to] (inclusive ISO dates). */
+  report(bizId, from, to) {
+    const inR = (d) => d >= from && d <= to;
+    const sales = this.of('bizSales', bizId).filter((s) => s.status !== 'void' && inR(s.date));
+    const sum = (arr, f) => round2(arr.reduce((x, y) => x + f(y), 0));
+    const grossSales = sum(sales, (s) => s.gross), discounts = sum(sales, (s) => s.discount), tax = sum(sales, (s) => s.tax);
+    const netSales = sum(sales, (s) => s.revenue), cogs = sum(sales, (s) => s.cogs);
+    const exps = this.of('bizExpenses', bizId).filter((e) => inR(e.date));
+    const byCat = {}; for (const e of exps) byCat[e.category] = round2((byCat[e.category] || 0) + e.amount);
+    const expenses = sum(exps, (e) => e.amount);
+    const pays = this.of('bizPayments', bizId).filter((p) => inR(p.date));
+    const owner = this.of('bizOwner', bizId).filter((o) => inR(o.date));
+    const byItem = {};
+    for (const s of sales) {   // each line's share of the sale's revenue (order discount and tax spread by line amount)
+      const lineNet = (l) => l.qty * l.price - (l.discount || 0), base = s.lines.reduce((x, l) => x + lineNet(l), 0);
+      for (const l of s.lines) { const k = l.itemId || l.name, r = (byItem[k] ||= { name: l.name, qty: 0, sales: 0, profit: 0 }); const rev = base > 0 ? s.revenue * (lineNet(l) / base) : 0; r.qty += l.qty; r.sales = round2(r.sales + rev); r.profit = round2(r.profit + rev - l.qty * l.unitCost); }
+    }
+    const gross = round2(netSales - cogs), net = round2(gross - expenses);
+    return {
+      from, to, count: sales.length, grossSales, discounts, tax, netSales, cogs, grossProfit: gross, expenses, byCat, netProfit: net,
+      grossMargin: netSales > 0 ? round2((gross / netSales) * 100) : null, netMargin: netSales > 0 ? round2((net / netSales) * 100) : null,
+      cashIn: sum(pays, (p) => p.amount), cashOut: expenses, ownerIn: sum(owner.filter((o) => o.dir === 'in'), (o) => o.amount), ownerOut: sum(owner.filter((o) => o.dir === 'out'), (o) => o.amount),
+      avgSale: sales.length ? round2(netSales / sales.length) : null, byItem: Object.values(byItem).sort((a, b) => b.sales - a.sales),
+    };
+  },
+  monthRange(offset = 0) { const d = new Date(); const s = new Date(d.getFullYear(), d.getMonth() + offset, 1), e = new Date(d.getFullYear(), d.getMonth() + offset + 1, 0); return [toISODate(s), offset === 0 ? this.today() : toISODate(e)]; },
+  /** Everything the overview needs. */
+  overview(bizId) {
+    const today = this.today(), [mFrom, mTo] = this.monthRange(0), [pFrom, pTo] = this.monthRange(-1);
+    const wFrom = toISODate(new Date(Date.now() - 6 * 864e5));
+    const sales = this.of('bizSales', bizId).filter((s) => s.status !== 'void');
+    const open = sales.filter((s) => this.dueOn(s) > 0);
+    return {
+      today: this.report(bizId, today, today), week: this.report(bizId, wFrom, today), month: this.report(bizId, mFrom, mTo), prev: this.report(bizId, pFrom, pTo),
+      cash: this.cash(bizId), accounts: this.accounts(bizId).map((a) => ({ a, bal: this.balance(a) })), receivables: this.receivables(bizId),
+      overdue: open.filter((s) => s.dueDate && s.dueDate < today), unpaid: open,
+      recent: [...sales.map((s) => ({ date: s.date, at: s.createdAt, type: 'sale', s })), ...this.of('bizExpenses', bizId).map((e) => ({ date: e.date, at: e.createdAt, type: 'expense', e })), ...this.of('bizPayments', bizId).filter((p) => { const s = this.find('bizSales', p.saleId); return s && p.createdAt - s.createdAt > 1000; }).map((p) => ({ date: p.date, at: p.createdAt, type: 'payment', p }))]
+        .sort((a, b) => b.date.localeCompare(a.date) || b.at - a.at).slice(0, 8),
+    };
+  },
+  /** Remove a business and everything in it (and unlink its personal owner entries, which stay as ordinary transfers). */
+  remove(bizId) {
+    for (const k of BIZ_ARRAYS.slice(1)) Store.state[k] = this.col(k).filter((x) => x.bizId !== bizId);
+    Store.state.businesses = this.col('businesses').filter((b) => b.id !== bizId);
+    if (Store.state.settings?.activeBiz === bizId) delete Store.state.settings.activeBiz;
+    Store.save();
+  },
+  csvReport(bizId, from, to) {
+    const r = this.report(bizId, from, to), b = this.get(bizId), q = (x) => `"${String(x).replace(/"/g, '""')}"`;
+    const rows = [['Tiffo Business report', b.name], ['Period', `${from} to ${to}`], ['Basis', 'Accrual: sales count on their date; cash received counts when paid'], [],
+      ['Gross sales', r.grossSales], ['Discounts', -r.discounts], ['Net sales (excl. tax)', r.netSales], ['Tax collected (not income)', r.tax], ['Cost of goods sold', -r.cogs], ['Gross profit', r.grossProfit],
+      ...Object.entries(r.byCat).map(([c, v]) => [`Expense: ${c}`, -v]), ['Total operating expenses', -r.expenses], ['Net profit', r.netProfit], [],
+      ['Cash received from customers', r.cashIn], ['Owner put in', r.ownerIn], ['Owner took out', r.ownerOut], ['Still owed by customers (all time)', this.receivables(bizId)], [],
+      ['Date', 'Number', 'Type', 'Customer', 'Net sales', 'Tax', 'Total', 'Paid', 'Still owed', 'Status'],
+      ...this.of('bizSales', bizId).filter((s) => s.date >= from && s.date <= to).map((s) => [s.date, s.no, s.kind, this.find('bizCustomers', s.customerId)?.name || '', s.revenue, s.tax, s.total, this.paidOn(s), this.dueOn(s), this.payStatus(s)])];
+    return rows.map((r) => r.map(q).join(',')).join('\n');
+  },
+};
+
+/* =========================================================================
    INSIGHTS — plain-English answers on Home. Each one links to where it lives.
    ========================================================================= */
 const Insights = {
@@ -4273,7 +4525,8 @@ const NetWorth = {
    ========================================================================= */
 const Backup = {
   FORMAT: 1,
-  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans', 'assets', 'holdings', 'bills', 'policies'],
+  ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans', 'assets', 'holdings', 'bills', 'policies',
+    'businesses', 'bizAccounts', 'bizItems', 'bizCustomers', 'bizSales', 'bizPayments', 'bizExpenses', 'bizOwner', 'bizTransfers'],
   lastAt() { return Store.state.settings?.lastBackupAt || 0; },
 
   build() {
@@ -4386,6 +4639,7 @@ const Backup = {
     const byId = (key, fix = (x) => x) => { const have = new Set((st[key] ||= []).map((x) => x.id)); for (const x of d[key]) if (x.id && !have.has(x.id)) st[key].push(fix(x)); };
     byId('pocketMoves', (m) => ({ ...m, pocketId: pocketMap[m.pocketId] || m.pocketId }));
     byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories'); byId('plans', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('assets'); byId('holdings'); byId('bills', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('policies');
+    for (const k of ['businesses', 'bizAccounts', 'bizItems', 'bizCustomers', 'bizSales', 'bizPayments', 'bizExpenses', 'bizOwner', 'bizTransfers']) byId(k);   // business records: same id = same record
     Store.adopt(st); Store.save();
     return { added, skipped };
   },
@@ -5725,13 +5979,13 @@ const Exporter = {
    NAV — five pages. Home stays simple: the note box, this month, two charts.
    ========================================================================= */
 const Nav = {
-  PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More' },
+  PAGES: { home: 'Home', activity: 'Activity', plan: 'Plan', money: 'Money', more: 'More', business: 'Business' },
   // Which page each card lives on.
   OF: { summary: 'home', categories: 'home', balance: 'home', ledger: 'activity', budgets: 'plan', reminders: 'plan', retire: 'plan', timeline: 'plan', bills: 'plan', insurance: 'plan', records: 'more', scam: 'more', spending: 'plan', profit: 'plan',
-    glance: 'home', household: 'money', networth: 'money', accounts: 'money', invest: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
+    glance: 'home', biz: 'business', household: 'money', networth: 'money', accounts: 'money', invest: 'money', debts: 'money', pockets: 'money', loans: 'money', translator: 'more', settings: 'more' },
   page: 'home',
   pageOf(el) { return this.OF[el.dataset.tool] || 'more'; },
-  read() { const m = location.hash.match(/^#(home|activity|plan|money|more)\b/); this.page = m ? m[1] : 'home'; },
+  read() { const m = location.hash.match(/^#(home|activity|plan|money|more|business)\b/); this.page = m ? m[1] : 'home'; },
   go(page, { scroll = true } = {}) {
     if (!this.PAGES[page]) page = 'home';
     this.page = page;
@@ -6019,7 +6273,7 @@ const UI = {
   renderAll() {
     // Each card draws on its own, so one problem never blanks out the rest of the app.
     for (const f of [() => this.renderBalance(), () => this.renderLedger(), () => Charts.render(), () => this.renderDocHistory(), () => this.renderReminders(),
-      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderTimeline(), () => this.renderBills(), () => this.renderPolicies(), () => this.renderRecords(), () => this.renderHousehold(), () => this.renderGlance(), () => this.renderLockStatus(), () => this.renderSyncStatus()]) {
+      () => this.renderBudgets(), () => this.renderPockets(), () => this.renderAccounts(), () => this.renderLoans?.(), () => this.renderDebts(), () => this.renderNetWorth(), () => this.renderInvest(), () => this.renderRetire(), () => this.renderTimeline(), () => this.renderBills(), () => this.renderPolicies(), () => this.renderRecords(), () => this.renderHousehold(), () => this.renderGlance(), () => this.renderLockStatus(), () => this.renderSyncStatus(), () => this.renderBiz()]) {
       try { f(); } catch (e) { console.error('Render problem', e); }
     }
   },
@@ -6952,6 +7206,373 @@ const UI = {
       $('#lockMsg').textContent = 'That didn’t work. Use your PIN.';
     } catch (e) { $('#lockMsg').textContent = 'Fingerprint/face check was cancelled. Use your PIN, or try again.'; }
   },
+  /* ---------- Tiffo Business ---------- */
+  bizTab: 'overview',
+  bizDraft: null,
+  bizMoney(n) { return fmt(n || 0); },
+  bizStatusBadge(st) {
+    const m = { paid: ['Paid', 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'], partial: ['Part paid', 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'],
+      unpaid: ['Unpaid', 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300'], overdue: ['Overdue', 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'], void: ['Void', 'bg-stone-100 text-stone-400 line-through dark:bg-stone-800'] }[st];
+    return `<span class="rounded-full px-2 py-0.5 text-[11px] font-semibold ${m[1]}">${m[0]}</span>`;
+  },
+  renderBiz() {
+    const root = $('#bizRoot'); if (!root) return;
+    const b = Biz.current();
+    const btn = (attrs, label, cls = 'border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800') => `<button type="button" ${attrs} class="rounded-xl ${cls} px-3 py-2 text-sm font-semibold">${label}</button>`;
+    if (!b) {
+      root.innerHTML = `<div class="text-center py-6 max-w-md mx-auto">
+        <div class="text-4xl" aria-hidden="true">💼</div>
+        <h3 class="mt-2 font-bold text-lg">Run your business in Tiffo</h3>
+        <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">Sales, customers, invoices, expenses and profit, kept completely separate from your personal money. Money you move between the two is recorded on both sides without counting it twice.</p>
+        <div class="mt-4">${btn('data-biz="new"', '+ Set up my business', 'bg-teal-600 hover:bg-teal-700 text-white')}</div>
+        <p class="mt-3 text-[11px] text-stone-400">Tiffo keeps records; it isn’t official tax filing or accounting advice.</p></div>`;
+      return;
+    }
+    const tabs = [['overview', 'Overview'], ['sell', 'Sell'], ['invoices', 'Sales & invoices'], ['customers', 'Customers'], ['products', 'Products & services'], ['expenses', 'Expenses'], ['reports', 'Reports'], ['settings', 'Settings']];
+    const others = Biz.list();
+    root.innerHTML = `<div class="flex flex-wrap items-center justify-between gap-2">
+        <label class="flex items-center gap-2 min-w-0"><span class="sr-only">Business</span>
+          <select id="bizPick" class="max-w-[16rem] rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 font-semibold">
+            ${others.map((x) => `<option value="${x.id}" ${x.id === b.id ? 'selected' : ''}>${escapeHTML(x.name)}</option>`).join('')}<option value="__new">+ Add another business</option></select></label>
+        <span class="text-[11px] text-stone-500 dark:text-stone-400">💼 Business workspace · separate from your personal money</span></div>
+      <nav class="mt-3 -mx-1 flex gap-1 overflow-x-auto pb-1" aria-label="Business sections">
+        ${tabs.map(([k, l]) => `<button type="button" data-biztab="${k}" aria-current="${this.bizTab === k ? 'page' : 'false'}" class="shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold ${this.bizTab === k ? 'bg-teal-600 text-white' : 'text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'}">${l}</button>`).join('')}
+      </nav>
+      <div id="bizBody" class="mt-3"></div>`;
+    const body = $('#bizBody');
+    const f = { overview: this.bizOverview, sell: this.bizSell, invoices: this.bizInvoices, customers: this.bizCustomers, products: this.bizProducts, expenses: this.bizExpensesView, reports: this.bizReports, settings: this.bizSettings }[this.bizTab] || this.bizOverview;
+    body.innerHTML = f.call(this, b);
+    if (this.bizTab === 'sell') this.bizSellUpdate();
+  },
+  bizOverview(b) {
+    const o = Biz.overview(b.id), m = o.month, p = o.prev;
+    const vs = (a, x) => x > 0 ? ` <span class="${a >= x ? 'text-emerald-600' : 'text-rose-600'}">${a >= x ? '▲' : '▼'} ${Math.abs(Math.round(((a - x) / x) * 100))}% vs last month</span>` : '';
+    const tile = (label, value, sub = '', help = '') => `<div class="rounded-xl border border-stone-200 dark:border-stone-800 p-3" ${help ? `title="${escapeHTML(help)}"` : ''}><div class="text-[11px] uppercase tracking-wide text-stone-500">${label}</div><div class="text-lg font-bold tabular">${value}</div>${sub ? `<div class="text-[11px] text-stone-500">${sub}</div>` : ''}</div>`;
+    const qa = [['sale', '🧾 Record a sale'], ['invoice', '📄 New invoice'], ['expense', '💸 Add expense'], ['customer', '👤 Add customer'], ['product', '📦 Add product'], ['owner', '🔁 Owner money']];
+    return `<div class="flex flex-wrap gap-2">${qa.map(([k, l]) => `<button type="button" data-biz="qa-${k}" class="rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 px-3 py-2 text-sm font-semibold">${l}</button>`).join('')}</div>
+      ${o.overdue.length ? `<div class="mt-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-3 text-sm">⚠️ <b>${o.overdue.length} overdue ${o.overdue.length === 1 ? 'invoice' : 'invoices'}</b>, ${this.bizMoney(o.overdue.reduce((x, s) => x + Biz.dueOn(s), 0))} still owed. <button type="button" data-biztab="invoices" class="underline font-semibold">See them</button></div>` : ''}
+      <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+        ${tile('Sales today', this.bizMoney(o.today.netSales), `${o.today.count} ${o.today.count === 1 ? 'sale' : 'sales'}`, 'Sales recorded today, excluding tax, whether paid or not.')}
+        ${tile('Sales this month', this.bizMoney(m.netSales), `${m.count} sales${vs(m.netSales, p.netSales)}`, 'Revenue: sales recorded this month (excluding tax), paid or not.')}
+        ${tile('Cash received', this.bizMoney(m.cashIn), 'this month, from customers', 'Money actually received from customers this month.')}
+        ${tile('Customers owe you', this.bizMoney(o.receivables), `${o.unpaid.length} unpaid`, 'Unpaid amounts on sales and invoices. Not cash yet.')}
+        ${tile('Expenses', this.bizMoney(m.expenses), 'this month')}
+        ${tile('Gross profit', this.bizMoney(m.grossProfit), m.grossMargin != null ? `${m.grossMargin}% of sales` : 'no sales yet', 'Sales minus what the items cost you.')}
+        ${tile('Net profit', this.bizMoney(m.netProfit), 'this month (estimate)', 'Gross profit minus expenses. Owner money in/out isn’t profit or expense.')}
+        ${tile('Cash & bank', this.bizMoney(o.cash), o.accounts.map((x) => `${escapeHTML(x.a.name)} ${this.bizMoney(x.bal)}`).join(' · '))}
+      </div>
+      <div class="mt-4 text-xs font-semibold text-stone-500">Recent</div>
+      <ul class="mt-1 divide-y divide-stone-100 dark:divide-stone-800 text-sm">${o.recent.map((r) => {
+        if (r.type === 'sale') return `<li class="py-2 flex justify-between gap-2"><span>🧾 ${escapeHTML(r.s.no)} · ${escapeHTML(Biz.find('bizCustomers', r.s.customerId)?.name || 'Walk-in')} ${this.bizStatusBadge(Biz.payStatus(r.s))}</span><span class="tabular">${this.bizMoney(r.s.total)}</span></li>`;
+        if (r.type === 'expense') return `<li class="py-2 flex justify-between gap-2"><span>💸 ${escapeHTML(r.e.category)}${r.e.vendor ? ' · ' + escapeHTML(r.e.vendor) : ''}</span><span class="tabular text-rose-600">−${this.bizMoney(r.e.amount)}</span></li>`;
+        return `<li class="py-2 flex justify-between gap-2"><span>💵 Payment on ${escapeHTML(Biz.find('bizSales', r.p.saleId)?.no || '')}</span><span class="tabular text-emerald-600">+${this.bizMoney(r.p.amount)}</span></li>`;
+      }).join('') || '<li class="py-2 text-stone-500">Nothing yet. Record your first sale.</li>'}</ul>`;
+  },
+  /* Sell: one editor for quick sales and invoices. */
+  bizNewDraft(kind = 'sale') { const b = Biz.current(); this.bizDraft = { kind, lines: [], customerId: '', discount: 0, pay: kind === 'invoice' ? 'none' : 'full', paid: 0, accountId: Biz.accounts(b.id)[0]?.id || '', method: 'cash', date: toISODate(new Date()), dueDate: toISODate(new Date(Date.now() + 14 * 864e5)), notes: '', allow: false }; },
+  bizSell(b) {
+    if (!this.bizDraft || this.bizDraft.bizId !== b.id) { this.bizNewDraft(this.bizDraft?.kind); this.bizDraft.bizId = b.id; }
+    const d = this.bizDraft, items = Biz.items(b.id), custs = Biz.customers(b.id), accs = Biz.accounts(b.id);
+    const inp = 'rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-950 px-2.5 py-2 text-sm';
+    return `<div class="flex gap-1 rounded-lg bg-stone-100 dark:bg-stone-800 p-1 w-fit text-sm">
+        <button type="button" data-biz="kind-sale" class="px-3 py-1 rounded-md font-semibold ${d.kind === 'sale' ? 'bg-white dark:bg-stone-900 shadow' : ''}">Sale</button>
+        <button type="button" data-biz="kind-invoice" class="px-3 py-1 rounded-md font-semibold ${d.kind === 'invoice' ? 'bg-white dark:bg-stone-900 shadow' : ''}">Invoice (pay later)</button></div>
+      <div class="mt-3 grid gap-2 sm:grid-cols-[1fr_5rem_7rem_auto] items-end">
+        <label class="text-xs font-semibold">Item<select id="bz_item" class="mt-1 w-full ${inp}"><option value="">— Pick a product or service —</option>${items.map((i) => `<option value="${i.id}">${escapeHTML(i.name)} · ${fmt(i.price)}</option>`).join('')}<option value="__custom">Something else (type it)</option></select></label>
+        <label class="text-xs font-semibold">Qty<input id="bz_qty" type="number" min="0" step="any" value="1" class="mt-1 w-full ${inp}" /></label>
+        <label class="text-xs font-semibold">Price each<input id="bz_price" type="number" min="0" step="any" class="mt-1 w-full ${inp}" /></label>
+        <button type="button" data-biz="add-line" class="rounded-lg bg-stone-900 text-white dark:bg-white dark:text-stone-900 px-3 py-2 text-sm font-semibold">+ Add</button>
+      </div>
+      <input id="bz_name" placeholder="What did you sell?" class="hidden mt-2 w-full ${inp}" />
+      ${!items.length ? '<p class="mt-2 text-xs text-stone-500">Tip: add your products and services once (Products & services), then pick them here with their prices and costs filled in.</p>' : ''}
+      <table class="mt-3 w-full text-sm"><tbody id="bz_lines"></tbody></table>
+      <div class="mt-3 grid gap-2 sm:grid-cols-2">
+        <label class="text-xs font-semibold">Customer<select id="bz_cust" class="mt-1 w-full ${inp}"><option value="">${d.kind === 'invoice' ? '— Pick a customer —' : 'Walk-in / no name'}</option>${custs.map((c) => `<option value="${c.id}" ${d.customerId === c.id ? 'selected' : ''}>${escapeHTML(c.name)}</option>`).join('')}<option value="__new">+ New customer</option></select></label>
+        <label class="text-xs font-semibold">Date<input id="bz_date" type="date" value="${d.date}" class="mt-1 w-full ${inp}" /></label>
+        <label class="text-xs font-semibold">Discount on the whole sale<input id="bz_disc" type="number" min="0" step="any" value="${d.discount || ''}" placeholder="0" class="mt-1 w-full ${inp}" /></label>
+        ${d.kind === 'invoice' ? `<label class="text-xs font-semibold">Due date<input id="bz_due" type="date" value="${d.dueDate}" class="mt-1 w-full ${inp}" /></label>` : '<span></span>'}
+        <label class="text-xs font-semibold">Paid now<select id="bz_pay" class="mt-1 w-full ${inp}"><option value="full" ${d.pay === 'full' ? 'selected' : ''}>Paid in full</option><option value="part" ${d.pay === 'part' ? 'selected' : ''}>Paid part of it</option><option value="none" ${d.pay === 'none' ? 'selected' : ''}>Nothing yet (customer owes it)</option></select></label>
+        <label id="bz_paidWrap" class="text-xs font-semibold ${d.pay === 'part' ? '' : 'hidden'}">Amount paid now<input id="bz_paid" type="number" min="0" step="any" value="${d.paid || ''}" class="mt-1 w-full ${inp}" /></label>
+        <label id="bz_accWrap" class="text-xs font-semibold ${d.pay === 'none' ? 'hidden' : ''}">Money went into<select id="bz_acc" class="mt-1 w-full ${inp}">${accs.map((a) => `<option value="${a.id}" ${d.accountId === a.id ? 'selected' : ''}>${escapeHTML(a.name)}</option>`).join('')}</select></label>
+        <label id="bz_methWrap" class="text-xs font-semibold ${d.pay === 'none' ? 'hidden' : ''}">Paid by<select id="bz_meth" class="mt-1 w-full ${inp}">${Object.entries(BIZ_METHODS).map(([k, l]) => `<option value="${k}" ${d.method === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="text-xs font-semibold sm:col-span-2">Notes<input id="bz_notes" value="${escapeHTML(d.notes)}" class="mt-1 w-full ${inp}" /></label>
+      </div>
+      <div id="bz_totals" class="mt-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 p-3 text-sm"></div>
+      <p id="bz_err" class="mt-2 text-sm text-rose-600" role="alert"></p>
+      <div class="mt-2 flex flex-wrap gap-2 justify-end">
+        <button type="button" data-biz="clear-draft" class="rounded-xl px-3 py-2 text-sm font-semibold text-stone-500 hover:underline">Clear</button>
+        <button type="button" data-biz="save-sale" class="rounded-xl bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 text-sm font-bold">${d.kind === 'invoice' ? 'Create invoice' : 'Save sale'}</button></div>`;
+  },
+  bizReadDraft() {
+    const d = this.bizDraft; if (!d || !$('#bz_date')) return d;
+    d.customerId = $('#bz_cust').value === '__new' ? d.customerId : $('#bz_cust').value; d.date = $('#bz_date').value || d.date; d.discount = +$('#bz_disc').value || 0;
+    d.pay = $('#bz_pay').value; d.paid = +$('#bz_paid')?.value || 0; d.accountId = $('#bz_acc')?.value || d.accountId; d.method = $('#bz_meth')?.value || d.method; d.notes = $('#bz_notes').value;
+    if ($('#bz_due')) d.dueDate = $('#bz_due').value || d.dueDate;
+    return d;
+  },
+  bizSellUpdate() {
+    const d = this.bizReadDraft(), b = Biz.current(); if (!d) return;
+    $('#bz_lines').innerHTML = d.lines.map((l, i) => `<tr class="border-b border-stone-100 dark:border-stone-800"><td class="py-1.5">${escapeHTML(l.name)}</td><td class="py-1.5 text-right tabular">${l.qty} × ${fmt(l.price)}</td><td class="py-1.5 text-right tabular font-semibold">${fmt(l.qty * l.price)}</td><td class="py-1.5 text-right"><button type="button" data-biz="rm-line" data-i="${i}" class="text-stone-400 hover:text-rose-600 px-1" aria-label="Remove ${escapeHTML(l.name)}">✕</button></td></tr>`).join('');
+    $('#bz_paidWrap').classList.toggle('hidden', d.pay !== 'part');
+    $('#bz_accWrap').classList.toggle('hidden', d.pay === 'none'); $('#bz_methWrap').classList.toggle('hidden', d.pay === 'none');
+    if (!d.lines.length) { $('#bz_totals').innerHTML = '<span class="text-stone-500">Add items to see the total.</span>'; return; }
+    const t = Biz.totals(d.lines, d.discount, b.tax);
+    const paidNow = d.pay === 'full' ? t.total : d.pay === 'part' ? d.paid : 0;
+    $('#bz_totals').innerHTML = `<div class="flex justify-between"><span>Items</span><span class="tabular">${fmt(t.gross)}</span></div>
+      ${t.discount ? `<div class="flex justify-between"><span>Discounts</span><span class="tabular">−${fmt(t.discount)}</span></div>` : ''}
+      ${b.tax.mode !== 'none' ? `<div class="flex justify-between text-stone-500"><span>Tax (${b.tax.rate}%, ${b.tax.mode === 'inclusive' ? 'included in prices' : 'added'})</span><span class="tabular">${fmt(t.tax)}</span></div>` : ''}
+      <div class="flex justify-between font-bold text-base"><span>Total</span><span class="tabular">${fmt(t.total)}</span></div>
+      <div class="flex justify-between text-stone-500"><span>Paid now · still owed</span><span class="tabular">${fmt(paidNow)} · ${fmt(Math.max(0, t.total - paidNow))}</span></div>
+      ${t.cogs ? `<div class="flex justify-between text-stone-500"><span>Estimated profit on these items</span><span class="tabular">${fmt(t.revenue - t.cogs)}</span></div>` : ''}`;
+  },
+  async bizSaveSale() {
+    const d = this.bizReadDraft(), b = Biz.current();
+    if (d.kind === 'invoice' && !d.customerId) { $('#bz_err').textContent = 'Pick the customer for the invoice.'; return; }
+    const t = d.lines.length ? Biz.totals(d.lines, d.discount, b.tax) : null;
+    const paid = !t ? 0 : d.pay === 'full' ? t.total : d.pay === 'part' ? d.paid : 0;
+    try {
+      const s = Biz.recordSale(b.id, { kind: d.kind, lines: d.lines, customerId: d.customerId, discount: d.discount, paid, accountId: d.accountId, method: d.method, date: d.date, dueDate: d.dueDate, notes: d.notes, allowBelowCost: d.allow });
+      this.bizNewDraft(d.kind); this.bizDraft.bizId = b.id;
+      this.renderBiz();
+      toast(`✓ ${s.kind === 'invoice' ? 'Invoice' : 'Sale'} ${escapeHTML(s.no)} saved: ${fmt(s.total)}${Biz.dueOn(s) ? `, ${fmt(Biz.dueOn(s))} still owed` : ', paid'}.`, { action: { label: s.kind === 'invoice' ? 'View' : 'Undo', fn: () => (s.kind === 'invoice' ? this.bizViewSale(s.id) : this.bizUndoSale(s.id)) } });
+    } catch (e) {
+      if (e.belowCost && await askConfirm(`${e.message} Sell it anyway?`, 'Sell below cost')) { d.allow = true; return this.bizSaveSale(); }
+      $('#bz_err').textContent = e.message;
+    }
+  },
+  bizUndoSale(id) {
+    Store.state.bizPayments = Biz.col('bizPayments').filter((p) => p.saleId !== id);
+    Store.state.bizSales = Biz.col('bizSales').filter((s) => s.id !== id);
+    Store.save(); this.renderBiz(); toast('Sale removed.');
+  },
+  bizInvoices(b) {
+    const f = this.bizFilter || 'all';
+    const sales = Biz.of('bizSales', b.id).filter((s) => f === 'all' || Biz.payStatus(s) === f || (f === 'open' && ['unpaid', 'partial', 'overdue'].includes(Biz.payStatus(s)))).sort((a, c) => c.date.localeCompare(a.date) || c.createdAt - a.createdAt);
+    return `<div class="flex flex-wrap items-center justify-between gap-2"><select id="bizFilter" class="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-2 py-1.5 text-sm">
+        ${[['all', 'All'], ['open', 'Not fully paid'], ['overdue', 'Overdue'], ['paid', 'Paid'], ['void', 'Void']].map(([k, l]) => `<option value="${k}" ${f === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <span class="text-sm">Customers owe you <b class="tabular">${fmt(Biz.receivables(b.id))}</b></span></div>
+      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${sales.map((s) => {
+        const st = Biz.payStatus(s), due = Biz.dueOn(s);
+        return `<li class="py-2.5"><div class="flex flex-wrap items-center justify-between gap-2"><div class="min-w-0"><b>${escapeHTML(s.no)}</b> · ${escapeHTML(Biz.find('bizCustomers', s.customerId)?.name || 'Walk-in')} ${this.bizStatusBadge(st)}
+          <div class="text-[11px] text-stone-500">${escapeHTML(prettyDate(s.date))}${s.dueDate ? ` · due ${escapeHTML(prettyDate(s.dueDate))}` : ''} · ${s.lines.length} ${s.lines.length === 1 ? 'item' : 'items'}</div></div>
+          <div class="text-right tabular"><div class="font-semibold">${fmt(s.total)}</div>${due && st !== 'void' ? `<div class="text-[11px] text-rose-600">${fmt(due)} owed</div>` : ''}</div></div>
+          <div class="mt-1 flex flex-wrap gap-2 text-xs">${due && st !== 'void' ? `<button type="button" data-biz="pay" data-id="${s.id}" class="rounded-lg bg-teal-600 text-white px-2.5 py-1 font-semibold">Record payment</button>` : ''}
+          <button type="button" data-biz="view" data-id="${s.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">View / print</button>
+          ${st !== 'void' && !Biz.paidOn(s) ? `<button type="button" data-biz="void" data-id="${s.id}" class="text-stone-500 hover:text-rose-600 hover:underline">Void</button>` : ''}</div></li>`;
+      }).join('') || '<li class="py-3 text-sm text-stone-500">No sales here yet.</li>'}</ul>`;
+  },
+  bizPayForm(id) {
+    const s = Biz.find('bizSales', id), accs = Biz.accounts(s.bizId);
+    this.form({ title: `Payment on ${s.no}`, save: 'Record payment', sub: `${fmt(Biz.dueOn(s))} still owed. This adds to your cash and lowers what the customer owes. It isn’t a new sale.`,
+      fields: [{ id: 'amount', label: 'Amount received', type: 'number', value: Biz.dueOn(s) }, { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) },
+        { id: 'acc', label: 'Money went into', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) }, { id: 'method', label: 'Paid by', type: 'select', value: 'cash', options: Object.entries(BIZ_METHODS) }],
+      onSave: (v) => { try { Biz.receivePayment(id, { amount: v.amount, date: v.date, accountId: v.acc, method: v.method }); } catch (e) { return e.message; } this.renderBiz(); toast(`💵 Payment recorded. ${Biz.dueOn(s) ? fmt(Biz.dueOn(s)) + ' still owed.' : 'Fully paid.'}`); } });
+  },
+  /** Printable invoice/receipt (Print → Save as PDF in the browser). */
+  bizDocHTML(s) {
+    const b = Biz.get(s.bizId), c = Biz.find('bizCustomers', s.customerId), e = escapeHTML;
+    return `<div style="font-family:system-ui,sans-serif;color:#1c1917;max-width:680px;margin:auto;padding:24px">
+      <div style="display:flex;justify-content:space-between;gap:16px"><div><div style="font-size:20px;font-weight:700">${e(b.name)}</div><div style="font-size:12px;color:#57534e">${e(b.address || '')}${b.contact ? '<br>' + e(b.contact) : ''}${b.regNo ? '<br>TIN/Reg. no. ' + e(b.regNo) : ''}</div></div>
+      <div style="text-align:right"><div style="font-size:18px;font-weight:700">${s.kind === 'invoice' ? 'INVOICE' : 'SALES RECEIPT'}</div><div style="font-size:12px">${e(s.no)}<br>Date: ${e(s.date)}${s.dueDate ? '<br>Due: ' + e(s.dueDate) : ''}</div></div></div>
+      ${c ? `<div style="margin-top:16px;font-size:13px"><b>Bill to</b><br>${e(c.name)}${c.address ? '<br>' + e(c.address) : ''}${c.email ? '<br>' + e(c.email) : ''}</div>` : ''}
+      <table style="width:100%;border-collapse:collapse;margin-top:16px;font-size:13px"><thead><tr style="border-bottom:2px solid #1c1917;text-align:left"><th style="padding:6px 0">Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Amount</th></tr></thead><tbody>
+      ${s.lines.map((l) => `<tr style="border-bottom:1px solid #e7e5e4"><td style="padding:6px 0">${e(l.name)}</td><td style="text-align:right">${l.qty}</td><td style="text-align:right">${e(fmt(l.price))}</td><td style="text-align:right">${e(fmt(l.qty * l.price - (l.discount || 0)))}</td></tr>`).join('')}</tbody></table>
+      <table style="margin-left:auto;margin-top:12px;font-size:13px">${s.discount ? `<tr><td>Discount</td><td style="text-align:right;padding-left:24px">−${e(fmt(s.discount))}</td></tr>` : ''}
+      ${s.tax.mode !== 'none' ? `<tr><td>Tax ${s.tax.rate}% ${s.tax.mode === 'inclusive' ? '(included)' : ''}</td><td style="text-align:right;padding-left:24px">${e(fmt(s.tax))}</td></tr>` : ''}
+      <tr style="font-weight:700;font-size:15px"><td>Total</td><td style="text-align:right;padding-left:24px">${e(fmt(s.total))}</td></tr><tr><td>Paid</td><td style="text-align:right;padding-left:24px">${e(fmt(Biz.paidOn(s)))}</td></tr><tr style="font-weight:700"><td>Balance due</td><td style="text-align:right;padding-left:24px">${e(fmt(Biz.dueOn(s)))}</td></tr></table>
+      ${s.notes ? `<p style="margin-top:16px;font-size:12px">${e(s.notes)}</p>` : ''}
+      <p style="margin-top:24px;font-size:10px;color:#a8a29e">Prepared with Tiffo. ${s.status === 'void' ? 'VOID. ' : ''}This document is not an official BIR receipt unless your business is registered to issue it this way.</p></div>`;
+  },
+  bizViewSale(id) {
+    const s = Biz.find('bizSales', id);
+    this.form({ title: `${s.kind === 'invoice' ? 'Invoice' : 'Sale'} ${s.no}`, save: '🖨 Print / save as PDF', sub: '',
+      fields: [{ id: 'doc', type: 'note', label: '', html: `<div class="rounded-xl bg-white text-stone-900 border border-stone-200 overflow-auto max-h-[55vh]">${this.bizDocHTML(s)}</div>` }],
+      onSave: () => { this.bizPrint(this.bizDocHTML(s)); } });
+  },
+  bizPrint(html) {
+    const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0'; document.body.appendChild(f);
+    f.contentDocument.open(); f.contentDocument.write(`<!doctype html><html><head><title>Invoice</title></head><body>${html}</body></html>`); f.contentDocument.close();
+    setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch (e) { toast('Printing isn’t available here. Open Tiffo in its own tab to print.'); } setTimeout(() => f.remove(), 1500); }, 200);
+  },
+  bizCustomers(b) {
+    const cs = Biz.customers(b.id).map((c) => ({ c, bal: Biz.customerBalance(c) })).sort((a, x) => x.bal - a.bal || a.c.name.localeCompare(x.c.name));
+    return `<div class="flex justify-between items-center"><input id="bizCustSearch" placeholder="Search customers" class="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-2.5 py-1.5 text-sm" />
+      <button type="button" data-biz="qa-customer" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">+ Customer</button></div>
+      <ul id="bizCustList" class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${cs.map(({ c, bal }) => `<li data-name="${escapeHTML(c.name.toLowerCase())}"><button type="button" data-biz="cust" data-id="${c.id}" class="w-full py-2.5 flex justify-between gap-2 text-left hover:bg-stone-50 dark:hover:bg-stone-800/50 rounded-lg px-1"><span><b>${escapeHTML(c.name)}</b>${c.phone ? ` <span class="text-[11px] text-stone-500">${escapeHTML(c.phone)}</span>` : ''}</span><span class="tabular ${bal ? 'text-rose-600 font-semibold' : 'text-stone-400'}">${bal ? fmt(bal) + ' owed' : 'Nothing owed'}</span></button></li>`).join('') || '<li class="py-3 text-sm text-stone-500">No customers yet. Walk-in sales don’t need one.</li>'}</ul>`;
+  },
+  bizCustomerForm(c = null, after) {
+    const b = Biz.current();
+    const sales = c ? Biz.of('bizSales', b.id).filter((s) => s.customerId === c.id && s.status !== 'void').sort((a, x) => x.date.localeCompare(a.date)) : [];
+    const stmt = c ? `<div class="text-xs"><div class="font-semibold mb-1">Statement · owes ${fmt(Biz.customerBalance(c))}</div>${sales.slice(0, 12).map((s) => `<div class="flex justify-between"><span>${escapeHTML(s.date)} ${escapeHTML(s.no)}</span><span class="tabular">${fmt(s.total)} · paid ${fmt(Biz.paidOn(s))}</span></div>`).join('') || 'No purchases yet.'}</div>` : '';
+    this.form({ title: c ? c.name : 'New customer', save: 'Save', sub: '',
+      fields: [...(c ? [{ id: 'stmt', type: 'note', label: '', html: stmt }] : []),
+        { id: 'name', label: 'Name', value: c?.name || '', placeholder: 'e.g. J. Dela Cruz' }, { id: 'phone', label: 'Phone', value: c?.phone || '' }, { id: 'email', label: 'Email', value: c?.email || '', advanced: true },
+        { id: 'address', label: 'Address', value: c?.address || '', advanced: true }, { id: 'type', label: 'Type', type: 'select', value: c?.type || 'regular', options: [['regular', 'Regular'], ['wholesale', 'Wholesale'], ['vip', 'VIP'], ['business', 'Business account']], advanced: true },
+        { id: 'notes', label: 'Notes', type: 'textarea', value: c?.notes || '', placeholder: 'e.g. Prefers delivery on Fridays', advanced: true }],
+      onSave: (v) => { if (!v.name?.trim()) return 'Type the customer’s name.'; const x = Biz.saveCustomer(b.id, v, c); this.renderBiz(); after?.(x); toast(c ? 'Saved.' : `👤 ${escapeHTML(x.name)} added.`); } });
+  },
+  bizProducts(b) {
+    const items = Biz.items(b.id, true).sort((a, x) => (a.status === 'archived') - (x.status === 'archived') || a.name.localeCompare(x.name));
+    return `<div class="flex justify-end"><button type="button" data-biz="qa-product" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">+ Product or service</button></div>
+      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${items.map((i) => { const m = Biz.margin(i); return `<li><button type="button" data-biz="item" data-id="${i.id}" class="w-full py-2.5 flex justify-between gap-2 text-left hover:bg-stone-50 dark:hover:bg-stone-800/50 rounded-lg px-1 ${i.status === 'archived' ? 'opacity-50' : ''}">
+        <span>${i.kind === 'service' ? '🛠️' : '📦'} <b>${escapeHTML(i.name)}</b>${i.sku ? ` <span class="text-[11px] text-stone-500">${escapeHTML(i.sku)}</span>` : ''}${i.status === 'archived' ? ' <span class="text-[11px]">(archived)</span>' : ''}</span>
+        <span class="text-right tabular text-sm">${fmt(i.price)}<div class="text-[11px] ${m != null && m < 0 ? 'text-rose-600' : 'text-stone-500'}">${i.cost ? `cost ${fmt(i.cost)} · ${m}% margin` : 'no cost set'}</div></span></button></li>`; }).join('') || '<li class="py-3 text-sm text-stone-500">Add what you sell, with your price and what it costs you, so Tiffo can work out profit.</li>'}</ul>`;
+  },
+  bizItemForm(i = null, after) {
+    const b = Biz.current();
+    this.form({ title: i ? i.name : 'New product or service', save: 'Save', sub: 'The cost is what it costs you to make or buy one. Tiffo uses it for profit; it never changes past sales.',
+      fields: [{ id: 'kind', label: 'Type', type: 'select', value: i?.kind || 'product', options: [['product', 'Product'], ['service', 'Service']] },
+        { id: 'name', label: 'Name', value: i?.name || '', placeholder: 'e.g. Ensaymada (box of 6)' }, { id: 'price', label: 'Selling price', type: 'number', value: i?.price ?? '' },
+        { id: 'cost', label: 'Your cost per unit', type: 'number', value: i?.cost ?? '', hint: 'Leave empty if you don’t know yet.' },
+        { id: 'unit', label: 'Unit', value: i?.unit || '', placeholder: 'pc, box, kg, hour', advanced: true }, { id: 'sku', label: 'Code / SKU', value: i?.sku || '', advanced: true },
+        { id: 'category', label: 'Category', value: i?.category || '', advanced: true }, { id: 'notes', label: 'Notes', type: 'textarea', value: i?.notes || '', advanced: true },
+        ...(i ? [{ id: 'status', label: 'Status', type: 'select', value: i.status, options: [['active', 'Active'], ['archived', 'Archived (hidden when selling)']] }] : [])],
+      danger: i ? { label: 'Duplicate', fn: () => { this.closeForm(); const x = Biz.saveItem(b.id, { ...i, name: i.name + ' (copy)' }); this.renderBiz(); this.bizItemForm(x); } } : null,
+      onSave: (v) => {
+        if (!v.name?.trim()) return 'Give it a name.';
+        if (!(v.price >= 0) || v.price === null) return 'Type the selling price.';
+        if (v.cost != null && v.cost < 0) return 'The cost can’t be negative.';
+        const x = Biz.saveItem(b.id, { ...v, status: v.status || 'active' }, i); this.renderBiz(); after?.(x);
+        toast(v.cost > v.price ? '⚠️ Saved, but the cost is higher than the price: each sale loses money.' : '✓ Saved.');
+      } });
+  },
+  bizExpensesView(b) {
+    const ex = Biz.of('bizExpenses', b.id).sort((a, x) => x.date.localeCompare(a.date) || x.createdAt - a.createdAt);
+    return `<div class="flex justify-end"><button type="button" data-biz="qa-expense" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">+ Expense</button></div>
+      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${ex.slice(0, 100).map((e) => `<li class="py-2.5 flex justify-between gap-2"><span><b>${escapeHTML(e.category)}</b>${e.vendor ? ' · ' + escapeHTML(e.vendor) : ''}<div class="text-[11px] text-stone-500">${escapeHTML(prettyDate(e.date))} · from ${escapeHTML(Biz.find('bizAccounts', e.accountId)?.name || '')}${e.notes ? ' · ' + escapeHTML(e.notes) : ''}</div></span>
+        <span class="flex items-start gap-2"><span class="tabular text-rose-600">−${fmt(e.amount)}</span><button type="button" data-biz="del-exp" data-id="${e.id}" class="text-stone-400 hover:text-rose-600" aria-label="Delete expense">🗑</button></span></li>`).join('') || '<li class="py-3 text-sm text-stone-500">No business expenses yet.</li>'}</ul>`;
+  },
+  bizExpenseForm() {
+    const b = Biz.current(), accs = Biz.accounts(b.id);
+    this.form({ title: 'Business expense', save: 'Save', sub: 'Only for the business. Personal spending goes in your personal Tiffo.',
+      fields: [{ id: 'amount', label: 'Amount', type: 'number', value: '' }, { id: 'category', label: 'Category', type: 'select', value: 'Supplies', options: BIZ_EXPENSE_CATS.map((c) => [c, c]) },
+        { id: 'vendor', label: 'Paid to (vendor)', value: '' }, { id: 'acc', label: 'Paid from', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) },
+        { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) }, { id: 'notes', label: 'Notes', value: '', advanced: true }],
+      onSave: (v) => { try { Biz.addExpense(b.id, { ...v, accountId: v.acc }); } catch (e) { return e.message; } this.renderBiz(); toast('💸 Expense saved.'); } });
+  },
+  bizOwnerForm() {
+    const b = Biz.current(), accs = Biz.accounts(b.id), mine = Accounts.cashList ? Accounts.cashList() : Accounts.list();
+    this.form({ title: 'Owner money', save: 'Save', sub: 'Money you put into the business or take out for yourself. It’s not a sale, income or expense for the business, and Tiffo records the other side in your personal money as a transfer, so nothing is counted twice.',
+      fields: [{ id: 'dir', label: 'What happened', type: 'select', value: 'in', options: [['in', `I put money into ${b.name}`], ['out', `I took money out of ${b.name} for myself`]] },
+        { id: 'amount', label: 'Amount', type: 'number', value: '' }, { id: 'acc', label: 'Business account', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) },
+        { id: 'personal', type: 'checkbox', label: 'Also record it in my personal money', value: true },
+        { id: 'pacc', label: 'Personal account', type: 'select', value: Accounts.DEFAULT, options: mine.map((a) => [a.id, a.name]), show: (v) => v.personal },
+        { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) }],
+      onSave: (v) => { try { Biz.ownerMove(b.id, { dir: v.dir, amount: v.amount, accountId: v.acc, personal: v.personal, personalAccountId: v.pacc, date: v.date }); } catch (e) { return e.message; } this.renderAll(); toast(v.dir === 'in' ? '🔁 Recorded: you put money into the business.' : '🔁 Recorded: you took money out of the business.'); } });
+  },
+  bizReports(b) {
+    const per = this.bizPeriod || 'month', today = toISODate(new Date()), y = today.slice(0, 4);
+    const [from, to] = per === 'month' ? Biz.monthRange(0) : per === 'last' ? Biz.monthRange(-1) : per === 'year' ? [`${y}-01-01`, today] : per === '30' ? [toISODate(new Date(Date.now() - 29 * 864e5)), today] : [this.bizFrom || `${y}-01-01`, this.bizTo || today];
+    const r = Biz.report(b.id, from, to);
+    const row = (l, v, cls = '', help = '') => `<tr class="${cls}" ${help ? `title="${escapeHTML(help)}"` : ''}><td class="py-1">${l}</td><td class="py-1 text-right tabular">${v}</td></tr>`;
+    return `<div class="flex flex-wrap items-center gap-2"><select id="bizPeriod" class="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-2 py-1.5 text-sm">
+        ${[['month', 'This month'], ['last', 'Last month'], ['30', 'Last 30 days'], ['year', 'This year'], ['custom', 'Custom dates']].map(([k, l]) => `<option value="${k}" ${per === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        ${per === 'custom' ? `<input id="bizFrom" type="date" value="${from}" class="rounded-lg border px-2 py-1 text-sm bg-white dark:bg-stone-900 dark:border-stone-700"/> to <input id="bizTo" type="date" value="${to}" class="rounded-lg border px-2 py-1 text-sm bg-white dark:bg-stone-900 dark:border-stone-700"/>` : ''}
+        <button type="button" data-biz="csv" data-from="${from}" data-to="${to}" class="ml-auto rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1.5 text-sm font-semibold">⬇ CSV for your accountant</button></div>
+      <h4 class="mt-3 font-semibold">Profit & loss <span class="text-xs font-normal text-stone-500">${escapeHTML(prettyDate(from))} to ${escapeHTML(prettyDate(to))} · sales count on their date, paid or not</span></h4>
+      <table class="mt-1 w-full text-sm">${row('Gross sales', fmt(r.grossSales))}${r.discounts ? row('Discounts', '−' + fmt(r.discounts)) : ''}${r.tax ? row('Tax collected (owed to government, not income)', '−' + fmt(r.tax), 'text-stone-500') : ''}
+        ${row('<b>Net sales</b>', `<b>${fmt(r.netSales)}</b>`, 'border-t border-stone-200 dark:border-stone-700')}${row('Cost of goods sold', '−' + fmt(r.cogs), '', 'What the items you sold cost you (from each product’s cost when sold).')}
+        ${row('<b>Gross profit</b>', `<b>${fmt(r.grossProfit)}</b>${r.grossMargin != null ? ` <span class="text-xs text-stone-500">(${r.grossMargin}%)</span>` : ''}`, 'border-t border-stone-200 dark:border-stone-700')}
+        ${Object.entries(r.byCat).map(([c, v]) => row(`<span class="pl-3">${escapeHTML(c)}</span>`, '−' + fmt(v), 'text-stone-600 dark:text-stone-400')).join('')}${row('Operating expenses', '−' + fmt(r.expenses))}
+        ${row(`<b>Net profit${r.netProfit < 0 ? ' (loss)' : ''}</b>`, `<b class="${r.netProfit < 0 ? 'text-rose-600' : 'text-emerald-600'}">${fmt(r.netProfit)}</b>${r.netMargin != null ? ` <span class="text-xs text-stone-500">(${r.netMargin}%)</span>` : ''}`, 'border-t-2 border-stone-300 dark:border-stone-600')}</table>
+      ${r.cogs === 0 && r.netSales > 0 ? '<p class="mt-1 text-xs text-amber-700 dark:text-amber-400">No product costs set, so gross profit may look higher than it really is. Add costs in Products & services.</p>' : ''}
+      <h4 class="mt-4 font-semibold">Cash <span class="text-xs font-normal text-stone-500">money that actually moved</span></h4>
+      <table class="mt-1 w-full text-sm">${row('Received from customers', fmt(r.cashIn))}${row('Paid for expenses', '−' + fmt(r.cashOut))}${r.ownerIn ? row('You put in (not income)', fmt(r.ownerIn)) : ''}${r.ownerOut ? row('You took out (not an expense)', '−' + fmt(r.ownerOut)) : ''}
+        ${row('Customers still owe you (all time)', fmt(Biz.receivables(b.id)), 'text-stone-500')}</table>
+      ${r.byItem.length ? `<h4 class="mt-4 font-semibold">Best sellers</h4><table class="mt-1 w-full text-sm"><tr class="text-xs text-stone-500"><td>Item</td><td class="text-right">Qty</td><td class="text-right">Sales</td><td class="text-right">Profit</td></tr>${r.byItem.slice(0, 10).map((x) => `<tr><td class="py-1">${escapeHTML(x.name)}</td><td class="text-right tabular">${x.qty}</td><td class="text-right tabular">${fmt(x.sales)}</td><td class="text-right tabular">${fmt(x.profit)}</td></tr>`).join('')}</table>` : ''}
+      ${r.avgSale != null ? `<p class="mt-3 text-xs text-stone-500">Average sale ${fmt(r.avgSale)} over ${r.count} sales.</p>` : ''}
+      <p class="mt-3 text-[11px] text-stone-400">Records to help you and your accountant; not official tax filing or advice.</p>`;
+  },
+  bizSettings(b) {
+    const accs = Biz.accounts(b.id);
+    return `<div class="grid gap-3 sm:grid-cols-2">
+      <div class="rounded-xl border border-stone-200 dark:border-stone-800 p-3"><div class="font-semibold">${escapeHTML(b.name)}</div><div class="text-xs text-stone-500">${escapeHTML(BIZ_TYPES[b.type] || '')}${b.regNo ? ' · ' + escapeHTML(b.regNo) : ''}</div>
+        <div class="mt-1 text-xs">Tax: ${b.tax.mode === 'none' ? 'not set (no tax added to sales)' : `${b.tax.rate}% ${b.tax.mode === 'inclusive' ? 'included in prices' : 'added on top'}`}</div>
+        <button type="button" data-biz="profile" class="mt-2 rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">Edit details & tax</button></div>
+      <div class="rounded-xl border border-stone-200 dark:border-stone-800 p-3"><div class="font-semibold">Business accounts</div>
+        <ul class="mt-1 text-sm">${accs.map((a) => `<li class="flex justify-between"><span>${escapeHTML(a.name)}</span><span class="tabular">${fmt(Biz.balance(a))}</span></li>`).join('')}</ul>
+        <div class="mt-2 flex flex-wrap gap-2"><button type="button" data-biz="add-acc" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">+ Account</button><button type="button" data-biz="move" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">Move between accounts</button><button type="button" data-biz="qa-owner" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">Owner money</button></div></div></div>
+      <button type="button" data-biz="delete" class="mt-4 text-sm text-rose-700 dark:text-rose-400 hover:underline">Delete this business…</button>`;
+  },
+  bizProfileForm(b = null) {
+    const t = b?.tax || { mode: 'none', rate: 0 };
+    this.form({ title: b ? 'Business details' : 'Set up your business', save: b ? 'Save' : 'Create business',
+      sub: b ? '' : 'You can change all of this later. Its money is kept separate from your personal money.',
+      fields: [{ id: 'name', label: 'Business name', value: b?.name || '', placeholder: 'e.g. Sunny Side Bakery' },
+        { id: 'type', label: 'Kind of business', type: 'select', value: b?.type || 'home', options: Object.entries(BIZ_TYPES) },
+        ...(b ? [] : [{ id: 'cash', label: 'Cash on hand for the business now', type: 'number', value: '', hint: 'Leave empty if none.' },
+          { id: 'bankName', label: 'Business bank or e-wallet (optional)', value: '', placeholder: 'e.g. BPI Business, GCash' }, { id: 'bank', label: 'Its balance now', type: 'number', value: '', show: (v) => !!v.bankName }]),
+        { id: 'taxMode', label: 'Tax on your sales', type: 'select', value: t.mode, options: [['none', 'None / not set'], ['exclusive', 'Add tax on top of my prices'], ['inclusive', 'My prices already include tax']], hint: 'Tiffo doesn’t decide your tax. Check with BIR or your accountant which applies.' },
+        { id: 'taxRate', label: 'Tax rate (%)', type: 'number', value: t.rate || '', show: (v) => v.taxMode !== 'none' },
+        { id: 'regNo', label: 'TIN or registration no.', value: b?.regNo || '', advanced: true }, { id: 'address', label: 'Address', value: b?.address || '', advanced: true },
+        { id: 'contact', label: 'Phone / email for invoices', value: b?.contact || '', advanced: true }, { id: 'desc', label: 'Description', value: b?.desc || '', advanced: true }],
+      onSave: (v) => {
+        if (!v.name?.trim()) return 'Type the business name.';
+        if (v.taxMode !== 'none' && !(v.taxRate > 0 && v.taxRate < 100)) return 'Type the tax rate (for example 12), or choose “None”.';
+        if (b) { Object.assign(b, { name: v.name.trim().slice(0, 80), type: v.type, regNo: v.regNo || '', address: v.address || '', contact: v.contact || '', desc: v.desc || '', tax: { mode: v.taxMode, rate: v.taxMode === 'none' ? 0 : +v.taxRate } }); Store.save(); }
+        else { Biz.create({ ...v, taxMode: v.taxMode, taxRate: v.taxRate }); this.bizTab = 'overview'; }
+        this.renderBiz(); toast(b ? 'Saved.' : `💼 ${escapeHTML(v.name.trim())} is ready. Add what you sell next.`);
+      } });
+  },
+  bindBiz() {
+    $('#bizBtn')?.addEventListener('click', () => { Nav.go('business'); this.renderBiz(); });
+    const root = $('#bizRoot'); if (!root) return;
+    root.addEventListener('change', (e) => {
+      const id = e.target.id, b = Biz.current();
+      if (id === 'bizPick') { if (e.target.value === '__new') { e.target.value = b.id; return this.bizProfileForm(); } Biz.setCurrent(e.target.value); this.bizDraft = null; return this.renderBiz(); }
+      if (id === 'bizFilter') { this.bizFilter = e.target.value; return this.renderBiz(); }
+      if (id === 'bizPeriod') { this.bizPeriod = e.target.value; return this.renderBiz(); }
+      if (id === 'bizFrom' || id === 'bizTo') { this[id] = e.target.value; return this.renderBiz(); }
+      if (id === 'bz_item') { const it = Biz.find('bizItems', e.target.value); $('#bz_name').classList.toggle('hidden', e.target.value !== '__custom'); if (it) $('#bz_price').value = it.price; return; }
+      if (id === 'bz_cust' && e.target.value === '__new') { e.target.value = ''; return this.bizCustomerForm(null, (c) => { this.bizDraft.customerId = c.id; this.bizTab = 'sell'; this.renderBiz(); }); }
+      if (id?.startsWith('bz_')) this.bizSellUpdate();
+    });
+    root.addEventListener('input', (e) => { if (['bz_disc', 'bz_paid'].includes(e.target.id)) this.bizSellUpdate(); if (e.target.id === 'bizCustSearch') { const q = e.target.value.trim().toLowerCase(); for (const li of $$('#bizCustList [data-name]')) li.classList.toggle('hidden', !!q && !li.dataset.name.includes(q)); } });
+    root.addEventListener('click', async (e) => {
+      const t = e.target.closest('[data-biztab]'); if (t) { this.bizTab = t.dataset.biztab; return this.renderBiz(); }
+      const a = e.target.closest('[data-biz]'); if (!a) return;
+      const act = a.dataset.biz, id = a.dataset.id, b = Biz.current();
+      if (act === 'new') return this.bizProfileForm();
+      if (act === 'qa-sale' || act === 'qa-invoice') { this.bizNewDraft(act === 'qa-invoice' ? 'invoice' : 'sale'); this.bizDraft.bizId = b.id; this.bizTab = 'sell'; return this.renderBiz(); }
+      if (act === 'qa-expense') return this.bizExpenseForm();
+      if (act === 'qa-customer') return this.bizCustomerForm();
+      if (act === 'qa-product') return this.bizItemForm();
+      if (act === 'qa-owner') return this.bizOwnerForm();
+      if (act === 'kind-sale' || act === 'kind-invoice') { this.bizReadDraft(); this.bizDraft.kind = act === 'kind-invoice' ? 'invoice' : 'sale'; if (this.bizDraft.kind === 'invoice') this.bizDraft.pay = 'none'; return this.renderBiz(); }
+      if (act === 'add-line') {
+        this.bizReadDraft();
+        const sel = $('#bz_item').value, it = Biz.find('bizItems', sel), qty = +$('#bz_qty').value, price = +$('#bz_price').value;
+        const name = it ? it.name : $('#bz_name').value.trim();
+        if (!sel) { $('#bz_err').textContent = 'Pick an item first.'; return; }
+        if (!name) { $('#bz_err').textContent = 'Type what you sold.'; return; }
+        if (!(qty > 0) || !(price >= 0) || $('#bz_price').value === '') { $('#bz_err').textContent = 'Type the quantity and the price.'; return; }
+        this.bizDraft.lines.push({ itemId: it?.id || null, name, qty, price, unitCost: it?.cost || 0 });
+        $('#bz_err').textContent = ''; $('#bz_item').value = ''; $('#bz_qty').value = 1; $('#bz_price').value = ''; $('#bz_name').value = ''; $('#bz_name').classList.add('hidden');
+        return this.bizSellUpdate();
+      }
+      if (act === 'rm-line') { this.bizReadDraft(); this.bizDraft.lines.splice(+a.dataset.i, 1); return this.bizSellUpdate(); }
+      if (act === 'clear-draft') { this.bizNewDraft(this.bizDraft.kind); this.bizDraft.bizId = b.id; return this.renderBiz(); }
+      if (act === 'save-sale') return this.bizSaveSale();
+      if (act === 'pay') return this.bizPayForm(id);
+      if (act === 'view') return this.bizViewSale(id);
+      if (act === 'void') { if (!(await askConfirm('Void this sale? It stays on record but no longer counts in sales or what the customer owes.', 'Void'))) return; try { Biz.voidSale(id); } catch (x) { return toast(escapeHTML(x.message)); } return this.renderBiz(); }
+      if (act === 'cust') return this.bizCustomerForm(Biz.find('bizCustomers', id));
+      if (act === 'item') return this.bizItemForm(Biz.find('bizItems', id));
+      if (act === 'del-exp') { if (!(await askConfirm('Delete this business expense?', 'Delete'))) return; const ex = Biz.find('bizExpenses', id); Store.state.bizExpenses = Biz.col('bizExpenses').filter((x) => x.id !== id); Store.save(); this.renderBiz(); return toast('Deleted.', { action: { label: 'Undo', fn: () => { Biz.col('bizExpenses').push(ex); Store.save(); this.renderBiz(); } } }); }
+      if (act === 'profile') return this.bizProfileForm(b);
+      if (act === 'add-acc') return this.form({ title: 'Business account', save: 'Add', fields: [{ id: 'name', label: 'Name', value: '', placeholder: 'e.g. GCash (business)' }, { id: 'type', label: 'Type', type: 'select', value: 'bank', options: [['cash', 'Cash'], ['bank', 'Bank'], ['ewallet', 'E-wallet'], ['processor', 'Payment processor'], ['petty', 'Petty cash']] }, { id: 'opening', label: 'Balance now', type: 'number', value: '' }],
+        onSave: (v) => { if (!v.name?.trim()) return 'Name it.'; Biz.addAccount(b.id, v); this.renderBiz(); } });
+      if (act === 'move') { const accs = Biz.accounts(b.id); return this.form({ title: 'Move money between business accounts', save: 'Move', sub: 'Not income or an expense.', fields: [{ id: 'amount', label: 'Amount', type: 'number', value: '' }, { id: 'from', label: 'From', type: 'select', value: accs[0]?.id, options: accs.map((x) => [x.id, x.name]) }, { id: 'to', label: 'To', type: 'select', value: accs[1]?.id || accs[0]?.id, options: accs.map((x) => [x.id, x.name]) }, { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) }],
+        onSave: (v) => { try { Biz.transfer(b.id, v); } catch (x) { return x.message; } this.renderBiz(); } }); }
+      if (act === 'csv') { const csv = Biz.csvReport(b.id, a.dataset.from, a.dataset.to); try { const l = document.createElement('a'); l.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); l.download = `${b.name.replace(/[^\w-]+/g, '-')}-${a.dataset.from}-to-${a.dataset.to}.csv`; document.body.appendChild(l); l.click(); l.remove(); toast('⬇ Report downloaded.'); } catch (x) { toast('Couldn’t download here.'); } return; }
+      if (act === 'delete') {
+        if (!(await this.requirePin(`Enter your ${Vault.unlocked() ? 'vault password' : 'PIN'} to delete ${b.name}.`))) return;
+        if (!(await askConfirm(`Delete ${b.name} and all its sales, customers, products and expenses? Owner money you recorded in your personal Tiffo stays there. Download a backup first if you might need it. This can’t be undone.`, 'Delete business'))) return;
+        Biz.remove(b.id); this.renderBiz(); toast('Business deleted.');
+      }
+    });
+  },
+
   /* ---------- encrypted vault ---------- */
   /** Show the vault lock screen for a storage slot and wait until it's unlocked. */
   ensureVault(base, label) {
@@ -9174,6 +9795,7 @@ const UI = {
     $('#addBillBtn').addEventListener('click', () => this.billForm());
     $('#scamBtn').addEventListener('click', () => this.runScamCheck());
     this.bindLock();
+    this.bindBiz();
     $('#splitBtn').addEventListener('click', () => this.splitForm());
     $('#hhSync').addEventListener('click', (e) => { const b = e.target.closest('[data-hh]'); if (b) this.hhAction(b.dataset.hh, b); });
     $('#allowanceBtn').addEventListener('click', () => this.billForm(null, { kind: 'allowance', category: 'Family Support', name: 'Allowance for ', freq: 'week', nextDue: Debts.addPeriods(toISODate(new Date()), 0) }));
