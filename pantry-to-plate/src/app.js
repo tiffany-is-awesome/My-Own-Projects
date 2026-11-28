@@ -910,6 +910,7 @@ document.addEventListener("click", e => {
     case "rescue-item": S.ui.rescueId = t.dataset.id; setTab("rescue"); break;
     case "focus-add": { const q = $("#qaText"); if (q) { q.focus(); q.scrollIntoView({ behavior: "smooth", block: "center" }); } break; }
     case "basics-done": S.prefs.staplesChosen = true; persist(); rerender(); toast(S.staples.length ? `Got it: ${S.staples.length} basic${S.staples.length > 1 ? "s" : ""} recipes can count on.` : "Got it: recipes will only use the food you've added."); break;
+    case "theme": { const th = t.dataset.theme === "light" ? "light" : "green"; document.documentElement.dataset.theme = th; try { localStorage.setItem("p2p.theme", th); } catch (e) {} const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = th === "light" ? "#FFFFFF" : "#1D2B20"; rerender(); break; }
     case "tour": Tour.open(0); break;
     case "tour-next": Tour.move(1); break;
     case "tour-back": Tour.move(-1); break;

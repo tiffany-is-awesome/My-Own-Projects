@@ -3,7 +3,7 @@
   --bg:#FFFFFF;
   --card:#F4F4F4;
   --ink:#2A2B29;
-  --muted:#7A7C77;
+  --muted:#686A65;
   --line:#E6E6E3;
   --edge:#D3D4D0;
   --accent:#2E6B5A;
@@ -16,8 +16,41 @@
   --display:"Zen Kaku Gothic New", "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
   --body:"Zen Kaku Gothic New", "Hiragino Sans", "Helvetica Neue", Arial, sans-serif;
   --mono:"IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --surface:#FFFFFF;      /* raised panels that sit on the page */
+  --hover:#ECECEA;
+  --warn-soft:#FDF7EA; --warn-line:#EFE2BF; --warn-edge:#D9A441;
+  --urgent-line:#F5C9C3;
+  --ink-soft:#4B4D49; --soon-ink:#B45309; --warn-ink:#6B4204; --urgent-ink:#5B2620; --frozen-ink:#5D86AA; --ai-ink:#7C3AED; --pink-ink:#D45C8A;
+  --frozen:#EEF4F9; --long-bg:#EEF2F5; --long-ink:#4F6475; --first-bg:#FDEBDD; --first-ink:#B4470E;
   color-scheme:light;
 }
+/* Cozy dark-green theme (the default). The light theme above stays available. */
+html[data-theme="green"]{
+  /* Cozy home: mossy walls, cream linen text, sage-leaf accents, lamplight amber */
+  --bg:#1D2B20;
+  --card:#25372A;
+  --surface:#2D4332;
+  --field:#213325;
+  --ink:#F4EEDF;
+  --muted:#C5BFA9;
+  --line:#3A4F3D;
+  --edge:#4E6750;
+  --accent:#B9DCA0;
+  --accent-soft:#30482F;
+  --accent-ink:#1B2A1C;
+  --urgent:#FFA28E;
+  --urgent-soft:#432A22;
+  --urgent-line:#74402F;
+  --soon:#F2BE6E;
+  --hover:#34503A;
+  --warn-soft:#3F3622; --warn-line:#64552F; --warn-edge:#D2A04A;
+  --ink-soft:#E3DCCA; --soon-ink:#F2BE6E; --warn-ink:#F5DFAE; --urgent-ink:#FFD0C4; --frozen-ink:#A9CCE6; --ai-ink:#D6C4FF; --pink-ink:#F5B1CB;
+  --frozen:#25404A; --long-bg:#2A3D4C; --long-ink:#C0D4E6; --first-bg:#4A3420; --first-ink:#F7C08E;
+  color-scheme:dark;
+}
+/* a warm lamp glow from the top corner of the room */
+html[data-theme="green"] body{background:radial-gradient(1100px 620px at 88% -8%,rgba(242,190,110,.10),transparent 70%),radial-gradient(900px 500px at -10% 110%,rgba(185,220,160,.05),transparent 70%),var(--bg) fixed}
+html[data-theme="green"] header{background:var(--bg)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
@@ -41,7 +74,7 @@ nav button .mono{font-size:11px;color:var(--muted)}
 nav button[aria-current="page"]{border-bottom-color:var(--accent);color:var(--accent)}
 .status{font-family:var(--mono);font-size:11px;padding:4px 8px;border:1px solid var(--line);white-space:nowrap}
 .status{cursor:pointer;background:var(--bg)}
-.status.demo{border-color:#D9A441;color:var(--soon);background:#FDF7EA}
+.status.demo{border-color:var(--warn-edge);color:var(--soon);background:var(--warn-soft)}
 .status.off{border-color:var(--urgent);color:var(--urgent);background:var(--urgent-soft)}
 .status.live{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 nav button .count{font-size:11px;color:var(--muted);background:var(--card);padding:1px 6px;min-width:20px;text-align:center}

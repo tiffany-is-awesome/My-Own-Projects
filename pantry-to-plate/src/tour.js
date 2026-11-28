@@ -74,9 +74,11 @@ const Tour = (() => {
   /* Home shows "New here? See how it works" until the tour has been seen, then a quieter "How to use" link. */
   function renderLink() {
     const box = $("#howToUse"); if (!box) return;
-    box.innerHTML = seen()
+    const light = document.documentElement.dataset.theme === "light";
+    const themeSwitch = `<span class="theme-pick" role="group" aria-label="Colour theme"><span class="label">Theme</span><button class="chip" data-act="theme" data-theme="green" aria-pressed="${!light}">Forest green</button><button class="chip" data-act="theme" data-theme="light" aria-pressed="${light}">Light</button></span>`;
+    box.innerHTML = themeSwitch + (seen()
       ? `<button class="linkbtn howto-quiet" data-act="tour">${icon("info")}How to use Pantry → Plate</button>`
-      : `<button class="linkbtn howto-new" data-act="tour">${icon("spark")}New here? See how Pantry → Plate works →</button>`;
+      : `<button class="linkbtn howto-new" data-act="tour">${icon("spark")}New here? See how Pantry → Plate works →</button>`);
   }
   return { open, close, move, renderLink, steps: STEPS };
 })();
