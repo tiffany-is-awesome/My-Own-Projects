@@ -3824,7 +3824,8 @@ const Biz = {
     if (!(amt > 0) || !this.money(amt)) throw new Error('Type the amount.');
     if (!v.unpaid && !this.find('bizAccounts', v.accountId)) throw new Error('Pick the account it was paid from.');
     const e = { id: uid(), bizId, date: v.date || this.today(), amount: amt, category: BIZ_EXPENSE_CATS.includes(v.category) ? v.category : 'Other', vendor: (v.vendor || '').slice(0, 80), accountId: v.unpaid ? null : v.accountId, notes: (v.notes || '').slice(0, 500), createdAt: Date.now(),
-      ...(v.unpaid ? { unpaid: true, supplierId: v.supplierId || null, dueDate: v.dueDate || null } : {}), campaignId: v.campaignId || null, projectId: v.projectId || null, ...(+v.vat > 0 ? { vat: round2(+v.vat) } : {}) };
+      ...(v.unpaid ? { unpaid: true, supplierId: v.supplierId || null, dueDate: v.dueDate || null } : {}), campaignId: v.campaignId || null, projectId: v.projectId || null, ...(+v.vat > 0 ? { vat: round2(+v.vat) } : {}),
+      ...(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v.receiptThumb || '') && v.receiptThumb.length < 120000 ? { receiptThumb: v.receiptThumb } : {}) };
     if (e.vat && e.vat >= amt) throw new Error('The VAT can’t be more than the amount.');
     this.col('bizExpenses').push(e); Store.save(); return e;
   },
@@ -4791,6 +4792,274 @@ Object.assign(Biz, {
 for (const [fn, act] of [['saveRecipe', 'products'], ['recall', 'stock'], ['addSaleFee', 'sell'], ['saveRecurring', 'sell'], ['generateRecurring', 'sell'], ['setCosting', 'settings']]) { const f = Biz[fn]; Biz[fn] = function (...a) { Biz.guard(act); return f.apply(this, a); }; }
 
 /* =========================================================================
+   TIFFO BUSINESS — phase 5: say it in plain words, scan receipts, smart
+   alerts, ask about the business, and forecasts.
+   • Nothing is saved from a sentence or a receipt without the owner seeing
+     a filled-in form and pressing Save. Unsure fields are flagged; a total
+     or date that isn't found stays empty (never guessed).
+   • Answers come from the business's own records. Estimates are labelled.
+     The optional AI only sees a summary of figures (no customer names,
+     contacts or staff details), and only after this device's owner agrees.
+   ========================================================================= */
+const BIZ_ALERT_TYPES = { lowstock: 'Low or out of stock', expiring: 'Expiring batches', overdue: 'Overdue invoices', billsdue: 'Bills and payments due soon', latepo: 'Late supplier deliveries',
+  bigexpense: 'Unusual expenses', salesdrop: 'Falling sales', lowmargin: 'Low margins or selling below cost', cashshort: 'Cash running short', bigadjust: 'Unusual stock changes', recurring: 'Recurring invoices to create' };
+
+const BizNL = {
+  NUMW: { a: 1, an: 1, one: 1, isa: 1, isang: 1, two: 2, dalawa: 2, dalawang: 2, three: 3, tatlo: 3, tatlong: 3, four: 4, apat: 4, na: null, five: 5, lima: 5, limang: 5, six: 6, anim: 6, seven: 7, pito: 7, eight: 8, walo: 8, nine: 9, siyam: 9, ten: 10, sampu: 10, sampung: 10, eleven: 11, twelve: 12, dozen: 12, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, hundred: 100 },
+  CATS: [
+    [/\b(electric(ity)?|kuryente|meralco|water bill|tubig|maynilad|manila water|utilit)/i, 'Utilities'], [/\b(internet|wifi|wi-fi|pldt|converge|globe at home|sky ?fiber|load)\b/i, 'Internet'],
+    [/\b(rent|renta|upa)\b/i, 'Rent'], [/\b(packag|boxes|box|plastic|supot|labels?|stickers?|tape|bubble wrap)/i, 'Packaging'],
+    [/\b(shipping|lalamove|j&t|jnt|lbc|ninja ?van|grab ?express|courier|delivery fee)/i, 'Shipping'], [/\b(ads?|boost(ed)?|advertis|marketing|promo materials?|tarp(aulin)?|flyers?)\b/i, 'Advertising & marketing'],
+    [/\b(gas|gasoline|fuel|diesel|grab|taxi|jeep|tricycle|fare|pamasahe|transport|parking|toll)\b/i, 'Transportation'], [/\b(repair|ayos|maintenance|fix(ed)?)\b/i, 'Repairs'],
+    [/\b(software|subscription|canva|shopify|app|domain|hosting)\b/i, 'Software & subscriptions'], [/\b(permit|bir|tax(es)?|business permit|barangay clearance|registration)\b/i, 'Taxes & permits'],
+    [/\b(bank fee|transfer fee|service fee|gcash fee|charges)\b/i, 'Bank & payment fees'], [/\b(insurance)\b/i, 'Insurance'], [/\b(accountant|lawyer|bookkeep|professional)\b/i, 'Professional fees'],
+    [/\b(equipment|oven|mixer|machine|printer|computer|laptop|phone)\b/i, 'Equipment'], [/\b(salary|salaries|sahod|wage|sweldo)\b/i, 'Salaries & wages'], [/\b(supplies|ingredients?|materials?)\b/i, 'Supplies'],
+  ],
+  METHODS: [[/\bgcash\b/i, 'gcash'], [/\bmaya|paymaya\b/i, 'maya'], [/\b(bank|transfer|bdo|bpi|metrobank|landbank|unionbank|instapay|pesonet)\b/i, 'bank'], [/\b(card|credit card|debit)\b/i, 'card'], [/\bcod\b|cash on delivery/i, 'cod'], [/\b(cash|cash-?in|pera)\b/i, 'cash']],
+  /** Peso amounts: ₱450, P450, 450 pesos, PHP 1,200, 1.2k. Returns [{value, index, explicit}]. */
+  amounts(t) {
+    const out = [], re = /(?:₱|\bphp\s?|\bp(?=\s?\d))\s?(\d[\d,]*(?:\.\d+)?)(k)?|(\d[\d,]*(?:\.\d+)?)(k)?\s*(?:pesos?|php|piso)\b|\b(\d[\d,]*(?:\.\d+)?)(k)\b/gi;
+    let m; while ((m = re.exec(t))) { const n = parseFloat((m[1] || m[3] || m[5]).replace(/,/g, '')) * ((m[2] || m[4] || m[6]) ? 1000 : 1); if (n > 0) out.push({ value: round2(n), index: m.index, len: m[0].length, explicit: true }); }
+    return out;
+  },
+  norm(s) { return String(s).toLowerCase().replace(/[^a-z0-9ñ ]+/g, ' ').replace(/\s+/g, ' ').trim(); },
+  stem(w) { return w.replace(/(ies)$/, 'y').replace(/(ches|shes|xes|ses|zes)$/, (x) => x.slice(0, -2)).replace(/s$/, ''); },
+  /** Products mentioned, with quantity if one is written next to them ("3 notebooks", "notebook x3", "tatlong notebook"). */
+  findItems(bizId, t) {
+    const words = this.norm(t).split(' '), stems = words.map((w) => this.stem(w)), found = [];
+    for (const it of Biz.items(bizId)) {
+      const iw = this.norm(it.name).split(' ').map((w) => this.stem(w)).filter(Boolean); if (!iw.length) continue;
+      for (let i = 0; i + iw.length <= stems.length; i++) {
+        if (!iw.every((w, k) => stems[i + k] === w)) continue;
+        let qty = null; const next = words[i + iw.length], next2 = words[i + iw.length + 1], FILL = ['pcs', 'pc', 'piece', 'pieces', 'piraso', 'bag', 'bags', 'pack', 'packs', 'box', 'boxes', 'kilo', 'kilos', 'kg', 'sack', 'sacks', 'tray', 'trays', 'bottle', 'bottles', 'na', 'ng', 'of', 'more'];
+        const num = (w) => w == null ? null : /^\d+(\.\d+)?$/.test(w) ? +w : this.NUMW[w] ?? null;
+        for (let k = 1; k <= 3 && i - k >= 0; k++) { const w = words[i - k]; if (num(w) != null) { qty = num(w); break; } if (!FILL.includes(w)) break; }
+        if (qty == null && next === 'x' && num(next2) != null) qty = num(next2); else if (qty == null && /^x\d+$/.test(next || '')) qty = +next.slice(1);
+        found.push({ itemId: it.id, name: it.name, qty, at: i }); break;
+      }
+    }
+    return found.sort((a, x) => a.at - x.at);
+  },
+  findCustomer(bizId, t) { const n = this.norm(t); return Biz.customers(bizId).filter((c) => c.name.length > 2 && n.includes(this.norm(c.name))).sort((a, x) => x.name.length - a.name.length)[0] || null; },
+  findSupplier(bizId, t) { const n = this.norm(t); return Biz.suppliers(bizId).filter((s) => s.name.length > 2 && n.includes(this.norm(s.name))).sort((a, x) => x.name.length - a.name.length)[0] || null; },
+  method(t) { for (const [re, k] of this.METHODS) if (re.test(t)) return k; return null; },
+  category(t) { for (const [re, c] of this.CATS) if (re.test(t)) return c; return null; },
+  /** Read one sentence about the business. Returns a draft to show the owner; never saves anything. */
+  parse(bizId, text) {
+    const t = String(text || '').trim(), d = { text: t, notes: [], unsure: [] };
+    let amts = this.amounts(t);
+    const bareAmount = (skip = []) => { const xs = [...t.matchAll(/(?<![#\w-])(\d[\d,]*(?:\.\d+)?)(?![\w%])/g)].map((m) => parseFloat(m[1].replace(/,/g, ''))).filter((n) => !skip.includes(n)); return xs.length ? xs.at(-1) : null; };
+    const dateWord = /\bkahapon|yesterday\b/i.test(t) ? toISODate(new Date(Date.now() - 864e5)) : null;
+    if (dateWord) d.date = dateWord;
+    const invNo = t.match(/\b(?:invoice|inv|resibo|bill)\s*(?:no\.?|number|#)?\s*-?\s*#?(\d{1,6})\b/i) || t.match(/\b(INV-\d{1,6}|S-\d{1,6})\b/i) || t.match(/#(\d{1,6})\b/);
+    const isPay = /\b(paid|pay(ment)?|nagbayad|bayad|binayaran|settled|deposit(ed)?)\b/i.test(t), isSold = /\b(sold|sell|sale|benta|nagbenta|nabenta|naibenta|binenta|order(ed)? by)\b/i.test(t);
+    const isBuy = /\b(bought|buy|purchased?|binili|bumili|nagbili|spent|gastos|ginastos)\b/i.test(t), isRecv = /\b(received|arrived|dumating|natanggap|delivered to us)\b/i.test(t);
+    const ownerIn = /\b(i put in|put in|added capital|capital|nilagay ko|dinagdag ko|puhunan|invested)\b/i.test(t), ownerOut = /\b(took out|withdrew|kinuha ko|for myself|personal use|drawings?)\b/i.test(t);
+    // Customer payment toward a sale or invoice
+    const payCtx = isPay && !isBuy && (invNo || /\b(customer|toward|towards|para sa invoice)\b/i.test(t) || this.findCustomer(bizId, t)) && !/\b(bill|kuryente|electric|rent|upa|salary|sahod|supplier)/i.test(t);
+    if (payCtx || (isPay && invNo && !/\bbill\b/i.test(t))) {
+      let sale = null;
+      if (invNo) { const n = invNo[1].toUpperCase(), num = n.replace(/\D/g, ''); const all = Biz.of('bizSales', bizId).filter((s) => s.status !== 'void'), wantInv = /invoice|inv\b|inv-/i.test(invNo[0]), same = (s) => s.no.replace(/\D/g, '').replace(/^0+/, '') === num.replace(/^0+/, '');
+        sale = all.find((s) => s.no.toUpperCase() === n) || all.filter(same).sort((a, x) => ((x.kind === 'invoice') === wantInv) - ((a.kind === 'invoice') === wantInv) || (Biz.dueOn(x) > 0) - (Biz.dueOn(a) > 0))[0] || null; if (!sale) d.notes.push(`Tiffo couldn’t find invoice ${invNo[1]}.`); }
+      const cust = sale ? Biz.find('bizCustomers', sale.customerId) : this.findCustomer(bizId, t);
+      if (!sale && cust) { const open = Biz.of('bizSales', bizId).filter((s) => s.customerId === cust.id && Biz.dueOn(s) > 0).sort((a, x) => a.date.localeCompare(x.date)); sale = open[0] || null; if (open.length > 1) { d.unsure.push('sale'); d.notes.push(`${cust.name} has ${open.length} unpaid sales; Tiffo picked the oldest.`); } }
+      const bare = amts.length ? null : bareAmount(invNo ? [parseFloat(invNo[1].replace(/\D/g, ''))] : []);
+      return { ...d, kind: 'payment', saleId: sale?.id || null, customerId: cust?.id || null, amount: amts[0]?.value ?? bare ?? (sale ? Biz.dueOn(sale) : null), method: this.method(t), ...(amts.length ? {} : { unsure: [...d.unsure, 'amount'] }) };
+    }
+    if (ownerIn || ownerOut) return { ...d, kind: 'owner', dir: ownerOut && !ownerIn ? 'out' : 'in', amount: amts[0]?.value ?? bareAmount() ?? null, unsure: amts.length ? d.unsure : [...d.unsure, 'amount'] };
+    const items = this.findItems(bizId, t), custBuy = isBuy && items.length && !this.findSupplier(bizId, t) && (this.findCustomer(bizId, t) || /\b(customer|client|suki)\b/i.test(t));
+    if (isSold || custBuy || (items.length && amts.length && !isBuy && !isRecv)) {
+      if (!amts.length) { const b = bareAmount(items.map((x) => x.qty)); if (b != null && b >= 5) { amts = [{ value: b }]; d.unsure.push('total'); d.notes.push(`Tiffo took ${fmt(b)} as the total. Check it.`); } }
+      const total = amts.length ? amts.at(-1).value : null, credit = /\b(utang|on credit|credit|pay later|bayad later|invoice|charge)\b/i.test(t);
+      const lines = items.map((x) => ({ itemId: x.itemId, name: x.name, qty: x.qty ?? 1, price: Biz.find('bizItems', x.itemId).price }));
+      if (items.some((x) => x.qty == null)) d.unsure.push('qty');
+      if (lines.length === 1 && total != null) { lines[0].price = round2(total / lines[0].qty); if (Math.abs(lines[0].price - Biz.find('bizItems', lines[0].itemId).price) > 0.005) d.notes.push(`That’s ${fmt(lines[0].price)} each (usual price ${fmt(Biz.find('bizItems', lines[0].itemId).price)}).`); }
+      else if (lines.length > 1 && total != null) { const sum = round2(lines.reduce((a, l) => a + l.qty * l.price, 0)); if (Math.abs(sum - total) > 0.005) { d.unsure.push('total'); d.notes.push(`At usual prices that’s ${fmt(sum)}, not ${fmt(total)}. Check the prices.`); } }
+      if (!lines.length) { d.unsure.push('items'); d.notes.push('Tiffo didn’t recognise the product. Pick it, or add it to Products first.'); }
+      const cust = this.findCustomer(bizId, t);
+      return { ...d, kind: 'sale', lines, total, customerId: cust?.id || null, credit, method: credit ? null : this.method(t) || 'cash', channel: /\b(facebook|fb)\b/i.test(t) ? 'facebook' : /\binstagram|ig\b/i.test(t) ? 'instagram' : /\btiktok\b/i.test(t) ? 'tiktok' : /\b(shopee|lazada|marketplace)\b/i.test(t) ? 'marketplace' : '' };
+    }
+    if (isRecv) {
+      const it = items[0], qty = it?.qty ?? (t.match(/\b(\d+(?:\.\d+)?)\b/) ? +t.match(/\b(\d+(?:\.\d+)?)\b/)[1] : null);
+      const po = it ? Biz.of('bizPurchases', bizId).filter((p) => ['sent', 'confirmed', 'partial', 'draft'].includes(p.status) && p.lines.some((l) => l.itemId === it.itemId && l.received + l.damaged + l.missing < l.qty)).sort((a, x) => a.date.localeCompare(x.date))[0] : null;
+      if (!it) { d.unsure.push('items'); d.notes.push('Tiffo didn’t recognise the product.'); }
+      if (it && !po) d.notes.push('No open purchase order has this item, so it will be added as stock you counted. Type what it cost.');
+      return { ...d, kind: 'receive', itemId: it?.itemId || null, qty, purchaseId: po?.id || null, unitCost: amts.length && qty ? round2(amts[0].value / qty) : null, supplierId: po?.supplierId || this.findSupplier(bizId, t)?.id || null };
+    }
+    if (isBuy || isPay || this.category(t)) {
+      if (!amts.length) { const b = bareAmount(); if (b != null && b >= 5) { amts = [{ value: b }]; d.unsure.push('amount'); } }
+      const sup = this.findSupplier(bizId, t), cat = this.category(t) || (items.length ? 'Supplies' : null);
+      if (!cat) d.unsure.push('category');
+      if (!amts.length) { d.unsure.push('amount'); d.notes.push('No amount found. Type it.'); }
+      const unpaid = /\b(utang|unpaid|not paid|pay later|bill to pay|due)\b/i.test(t) && !/\bpaid\b/i.test(t);
+      return { ...d, kind: 'expense', amount: amts[0]?.value ?? null, category: cat || 'Other', vendor: sup?.name || (t.match(/\bfrom ([A-Z][\w&.' -]{1,40})/) || [])[1]?.replace(/\b(for|worth|na|ng)\b.*$/i, '').trim() || '', supplierId: sup?.id || null, method: this.method(t), unpaid, monthly: /\bmonthly|every month|buwan/i.test(t) };
+    }
+    return { ...d, kind: 'unknown' };
+  },
+};
+
+/** Read a business receipt on this device (or with the AI only if the business AI is on). Never guesses a total or date. */
+const BizReceipt = {
+  fromText(text) {
+    const base = LegalAnalyzer.receiptInfo(text), vat = text.match(/\b(?:vat(?:\s*amount)?|12%\s*vat|value[- ]added tax)\b(?!\s*(?:able|exempt|sales|zero))(?:\s*\(?\d{1,2}\s*%\)?)?\s*[:\-]?\s*(?:[₱P]|php)?\s*(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/i);
+    const cat = BizNL.category(text) || 'Supplies';
+    const unsure = [...(base.total == null ? ['amount'] : []), ...(base.date == null ? ['date'] : []), ...(BizNL.category(text) ? [] : ['category'])];
+    return { vendor: base.merchant || '', amount: base.total, date: base.date, category: cat, vat: vat ? parseFloat(vat[1].replace(/,/g, '')) : null, unsure, text };
+  },
+  async read(file, status = () => {}) {
+    const dataURL = await DocScanner.fileToDataURL(file), thumb = await DocScanner.resize(dataURL, 240, 0.6).catch(() => null);
+    if ((Store.state.settings || {}).bizAiConsent && AI.enabled()) {
+      try { status('Asking the AI to read the receipt…'); const r = await AI.analyzeDocument({ image: await DocScanner.resize(dataURL, 1600, 0.85) }); const rc = r.receipt || {};
+        return { vendor: rc.merchant || '', amount: rc.total ?? null, date: rc.date || null, category: BizNL.category(JSON.stringify(r)) || 'Supplies', vat: null, unsure: [...(rc.total == null ? ['amount'] : []), ...(rc.date ? [] : ['date']), 'category'], thumb, source: 'ai' };
+      } catch (e) { console.warn('AI receipt failed, reading on this device', e); }
+    }
+    status('Reading the receipt on this device…');
+    const text = await DocScanner.ocr(dataURL, (p) => status(`Reading the receipt… ${Math.round(p * 100)}%`));
+    if (text.trim().length < 15) return { failed: true, thumb };
+    return { ...this.fromText(text), thumb, source: 'device' };
+  },
+};
+
+Object.assign(Biz, {
+  /* ----- smart alerts ----- */
+  alerts(bizId, { all = false } = {}) {
+    const b = this.get(bizId), off = b.alertsOff || [], snooze = b.alertSnooze || {}, today = this.today(), out = [];
+    const add = (type, key, sev, text, tab) => { if (!off.includes(type) && (all || !(snooze[key] && snooze[key] >= today))) out.push({ type, key, sev, text, tab }); };
+    const ago = (n) => toISODate(new Date(Date.now() - n * 864e5)), ahead = (n) => toISODate(new Date(Date.now() + n * 864e5));
+    const low = this.lowStock(bizId), out0 = this.items(bizId).filter((i) => this.tracked(i) && i.forSale !== false && this.stockOf(i.id).qty <= 0);
+    if (out0.length) add('lowstock', 'out:' + out0.map((i) => i.id).join(','), 'high', `Out of stock: ${out0.slice(0, 3).map((i) => i.name).join(', ')}${out0.length > 3 ? ` and ${out0.length - 3} more` : ''}.`, 'stock');
+    const lowOnly = low.filter((x) => x.s.qty > 0);
+    if (lowOnly.length) add('lowstock', 'low:' + lowOnly.map((x) => x.i.id).join(','), 'medium', `Running low: ${lowOnly.slice(0, 3).map((x) => `${x.i.name} (${x.avail} left${this.suggestReorder(x.i) ? `, reorder about ${this.suggestReorder(x.i)}` : ''})`).join(', ')}.`, 'stock');
+    const ex = this.expiring(bizId);
+    if (ex.length) add('expiring', 'exp:' + ex.map((x) => x.item.id + x.batchNo).join(','), ex.some((x) => x.expired) ? 'high' : 'medium', `${ex.length} ${ex.length === 1 ? 'batch' : 'batches'} expired or expiring soon.`, 'stock');
+    const od = this.of('bizSales', bizId).filter((s) => this.dueOn(s) > 0 && s.dueDate && s.dueDate < today);
+    if (od.length) add('overdue', 'od:' + od.map((s) => s.id).join(','), 'high', `${od.length} overdue ${od.length === 1 ? 'invoice' : 'invoices'}: ${fmt(round2(od.reduce((a, s) => a + this.dueOn(s), 0)))} to collect.`, 'invoices');
+    const soon = ahead(7), bills = [...this.of('bizPurchases', bizId).filter((p) => this.purchaseDue(p) > 0 && (this.purchaseDueDate(p) || today) <= soon).map((p) => this.purchaseDue(p)),
+      ...this.of('bizExpenses', bizId).filter((e) => this.billDue(e) > 0 && (e.dueDate || today) <= soon).map((e) => this.billDue(e))];
+    const held = this.payrollOwedTotal(bizId);
+    if (bills.length) add('billsdue', 'bills:' + today.slice(0, 10), 'medium', `${bills.length} supplier ${bills.length === 1 ? 'bill' : 'bills'} due within 7 days: ${fmt(round2(bills.reduce((a, x) => a + x, 0)))}.`, 'suppliers');
+    if (held > 0) add('billsdue', 'held:' + held, 'low', `${fmt(held)} held from payroll still to pay to the agencies.`, 'team');
+    const late = this.of('bizPurchases', bizId).filter((p) => p.expected && p.expected < today && ['sent', 'confirmed', 'partial'].includes(p.status));
+    if (late.length) add('latepo', 'late:' + late.map((p) => p.id).join(','), 'medium', `${late.length} supplier ${late.length === 1 ? 'delivery is' : 'deliveries are'} late (${late.map((p) => p.no).join(', ')}).`, 'suppliers');
+    // unusual expense: more than 3× the usual (median) for its category over the 90 days before
+    const exps = this.of('bizExpenses', bizId);
+    for (const e of exps.filter((x) => x.date >= ago(14) && !x.saleId)) {
+      const prev = exps.filter((x) => x.category === e.category && x.id !== e.id && x.date < e.date && x.date >= toISODate(new Date(new Date(e.date).getTime() - 90 * 864e5))).map((x) => x.amount).sort((a, x) => a - x);
+      if (prev.length >= 3) { const med = prev[Math.floor(prev.length / 2)]; if (e.amount > 3 * med) add('bigexpense', 'exp1:' + e.id, 'medium', `${e.category} expense of ${fmt(e.amount)} on ${prettyDate(e.date)} is over 3× the usual (${fmt(med)}).`, 'expenses'); }
+    }
+    const r30 = this.report(bizId, ago(29), today), p30 = this.report(bizId, ago(59), ago(30));
+    if (p30.count >= 5 && p30.netSales > 0 && r30.netSales < p30.netSales * 0.75) add('salesdrop', 'drop:' + today.slice(0, 7), 'medium', `Sales in the last 30 days (${fmt(r30.netSales)}) are ${Math.round((1 - r30.netSales / p30.netSales) * 100)}% lower than the 30 days before (${fmt(p30.netSales)}).`, 'reports');
+    const minM = b.marginAlert ?? 20;
+    if (r30.count >= 5 && r30.grossMargin != null && r30.grossMargin < minM) add('lowmargin', 'margin:' + today.slice(0, 7), 'medium', `Gross margin in the last 30 days is ${r30.grossMargin}%, below your ${minM}% alert level.`, 'reports');
+    const below = this.of('bizSales', bizId).filter((s) => s.status !== 'void' && s.date >= ago(14) && s.lines.some((l) => l.unitCost > 0 && l.qty * l.price - (l.discount || 0) < l.qty * l.unitCost - 0.005));
+    if (below.length) add('lowmargin', 'below:' + below.map((s) => s.id).join(','), 'medium', `${below.length} ${below.length === 1 ? 'sale' : 'sales'} in the last 2 weeks had items sold below cost (${below.slice(0, 3).map((s) => s.no).join(', ')}).`, 'invoices');
+    const pj = this.projection(bizId, 30);
+    if (pj.end < 0) add('cashshort', 'cash:' + today, 'high', `Cash could run short in the next 30 days: about ${fmt(pj.end)} after known bills (estimate).`, 'reports');
+    const inv = this.inventoryValue(bizId), lim = Math.max(1000, inv * 0.1);
+    const adj = this.of('bizStock', bizId).filter((m) => m.date >= ago(14) && ['adjust', 'damage', 'expired'].includes(m.type) && Math.abs(m.qty * (m.unitCost || 0)) + (m.lossValue || 0) > lim);
+    if (adj.length) add('bigadjust', 'adj:' + adj.map((m) => m.id).join(','), 'low', `${adj.length} large stock ${adj.length === 1 ? 'change' : 'changes'} in the last 2 weeks (over ${fmt(lim)} each). Worth a second look.`, 'stock');
+    if (this.on('recurring', b)) { const due = this.recurringDue(bizId); if (due.length) add('recurring', 'rec:' + due.length + today, 'low', `${due.length} recurring ${due.length === 1 ? 'invoice is' : 'invoices are'} due to be created.`, 'recurring'); }
+    const rank = { high: 0, medium: 1, low: 2 };
+    return out.sort((a, x) => rank[a.sev] - rank[x.sev]);
+  },
+  snoozeAlert(bizId, key, days = 7) { const b = this.get(bizId); (b.alertSnooze ||= {})[key] = toISODate(new Date(Date.now() + days * 864e5)); for (const [k, v] of Object.entries(b.alertSnooze)) if (v < this.today()) delete b.alertSnooze[k]; Store.save(); },
+
+  /* ----- forecasts (estimates from recent history) ----- */
+  forecast(bizId, days = 30) {
+    const today = this.today(), D = 56, from = toISODate(new Date(Date.now() - (D - 1) * 864e5));
+    const sales = this.of('bizSales', bizId).filter((s) => s.status !== 'void' && s.date >= from && s.date <= today);
+    const first = this.of('bizSales', bizId).filter((s) => s.status !== 'void').map((s) => s.date).sort()[0];
+    const span = first ? Math.round((new Date(today) - new Date(first)) / 864e5) + 1 : 0;
+    if (span < 28 || sales.length < 10) return { ok: false, why: `Forecasts need at least 4 weeks and 10 sales of history (you have ${Math.min(span, D)} days and ${sales.length} sales).` };
+    const n = Math.min(span, D), wk = [0, 0, 0, 0, 0, 0, 0], cnt = [0, 0, 0, 0, 0, 0, 0];
+    for (let i = 0; i < n; i++) cnt[new Date(Date.now() - i * 864e5).getDay()]++;
+    let paidNow = 0, total = 0; for (const s of sales) { wk[new Date(s.date + 'T00:00:00').getDay()] += s.revenue; total += s.total; paidNow += this.col('bizPayments').filter((p) => p.saleId === s.id && p.date === s.date).reduce((a, p) => a + p.amount, 0); }
+    const perDay = wk.map((x, i) => (cnt[i] ? x / cnt[i] : 0));
+    let est = 0; for (let i = 1; i <= days; i++) est += perDay[new Date(Date.now() + i * 864e5).getDay()];
+    const weeks = []; for (let w = 0; w < Math.floor(n / 7); w++) { const a = toISODate(new Date(Date.now() - (w * 7 + 6) * 864e5)), z = toISODate(new Date(Date.now() - w * 7 * 864e5)); weeks.push(sales.filter((s) => s.date >= a && s.date <= z).reduce((x, s) => x + s.revenue, 0)); }
+    const mean = weeks.reduce((a, x) => a + x, 0) / weeks.length, sd = Math.sqrt(weeks.reduce((a, x) => a + (x - mean) ** 2, 0) / Math.max(1, weeks.length - 1)), spread = sd * Math.sqrt(days / 7);
+    const rep = this.report(bizId, from, today), gm = rep.netSales > 0 ? rep.grossProfit / rep.netSales : 0, expPerDay = rep.expenses / n, cashShare = total > 0 ? paidNow / total : 1;
+    const pj = this.projection(bizId, days), sales$ = round2(est), exp$ = round2(expPerDay * days);
+    const stockOut = this.items(bizId).filter((i) => this.tracked(i)).map((i) => { const sold = -this.of('bizStock', bizId).filter((m) => m.itemId === i.id && m.type === 'sale' && m.date >= from).reduce((a, m) => a + m.qty, 0), rate = sold / n, have = this.stockOf(i.id).qty - this.reserved(i.id); return rate > 0 ? { name: i.name, have: round2(have), perDay: round2(rate), daysLeft: Math.max(0, Math.floor(have / rate)) } : null; }).filter((x) => x && x.daysLeft <= days).sort((a, x) => a.daysLeft - x.daysLeft);
+    return { ok: true, days, basis: n, sales: sales$, low: round2(Math.max(0, est - spread)), high: round2(est + spread), grossProfit: round2(est * gm), expenses: exp$, profit: round2(est * gm - exp$),
+      cashNow: pj.cash, cashIn: round2(pj.expIn + est * cashShare), cashOut: round2(pj.expOut + exp$), cashEnd: round2(pj.cash + pj.expIn + est * cashShare - pj.expOut - exp$), stockOut, cashShare: round2(cashShare * 100) };
+  },
+});
+
+/* ----- ask about the business: answers from the records; AI only with consent ----- */
+const BizAsk = {
+  monthToDate() { const t = Biz.today(), d = +t.slice(8, 10), m0 = t.slice(0, 8) + '01', pm = new Date(+t.slice(0, 4), +t.slice(5, 7) - 2, 1), pEnd = new Date(pm.getFullYear(), pm.getMonth(), Math.min(d, new Date(pm.getFullYear(), pm.getMonth() + 1, 0).getDate()));
+    return { from: m0, to: t, pFrom: toISODate(pm), pTo: toISODate(pEnd), label: `this month so far (1–${d})`, pLabel: `the same days last month` }; },
+  answer(bizId, q) {
+    const s = String(q || ''), low = s.toLowerCase(), P = this.monthToDate(), r = Biz.report(bizId, P.from, P.to), p = Biz.report(bizId, P.pFrom, P.pTo), out = (text, est = false, rows = null) => ({ text, est, rows, source: 'records' });
+    const amt = BizNL.amounts(s)[0]?.value ?? (s.match(/\b(\d[\d,]{2,})\b/) ? parseFloat(s.match(/\b(\d[\d,]{2,})\b/)[1].replace(/,/g, '')) : null);
+    if (/(break.?even|kailangan.*benta|need to sell)/i.test(s)) { const a = Biz.analytics(bizId, P.from, P.to); return out(a.breakEven == null ? 'There isn’t enough data yet (Tiffo needs sales with a positive gross margin).' : `At your gross margin ${P.label} (${a.grossMargin}%), you need about ${fmt(a.breakEven)} in sales to cover ${fmt(a.r.expenses)} of expenses for the same period.`, true); }
+    if (/(afford|kaya ba|can i buy|pwede ba bumili)/i.test(s)) {
+      if (!amt) return out('Tell me the amount, e.g. “Can I afford a ₱25,000 oven?”');
+      const pj = Biz.projection(bizId, 30), left = round2(pj.end - amt);
+      return out(`Cash and bank now: ${fmt(pj.cash)}. After customers pay what’s due and you pay known bills and loans in the next 30 days, you’d have about ${fmt(pj.end)}; after spending ${fmt(amt)}, about ${fmt(left)}.${left < 0 ? ' That would leave you short.' : ''} This doesn’t include sales you haven’t made yet or expenses not recorded. It’s your call.`, true);
+    }
+    if (/(why|bakit).*(profit|kita|tubo).*(lower|down|drop|less|bumaba|mababa|kaunti)|(profit|kita).*(lower|down|drop|bumaba)/i.test(s)) {
+      const d = (k) => round2(r[k] - p[k]), cats = [...new Set([...Object.keys(r.byCat), ...Object.keys(p.byCat)])].map((c) => ({ c, d: round2((r.byCat[c] || 0) - (p.byCat[c] || 0)) })).filter((x) => x.d).sort((a, x) => x.d - a.d);
+      const parts = [];
+      if (d('netSales')) parts.push(`sales ${d('netSales') < 0 ? 'fell' : 'rose'} by ${fmt(Math.abs(d('netSales')))}`);
+      if (r.grossMargin != null && p.grossMargin != null && Math.abs(r.grossMargin - p.grossMargin) >= 1) parts.push(`gross margin went from ${p.grossMargin}% to ${r.grossMargin}%`);
+      for (const x of cats.filter((x) => x.d > 0).slice(0, 2)) parts.push(`${x.c} went up by ${fmt(x.d)}`);
+      return out(`Net profit ${P.label}: ${fmt(r.netProfit)}, compared with ${fmt(p.netProfit)} for ${P.pLabel}${r.netProfit < p.netProfit ? ` (${fmt(round2(p.netProfit - r.netProfit))} lower)` : r.netProfit > p.netProfit ? ' (higher, not lower)' : ''}. ${parts.length ? 'The biggest differences: ' + parts.join('; ') + '.' : 'Nothing changed much.'}`);
+    }
+    if (/(most|best|top|pinaka).*(profit|kita|tubo|seller|selling|benta|product|item)|which products? made/i.test(s)) {
+      const a = Biz.analytics(bizId, P.from, P.to); if (!a.top.length) return out(`No sales ${P.label} yet.`);
+      return out(`Most profitable ${P.label}:`, false, a.top.map((x) => [x.name, `${x.qty} sold`, `${fmt(x.profit)} profit`]));
+    }
+    if (/(owe|utang|receivable|hindi pa nagbabayad|still to pay|unpaid)/i.test(s) && !/(i owe|supplier|we owe|utang ko)/i.test(s)) {
+      const by = {}; for (const x of Biz.of('bizSales', bizId).filter((x) => Biz.dueOn(x) > 0)) { const k = Biz.find('bizCustomers', x.customerId)?.name || 'Walk-in'; by[k] = round2((by[k] || 0) + Biz.dueOn(x)); }
+      const rows = Object.entries(by).sort((a, x) => x[1] - a[1]); if (!rows.length) return out('Nobody owes you money right now.');
+      return out(`Customers owe you ${fmt(Biz.receivables(bizId))} in total:`, false, rows.map(([n, v]) => [n, fmt(v)]));
+    }
+    if (/(i owe|we owe|supplier|utang ko|payables?|bills? to pay)/i.test(s)) {
+      const rows = Biz.suppliers(bizId).map((x) => [x.name, Biz.supplierBalance(x)]).filter((x) => x[1] > 0); const held = Biz.payrollOwedTotal(bizId);
+      return out(`You owe suppliers ${fmt(Biz.payables(bizId))}${held ? ` and ${fmt(held)} held from payroll for the agencies` : ''}; loans ${fmt(Biz.loansOwed(bizId))}.`, false, rows.map(([n, v]) => [n, fmt(v)]));
+    }
+    if (/(reorder|restock|order more|bibilhin|mauubos|running low|low stock)/i.test(s)) {
+      const lowL = Biz.lowStock(bizId); if (!lowL.length) return out('Nothing is at its reorder level. (Set a “warn me when it drops to” level on products to get these.)');
+      return out('At or below the reorder level:', true, lowL.map((x) => [x.i.name, `${x.avail} available`, Biz.suggestReorder(x.i) ? `order about ${Biz.suggestReorder(x.i)}` : 'not enough sales history to suggest']));
+    }
+    if (/(expenses?|gastos).*(increase|went up|grew|higher|tumaas|lumaki)|(increase|tumaas).*(expenses?|gastos)/i.test(s)) {
+      const cats = [...new Set([...Object.keys(r.byCat), ...Object.keys(p.byCat)])].map((c) => ({ c, a: r.byCat[c] || 0, b: p.byCat[c] || 0 })).map((x) => ({ ...x, d: round2(x.a - x.b) })).filter((x) => x.d > 0).sort((a, x) => x.d - a.d);
+      if (!cats.length) return out(`No expense category went up ${P.label} compared with ${P.pLabel}.`);
+      return out(`Expenses that went up (${P.label} vs ${P.pLabel}):`, false, cats.slice(0, 6).map((x) => [x.c, `${fmt(x.b)} → ${fmt(x.a)}`, `+${fmt(x.d)}`]));
+    }
+    if (/(spen[dt]|gastos|ginastos|how much.*(on|for)|magkano.*(sa|ang))/i.test(s)) {
+      const cat = BizNL.category(s), words = BizNL.norm(s).split(' ').filter((w) => w.length > 3 && !['much', 'spend', 'spent', 'this', 'month', 'last', 'magkano', 'gastos', 'ginastos', 'what', 'have', 'did'].includes(w));
+      const match = (e) => cat ? e.category === cat : words.some((w) => BizNL.norm(`${e.category} ${e.vendor} ${e.notes}`).includes(w));
+      const sum = (f, t) => round2(Biz.of('bizExpenses', bizId).filter((e) => e.date >= f && e.date <= t && match(e)).reduce((a, e) => a + e.amount, 0));
+      const lm = Biz.monthRange(-1);
+      if (!cat && !words.length) return out(`Total expenses ${P.label}: ${fmt(r.expenses)}.`);
+      return out(`${cat || words.join(' ')}: ${fmt(sum(P.from, P.to))} ${P.label}; ${fmt(sum(lm[0], lm[1]))} last month (whole month).`);
+    }
+    if (/(sales|benta|sold|nabenta).*(today|ngayon)/i.test(s)) { const t = Biz.report(bizId, Biz.today(), Biz.today()); return out(`Sales today: ${fmt(t.netSales)} from ${t.count} ${t.count === 1 ? 'sale' : 'sales'}; ${fmt(t.cashIn)} received.`); }
+    if (/(sales|benta|revenue|kita).*(month|buwan)|how much did (i|we) (sell|make)/i.test(s)) return out(`Net sales ${P.label}: ${fmt(r.netSales)} (${r.count} sales); gross profit ${fmt(r.grossProfit)}; net profit ${fmt(r.netProfit)}. Same days last month: ${fmt(p.netSales)} in sales.`);
+    if (/(cash|pera|money|bank|how much do (i|we) have)/i.test(s)) return out(`Cash and bank: ${fmt(Biz.cash(bizId))}.`, false, Biz.accounts(bizId).map((x) => [x.name, fmt(Biz.balance(x))]));
+    return null;
+  },
+  /** The figures the optional AI may see: totals only; no customer names, contacts or staff details. */
+  summary(bizId) {
+    const b = Biz.get(bizId), P = this.monthToDate(), r = Biz.report(bizId, P.from, P.to), p = Biz.report(bizId, P.pFrom, P.pTo), a = Biz.analytics(bizId, P.from, P.to);
+    const pick = (x) => ({ netSales: x.netSales, cogs: x.cogs, grossProfit: x.grossProfit, expenses: x.expenses, expensesByCategory: x.byCat, netProfit: x.netProfit, salesCount: x.count, cashIn: x.cashIn, cashOut: x.cashOut });
+    return { currency: CURRENCY, businessType: BIZ_TYPES[b.type] || b.type, periods: { current: `${P.from} to ${P.to}`, previous: `${P.pFrom} to ${P.pTo}` }, current: pick(r), previous: pick(p),
+      position: Biz.position(bizId), topProducts: a.top.map((x) => ({ product: x.name, sold: x.qty, profit: x.profit })), lowStock: Biz.lowStock(bizId).map((x) => ({ product: x.i.name, available: x.avail })),
+      customersOwing: new Set(Biz.of('bizSales', bizId).filter((s) => Biz.dueOn(s) > 0).map((s) => s.customerId || 'walk-in')).size, receivables: Biz.receivables(bizId), forecast30: (({ ok, sales, expenses, cashEnd }) => ({ ok, sales, expenses, cashEnd }))(Biz.forecast(bizId, 30)) };
+  },
+  async askAI(bizId, q) {
+    const data = this.summary(bizId);
+    const raw = await AI.call({ task: 'biz_ask', system: 'You help a small-business owner understand their own records. Use ONLY the numbers in DATA. Say clearly which figures are recorded and which are estimates (forecast, projections). If DATA does not contain the answer, say so plainly. Do not give tax, legal or investment advice. Keep it short and plain. Reply as JSON: {"answer": "..."}', prompt: `DATA: ${JSON.stringify(data)}\n\nQUESTION: ${String(q).slice(0, 500)}` });
+    let ans = ''; try { ans = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1)).answer; } catch (e) { ans = ''; }
+    if (!ans) throw new Error('The AI didn’t give a usable answer.');
+    return { text: String(ans).slice(0, 2000), est: true, source: 'ai', shared: data };
+  },
+};
+
+/* =========================================================================
    ICONS — simple one-colour line icons in place of colourful emoji.
    Drawn in-house (24×24, 2px strokes, currentColor), no outside library.
    The saved data keeps its emoji (pocket icons, categories…); only the
@@ -5691,7 +5960,7 @@ const Backup = {
 
   /** mode: 'merge' adds what's missing (skipping duplicates); 'replace' swaps everything. → { added, skipped } */
   /** Settings that belong to this device and this person, never taken from a file: the app lock, AI consent, the household link. */
-  DEVICE_SETTINGS: ['lock', 'aiConsent', 'hhSync'],
+  DEVICE_SETTINGS: ['lock', 'aiConsent', 'bizAiConsent', 'hhSync'],
   /** Bring an older backup up to today's format (the same upgrade Tiffo runs on its own saved data). */
   upgrade(data) {
     const keep = Store.state;
@@ -8339,6 +8608,7 @@ const UI = {
       ['production', 'Production'], ['recurring', 'Recurring'], ['team', 'Team'], ['projects', 'Projects & time'], ['marketing', 'Marketing'], ['reports', 'Reports'], ['tax', 'Tax'], ['settings', 'Settings']]
       .filter(([k]) => (!mod[k] || Biz.on(mod[k], b)) && (!need[k] || Biz.can(need[k])));
     if (!tabs.some(([k]) => k === this.bizTab)) this.bizTab = tabs[0]?.[0] || 'team';
+    this.bizTabsShown = tabs.map(([k]) => k);
     const others = staff ? [b] : Biz.list();
     root.innerHTML = `<div class="flex flex-wrap items-center justify-between gap-2">
         <label class="flex items-center gap-2 min-w-0"><span class="sr-only">Business</span>
@@ -8363,10 +8633,8 @@ const UI = {
     const tile = (label, value, sub = '', help = '') => `<div class="rounded-xl border border-stone-200 dark:border-stone-800 p-3" ${help ? `title="${escapeHTML(help)}"` : ''}><div class="text-[11px] uppercase tracking-wide text-stone-500">${label}</div><div class="text-lg font-bold tabular">${value}</div>${sub ? `<div class="text-[11px] text-stone-500">${sub}</div>` : ''}</div>`;
     const qa = [['sale', '🧾 Record a sale'], ['invoice', '📄 New invoice'], ['order', '📋 New order'], ['expense', '💸 Add expense'], ['customer', '👤 Add customer'], ['product', '📦 Add product'], ['owner', '🔁 Owner money']];
     return `<div class="flex flex-wrap gap-2">${qa.map(([k, l]) => `<button type="button" data-biz="qa-${k}" class="rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 px-3 py-2 text-sm font-semibold">${l}</button>`).join('')}</div>
-      ${o.overdue.length ? `<div class="mt-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-3 text-sm">⚠️ <b>${o.overdue.length} overdue ${o.overdue.length === 1 ? 'invoice' : 'invoices'}</b>, ${this.bizMoney(o.overdue.reduce((x, s) => x + Biz.dueOn(s), 0))} still owed. <button type="button" data-biztab="invoices" class="underline font-semibold">See them</button></div>` : ''}
-      ${o.low.length ? `<div class="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-sm">📦 <b>Running low:</b> ${o.low.slice(0, 4).map((x) => `${escapeHTML(x.i.name)} (${x.avail} left)`).join(', ')}${o.low.length > 4 ? ` and ${o.low.length - 4} more` : ''}. <button type="button" data-biztab="stock" class="underline font-semibold">See stock</button></div>` : ''}
-      ${(() => { const ex = Biz.expiring(b.id), due = Biz.on('recurring', b) ? Biz.recurringDue(b.id) : []; return (ex.length ? `<div class="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-sm">⏳ <b>${ex.length} ${ex.length === 1 ? 'batch' : 'batches'}</b> expired or expiring soon. <button type="button" data-biztab="stock" class="underline font-semibold">See stock</button></div>` : '')
-        + (due.length ? `<div class="mt-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900 p-3 text-sm">🔁 <b>${due.length} recurring ${due.length === 1 ? 'invoice is' : 'invoices are'}</b> due to be created. <button type="button" data-biztab="recurring" class="underline font-semibold">Review</button></div>` : ''); })()}
+      ${this.bizTellBox()}
+      ${this.bizAlertsBlock(b)}
       ${o.orders.length ? `<div class="mt-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900 p-3 text-sm">📋 <b>${o.orders.length} open ${o.orders.length === 1 ? 'order' : 'orders'}</b> to fulfil. <button type="button" data-biztab="orders" class="underline font-semibold">See orders</button></div>` : ''}
       <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
         ${tile('Sales today', this.bizMoney(o.today.netSales), `${o.today.count} ${o.today.count === 1 ? 'sale' : 'sales'}`, 'Sales recorded today, excluding tax, whether paid or not.')}
@@ -8570,28 +8838,29 @@ const UI = {
   },
   bizExpensesView(b) {
     const ex = Biz.of('bizExpenses', b.id).sort((a, x) => x.date.localeCompare(a.date) || x.createdAt - a.createdAt);
-    return `<div class="flex justify-end"><button type="button" data-biz="qa-expense" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">+ Expense</button></div>
+    return `<div class="flex justify-end gap-2"><button type="button" data-biz5="scan" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold">📷 Scan a receipt</button><input id="bizReceiptFile" type="file" accept="image/*" capture="environment" class="hidden"><button type="button" data-biz="qa-expense" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">+ Expense</button></div>
       <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${ex.slice(0, 100).map((e) => `<li class="py-2.5 flex justify-between gap-2"><span><b>${escapeHTML(e.category)}</b>${e.vendor ? ' · ' + escapeHTML(e.vendor) : ''}<div class="text-[11px] text-stone-500">${escapeHTML(prettyDate(e.date))} · ${e.unpaid ? (Biz.billDue(e) ? `<span class="text-rose-600">unpaid bill, ${fmt(Biz.billDue(e))} to pay</span>` : 'bill, paid') : 'from ' + escapeHTML(Biz.find('bizAccounts', e.accountId)?.name || '')}${e.notes ? ' · ' + escapeHTML(e.notes) : ''}</div></span>
-        <span class="flex items-start gap-2"><span class="tabular text-rose-600">−${fmt(e.amount)}</span><button type="button" data-biz="del-exp" data-id="${e.id}" class="text-stone-400 hover:text-rose-600" aria-label="Delete expense">🗑</button></span></li>`).join('') || '<li class="py-3 text-sm text-stone-500">No business expenses yet.</li>'}</ul>`;
+        <span class="flex items-start gap-2"><span class="tabular text-rose-600">−${fmt(e.amount)}</span>${e.receiptThumb ? `<button type="button" data-biz5="view-receipt" data-id="${e.id}" class="text-stone-400 hover:text-teal-600" aria-label="See the receipt photo">🧾</button>` : ''}<button type="button" data-biz="del-exp" data-id="${e.id}" class="text-stone-400 hover:text-rose-600" aria-label="Delete expense">🗑</button></span></li>`).join('') || '<li class="py-3 text-sm text-stone-500">No business expenses yet.</li>'}</ul>`;
   },
-  bizExpenseForm() {
-    const b = Biz.current(), accs = Biz.accounts(b.id);
-    this.form({ title: 'Business expense', save: 'Save', sub: 'Only for the business. Personal spending goes in your personal Tiffo.',
-      fields: [{ id: 'amount', label: 'Amount', type: 'number', value: '' }, { id: 'category', label: 'Category', type: 'select', value: 'Supplies', options: BIZ_EXPENSE_CATS.map((c) => [c, c]) },
-        { id: 'vendor', label: 'Paid to (vendor)', value: '' }, { id: 'unpaid', type: 'checkbox', label: 'Not paid yet (a bill to pay later)', value: false },
-        { id: 'acc', label: 'Paid from', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]), show: (v) => !v.unpaid },
-        { id: 'sup', label: 'Supplier', type: 'select', value: '', options: [['', '—'], ...Biz.suppliers(b.id).map((x) => [x.id, x.name])], show: (v) => v.unpaid }, { id: 'dueDate', label: 'Due by', type: 'date', value: '', show: (v) => v.unpaid },
-        { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) }, { id: 'notes', label: 'Notes', value: '', advanced: true },
-        ...(Biz.taxProfile(b).reg === 'vat' ? [{ id: 'vat', label: 'VAT shown on the supplier’s invoice', type: 'number', value: '', hint: 'Input VAT, for your tax summary. Leave empty if none.', advanced: true }] : []),
+  bizExpenseForm(pre = {}) {
+    const b = Biz.current(), accs = Biz.accounts(b.id), chk = (k) => ((pre.unsure || []).includes(k) ? '⚠ Check this. ' : '');
+    this.form({ title: pre.fromReceipt ? 'Expense from a receipt' : 'Business expense', save: 'Save', sub: pre.sub || 'Only for the business. Personal spending goes in your personal Tiffo.',
+      fields: [{ id: 'amount', label: 'Amount', type: 'number', value: pre.amount ?? '', hint: chk('amount') }, { id: 'category', label: 'Category', type: 'select', value: pre.category || 'Supplies', options: BIZ_EXPENSE_CATS.map((c) => [c, c]), hint: chk('category') },
+        { id: 'vendor', label: 'Paid to (vendor)', value: pre.vendor || '' }, { id: 'unpaid', type: 'checkbox', label: 'Not paid yet (a bill to pay later)', value: !!pre.unpaid },
+        { id: 'acc', label: 'Paid from', type: 'select', value: pre.accountId || accs[0]?.id, options: accs.map((a) => [a.id, a.name]), show: (v) => !v.unpaid },
+        { id: 'sup', label: 'Supplier', type: 'select', value: pre.supplierId || '', options: [['', '—'], ...Biz.suppliers(b.id).map((x) => [x.id, x.name])], show: (v) => v.unpaid }, { id: 'dueDate', label: 'Due by', type: 'date', value: '', show: (v) => v.unpaid },
+        { id: 'date', label: 'Date', type: 'date', value: pre.fromReceipt ? pre.date || '' : pre.date || toISODate(new Date()), hint: chk('date') }, { id: 'notes', label: 'Notes', value: '', advanced: true },
+        ...(Biz.taxProfile(b).reg === 'vat' ? [{ id: 'vat', label: 'VAT shown on the supplier’s invoice', type: 'number', value: pre.vat ?? '', hint: 'Input VAT, for your tax summary. Leave empty if none.', advanced: !pre.vat }] : []),
         ...(Biz.on('marketing', b) && Biz.of('bizCampaigns', b.id).length ? [{ id: 'camp', label: 'For campaign', type: 'select', value: '', options: [['', '—'], ...Biz.of('bizCampaigns', b.id).map((c) => [c.id, c.name])], advanced: true }] : []),
         ...(Biz.on('projects', b) && Biz.of('bizProjects', b.id).length ? [{ id: 'proj', label: 'For project', type: 'select', value: '', options: [['', '—'], ...Biz.of('bizProjects', b.id).filter((p) => p.status !== 'done').map((p) => [p.id, p.name])], advanced: true }] : [])],
-      onSave: (v) => { try { Biz.addExpense(b.id, { ...v, accountId: v.acc, supplierId: v.sup, campaignId: v.camp, projectId: v.proj }); } catch (e) { return e.message; } this.renderBiz(); toast('💸 Expense saved.'); } });
+      onSave: (v) => { if (!v.date) return 'Type the date (from the receipt).'; if (!(v.amount > 0)) return 'Type the amount.';
+        try { const e = Biz.addExpense(b.id, { ...v, accountId: v.acc, supplierId: v.sup, campaignId: v.camp, projectId: v.proj, receiptThumb: pre.receiptThumb }); } catch (e) { return e.message; } this.renderBiz(); toast('💸 Expense saved.'); } });
   },
-  bizOwnerForm() {
+  bizOwnerForm(pre = {}) {
     const b = Biz.current(), accs = Biz.accounts(b.id), mine = Accounts.cashList ? Accounts.cashList() : Accounts.list();
-    this.form({ title: 'Owner money', save: 'Save', sub: 'Money you put into the business or take out for yourself. It’s not a sale, income or expense for the business, and Tiffo records the other side in your personal money as a transfer, so nothing is counted twice.',
-      fields: [{ id: 'dir', label: 'What happened', type: 'select', value: 'in', options: [['in', `I put money into ${b.name}`], ['out', `I took money out of ${b.name} for myself`]] },
-        { id: 'amount', label: 'Amount', type: 'number', value: '' }, { id: 'acc', label: 'Business account', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) },
+    this.form({ title: 'Owner money', save: 'Save', sub: (pre.sub ? pre.sub + ' ' : '') + 'Money you put into the business or take out for yourself. It’s not a sale, income or expense for the business, and Tiffo records the other side in your personal money as a transfer, so nothing is counted twice.',
+      fields: [{ id: 'dir', label: 'What happened', type: 'select', value: pre.dir || 'in', options: [['in', `I put money into ${b.name}`], ['out', `I took money out of ${b.name} for myself`]] },
+        { id: 'amount', label: 'Amount', type: 'number', value: pre.amount ?? '', hint: (pre.unsure || []).includes('amount') ? '⚠ Check this.' : '' }, { id: 'acc', label: 'Business account', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) },
         { id: 'personal', type: 'checkbox', label: 'Also record it in my personal money', value: true },
         { id: 'pacc', label: 'Personal account', type: 'select', value: Accounts.DEFAULT, options: mine.map((a) => [a.id, a.name]), show: (v) => v.personal },
         { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) }],
@@ -8614,6 +8883,7 @@ const UI = {
         ${row(`<b>Net profit${r.netProfit < 0 ? ' (loss)' : ''}</b>`, `<b class="${r.netProfit < 0 ? 'text-rose-600' : 'text-emerald-600'}">${fmt(r.netProfit)}</b>${r.netMargin != null ? ` <span class="text-xs text-stone-500">(${r.netMargin}%)</span>` : ''}`, 'border-t-2 border-stone-300 dark:border-stone-600')}</table>
       ${r.cogs === 0 && r.netSales > 0 ? '<p class="mt-1 text-xs text-amber-700 dark:text-amber-400">No product costs set, so gross profit may look higher than it really is. Add costs in Products & services.</p>' : ''}
       ${this.bizCashBlock(b, r)}
+      ${this.bizForecastBlock(b)}
       ${r.byItem.length ? `<h4 class="mt-4 font-semibold">Best sellers</h4><table class="mt-1 w-full text-sm"><tr class="text-xs text-stone-500"><td>Item</td><td class="text-right">Qty</td><td class="text-right">Sales</td><td class="text-right">Profit</td></tr>${r.byItem.slice(0, 10).map((x) => `<tr><td class="py-1">${escapeHTML(x.name)}</td><td class="text-right tabular">${x.qty}</td><td class="text-right tabular">${fmt(x.sales)}</td><td class="text-right tabular">${fmt(x.profit)}</td></tr>`).join('')}</table>` : ''}
       ${(() => { const by = this.bizBy || 'method', opts = [['method', 'Payment method'], ['channel', 'Channel'], ['customer', 'Customer'], ['employee', 'Staff'], ...(Biz.multiLoc(b.id) ? [['location', 'Location']] : []), ...(Biz.on('marketing', b) ? [['campaign', 'Campaign']] : []), ...(Biz.on('projects', b) ? [['project', 'Project']] : [])];
         const rows = Biz.breakdown(b.id, from, to, by); return `<h4 class="mt-4 font-semibold">Sales by <select id="bizBy" class="ml-1 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-1.5 py-0.5 text-sm">${opts.map(([k, l]) => `<option value="${k}" ${by === k ? 'selected' : ''}>${l}</option>`).join('')}</select></h4>
@@ -8634,6 +8904,7 @@ const UI = {
       ${this.bizLoansBlock(b)}
       ${this.bizSettings3(b)}
       ${this.bizSettings4(b)}
+      ${this.bizSettings5(b)}
       <button type="button" data-biz="delete" class="mt-4 text-sm text-rose-700 dark:text-rose-400 hover:underline">Delete this business…</button>`;
   },
   /* ---------- Tiffo Business phase 3 screens ---------- */
@@ -9125,6 +9396,145 @@ const UI = {
           setTimeout(() => this.form({ title: `Recall: batch ${r.batchNo}`, save: 'Close', fields: [{ id: 'h', type: 'note', label: '', html: `<p class="text-sm">Sold: <b>${r.soldQty}</b> · still in stock: <b>${r.inStock}</b></p><ul class="mt-1 text-xs">${who.map((w) => `<li>${escapeHTML(w)}</li>`).join('') || '<li>No sales from this batch.</li>'}</ul>` }], onSave: () => {} }), 0);
           this.renderBiz(); } }); }
   },
+  /* ---------- Tiffo Business phase 5 screens ---------- */
+  /** The "tell or ask" box on the Overview. */
+  bizTellBox() {
+    return `<form id="bizTellForm" class="mt-3 flex gap-2" autocomplete="off"><input id="bizTell" class="flex-1 min-w-0 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2.5" placeholder="Tell or ask: “Sold 3 notebooks for ₱450 cash”, “Who owes me?”" aria-label="Tell Tiffo what happened, or ask a question">
+        <button type="submit" class="rounded-xl bg-teal-600 hover:bg-teal-700 text-white px-4 font-semibold">Go</button></form>
+      <div id="bizAnswer" class="${this.bizAns ? '' : 'hidden'}">${this.bizAns ? this.bizAnswerHTML(this.bizAns) : ''}</div>`;
+  },
+  isQuestion(t) { return /\?\s*$/.test(t) || /^(what|which|who|whom|why|how|can|could|should|is|are|do|does|did|when|where|show|list|magkano|ano|alin|sino|bakit|paano|kailan|kaya|ilan|may)\b/i.test(t.trim()); },
+  bizAnswerHTML(a) {
+    return `<div class="mt-2 rounded-xl border border-stone-200 dark:border-stone-800 p-3 text-sm">
+      <div class="flex justify-between gap-2"><span class="text-[11px] font-semibold uppercase tracking-wide ${a.source === 'ai' ? 'text-violet-600 dark:text-violet-300' : 'text-teal-700 dark:text-teal-300'}">${a.source === 'ai' ? 'AI answer · may be wrong, check the figures' : a.est ? 'From your records · includes estimates' : 'From your records'}</span><button type="button" data-biz5="close-answer" class="text-xs text-stone-500 hover:underline">Close</button></div>
+      <p class="mt-1">${escapeHTML(a.text)}</p>
+      ${a.rows?.length ? `<table class="mt-1 w-full text-sm">${a.rows.map((r) => `<tr>${r.map((c, n) => `<td class="py-0.5 ${n ? 'text-right tabular' : ''}">${escapeHTML(String(c))}</td>`).join('')}</tr>`).join('')}</table>` : ''}
+      ${a.askAI ? `<div class="mt-2 text-xs">${(Store.state.settings || {}).bizAiConsent ? `<button type="button" data-biz5="ask-ai" class="rounded-lg bg-violet-600 text-white px-2.5 py-1 font-semibold">Ask the AI</button> <span class="text-stone-500">It sees a summary of this business’s figures, not customer names.</span>`
+        : `<span class="text-stone-500">Try: who owes me, most profitable products, why is profit lower, what should I reorder, how much did I spend on packaging, can I afford ₱20,000, break-even.</span> <button type="button" data-biz5="ai-consent" class="underline font-semibold">Let the AI answer other questions</button>`}</div>` : ''}
+      ${a.shared ? `<details class="mt-2 text-[11px] text-stone-500"><summary class="cursor-pointer">What was shared with the AI</summary><pre class="whitespace-pre-wrap">${escapeHTML(JSON.stringify(a.shared, null, 1))}</pre></details>` : ''}</div>`;
+  },
+  bizShowAnswer(a) { this.bizAns = a; const el = $('#bizAnswer'); if (el) { el.innerHTML = this.bizAnswerHTML(a); el.classList.remove('hidden'); } },
+  async bizTell(text) {
+    const b = Biz.current(), t = String(text || '').trim(); if (!t) return;
+    this.bizAskQ = t;
+    if (this.isQuestion(t)) {
+      if (!Biz.can('reports')) return toast('Your role can’t see the business’s figures.');
+      const a = BizAsk.answer(b.id, t);
+      return this.bizShowAnswer(a || { text: 'Tiffo doesn’t have a ready answer for that question.', askAI: true, source: 'records' });
+    }
+    const d = BizNL.parse(b.id, t);
+    if (d.kind === 'unknown') return this.bizShowAnswer({ text: 'Tiffo didn’t understand that as a sale, payment, expense, delivery or owner money. Try: “Sold 3 notebooks for ₱450 cash”, “Bought ₱1,200 of packaging”, “J. Dela Cruz paid ₱500”, “Received 30 bags of flour”.', source: 'records' });
+    $('#bizTell') && ($('#bizTell').value = '');
+    this.bizPreview(d);
+  },
+  /** Show what Tiffo understood as a normal form. Nothing is saved until Save is pressed. */
+  bizPreview(d) {
+    const b = Biz.current(), accs = Biz.accounts(b.id), chk = (k) => (d.unsure.includes(k) ? '⚠ Check this. ' : ''), sub = `You typed: “${d.text}”.${d.notes.length ? ' ' + d.notes.join(' ') : ''} Nothing is saved until you press Save.`;
+    const cashAcc = accs.find((a) => a.type === 'cash')?.id || accs[0]?.id, nonCash = accs.find((a) => a.type !== 'cash')?.id || accs[0]?.id;
+    if (d.kind === 'expense') return this.bizExpenseForm({ amount: d.amount, category: d.category, vendor: d.vendor, unpaid: d.unpaid, supplierId: d.supplierId, accountId: d.method && d.method !== 'cash' ? nonCash : cashAcc, date: d.date, unsure: d.unsure, sub });
+    if (d.kind === 'owner') return this.bizOwnerForm({ dir: d.dir, amount: d.amount, sub, unsure: d.unsure });
+    if (d.kind === 'receive') {
+      if (d.purchaseId && d.itemId) { this.bizReceiveForm(d.purchaseId); const p = Biz.find('bizPurchases', d.purchaseId), i = p.lines.findIndex((l) => l.itemId === d.itemId); if (d.qty != null && $(`#fm_g${i}`)) $(`#fm_g${i}`).value = d.qty; $('#fmSub') && ($('#fmSub').textContent = `${sub} Matched to ${p.no}.`); return; }
+      const items = Biz.items(b.id, true).filter((i) => Biz.tracked(i));
+      return this.form({ title: 'Stock received', save: 'Add to stock', sub,
+        fields: [{ id: 'item', label: 'Product', type: 'select', value: d.itemId || '', options: [['', '—'], ...items.map((i) => [i.id, i.name])], hint: chk('items') }, { id: 'qty', label: 'How many', type: 'number', value: d.qty ?? '' },
+          { id: 'cost', label: 'Cost per unit', type: 'number', value: d.unitCost ?? '', hint: 'What you paid for each. If you still owe the supplier, record a purchase order instead.' }, { id: 'date', label: 'Date', type: 'date', value: d.date || toISODate(new Date()) }],
+        onSave: (v) => { if (!v.item) return 'Pick the product.'; if (!(v.cost >= 0) || v.cost === null || v.cost === '') return 'Type what each one cost.';
+          try { Biz.adjustStock(b.id, v.item, { type: 'opening', qty: v.qty, unitCost: v.cost, date: v.date, reason: 'Received' }); } catch (x) { return x.message; } this.renderBiz(); toast('✓ Stock added.'); } });
+    }
+    if (d.kind === 'payment') {
+      const open = Biz.of('bizSales', b.id).filter((s) => Biz.dueOn(s) > 0).sort((a, x) => a.date.localeCompare(x.date));
+      if (!open.length) return toast('Nobody owes this business anything right now.');
+      return this.form({ title: 'Payment received', save: 'Record payment', sub,
+        fields: [{ id: 'sale', label: 'For', type: 'select', value: d.saleId || '', options: [['', '—'], ...open.map((s) => [s.id, `${s.no} · ${Biz.find('bizCustomers', s.customerId)?.name || 'Walk-in'} · ${fmt(Biz.dueOn(s))} owed`])], hint: chk('sale') },
+          { id: 'amount', label: 'Amount', type: 'number', value: d.amount ?? '', hint: chk('amount') }, { id: 'acc', label: 'Money went into', type: 'select', value: d.method && d.method !== 'cash' ? nonCash : cashAcc, options: accs.map((a) => [a.id, a.name]) },
+          { id: 'method', label: 'How', type: 'select', value: d.method || 'cash', options: Object.entries(BIZ_METHODS) }, { id: 'date', label: 'Date', type: 'date', value: d.date || toISODate(new Date()) }],
+        onSave: (v) => { if (!v.sale) return 'Pick which sale or invoice it’s for.'; try { Biz.receivePayment(v.sale, { amount: v.amount, accountId: v.acc, method: v.method, date: v.date }); } catch (x) { return x.message; } this.renderBiz(); toast('✓ Payment recorded.'); } });
+    }
+    if (d.kind === 'sale') {
+      const items = Biz.items(b.id).filter((i) => i.forSale !== false), custs = Biz.customers(b.id), rows = [...d.lines]; while (rows.length < 3) rows.push({ itemId: '', qty: '', price: '' });
+      const total = (v) => round2(rows.reduce((a, _, n) => a + (v[`it${n}`] ? (+v[`q${n}`] || 0) * (+v[`p${n}`] || 0) : 0), 0));
+      return this.form({ title: d.credit ? 'Sale on credit' : 'Sale', save: 'Record sale', sub,
+        fields: [...rows.flatMap((l, n) => [{ id: `it${n}`, label: n ? `Item ${n + 1}` : 'Item', type: 'select', value: l.itemId || '', options: [['', '—'], ...items.map((i) => [i.id, `${i.name} · ${fmt(i.price)}`])], hint: n === 0 ? chk('items') : '', ...(n && !l.itemId ? { advanced: true } : {}) },
+            { id: `q${n}`, label: 'Quantity', type: 'number', value: l.qty ?? '', hint: n === 0 ? chk('qty') : '', show: (v) => !!v[`it${n}`] }, { id: `p${n}`, label: 'Price each', type: 'number', value: l.price ?? '', hint: n === 0 ? chk('total') : '', show: (v) => !!v[`it${n}`] }]),
+          { id: 'cust', label: 'Customer', type: 'select', value: d.customerId || '', options: [['', 'Walk-in / no name'], ...custs.map((c) => [c.id, c.name])] },
+          { id: 'paid', label: 'Paid now', type: 'number', value: d.credit ? 0 : d.total ?? round2(d.lines.reduce((a, l) => a + l.qty * l.price, 0)) },
+          { id: 'acc', label: 'Money went into', type: 'select', value: d.method && d.method !== 'cash' ? nonCash : cashAcc, options: accs.map((a) => [a.id, a.name]), show: (v) => v.paid > 0 },
+          { id: 'method', label: 'How', type: 'select', value: d.method || 'cash', options: Object.entries(BIZ_METHODS), show: (v) => v.paid > 0 },
+          { id: 'due', label: 'Customer pays by', type: 'date', value: toISODate(new Date(Date.now() + 14 * 864e5)), show: (v) => (+v.paid || 0) < total(v) },
+          { id: 'date', label: 'Date', type: 'date', value: d.date || toISODate(new Date()), advanced: true }],
+        onSave: (v) => {
+          const lines = rows.map((_, n) => ({ itemId: v[`it${n}`], qty: v[`q${n}`], price: v[`p${n}`] })).filter((l) => l.itemId);
+          if (!lines.length) return 'Pick what was sold.';
+          const tot = total(v), paid = +v.paid || 0; if (paid < tot && !v.cust) return 'Pick the customer who still owes the rest.';
+          const go = (allow = {}, retry = false) => { try { const s = Biz.recordSale(b.id, { kind: paid < tot ? 'invoice' : 'sale', lines, customerId: v.cust || null, paid, accountId: v.acc, method: v.method, date: v.date, dueDate: v.due, channel: d.channel, ...allow }); this.renderBiz(); toast(`✓ ${escapeHTML(s.no)} · ${fmt(s.total)}`); return ''; }
+            catch (x) { if (x.belowCost || x.noStock) { setTimeout(async () => { if (await askConfirm(`${x.message} Record it anyway?`, 'Record anyway')) go({ ...allow, ...(x.belowCost ? { allowBelowCost: true } : { allowNoStock: true }) }, true); }, 0); return null; } if (retry) toast(escapeHTML(x.message)); return x.message; } };
+          const r = go(); if (r === null) return; return r || undefined;
+        } });
+    }
+  },
+  /** Turn on AI answers for this device, after showing exactly what is shared. */
+  bizAiConsentForm() {
+    this.form({ title: 'Let the AI answer business questions?', save: 'Turn on',
+      fields: [{ id: 'n', type: 'note', label: '', html: `<div class="text-sm space-y-1.5"><p>When Tiffo has no ready answer, it can ask Google Gemini (through Puter, free). It sends your question and a <b>summary of this business’s figures</b>: sales, costs, expenses by category, profit and cash totals for this month and the same days last month, product names with their sales and profit, low-stock product names, how many customers owe you (not who), and a 30-day estimate.</p>
+          <p><b>Not sent:</b> customer or supplier names, contacts, staff details, payroll, individual sales or your personal money.</p><p>The AI can be wrong. Answers are labelled, and you can see exactly what was shared each time. This setting is for this device only, and you can turn it off in Business → Settings.</p></div>` },
+        { id: 'ok', type: 'checkbox', label: 'I understand and agree to share that summary', value: false }],
+      onSave: (v) => { if (!v.ok) return 'Tick the box to agree, or close this.'; (Store.state.settings ||= {}).bizAiConsent = true; Store.save(); this.renderBiz(); if (this.bizAns) this.bizShowAnswer({ ...this.bizAns }); toast('AI answers are on for this device.'); } });
+  },
+  async bizAskAI() {
+    const b = Biz.current(), q = this.bizAskQ; if (!q) return;
+    if (!(Store.state.settings || {}).bizAiConsent) return this.bizAiConsentForm();
+    if (!AI.available()) return toast('AI isn’t available in this version of Tiffo.');
+    this.bizShowAnswer({ text: 'Asking the AI…', source: 'ai' });
+    try { this.bizShowAnswer(await BizAsk.askAI(b.id, q)); }
+    catch (e) { this.bizShowAnswer({ text: e.code === 'puter_sign_in' ? 'The free AI needs a (free) Puter sign-in first: turn on Free AI under the note box on Home, then try again.' : `The AI couldn’t answer right now (${e.message}). Your records are unchanged.`, source: 'records' }); }
+  },
+  /** Alerts on the Overview: most important first, each can be hidden for 7 days. */
+  bizAlertsBlock(b) {
+    const al = Biz.alerts(b.id); if (!al.length) return '';
+    const col = { high: 'border-rose-200 bg-rose-50 dark:border-rose-900 dark:bg-rose-950/30', medium: 'border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30', low: 'border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/30' };
+    const shown = this.bizAllAlerts ? al : al.slice(0, 4);
+    return `<div class="mt-3 grid gap-1.5">${shown.map((x) => `<div class="rounded-xl border ${col[x.sev]} px-3 py-2 text-sm flex flex-wrap items-center justify-between gap-2"><span>${x.sev === 'high' ? '⚠️ ' : ''}${escapeHTML(x.text)}</span>
+        <span class="flex gap-2 text-xs">${x.tab && (this.bizTabsShown || []).includes(x.tab) ? `<button type="button" data-biztab="${x.tab}" class="underline font-semibold">See</button>` : ''}<button type="button" data-biz5="snooze" data-id="${escapeHTML(x.key)}" class="text-stone-500 hover:underline">Hide for 7 days</button></span></div>`).join('')}
+      ${al.length > 4 ? `<button type="button" data-biz5="all-alerts" class="text-xs font-semibold text-teal-700 dark:text-teal-300 hover:underline justify-self-start">${this.bizAllAlerts ? 'Show fewer' : `Show all ${al.length} alerts`}</button>` : ''}</div>`;
+  },
+  bizSettings5(b) {
+    const off = b.alertsOff || [];
+    return `<div class="mt-3 grid gap-3 sm:grid-cols-2">
+      ${this.bizCard('Alerts', `<p class="text-[11px] text-stone-500">Choose what Tiffo warns you about on the Overview.</p><div class="mt-1 grid gap-1 text-sm">${Object.entries(BIZ_ALERT_TYPES).map(([k, l]) => `<label class="flex items-center gap-2"><input type="checkbox" data-alert-type="${k}" ${off.includes(k) ? '' : 'checked'}> ${l}</label>`).join('')}</div>
+        <label class="mt-2 flex items-center gap-2 text-sm">Warn when gross margin is below <input id="bizMarginAlert" type="number" min="0" max="100" value="${b.marginAlert ?? 20}" class="w-16 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-2 py-0.5">%</label>`)}
+      ${this.bizCard('AI answers', `<p class="mt-1 text-sm">${(Store.state.settings || {}).bizAiConsent ? 'On for this device. Only a summary of figures is shared; no customer names, contacts or staff details.' : 'Off. Questions are answered from your records only.'}</p><p class="text-[11px] text-stone-500">Receipts you scan for the business are read on this device unless AI answers are on.</p>
+        <div class="mt-2">${this.bizSmallBtn(`data-biz5="${(Store.state.settings || {}).bizAiConsent ? 'ai-off' : 'ai-consent'}"`, (Store.state.settings || {}).bizAiConsent ? 'Turn off' : 'Turn on')}</div>`)}
+    </div>`;
+  },
+  bizForecastBlock(b) {
+    const days = this.bizFc || 30, f = Biz.forecast(b.id, days);
+    const row = (l, v, cls = '') => `<tr class="${cls}"><td class="py-1">${l}</td><td class="py-1 text-right tabular">${v}</td></tr>`;
+    return `<h4 class="mt-4 font-semibold">Forecast <select id="bizFc" class="ml-1 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-1.5 py-0.5 text-xs">${[30, 60, 90].map((d) => `<option value="${d}" ${days === d ? 'selected' : ''}>next ${d} days</option>`).join('')}</select> <span class="text-xs font-normal text-stone-500">estimate</span></h4>
+      ${!f.ok ? `<p class="mt-1 text-sm text-stone-500">${escapeHTML(f.why)}</p>` : `<table class="mt-1 w-full text-sm">${row('Sales', `${fmt(f.sales)} <span class="text-xs text-stone-500">(likely ${fmt(f.low)}–${fmt(f.high)})</span>`)}${row('Gross profit', fmt(f.grossProfit))}${row('Expenses (at your recent rate)', '−' + fmt(f.expenses))}${row('<b>Profit</b>', `<b class="${f.profit < 0 ? 'text-rose-600' : ''}">${fmt(f.profit)}</b>`, 'border-t border-stone-200 dark:border-stone-700')}
+        ${row('Cash now', fmt(f.cashNow))}${row('Cash in (due from customers + expected sales paid on the spot)', '+' + fmt(f.cashIn))}${row('Cash out (known bills, loans + expenses)', '−' + fmt(f.cashOut))}${row('<b>Cash at the end</b>', `<b class="${f.cashEnd < 0 ? 'text-rose-600' : ''}">${fmt(f.cashEnd)}</b>`, 'border-t border-stone-200 dark:border-stone-700')}</table>
+        ${f.stockOut.length ? `<div class="mt-2 text-xs font-semibold text-stone-500">Could run out</div><ul class="text-sm">${f.stockOut.slice(0, 6).map((x) => `<li class="flex justify-between"><span>${escapeHTML(x.name)}</span><span class="tabular">${x.daysLeft ? `in about ${x.daysLeft} days` : 'now'} (${x.have} left, ~${x.perDay}/day)</span></li>`).join('')}</ul>` : ''}
+        <p class="mt-1 text-[11px] text-stone-500">Based on the last ${f.basis} days: sales by day of the week, your gross margin, your expense rate, and ${f.cashShare}% of sales paid on the spot. A guide, not a promise.</p>`}`;
+  },
+  async bizScanReceipt(file) {
+    const b = Biz.current(); if (!file) return;
+    toast('Reading the receipt…');
+    let r; try { r = await BizReceipt.read(file, (m) => { const t = $('#toasts')?.lastElementChild?.querySelector('span'); if (t) t.textContent = m; }); } catch (e) { return toast('Couldn’t read that image. Try a clearer photo, or type the expense.'); }
+    if (r.failed) return toast('Tiffo couldn’t read text on that photo. Try a clearer, flat photo in good light, or type the expense.');
+    this.bizExpenseForm({ amount: r.amount, category: r.category, vendor: r.vendor, date: r.date, vat: r.vat, unsure: r.unsure, receiptThumb: r.thumb, fromReceipt: true,
+      sub: `Read ${r.source === 'ai' ? 'by the AI' : 'on this device'}. Check every field before saving${r.amount == null ? '; no TOTAL line was found, so type the amount' : ''}${r.date == null ? '; no date was found, so type it' : ''}.` });
+  },
+  async bizAct5(act, id, el) {
+    const b = Biz.current();
+    if (act === 'close-answer') { this.bizAns = null; $('#bizAnswer')?.classList.add('hidden'); return; }
+    if (act === 'ask-ai') return this.bizAskAI();
+    if (act === 'ai-consent') return this.bizAiConsentForm();
+    if (act === 'ai-off') { (Store.state.settings ||= {}).bizAiConsent = false; Store.save(); this.renderBiz(); return toast('AI answers are off.'); }
+    if (act === 'snooze') { Biz.snoozeAlert(b.id, id); return this.renderBiz(); }
+    if (act === 'all-alerts') { this.bizAllAlerts = !this.bizAllAlerts; return this.renderBiz(); }
+    if (act === 'scan') return $('#bizReceiptFile')?.click();
+    if (act === 'view-receipt') { const e = Biz.find('bizExpenses', id); return this.form({ title: 'Receipt', save: 'Close', fields: [{ id: 'h', type: 'note', label: '', html: /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(e?.receiptThumb || '') ? `<img src="${escapeHTML(e.receiptThumb)}" alt="Receipt photo" class="mx-auto max-h-[60vh] rounded-lg">` : 'No photo.' }], onSave: () => {} }); }
+  },
   /* ---------- Tiffo Business phase 2 screens ---------- */
   bizOrders(b) {
     const os = Biz.of('bizOrders', b.id).sort((a, x) => x.date.localeCompare(a.date) || x.createdAt - a.createdAt);
@@ -9326,6 +9736,10 @@ const UI = {
       if (id === 'bizProj') { this.bizProj = +e.target.value; return this.renderBiz(); }
       if (id === 'bizBy') { this.bizBy = e.target.value; return this.renderBiz(); }
       if (id === 'bizTaxPer') { this.bizTaxPer = e.target.value; return this.renderBiz(); }
+      if (id === 'bizFc') { this.bizFc = +e.target.value; return this.renderBiz(); }
+      if (id === 'bizReceiptFile') { const f = e.target.files?.[0]; e.target.value = ''; return this.bizScanReceipt(f); }
+      if (id === 'bizMarginAlert') { b.marginAlert = Math.max(0, Math.min(100, +e.target.value || 0)); Store.save(); return this.renderBiz(); }
+      if (e.target.dataset.alertType) { const k = e.target.dataset.alertType, off = (b.alertsOff || []).filter((x) => x !== k); if (!e.target.checked) off.push(k); b.alertsOff = off; Store.save(); return this.renderBiz(); }
       if (id === 'posCust') { this.posCart.customerId = e.target.value; this.posCart.points = 0; return this.renderBiz(); }
       if (id === 'posLoc') { this.posCart.locationId = e.target.value || null; return this.renderBiz(); }
       if (id === 'posPromo') { this.posCart.promo = e.target.value.trim().toUpperCase(); return this.posRefresh(); }
@@ -9341,6 +9755,7 @@ const UI = {
       if (e.target.id === 'posPts') { const L = Biz.loyalty(Biz.current()), max = Biz.pointsOf(this.posCart.customerId); this.posCart.points = Math.max(0, Math.min(Math.floor(+e.target.value || 0), max)); return this.posRefresh(); }
       if (e.target.id === 'posSearch') { clearTimeout(this._posT); const v = e.target.value; this._posT = setTimeout(() => { this.posQ = v; this.renderBiz(); }, 180); return; }
       if (['bz_disc', 'bz_paid'].includes(e.target.id)) this.bizSellUpdate(); if (e.target.id === 'bizCustSearch') { const q = e.target.value.trim().toLowerCase(); for (const li of $$('#bizCustList [data-name]')) li.classList.toggle('hidden', !!q && !li.dataset.name.includes(q)); } });
+    root.addEventListener('submit', (e) => { if (e.target.id === 'bizTellForm') { e.preventDefault(); this.bizTell($('#bizTell').value); } });
     root.addEventListener('keydown', (e) => {   // barcode scanners type the code and press Enter
       if (e.target.id !== 'posSearch' || e.key !== 'Enter') return;
       e.preventDefault(); clearTimeout(this._posT);
@@ -9351,6 +9766,7 @@ const UI = {
     });
     root.addEventListener('click', async (e) => {
       const t = e.target.closest('[data-biztab]'); if (t) { this.bizTab = t.dataset.biztab; return this.renderBiz(); }
+      const a5 = e.target.closest('[data-biz5]'); if (a5) return this.bizAct5(a5.dataset.biz5, a5.dataset.id, a5);
       const a4 = e.target.closest('[data-biz4]'); if (a4) return this.bizAct4(a4.dataset.biz4, a4.dataset.id, a4);
       const a3 = e.target.closest('[data-biz3]'); if (a3) return this.bizAct3(a3.dataset.biz3, a3.dataset.id, a3);
       const a = e.target.closest('[data-biz]'); if (!a) return;
