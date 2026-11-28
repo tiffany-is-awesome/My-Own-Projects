@@ -3668,7 +3668,11 @@ const Biz = {
   balance(acc, upTo = '9999-12-31') {
     let x = acc.openingDate && acc.openingDate > upTo ? 0 : acc.opening || 0;
     for (const p of this.of('bizPayments', acc.bizId)) if (p.accountId === acc.id && p.date <= upTo) x += p.amount;
-    for (const e of this.of('bizExpenses', acc.bizId)) if (e.accountId === acc.id && e.date <= upTo) x -= e.amount;
+    for (const e of this.of('bizExpenses', acc.bizId)) if (e.accountId === acc.id && !e.unpaid && e.date <= upTo) x -= e.amount;
+    for (const p of this.of('bizSupplierPays', acc.bizId)) if (p.accountId === acc.id && p.date <= upTo) x -= p.amount;
+    for (const r of this.of('bizReturns', acc.bizId)) if (r.accountId === acc.id && r.date <= upTo) x -= r.refund || 0;
+    for (const l of this.of('bizLoans', acc.bizId)) if (l.accountId === acc.id && l.startDate <= upTo) x += l.principal;
+    for (const p of this.of('bizLoanPays', acc.bizId)) if (p.accountId === acc.id && p.date <= upTo) x -= p.amount;
     for (const o of this.of('bizOwner', acc.bizId)) if (o.accountId === acc.id && o.date <= upTo) x += o.dir === 'in' ? o.amount : -o.amount;
     for (const t of this.of('bizTransfers', acc.bizId)) if (t.date <= upTo) { if (t.from === acc.id) x -= t.amount; if (t.to === acc.id) x += t.amount; }
     return round2(x);
@@ -3679,8 +3683,10 @@ const Biz = {
   saveItem(bizId, v, item = null) {
     const x = item || { id: uid(), bizId, createdAt: Date.now() };
     Object.assign(x, { kind: v.kind === 'service' ? 'service' : 'product', name: String(v.name).trim().slice(0, 80), sku: (v.sku || '').trim().slice(0, 40), category: (v.category || '').trim().slice(0, 40),
-      unit: (v.unit || (v.kind === 'service' ? 'job' : 'pc')).trim().slice(0, 12), price: round2(+v.price || 0), cost: round2(+v.cost || 0), status: v.status || 'active', notes: (v.notes || '').slice(0, 500) });
+      unit: (v.unit || (v.kind === 'service' ? 'job' : 'pc')).trim().slice(0, 12), price: round2(+v.price || 0), cost: round2(+v.cost || 0), status: v.status || 'active', notes: (v.notes || '').slice(0, 500),
+      track: v.kind !== 'service' && !!v.track, reorder: Math.max(0, +v.reorder || 0), leadDays: Math.max(0, +v.leadDays || 0) || 14 });
     if (!item) this.col('bizItems').push(x);
+    if (!item && x.track && +v.opening > 0) this.move(bizId, { itemId: x.id, type: 'opening', qty: +v.opening, unitCost: x.cost, date: this.today(), reason: 'Starting stock' });
     Store.save(); return x;
   },
   items(bizId, all = false) { return this.of('bizItems', bizId).filter((i) => all || i.status !== 'archived'); },
@@ -3716,8 +3722,13 @@ const Biz = {
     if (!b) throw new Error('Pick a business first.');
     const lines = (s.lines || []).map((l) => {
       const it = l.itemId && this.find('bizItems', l.itemId);
-      return { itemId: l.itemId || null, name: String(l.name || it?.name || 'Item').slice(0, 80), qty: +l.qty, price: round2(+l.price), discount: round2(+l.discount || 0), unitCost: round2(l.unitCost != null ? +l.unitCost : it?.cost || 0) };
+      const avg = this.tracked?.(it) ? this.stockOf(it.id, s.date || this.today()).avg : 0;
+      return { itemId: l.itemId || null, name: String(l.name || it?.name || 'Item').slice(0, 80), qty: +l.qty, price: round2(+l.price), discount: round2(+l.discount || 0), unitCost: round2(this.tracked?.(it) && avg > 0 ? avg : l.unitCost != null ? +l.unitCost : it?.cost || 0) };
     }).filter((l) => l.qty > 0);
+    if (!s.allowNoStock && this.tracked) {   // selling more than you have needs a yes
+      const need = {}; for (const l of lines) if (l.itemId && this.tracked(this.find('bizItems', l.itemId))) need[l.itemId] = (need[l.itemId] || 0) + l.qty;
+      for (const [id, q] of Object.entries(need)) { const have = this.stockOf(id).qty; if (q > have + 0.0001) { const e = new Error(`Only ${have} ${this.find('bizItems', id).name} in stock.`); e.noStock = true; throw e; } }
+    }
     if (!lines.length) throw new Error('Add at least one item with a quantity.');
     for (const l of lines) { if (!this.money(l.price) || !(l.qty > 0 && l.qty < 1e7)) throw new Error(`Check the price and quantity of ${l.name}.`); }
     const tax = s.tax || b.tax || { mode: 'none', rate: 0 };
@@ -3732,12 +3743,14 @@ const Biz = {
     const sale = { id: uid(), bizId, kind, no: this.nextNo(b, kind), date: s.date || this.today(), dueDate: kind === 'invoice' ? s.dueDate || null : null,
       customerId: s.customerId || null, lines, discount: round2(+s.discount || 0), tax: { ...tax }, ...t, status: 'open', method: s.method || 'cash', channel: s.channel || '', notes: (s.notes || '').slice(0, 1000), createdAt: Date.now(), history: [] };
     this.col('bizSales').push(sale);
+    for (const l of lines) if (l.itemId && this.tracked?.(this.find('bizItems', l.itemId))) this.move(bizId, { itemId: l.itemId, type: 'sale', qty: -l.qty, unitCost: l.unitCost, date: sale.date, refType: 'sale', refId: sale.id, reason: sale.no });
     if (paid > 0) this.col('bizPayments').push({ id: uid(), bizId, saleId: sale.id, customerId: sale.customerId, date: sale.date, amount: paid, accountId: s.accountId, method: s.method || 'cash', createdAt: Date.now() });
     Store.save();
     return sale;
   },
   paidOn(sale) { return round2(this.col('bizPayments').filter((p) => p.saleId === sale.id).reduce((x, p) => x + p.amount, 0)); },
-  dueOn(sale) { return sale.status === 'void' ? 0 : Math.max(0, round2(sale.total - this.paidOn(sale))); },
+  /** Still owed = total − returned value − (paid − refunded in cash). */
+  dueOn(sale) { return sale.status === 'void' ? 0 : Math.max(0, round2(sale.total - (this.returnsValue?.(sale) || 0) - (this.paidOn(sale) - (this.refundedCash?.(sale) || 0)))); },
   payStatus(sale) {
     if (sale.status === 'void') return 'void';
     const paid = this.paidOn(sale), due = this.dueOn(sale);
@@ -3760,9 +3773,12 @@ const Biz = {
   voidSale(saleId, reason) {
     const sale = this.find('bizSales', saleId);
     if (!sale) return;
-    if (this.paidOn(sale) > 0) throw new Error('This sale has payments. Refunds come in the next update; for now, void only unpaid sales.');
+    if (this.paidOn(sale) > 0) throw new Error('This sale has payments: use Return / refund instead of void.');
+    if (this.col('bizReturns').some((r) => r.saleId === sale.id)) throw new Error('This sale has returns: it can’t be voided.');
     sale.history.push({ at: Date.now(), was: { status: sale.status }, reason: reason || '' });
-    sale.status = 'void'; Store.save();
+    sale.status = 'void';
+    for (const l of sale.lines) if (l.itemId && this.tracked?.(this.find('bizItems', l.itemId))) this.move(sale.bizId, { itemId: l.itemId, type: 'void', qty: l.qty, unitCost: l.unitCost, date: sale.date, refType: 'sale', refId: sale.id, reason: `${sale.no} voided` });
+    Store.save();
   },
   customerBalance(c) { return round2(this.of('bizSales', c.bizId).filter((s) => s.customerId === c.id).reduce((x, s) => x + this.dueOn(s), 0)); },
   receivables(bizId) { return round2(this.of('bizSales', bizId).reduce((x, s) => x + this.dueOn(s), 0)); },
@@ -3771,8 +3787,9 @@ const Biz = {
   addExpense(bizId, v) {
     const amt = round2(+v.amount);
     if (!(amt > 0) || !this.money(amt)) throw new Error('Type the amount.');
-    if (!this.find('bizAccounts', v.accountId)) throw new Error('Pick the account it was paid from.');
-    const e = { id: uid(), bizId, date: v.date || this.today(), amount: amt, category: BIZ_EXPENSE_CATS.includes(v.category) ? v.category : 'Other', vendor: (v.vendor || '').slice(0, 80), accountId: v.accountId, notes: (v.notes || '').slice(0, 500), createdAt: Date.now() };
+    if (!v.unpaid && !this.find('bizAccounts', v.accountId)) throw new Error('Pick the account it was paid from.');
+    const e = { id: uid(), bizId, date: v.date || this.today(), amount: amt, category: BIZ_EXPENSE_CATS.includes(v.category) ? v.category : 'Other', vendor: (v.vendor || '').slice(0, 80), accountId: v.unpaid ? null : v.accountId, notes: (v.notes || '').slice(0, 500), createdAt: Date.now(),
+      ...(v.unpaid ? { unpaid: true, supplierId: v.supplierId || null, dueDate: v.dueDate || null } : {}) };
     this.col('bizExpenses').push(e); Store.save(); return e;
   },
   /** Owner puts money in (dir 'in') or takes it out ('out'). Optional linked personal entry: a transfer on the personal side, never income or spending. */
@@ -3815,12 +3832,25 @@ const Biz = {
       const lineNet = (l) => l.qty * l.price - (l.discount || 0), base = s.lines.reduce((x, l) => x + lineNet(l), 0);
       for (const l of s.lines) { const k = l.itemId || l.name, r = (byItem[k] ||= { name: l.name, qty: 0, sales: 0, profit: 0 }); const rev = base > 0 ? s.revenue * (lineNet(l) / base) : 0; r.qty += l.qty; r.sales = round2(r.sales + rev); r.profit = round2(r.profit + rev - l.qty * l.unitCost); }
     }
-    const gross = round2(netSales - cogs), net = round2(gross - expenses);
+    // Phase 2: returns (on the return date), stock losses, loan interest, more cash movements
+    const rets = this.of('bizReturns', bizId).filter((r) => inR(r.date));
+    const returns = sum(rets, (r) => r.revenue), retTax = sum(rets, (r) => r.tax), cogsBack = sum(rets, (r) => r.cogsBack);
+    // damaged, expired and count corrections (a count that finds extra stock lowers the loss)
+    const stockLoss = sum(this.of('bizStock', bizId).filter((m) => inR(m.date) && ['damage', 'expired', 'adjust'].includes(m.type)), (m) => m.lossValue != null ? m.lossValue : -m.qty * (m.unitCost || 0));
+    if (stockLoss) { byCat['Stock losses'] = round2((byCat['Stock losses'] || 0) + stockLoss); }
+    const loanPays = this.of('bizLoanPays', bizId).filter((p) => inR(p.date)), interest = sum(loanPays, (p) => p.interest);
+    if (interest) byCat['Loan interest'] = round2((byCat['Loan interest'] || 0) + interest);
+    const allExp = round2(expenses + stockLoss + interest);
+    const netSales2 = round2(netSales - returns), cogs2 = round2(cogs - cogsBack);
+    const gross = round2(netSales2 - cogs2), net = round2(gross - allExp);
+    const supPays = sum(this.of('bizSupplierPays', bizId).filter((p) => inR(p.date)), (p) => p.amount), refunds = sum(rets, (r) => r.refund || 0);
+    const paidExp = sum(exps.filter((e) => !e.unpaid), (e) => e.amount);
     return {
-      from, to, count: sales.length, grossSales, discounts, tax, netSales, cogs, grossProfit: gross, expenses, byCat, netProfit: net,
-      grossMargin: netSales > 0 ? round2((gross / netSales) * 100) : null, netMargin: netSales > 0 ? round2((net / netSales) * 100) : null,
-      cashIn: sum(pays, (p) => p.amount), cashOut: expenses, ownerIn: sum(owner.filter((o) => o.dir === 'in'), (o) => o.amount), ownerOut: sum(owner.filter((o) => o.dir === 'out'), (o) => o.amount),
-      avgSale: sales.length ? round2(netSales / sales.length) : null, byItem: Object.values(byItem).sort((a, b) => b.sales - a.sales),
+      from, to, count: sales.length, grossSales, discounts, returns, tax: round2(tax - retTax), netSales: netSales2, cogs: cogs2, grossProfit: gross, expenses: allExp, byCat, netProfit: net,
+      cashOut: round2(paidExp + supPays + refunds), supplierPaid: supPays, refunds, loanIn: sum(this.of('bizLoans', bizId).filter((l) => inR(l.startDate)), (l) => l.principal), loanOut: sum(loanPays, (p) => p.amount),
+      grossMargin: netSales2 > 0 ? round2((gross / netSales2) * 100) : null, netMargin: netSales2 > 0 ? round2((net / netSales2) * 100) : null,
+      cashIn: sum(pays, (p) => p.amount), ownerIn: sum(owner.filter((o) => o.dir === 'in'), (o) => o.amount), ownerOut: sum(owner.filter((o) => o.dir === 'out'), (o) => o.amount),
+      avgSale: sales.length ? round2(netSales2 / sales.length) : null, byItem: Object.values(byItem).sort((a, b) => b.sales - a.sales),
     };
   },
   monthRange(offset = 0) { const d = new Date(); const s = new Date(d.getFullYear(), d.getMonth() + offset, 1), e = new Date(d.getFullYear(), d.getMonth() + offset + 1, 0); return [toISODate(s), offset === 0 ? this.today() : toISODate(e)]; },
@@ -3834,6 +3864,8 @@ const Biz = {
       today: this.report(bizId, today, today), week: this.report(bizId, wFrom, today), month: this.report(bizId, mFrom, mTo), prev: this.report(bizId, pFrom, pTo),
       cash: this.cash(bizId), accounts: this.accounts(bizId).map((a) => ({ a, bal: this.balance(a) })), receivables: this.receivables(bizId),
       overdue: open.filter((s) => s.dueDate && s.dueDate < today), unpaid: open,
+      low: this.lowStock ? this.lowStock(bizId) : [], payables: this.payables ? this.payables(bizId) : 0, orders: (Store.state.bizOrders || []).filter((o) => o.bizId === bizId && !o.saleId && !['cancelled', 'draft'].includes(o.status)),
+      position: this.position ? this.position(bizId) : null,
       recent: [...sales.map((s) => ({ date: s.date, at: s.createdAt, type: 'sale', s })), ...this.of('bizExpenses', bizId).map((e) => ({ date: e.date, at: e.createdAt, type: 'expense', e })), ...this.of('bizPayments', bizId).filter((p) => { const s = this.find('bizSales', p.saleId); return s && p.createdAt - s.createdAt > 1000; }).map((p) => ({ date: p.date, at: p.createdAt, type: 'payment', p }))]
         .sort((a, b) => b.date.localeCompare(a.date) || b.at - a.at).slice(0, 8),
     };
@@ -3856,6 +3888,250 @@ const Biz = {
     return rows.map((r) => r.map(q).join(',')).join('\n');
   },
 };
+
+/* =========================================================================
+   TIFFO BUSINESS — phase 2: stock, orders, suppliers & purchases, returns,
+   cash flow and business loans. Same rules as phase 1, plus:
+   • Perpetual stock with WEIGHTED-AVERAGE cost. Receiving stock is an asset
+     (inventory) and, if not paid yet, a debt to the supplier — never an
+     expense. Selling moves the average cost into cost of goods sold.
+   • Every stock change has a type, a reason and a record (bizStock).
+   • Orders aren't revenue until completed (then they become a sale/invoice).
+   • A return reduces sales on the return date; restocked items go back at
+     the cost they left with; damaged ones stay as a loss in cost of goods sold.
+   • Business loans reuse the personal loan maths (Debts.payment/periodRate):
+     the money borrowed isn't revenue; interest is an expense; principal isn't.
+   ========================================================================= */
+BIZ_ARRAYS.push('bizStock', 'bizOrders', 'bizSuppliers', 'bizPurchases', 'bizSupplierPays', 'bizReturns', 'bizLoans', 'bizLoanPays');
+if (!BIZ_EXPENSE_CATS.includes('Loan interest')) BIZ_EXPENSE_CATS.splice(BIZ_EXPENSE_CATS.length - 1, 0, 'Loan interest', 'Stock losses');
+const BIZ_ORDER_STATUSES = [['draft', 'Draft'], ['pending', 'Pending confirmation'], ['confirmed', 'Confirmed'], ['processing', 'Processing'], ['ready', 'Ready for pickup'], ['shipped', 'Shipped'], ['delivered', 'Delivered'], ['completed', 'Completed'], ['cancelled', 'Cancelled']];
+const BIZ_STOCK_TYPES = { opening: 'Starting stock', receive: 'Received from supplier', sale: 'Sold', return: 'Returned by customer', adjust: 'Count correction', damage: 'Damaged', expired: 'Expired', void: 'Sale voided' };
+
+Object.assign(Biz, {
+  /* ----- stock ----- */
+  /** Only products the owner chose to track (older products, saved before stock existed, aren't). */
+  tracked(i) { return !!i && i.kind === 'product' && i.track === true; },
+  moves(itemId, upTo = '9999-12-31') { return this.col('bizStock').filter((m) => m.itemId === itemId && m.date <= upTo).sort((a, b) => a.date.localeCompare(b.date) || a.at - b.at); },
+  /** On hand and weighted-average cost after every movement up to a date. */
+  stockOf(itemId, upTo) {
+    let qty = 0, avg = 0, value = 0;
+    for (const m of this.moves(itemId, upTo)) {
+      if (m.qty > 0) {                                                   // coming in: received at its cost, or returned/un-voided at the cost it left with
+        const c = m.unitCost != null ? m.unitCost : avg;
+        avg = qty + m.qty > 0 ? (Math.max(qty, 0) * avg + m.qty * c) / (Math.max(qty, 0) + m.qty) : c; qty += m.qty;
+      } else qty += m.qty;                                               // going out at the average cost
+      value = round2(Math.max(qty, 0) * avg);
+    }
+    return { qty: round2(qty), avg: round2(avg * 10000) / 10000, value };
+  },
+  move(bizId, m) {
+    const x = { id: uid(), bizId, at: Date.now(), ...m, qty: round2(+m.qty), unitCost: m.unitCost != null ? round2(+m.unitCost * 10000) / 10000 : undefined };
+    this.col('bizStock').push(x); return x;
+  },
+  /** Starting stock, a count correction, damage or expiry: always with a reason. */
+  adjustStock(bizId, itemId, v) {
+    const it = this.find('bizItems', itemId);
+    if (!this.tracked(it)) throw new Error('This item isn’t stock-tracked.');
+    const q = +v.qty; if (!q || !Number.isFinite(q)) throw new Error('Type how many.');
+    if (!(v.reason || '').trim() && v.type !== 'opening') throw new Error('Say why the stock changed.');
+    const cur = this.stockOf(itemId);
+    if (v.type === 'opening' || (v.type === 'adjust' && q > 0)) {
+      const cost = v.unitCost != null && v.unitCost !== '' ? +v.unitCost : it.cost || cur.avg;
+      this.move(bizId, { itemId, type: v.type, qty: Math.abs(q), unitCost: cost, date: v.date || this.today(), reason: v.reason || '' });
+    } else {
+      const n = Math.abs(q);
+      if (n > cur.qty + 0.0001) throw new Error(`Only ${cur.qty} in stock.`);
+      this.move(bizId, { itemId, type: ['damage', 'expired'].includes(v.type) ? v.type : 'adjust', qty: -n, unitCost: cur.avg, date: v.date || this.today(), reason: v.reason || '' });
+    }
+    Store.save();
+  },
+  /** Reserved = in open orders (confirmed → shipped). Available = on hand − reserved. */
+  reserved(itemId) { return round2(this.col('bizOrders').filter((o) => ['confirmed', 'processing', 'ready', 'shipped'].includes(o.status)).reduce((x, o) => x + o.lines.filter((l) => l.itemId === itemId).reduce((y, l) => y + l.qty, 0), 0)); },
+  incoming(itemId) { return round2(this.col('bizPurchases').filter((p) => ['sent', 'confirmed', 'partial'].includes(p.status)).reduce((x, p) => x + p.lines.filter((l) => l.itemId === itemId).reduce((y, l) => y + Math.max(0, l.qty - (l.received || 0) - (l.missing || 0)), 0), 0)); },
+  inventoryValue(bizId, upTo) { return round2(this.items(bizId, true).filter((i) => this.tracked(i)).reduce((x, i) => x + this.stockOf(i.id, upTo).value, 0)); },
+  lowStock(bizId) {
+    return this.items(bizId).filter((i) => this.tracked(i) && i.reorder > 0).map((i) => ({ i, s: this.stockOf(i.id), avail: round2(this.stockOf(i.id).qty - this.reserved(i.id)) })).filter((x) => x.avail <= x.i.reorder);
+  },
+  /** Suggested reorder: average daily sales (last 60 days) × lead time, plus the reorder level, minus what's available and coming. Null without enough history. */
+  suggestReorder(i) {
+    const from = toISODate(new Date(Date.now() - 60 * 864e5)), sold = -this.col('bizStock').filter((m) => m.itemId === i.id && m.type === 'sale' && m.date >= from).reduce((x, m) => x + m.qty, 0);
+    if (sold <= 0) return null;
+    const need = (sold / 60) * (i.leadDays || 14) + (i.reorder || 0) - (this.stockOf(i.id).qty - this.reserved(i.id)) - this.incoming(i.id);
+    return need > 0 ? Math.ceil(need) : 0;
+  },
+
+  /* ----- suppliers & purchases ----- */
+  saveSupplier(bizId, v, s = null) {
+    const x = s || { id: uid(), bizId, createdAt: Date.now() };
+    Object.assign(x, { name: String(v.name).trim().slice(0, 80), contact: (v.contact || '').slice(0, 120), address: (v.address || '').slice(0, 200), terms: +v.terms || 0, notes: (v.notes || '').slice(0, 1000) });
+    if (!s) this.col('bizSuppliers').push(x);
+    Store.save(); return x;
+  },
+  suppliers(bizId) { return this.of('bizSuppliers', bizId).filter((s) => !s.archived); },
+  /** A purchase order: nothing changes in stock or money until it's received / paid. */
+  createPurchase(bizId, v) {
+    const b = this.get(bizId);
+    if (!this.find('bizSuppliers', v.supplierId)) throw new Error('Pick the supplier.');
+    const lines = (v.lines || []).map((l) => ({ itemId: l.itemId, name: this.find('bizItems', l.itemId)?.name || l.name, qty: +l.qty, unitCost: round2(+l.unitCost), received: 0, damaged: 0, missing: 0 })).filter((l) => l.qty > 0);
+    if (!lines.length) throw new Error('Add at least one item.');
+    for (const l of lines) { if (!this.tracked(this.find('bizItems', l.itemId))) throw new Error(`${l.name} isn’t a stock item. Record other purchases as expenses.`); if (!this.money(l.unitCost)) throw new Error(`Check the cost of ${l.name}.`); }
+    const p = { id: uid(), bizId, no: 'PO-' + String(((b.next ||= {}).po = (b.next.po || 0) + 1)).padStart(4, '0'), supplierId: v.supplierId, date: v.date || this.today(), expected: v.expected || null,
+      dueDays: +v.dueDays || +this.find('bizSuppliers', v.supplierId).terms || 0, lines, shipping: round2(+v.shipping || 0), status: v.status || 'sent', notes: (v.notes || '').slice(0, 500), createdAt: Date.now(), history: [] };
+    this.col('bizPurchases').push(p); Store.save(); return p;
+  },
+  /** What we owe for a purchase = value of what actually arrived (incl. its share of shipping). */
+  purchaseBilled(p) {
+    const goods = p.lines.reduce((x, l) => x + (l.received + l.damaged) * l.unitCost, 0), ordered = p.lines.reduce((x, l) => x + l.qty * l.unitCost, 0);
+    return round2(goods + (ordered > 0 ? p.shipping * Math.min(1, goods / ordered) : 0));
+  },
+  /** Record a delivery: good items go into stock at cost (+ shipping share); damaged ones are billed but not sellable; missing ones aren't billed. */
+  receive(purchaseId, v) {
+    const p = this.find('bizPurchases', purchaseId);
+    if (!p || ['cancelled', 'received'].includes(p.status)) throw new Error('This purchase isn’t open.');
+    const ordered = p.lines.reduce((x, l) => x + l.qty * l.unitCost, 0), date = v.date || this.today();
+    let any = false;
+    p.lines.forEach((l, i) => {
+      const r = v.lines?.[i] || {}, good = +r.good || 0, bad = +r.damaged || 0, miss = +r.missing || 0;
+      if (good < 0 || bad < 0 || miss < 0) throw new Error('Quantities can’t be negative.');
+      if (l.received + l.damaged + l.missing + good + bad + miss > l.qty + 0.0001) throw new Error(`More than ordered for ${l.name}.`);
+      const cost = +(r.unitCost ?? l.unitCost);
+      if (r.unitCost != null && r.unitCost !== '' && Math.abs(cost - l.unitCost) > 0.0001) { p.history.push({ at: Date.now(), line: i, was: { unitCost: l.unitCost } }); l.unitCost = round2(cost); }
+      const landed = l.unitCost + (ordered > 0 ? p.shipping * (l.unitCost / ordered) : 0);
+      if (good) { this.move(p.bizId, { itemId: l.itemId, type: 'receive', qty: good, unitCost: landed, date, refType: 'purchase', refId: p.id, reason: p.no }); any = true; }
+      if (bad) {   // billed, but never sellable: in and straight out as damaged, so it shows as a stock loss
+        this.move(p.bizId, { itemId: l.itemId, type: 'damage', qty: 0, damagedQty: bad, lossValue: round2(bad * landed), unitCost: landed, date, refType: 'purchase', refId: p.id, reason: `${p.no}: ${bad} arrived damaged` }); any = true;
+      }
+      l.received += good; l.damaged += bad; l.missing += miss;
+    });
+    if (!any && !(v.lines || []).some((r) => +r?.missing)) throw new Error('Type what arrived.');
+    p.received = p.received || date; p.receivedLast = date;
+    const done = p.lines.every((l) => l.received + l.damaged + l.missing >= l.qty - 0.0001);
+    p.status = done ? 'received' : 'partial';
+    Store.save(); return p;
+  },
+  purchasePaid(p) { return round2(this.col('bizSupplierPays').filter((x) => x.purchaseId === p.id).reduce((s, x) => s + x.amount, 0)); },
+  purchaseDue(p) { return p.status === 'cancelled' ? 0 : Math.max(0, round2(this.purchaseBilled(p) - this.purchasePaid(p))); },
+  purchaseDueDate(p) { return p.received ? toISODate(new Date(new Date(p.received).getTime() + (p.dueDays || 0) * 864e5)) : null; },
+  /** Unpaid expense bills (expense.unpaid) count as owed to the supplier until paid. */
+  billDue(e) { return e.unpaid ? Math.max(0, round2(e.amount - this.col('bizSupplierPays').filter((x) => x.expenseId === e.id).reduce((s, x) => s + x.amount, 0))) : 0; },
+  paySupplier(bizId, v) {
+    const amt = round2(+v.amount), acc = this.find('bizAccounts', v.accountId);
+    if (!(amt > 0) || !this.money(amt)) throw new Error('Type the amount.');
+    if (!acc) throw new Error('Pick the account it was paid from.');
+    let due, supplierId;
+    if (v.purchaseId) { const p = this.find('bizPurchases', v.purchaseId); due = this.purchaseDue(p); supplierId = p.supplierId; }
+    else if (v.expenseId) { const e = this.find('bizExpenses', v.expenseId); due = this.billDue(e); supplierId = e.supplierId; }
+    else throw new Error('Pick what you’re paying.');
+    if (amt > due + 0.005) throw new Error(`Only ${fmt(due)} is owed on that.`);
+    const x = { id: uid(), bizId, supplierId, purchaseId: v.purchaseId || null, expenseId: v.expenseId || null, date: v.date || this.today(), amount: amt, accountId: acc.id, createdAt: Date.now() };
+    this.col('bizSupplierPays').push(x); Store.save(); return x;
+  },
+  payables(bizId) { return round2(this.of('bizPurchases', bizId).reduce((x, p) => x + this.purchaseDue(p), 0) + this.of('bizExpenses', bizId).reduce((x, e) => x + this.billDue(e), 0)); },
+  supplierBalance(s) { return round2(this.of('bizPurchases', s.bizId).filter((p) => p.supplierId === s.id).reduce((x, p) => x + this.purchaseDue(p), 0) + this.of('bizExpenses', s.bizId).filter((e) => e.supplierId === s.id).reduce((x, e) => x + this.billDue(e), 0)); },
+
+  /* ----- orders ----- */
+  createOrder(bizId, v) {
+    const b = this.get(bizId);
+    const lines = (v.lines || []).map((l) => { const it = l.itemId && this.find('bizItems', l.itemId); return { itemId: l.itemId || null, name: String(l.name || it?.name || 'Item').slice(0, 80), qty: +l.qty, price: round2(+l.price), discount: round2(+l.discount || 0) }; }).filter((l) => l.qty > 0);
+    if (!lines.length) throw new Error('Add at least one item.');
+    const o = { id: uid(), bizId, no: 'ORD-' + String(((b.next ||= {}).order = (b.next.order || 0) + 1)).padStart(4, '0'), date: v.date || this.today(), customerId: v.customerId || null, lines, discount: round2(+v.discount || 0),
+      status: v.status || 'confirmed', channel: v.channel || '', shipping: { address: v.address || '', courier: v.courier || '', tracking: '', fee: round2(+v.fee || 0) }, notes: (v.notes || '').slice(0, 500), saleId: null, createdAt: Date.now(),
+      history: [{ at: Date.now(), status: v.status || 'confirmed' }] };
+    o.total = this.totals(o.lines, o.discount, b.tax).total + o.shipping.fee;
+    this.col('bizOrders').push(o); Store.save(); return o;
+  },
+  setOrderStatus(id, status, extra = {}) {
+    const o = this.find('bizOrders', id);
+    if (!o || o.saleId || o.status === 'cancelled') throw new Error('This order is closed.');
+    Object.assign(o.shipping, extra.shipping || {});
+    o.status = status; o.history.push({ at: Date.now(), status, note: extra.note || '' }); Store.save(); return o;
+  },
+  /** Completing an order makes the sale (or invoice). Only now is it revenue and does stock leave. */
+  completeOrder(id, v = {}) {
+    const o = this.find('bizOrders', id);
+    if (!o || o.saleId || o.status === 'cancelled') throw new Error('This order is closed.');
+    const lines = [...o.lines]; if (o.shipping.fee) lines.push({ name: 'Delivery fee', qty: 1, price: o.shipping.fee });
+    const s = this.recordSale(o.bizId, { kind: v.kind || (v.paid >= 0 && v.paid < this.totals(lines, o.discount, this.get(o.bizId).tax).total ? 'invoice' : 'sale'), lines, customerId: o.customerId, discount: o.discount, paid: v.paid, accountId: v.accountId, method: v.method, date: v.date, dueDate: v.dueDate, channel: o.channel, notes: `Order ${o.no}`, allowBelowCost: v.allowBelowCost, allowNoStock: v.allowNoStock });
+    o.saleId = s.id; o.status = 'completed'; o.history.push({ at: Date.now(), status: 'completed', sale: s.no }); Store.save();
+    return s;
+  },
+
+  /* ----- returns & refunds ----- */
+  returnedQty(sale, i) { return this.col('bizReturns').filter((r) => r.saleId === sale.id).reduce((x, r) => x + r.lines.filter((l) => l.i === i).reduce((y, l) => y + l.qty, 0), 0); },
+  returnsValue(sale) { return round2(this.col('bizReturns').filter((r) => r.saleId === sale.id).reduce((x, r) => x + r.value, 0)); },
+  refundedCash(sale) { return round2(this.col('bizReturns').filter((r) => r.saleId === sale.id).reduce((x, r) => x + (r.refund || 0), 0)); },
+  /** Return items from a sale. Value = each line's share of what the customer was charged. refund = cash given back now; the rest lowers what they still owe. */
+  returnItems(saleId, v) {
+    const s = this.find('bizSales', saleId);
+    if (!s || s.status === 'void') throw new Error('That sale isn’t open.');
+    const lineNet = (l) => l.qty * l.price - (l.discount || 0), base = s.lines.reduce((x, l) => x + lineNet(l), 0);
+    const lines = (v.lines || []).map((r, i) => ({ i: r.i ?? i, qty: +r.qty || 0, restock: r.restock !== false })).filter((r) => r.qty > 0);
+    if (!lines.length) throw new Error('Say how many of which item came back.');
+    let value = 0, revenue = 0, tax = 0, cogsBack = 0, loss = 0;
+    for (const r of lines) {
+      const l = s.lines[r.i];
+      if (!l) throw new Error('That item isn’t on this sale.');
+      if (r.qty > l.qty - this.returnedQty(s, r.i) + 0.0001) throw new Error(`Only ${l.qty - this.returnedQty(s, r.i)} of ${l.name} can still be returned.`);
+      const share = base > 0 ? (lineNet(l) / base) * (r.qty / l.qty) : 0;
+      value += s.total * share; revenue += s.revenue * share; tax += s.tax * share;
+      if (r.restock && l.itemId && this.tracked(this.find('bizItems', l.itemId))) cogsBack += r.qty * l.unitCost; else loss += r.qty * l.unitCost;
+    }
+    value = round2(value);
+    const refund = round2(+v.refund || 0), paidNet = round2(this.paidOn(s) - this.refundedCash(s)), due = this.dueOn(s);
+    if (refund < 0 || refund > value + 0.005) throw new Error(`The refund can’t be more than the returned items are worth (${fmt(value)}).`);
+    if (refund > paidNet + 0.005) throw new Error(`Only ${fmt(paidNet)} was paid on this sale.`);
+    if (value - refund > due + 0.005) throw new Error(`The customer only owes ${fmt(due)}: refund at least ${fmt(round2(value - due))} in cash.`);
+    if (refund > 0 && !this.find('bizAccounts', v.accountId)) throw new Error('Pick the account the refund came from.');
+    const ret = { id: uid(), bizId: s.bizId, saleId, date: v.date || this.today(), lines, value, revenue: round2(revenue), tax: round2(tax), cogsBack: round2(cogsBack), loss: round2(loss), refund, accountId: refund > 0 ? v.accountId : null, reason: (v.reason || '').slice(0, 200), createdAt: Date.now() };
+    for (const r of lines) { const l = s.lines[r.i]; if (r.restock && l.itemId && this.tracked(this.find('bizItems', l.itemId))) this.move(s.bizId, { itemId: l.itemId, type: 'return', qty: r.qty, unitCost: l.unitCost, date: ret.date, refType: 'return', refId: ret.id, reason: ret.reason || s.no }); }
+    this.col('bizReturns').push(ret); Store.save(); return ret;
+  },
+
+  /* ----- business loans (reusing the personal loan maths) ----- */
+  addLoan(bizId, v) {
+    const amt = round2(+v.principal);
+    if (!(amt > 0) || !this.money(amt)) throw new Error('Type how much was borrowed.');
+    if (!this.find('bizAccounts', v.accountId)) throw new Error('Pick the account the money went into.');
+    const l = { id: uid(), bizId, lender: String(v.lender || 'Lender').trim().slice(0, 80), principal: amt, rate: +v.rate || 0, term: +v.term || 0, freq: v.freq || 'month', startDate: v.date || this.today(), accountId: v.accountId, createdAt: Date.now() };
+    this.col('bizLoans').push(l); Store.save(); return l;
+  },
+  loanOwed(l, upTo = '9999-12-31') { return Math.max(0, round2(l.principal - this.col('bizLoanPays').filter((p) => p.loanId === l.id && p.date <= upTo).reduce((x, p) => x + p.principal, 0))); },
+  loanPayment(l) { return Debts.payment({ principal: l.principal, term: l.term, rate: l.rate, freq: l.freq }); },
+  /** Split like the personal engine: interest = what's owed × the period rate (once per period); the rest pays down the loan. */
+  payLoan(loanId, v) {
+    const l = this.find('bizLoans', loanId), amt = round2(+v.amount), date = v.date || this.today();
+    if (!l) throw new Error('Loan not found.');
+    if (!(amt > 0)) throw new Error('Type the amount.');
+    if (!this.find('bizAccounts', v.accountId)) throw new Error('Pick the account it was paid from.');
+    const owed = this.loanOwed(l), month = date.slice(0, 7);
+    const already = round2(this.col('bizLoanPays').filter((p) => p.loanId === l.id && p.date.slice(0, 7) === month).reduce((x, p) => x + p.interest, 0));
+    const interest = v.interest != null && v.interest !== '' ? round2(+v.interest) : Math.min(amt, Math.max(0, round2(owed * Debts.periodRate(l)) - already));
+    const principal = round2(amt - interest);
+    if (principal > owed + 0.005) throw new Error(`Only ${fmt(owed)} is left on this loan.`);
+    const p = { id: uid(), bizId: l.bizId, loanId, date, amount: amt, interest, principal, accountId: v.accountId, createdAt: Date.now() };
+    this.col('bizLoanPays').push(p); Store.save(); return p;
+  },
+  loansOwed(bizId, upTo) { return round2(this.of('bizLoans', bizId).reduce((x, l) => x + this.loanOwed(l, upTo), 0)); },
+
+  /* ----- position & cash flow ----- */
+  /** What the business owns and owes (book values). */
+  position(bizId) {
+    const cash = this.cash(bizId), ar = this.receivables(bizId), inv = this.inventoryValue(bizId), ap = this.payables(bizId), loans = this.loansOwed(bizId);
+    return { cash, receivables: ar, inventory: inv, own: round2(cash + ar + inv), payables: ap, loans, owe: round2(ap + loans), net: round2(cash + ar + inv - ap - loans) };
+  },
+  /** Expected money in/out over the next days, from due dates (an estimate, not a promise). */
+  projection(bizId, days = 30) {
+    const today = this.today(), end = toISODate(new Date(Date.now() + days * 864e5)), cash = this.cash(bizId);
+    const ins = this.of('bizSales', bizId).filter((s) => this.dueOn(s) > 0).map((s) => ({ date: s.dueDate || today, amount: this.dueOn(s), label: `${s.no} · ${this.find('bizCustomers', s.customerId)?.name || 'customer'}`, late: !!s.dueDate && s.dueDate < today }));
+    const outs = [...this.of('bizPurchases', bizId).filter((p) => this.purchaseDue(p) > 0).map((p) => ({ date: this.purchaseDueDate(p) || today, amount: this.purchaseDue(p), label: `${p.no} · ${this.find('bizSuppliers', p.supplierId)?.name || 'supplier'}` })),
+      ...this.of('bizExpenses', bizId).filter((e) => this.billDue(e) > 0).map((e) => ({ date: e.dueDate || today, amount: this.billDue(e), label: `${e.category}${e.vendor ? ' · ' + e.vendor : ''}` })),
+      ...this.of('bizLoans', bizId).filter((l) => this.loanOwed(l) > 0 && this.loanPayment(l)).map((l) => ({ date: end, amount: Math.min(this.loanOwed(l), this.loanPayment(l) * Math.max(1, Math.round(days / 30))), label: `${l.lender} loan payments (estimate)` }))];
+    const inWin = (x) => x.date <= end;
+    const expIn = round2(ins.filter((x) => inWin(x) && !x.late).reduce((a, x) => a + x.amount, 0)), lateIn = round2(ins.filter((x) => x.late).reduce((a, x) => a + x.amount, 0));
+    const expOut = round2(outs.filter(inWin).reduce((a, x) => a + x.amount, 0));
+    return { cash, expIn, lateIn, expOut, end: round2(cash + expIn - expOut), withLate: round2(cash + expIn + lateIn - expOut), ins: ins.filter(inWin), outs: outs.filter(inWin), days };
+  },
+});
 
 /* =========================================================================
    INSIGHTS — plain-English answers on Home. Each one links to where it lives.
@@ -4526,7 +4802,8 @@ const NetWorth = {
 const Backup = {
   FORMAT: 1,
   ARRAYS: ['transactions', 'accounts', 'documents', 'reminders', 'budgets', 'customCategories', 'pockets', 'pocketMoves', 'loans', 'trash', 'plans', 'assets', 'holdings', 'bills', 'policies',
-    'businesses', 'bizAccounts', 'bizItems', 'bizCustomers', 'bizSales', 'bizPayments', 'bizExpenses', 'bizOwner', 'bizTransfers'],
+    'businesses', 'bizAccounts', 'bizItems', 'bizCustomers', 'bizSales', 'bizPayments', 'bizExpenses', 'bizOwner', 'bizTransfers',
+    'bizStock', 'bizOrders', 'bizSuppliers', 'bizPurchases', 'bizSupplierPays', 'bizReturns', 'bizLoans', 'bizLoanPays'],
   lastAt() { return Store.state.settings?.lastBackupAt || 0; },
 
   build() {
@@ -4639,7 +4916,7 @@ const Backup = {
     const byId = (key, fix = (x) => x) => { const have = new Set((st[key] ||= []).map((x) => x.id)); for (const x of d[key]) if (x.id && !have.has(x.id)) st[key].push(fix(x)); };
     byId('pocketMoves', (m) => ({ ...m, pocketId: pocketMap[m.pocketId] || m.pocketId }));
     byId('reminders'); byId('budgets'); byId('loans'); byId('documents'); byId('customCategories'); byId('plans', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('assets'); byId('holdings'); byId('bills', (x) => ({ ...x, accountId: accMap[x.accountId] || x.accountId })); byId('policies');
-    for (const k of ['businesses', 'bizAccounts', 'bizItems', 'bizCustomers', 'bizSales', 'bizPayments', 'bizExpenses', 'bizOwner', 'bizTransfers']) byId(k);   // business records: same id = same record
+    for (const k of BIZ_ARRAYS) byId(k);   // business records: same id = same record
     Store.adopt(st); Store.save();
     return { added, skipped };
   },
@@ -7228,7 +7505,7 @@ const UI = {
         <p class="mt-3 text-[11px] text-stone-400">Tiffo keeps records; it isn’t official tax filing or accounting advice.</p></div>`;
       return;
     }
-    const tabs = [['overview', 'Overview'], ['sell', 'Sell'], ['invoices', 'Sales & invoices'], ['customers', 'Customers'], ['products', 'Products & services'], ['expenses', 'Expenses'], ['reports', 'Reports'], ['settings', 'Settings']];
+    const tabs = [['overview', 'Overview'], ['sell', 'Sell'], ['invoices', 'Sales & invoices'], ['orders', 'Orders'], ['customers', 'Customers'], ['products', 'Products & services'], ['stock', 'Stock'], ['suppliers', 'Suppliers & purchases'], ['expenses', 'Expenses'], ['reports', 'Reports'], ['settings', 'Settings']];
     const others = Biz.list();
     root.innerHTML = `<div class="flex flex-wrap items-center justify-between gap-2">
         <label class="flex items-center gap-2 min-w-0"><span class="sr-only">Business</span>
@@ -7240,7 +7517,7 @@ const UI = {
       </nav>
       <div id="bizBody" class="mt-3"></div>`;
     const body = $('#bizBody');
-    const f = { overview: this.bizOverview, sell: this.bizSell, invoices: this.bizInvoices, customers: this.bizCustomers, products: this.bizProducts, expenses: this.bizExpensesView, reports: this.bizReports, settings: this.bizSettings }[this.bizTab] || this.bizOverview;
+    const f = { overview: this.bizOverview, sell: this.bizSell, invoices: this.bizInvoices, orders: this.bizOrders, customers: this.bizCustomers, products: this.bizProducts, stock: this.bizStock, suppliers: this.bizSuppliersView, expenses: this.bizExpensesView, reports: this.bizReports, settings: this.bizSettings }[this.bizTab] || this.bizOverview;
     body.innerHTML = f.call(this, b);
     if (this.bizTab === 'sell') this.bizSellUpdate();
   },
@@ -7248,9 +7525,11 @@ const UI = {
     const o = Biz.overview(b.id), m = o.month, p = o.prev;
     const vs = (a, x) => x > 0 ? ` <span class="${a >= x ? 'text-emerald-600' : 'text-rose-600'}">${a >= x ? '▲' : '▼'} ${Math.abs(Math.round(((a - x) / x) * 100))}% vs last month</span>` : '';
     const tile = (label, value, sub = '', help = '') => `<div class="rounded-xl border border-stone-200 dark:border-stone-800 p-3" ${help ? `title="${escapeHTML(help)}"` : ''}><div class="text-[11px] uppercase tracking-wide text-stone-500">${label}</div><div class="text-lg font-bold tabular">${value}</div>${sub ? `<div class="text-[11px] text-stone-500">${sub}</div>` : ''}</div>`;
-    const qa = [['sale', '🧾 Record a sale'], ['invoice', '📄 New invoice'], ['expense', '💸 Add expense'], ['customer', '👤 Add customer'], ['product', '📦 Add product'], ['owner', '🔁 Owner money']];
+    const qa = [['sale', '🧾 Record a sale'], ['invoice', '📄 New invoice'], ['order', '📋 New order'], ['expense', '💸 Add expense'], ['customer', '👤 Add customer'], ['product', '📦 Add product'], ['owner', '🔁 Owner money']];
     return `<div class="flex flex-wrap gap-2">${qa.map(([k, l]) => `<button type="button" data-biz="qa-${k}" class="rounded-xl border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 px-3 py-2 text-sm font-semibold">${l}</button>`).join('')}</div>
       ${o.overdue.length ? `<div class="mt-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-3 text-sm">⚠️ <b>${o.overdue.length} overdue ${o.overdue.length === 1 ? 'invoice' : 'invoices'}</b>, ${this.bizMoney(o.overdue.reduce((x, s) => x + Biz.dueOn(s), 0))} still owed. <button type="button" data-biztab="invoices" class="underline font-semibold">See them</button></div>` : ''}
+      ${o.low.length ? `<div class="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-sm">📦 <b>Running low:</b> ${o.low.slice(0, 4).map((x) => `${escapeHTML(x.i.name)} (${x.avail} left)`).join(', ')}${o.low.length > 4 ? ` and ${o.low.length - 4} more` : ''}. <button type="button" data-biztab="stock" class="underline font-semibold">See stock</button></div>` : ''}
+      ${o.orders.length ? `<div class="mt-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900 p-3 text-sm">📋 <b>${o.orders.length} open ${o.orders.length === 1 ? 'order' : 'orders'}</b> to fulfil. <button type="button" data-biztab="orders" class="underline font-semibold">See orders</button></div>` : ''}
       <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
         ${tile('Sales today', this.bizMoney(o.today.netSales), `${o.today.count} ${o.today.count === 1 ? 'sale' : 'sales'}`, 'Sales recorded today, excluding tax, whether paid or not.')}
         ${tile('Sales this month', this.bizMoney(m.netSales), `${m.count} sales${vs(m.netSales, p.netSales)}`, 'Revenue: sales recorded this month (excluding tax), paid or not.')}
@@ -7260,6 +7539,9 @@ const UI = {
         ${tile('Gross profit', this.bizMoney(m.grossProfit), m.grossMargin != null ? `${m.grossMargin}% of sales` : 'no sales yet', 'Sales minus what the items cost you.')}
         ${tile('Net profit', this.bizMoney(m.netProfit), 'this month (estimate)', 'Gross profit minus expenses. Owner money in/out isn’t profit or expense.')}
         ${tile('Cash & bank', this.bizMoney(o.cash), o.accounts.map((x) => `${escapeHTML(x.a.name)} ${this.bizMoney(x.bal)}`).join(' · '))}
+        ${o.position?.inventory ? tile('Stock value', this.bizMoney(o.position.inventory), 'at cost', 'What your stock cost you (average cost). Not what it will sell for.') : ''}
+        ${o.payables ? tile('You owe suppliers', this.bizMoney(o.payables), 'unpaid purchases and bills') : ''}
+        ${o.position?.loans ? tile('Business loans', this.bizMoney(o.position.loans), 'still owed') : ''}
       </div>
       <div class="mt-4 text-xs font-semibold text-stone-500">Recent</div>
       <ul class="mt-1 divide-y divide-stone-100 dark:divide-stone-800 text-sm">${o.recent.map((r) => {
@@ -7331,17 +7613,19 @@ const UI = {
     const t = d.lines.length ? Biz.totals(d.lines, d.discount, b.tax) : null;
     const paid = !t ? 0 : d.pay === 'full' ? t.total : d.pay === 'part' ? d.paid : 0;
     try {
-      const s = Biz.recordSale(b.id, { kind: d.kind, lines: d.lines, customerId: d.customerId, discount: d.discount, paid, accountId: d.accountId, method: d.method, date: d.date, dueDate: d.dueDate, notes: d.notes, allowBelowCost: d.allow });
+      const s = Biz.recordSale(b.id, { kind: d.kind, lines: d.lines, customerId: d.customerId, discount: d.discount, paid, accountId: d.accountId, method: d.method, date: d.date, dueDate: d.dueDate, notes: d.notes, allowBelowCost: d.allow, allowNoStock: this.bizDraft.allowNoStock });
       this.bizNewDraft(d.kind); this.bizDraft.bizId = b.id;
       this.renderBiz();
       toast(`✓ ${s.kind === 'invoice' ? 'Invoice' : 'Sale'} ${escapeHTML(s.no)} saved: ${fmt(s.total)}${Biz.dueOn(s) ? `, ${fmt(Biz.dueOn(s))} still owed` : ', paid'}.`, { action: { label: s.kind === 'invoice' ? 'View' : 'Undo', fn: () => (s.kind === 'invoice' ? this.bizViewSale(s.id) : this.bizUndoSale(s.id)) } });
     } catch (e) {
       if (e.belowCost && await askConfirm(`${e.message} Sell it anyway?`, 'Sell below cost')) { d.allow = true; return this.bizSaveSale(); }
+      if (e.noStock && await askConfirm(`${e.message} Tiffo will show negative stock until you record what arrived. Sell anyway?`, 'Sell anyway')) { this.bizDraft.allowNoStock = true; return this.bizSaveSale(); }
       $('#bz_err').textContent = e.message;
     }
   },
   bizUndoSale(id) {
     Store.state.bizPayments = Biz.col('bizPayments').filter((p) => p.saleId !== id);
+    Store.state.bizStock = Biz.col('bizStock').filter((m) => !(m.refType === 'sale' && m.refId === id));
     Store.state.bizSales = Biz.col('bizSales').filter((s) => s.id !== id);
     Store.save(); this.renderBiz(); toast('Sale removed.');
   },
@@ -7358,6 +7642,7 @@ const UI = {
           <div class="text-right tabular"><div class="font-semibold">${fmt(s.total)}</div>${due && st !== 'void' ? `<div class="text-[11px] text-rose-600">${fmt(due)} owed</div>` : ''}</div></div>
           <div class="mt-1 flex flex-wrap gap-2 text-xs">${due && st !== 'void' ? `<button type="button" data-biz="pay" data-id="${s.id}" class="rounded-lg bg-teal-600 text-white px-2.5 py-1 font-semibold">Record payment</button>` : ''}
           <button type="button" data-biz="view" data-id="${s.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">View / print</button>
+          ${st !== 'void' ? `<button type="button" data-biz="return" data-id="${s.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">Return / refund</button>` : ''}${Biz.returnsValue(s) ? `<span class="text-stone-500 self-center">↩ ${fmt(Biz.returnsValue(s))} returned</span>` : ''}
           ${st !== 'void' && !Biz.paidOn(s) ? `<button type="button" data-biz="void" data-id="${s.id}" class="text-stone-500 hover:text-rose-600 hover:underline">Void</button>` : ''}</div></li>`;
       }).join('') || '<li class="py-3 text-sm text-stone-500">No sales here yet.</li>'}</ul>`;
   },
@@ -7379,7 +7664,7 @@ const UI = {
       ${s.lines.map((l) => `<tr style="border-bottom:1px solid #e7e5e4"><td style="padding:6px 0">${e(l.name)}</td><td style="text-align:right">${l.qty}</td><td style="text-align:right">${e(fmt(l.price))}</td><td style="text-align:right">${e(fmt(l.qty * l.price - (l.discount || 0)))}</td></tr>`).join('')}</tbody></table>
       <table style="margin-left:auto;margin-top:12px;font-size:13px">${s.discount ? `<tr><td>Discount</td><td style="text-align:right;padding-left:24px">−${e(fmt(s.discount))}</td></tr>` : ''}
       ${s.tax.mode !== 'none' ? `<tr><td>Tax ${s.tax.rate}% ${s.tax.mode === 'inclusive' ? '(included)' : ''}</td><td style="text-align:right;padding-left:24px">${e(fmt(s.tax))}</td></tr>` : ''}
-      <tr style="font-weight:700;font-size:15px"><td>Total</td><td style="text-align:right;padding-left:24px">${e(fmt(s.total))}</td></tr><tr><td>Paid</td><td style="text-align:right;padding-left:24px">${e(fmt(Biz.paidOn(s)))}</td></tr><tr style="font-weight:700"><td>Balance due</td><td style="text-align:right;padding-left:24px">${e(fmt(Biz.dueOn(s)))}</td></tr></table>
+      <tr style="font-weight:700;font-size:15px"><td>Total</td><td style="text-align:right;padding-left:24px">${e(fmt(s.total))}</td></tr>${Biz.returnsValue(s) ? `<tr><td>Returned</td><td style="text-align:right;padding-left:24px">−${e(fmt(Biz.returnsValue(s)))}</td></tr>` : ''}<tr><td>Paid</td><td style="text-align:right;padding-left:24px">${e(fmt(round2(Biz.paidOn(s) - Biz.refundedCash(s))))}</td></tr><tr style="font-weight:700"><td>Balance due</td><td style="text-align:right;padding-left:24px">${e(fmt(Biz.dueOn(s)))}</td></tr></table>
       ${s.notes ? `<p style="margin-top:16px;font-size:12px">${e(s.notes)}</p>` : ''}
       <p style="margin-top:24px;font-size:10px;color:#a8a29e">Prepared with Tiffo. ${s.status === 'void' ? 'VOID. ' : ''}This document is not an official BIR receipt unless your business is registered to issue it this way.</p></div>`;
   },
@@ -7415,7 +7700,7 @@ const UI = {
     const items = Biz.items(b.id, true).sort((a, x) => (a.status === 'archived') - (x.status === 'archived') || a.name.localeCompare(x.name));
     return `<div class="flex justify-end"><button type="button" data-biz="qa-product" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">+ Product or service</button></div>
       <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${items.map((i) => { const m = Biz.margin(i); return `<li><button type="button" data-biz="item" data-id="${i.id}" class="w-full py-2.5 flex justify-between gap-2 text-left hover:bg-stone-50 dark:hover:bg-stone-800/50 rounded-lg px-1 ${i.status === 'archived' ? 'opacity-50' : ''}">
-        <span>${i.kind === 'service' ? '🛠️' : '📦'} <b>${escapeHTML(i.name)}</b>${i.sku ? ` <span class="text-[11px] text-stone-500">${escapeHTML(i.sku)}</span>` : ''}${i.status === 'archived' ? ' <span class="text-[11px]">(archived)</span>' : ''}</span>
+        <span>${i.kind === 'service' ? '🛠️' : '📦'} <b>${escapeHTML(i.name)}</b>${i.sku ? ` <span class="text-[11px] text-stone-500">${escapeHTML(i.sku)}</span>` : ''}${i.status === 'archived' ? ' <span class="text-[11px]">(archived)</span>' : ''}${Biz.tracked(i) ? ` <span class="text-[11px] text-stone-500">· ${Biz.stockOf(i.id).qty} in stock</span>` : ''}</span>
         <span class="text-right tabular text-sm">${fmt(i.price)}<div class="text-[11px] ${m != null && m < 0 ? 'text-rose-600' : 'text-stone-500'}">${i.cost ? `cost ${fmt(i.cost)} · ${m}% margin` : 'no cost set'}</div></span></button></li>`; }).join('') || '<li class="py-3 text-sm text-stone-500">Add what you sell, with your price and what it costs you, so Tiffo can work out profit.</li>'}</ul>`;
   },
   bizItemForm(i = null, after) {
@@ -7424,6 +7709,10 @@ const UI = {
       fields: [{ id: 'kind', label: 'Type', type: 'select', value: i?.kind || 'product', options: [['product', 'Product'], ['service', 'Service']] },
         { id: 'name', label: 'Name', value: i?.name || '', placeholder: 'e.g. Ensaymada (box of 6)' }, { id: 'price', label: 'Selling price', type: 'number', value: i?.price ?? '' },
         { id: 'cost', label: 'Your cost per unit', type: 'number', value: i?.cost ?? '', hint: 'Leave empty if you don’t know yet.' },
+        { id: 'track', type: 'checkbox', label: 'Track stock for this product', value: !!i?.track, show: (v) => v.kind === 'product', hint: 'Tiffo then counts what you have, warns when it runs low and uses the real average cost for profit.' },
+        ...(i ? [] : [{ id: 'opening', label: 'How many you have now', type: 'number', value: '', show: (v) => v.kind === 'product' && v.track }]),
+        { id: 'reorder', label: 'Warn me when it drops to', type: 'number', value: i?.reorder || '', show: (v) => v.kind === 'product' && v.track, advanced: true },
+        { id: 'leadDays', label: 'Days a supplier takes to deliver', type: 'number', value: i?.leadDays || '', show: (v) => v.kind === 'product' && v.track, advanced: true },
         { id: 'unit', label: 'Unit', value: i?.unit || '', placeholder: 'pc, box, kg, hour', advanced: true }, { id: 'sku', label: 'Code / SKU', value: i?.sku || '', advanced: true },
         { id: 'category', label: 'Category', value: i?.category || '', advanced: true }, { id: 'notes', label: 'Notes', type: 'textarea', value: i?.notes || '', advanced: true },
         ...(i ? [{ id: 'status', label: 'Status', type: 'select', value: i.status, options: [['active', 'Active'], ['archived', 'Archived (hidden when selling)']] }] : [])],
@@ -7439,16 +7728,18 @@ const UI = {
   bizExpensesView(b) {
     const ex = Biz.of('bizExpenses', b.id).sort((a, x) => x.date.localeCompare(a.date) || x.createdAt - a.createdAt);
     return `<div class="flex justify-end"><button type="button" data-biz="qa-expense" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">+ Expense</button></div>
-      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${ex.slice(0, 100).map((e) => `<li class="py-2.5 flex justify-between gap-2"><span><b>${escapeHTML(e.category)}</b>${e.vendor ? ' · ' + escapeHTML(e.vendor) : ''}<div class="text-[11px] text-stone-500">${escapeHTML(prettyDate(e.date))} · from ${escapeHTML(Biz.find('bizAccounts', e.accountId)?.name || '')}${e.notes ? ' · ' + escapeHTML(e.notes) : ''}</div></span>
+      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${ex.slice(0, 100).map((e) => `<li class="py-2.5 flex justify-between gap-2"><span><b>${escapeHTML(e.category)}</b>${e.vendor ? ' · ' + escapeHTML(e.vendor) : ''}<div class="text-[11px] text-stone-500">${escapeHTML(prettyDate(e.date))} · ${e.unpaid ? (Biz.billDue(e) ? `<span class="text-rose-600">unpaid bill, ${fmt(Biz.billDue(e))} to pay</span>` : 'bill, paid') : 'from ' + escapeHTML(Biz.find('bizAccounts', e.accountId)?.name || '')}${e.notes ? ' · ' + escapeHTML(e.notes) : ''}</div></span>
         <span class="flex items-start gap-2"><span class="tabular text-rose-600">−${fmt(e.amount)}</span><button type="button" data-biz="del-exp" data-id="${e.id}" class="text-stone-400 hover:text-rose-600" aria-label="Delete expense">🗑</button></span></li>`).join('') || '<li class="py-3 text-sm text-stone-500">No business expenses yet.</li>'}</ul>`;
   },
   bizExpenseForm() {
     const b = Biz.current(), accs = Biz.accounts(b.id);
     this.form({ title: 'Business expense', save: 'Save', sub: 'Only for the business. Personal spending goes in your personal Tiffo.',
       fields: [{ id: 'amount', label: 'Amount', type: 'number', value: '' }, { id: 'category', label: 'Category', type: 'select', value: 'Supplies', options: BIZ_EXPENSE_CATS.map((c) => [c, c]) },
-        { id: 'vendor', label: 'Paid to (vendor)', value: '' }, { id: 'acc', label: 'Paid from', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) },
+        { id: 'vendor', label: 'Paid to (vendor)', value: '' }, { id: 'unpaid', type: 'checkbox', label: 'Not paid yet (a bill to pay later)', value: false },
+        { id: 'acc', label: 'Paid from', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]), show: (v) => !v.unpaid },
+        { id: 'sup', label: 'Supplier', type: 'select', value: '', options: [['', '—'], ...Biz.suppliers(b.id).map((x) => [x.id, x.name])], show: (v) => v.unpaid }, { id: 'dueDate', label: 'Due by', type: 'date', value: '', show: (v) => v.unpaid },
         { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) }, { id: 'notes', label: 'Notes', value: '', advanced: true }],
-      onSave: (v) => { try { Biz.addExpense(b.id, { ...v, accountId: v.acc }); } catch (e) { return e.message; } this.renderBiz(); toast('💸 Expense saved.'); } });
+      onSave: (v) => { try { Biz.addExpense(b.id, { ...v, accountId: v.acc, supplierId: v.sup }); } catch (e) { return e.message; } this.renderBiz(); toast('💸 Expense saved.'); } });
   },
   bizOwnerForm() {
     const b = Biz.current(), accs = Biz.accounts(b.id), mine = Accounts.cashList ? Accounts.cashList() : Accounts.list();
@@ -7470,15 +7761,13 @@ const UI = {
         ${per === 'custom' ? `<input id="bizFrom" type="date" value="${from}" class="rounded-lg border px-2 py-1 text-sm bg-white dark:bg-stone-900 dark:border-stone-700"/> to <input id="bizTo" type="date" value="${to}" class="rounded-lg border px-2 py-1 text-sm bg-white dark:bg-stone-900 dark:border-stone-700"/>` : ''}
         <button type="button" data-biz="csv" data-from="${from}" data-to="${to}" class="ml-auto rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1.5 text-sm font-semibold">⬇ CSV for your accountant</button></div>
       <h4 class="mt-3 font-semibold">Profit & loss <span class="text-xs font-normal text-stone-500">${escapeHTML(prettyDate(from))} to ${escapeHTML(prettyDate(to))} · sales count on their date, paid or not</span></h4>
-      <table class="mt-1 w-full text-sm">${row('Gross sales', fmt(r.grossSales))}${r.discounts ? row('Discounts', '−' + fmt(r.discounts)) : ''}${r.tax ? row('Tax collected (owed to government, not income)', '−' + fmt(r.tax), 'text-stone-500') : ''}
+      <table class="mt-1 w-full text-sm">${row('Gross sales', fmt(r.grossSales))}${r.discounts ? row('Discounts', '−' + fmt(r.discounts)) : ''}${r.returns ? row('Returns', '−' + fmt(r.returns), '', 'Returned items, counted on the return date.') : ''}${r.tax ? row('Tax collected (owed to government, not income)', '−' + fmt(r.tax), 'text-stone-500') : ''}
         ${row('<b>Net sales</b>', `<b>${fmt(r.netSales)}</b>`, 'border-t border-stone-200 dark:border-stone-700')}${row('Cost of goods sold', '−' + fmt(r.cogs), '', 'What the items you sold cost you (from each product’s cost when sold).')}
         ${row('<b>Gross profit</b>', `<b>${fmt(r.grossProfit)}</b>${r.grossMargin != null ? ` <span class="text-xs text-stone-500">(${r.grossMargin}%)</span>` : ''}`, 'border-t border-stone-200 dark:border-stone-700')}
-        ${Object.entries(r.byCat).map(([c, v]) => row(`<span class="pl-3">${escapeHTML(c)}</span>`, '−' + fmt(v), 'text-stone-600 dark:text-stone-400')).join('')}${row('Operating expenses', '−' + fmt(r.expenses))}
+        ${Object.entries(r.byCat).map(([c, v]) => row(`<span class="pl-3">${escapeHTML(c)}</span>`, '−' + fmt(v), 'text-stone-600 dark:text-stone-400')).join('')}${row('Expenses', '−' + fmt(r.expenses))}
         ${row(`<b>Net profit${r.netProfit < 0 ? ' (loss)' : ''}</b>`, `<b class="${r.netProfit < 0 ? 'text-rose-600' : 'text-emerald-600'}">${fmt(r.netProfit)}</b>${r.netMargin != null ? ` <span class="text-xs text-stone-500">(${r.netMargin}%)</span>` : ''}`, 'border-t-2 border-stone-300 dark:border-stone-600')}</table>
       ${r.cogs === 0 && r.netSales > 0 ? '<p class="mt-1 text-xs text-amber-700 dark:text-amber-400">No product costs set, so gross profit may look higher than it really is. Add costs in Products & services.</p>' : ''}
-      <h4 class="mt-4 font-semibold">Cash <span class="text-xs font-normal text-stone-500">money that actually moved</span></h4>
-      <table class="mt-1 w-full text-sm">${row('Received from customers', fmt(r.cashIn))}${row('Paid for expenses', '−' + fmt(r.cashOut))}${r.ownerIn ? row('You put in (not income)', fmt(r.ownerIn)) : ''}${r.ownerOut ? row('You took out (not an expense)', '−' + fmt(r.ownerOut)) : ''}
-        ${row('Customers still owe you (all time)', fmt(Biz.receivables(b.id)), 'text-stone-500')}</table>
+      ${this.bizCashBlock(b, r)}
       ${r.byItem.length ? `<h4 class="mt-4 font-semibold">Best sellers</h4><table class="mt-1 w-full text-sm"><tr class="text-xs text-stone-500"><td>Item</td><td class="text-right">Qty</td><td class="text-right">Sales</td><td class="text-right">Profit</td></tr>${r.byItem.slice(0, 10).map((x) => `<tr><td class="py-1">${escapeHTML(x.name)}</td><td class="text-right tabular">${x.qty}</td><td class="text-right tabular">${fmt(x.sales)}</td><td class="text-right tabular">${fmt(x.profit)}</td></tr>`).join('')}</table>` : ''}
       ${r.avgSale != null ? `<p class="mt-3 text-xs text-stone-500">Average sale ${fmt(r.avgSale)} over ${r.count} sales.</p>` : ''}
       <p class="mt-3 text-[11px] text-stone-400">Records to help you and your accountant; not official tax filing or advice.</p>`;
@@ -7492,7 +7781,171 @@ const UI = {
       <div class="rounded-xl border border-stone-200 dark:border-stone-800 p-3"><div class="font-semibold">Business accounts</div>
         <ul class="mt-1 text-sm">${accs.map((a) => `<li class="flex justify-between"><span>${escapeHTML(a.name)}</span><span class="tabular">${fmt(Biz.balance(a))}</span></li>`).join('')}</ul>
         <div class="mt-2 flex flex-wrap gap-2"><button type="button" data-biz="add-acc" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">+ Account</button><button type="button" data-biz="move" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">Move between accounts</button><button type="button" data-biz="qa-owner" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">Owner money</button></div></div></div>
+      ${this.bizLoansBlock(b)}
       <button type="button" data-biz="delete" class="mt-4 text-sm text-rose-700 dark:text-rose-400 hover:underline">Delete this business…</button>`;
+  },
+  /* ---------- Tiffo Business phase 2 screens ---------- */
+  bizOrders(b) {
+    const os = Biz.of('bizOrders', b.id).sort((a, x) => x.date.localeCompare(a.date) || x.createdAt - a.createdAt);
+    const open = os.filter((o) => !o.saleId && o.status !== 'cancelled');
+    const label = Object.fromEntries(BIZ_ORDER_STATUSES);
+    return `<div class="flex flex-wrap items-center justify-between gap-2"><span class="text-sm">${open.length} open ${open.length === 1 ? 'order' : 'orders'} · not counted as sales until completed</span>
+        <button type="button" data-biz="qa-order" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">+ Order</button></div>
+      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${os.map((o) => `<li class="py-2.5"><div class="flex flex-wrap justify-between gap-2"><div><b>${escapeHTML(o.no)}</b> · ${escapeHTML(Biz.find('bizCustomers', o.customerId)?.name || 'Walk-in')}
+          <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold ${o.saleId ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' : o.status === 'cancelled' ? 'bg-stone-100 text-stone-400 line-through dark:bg-stone-800' : 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300'}">${escapeHTML(label[o.status] || o.status)}</span>
+          <div class="text-[11px] text-stone-500">${escapeHTML(prettyDate(o.date))} · ${o.lines.map((l) => `${l.qty}× ${escapeHTML(l.name)}`).join(', ')}${o.shipping.courier ? ` · ${escapeHTML(o.shipping.courier)} ${escapeHTML(o.shipping.tracking || '')}` : ''}${o.saleId ? ` · became ${escapeHTML(Biz.find('bizSales', o.saleId)?.no || '')}` : ''}</div></div>
+          <div class="tabular font-semibold">${fmt(o.total)}</div></div>
+        ${!o.saleId && o.status !== 'cancelled' ? `<div class="mt-1 flex flex-wrap items-center gap-2 text-xs">
+          <select data-order-status="${o.id}" aria-label="Order status" class="rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-2 py-1">${BIZ_ORDER_STATUSES.filter(([k]) => !['completed'].includes(k)).map(([k, l]) => `<option value="${k}" ${o.status === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <button type="button" data-biz="ship" data-id="${o.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">Delivery details</button>
+          <button type="button" data-biz="complete" data-id="${o.id}" class="rounded-lg bg-teal-600 text-white px-2.5 py-1 font-semibold">Complete → sale</button></div>` : ''}</li>`).join('') || '<li class="py-3 text-sm text-stone-500">No orders yet. Orders hold stock for a customer; completing one records the sale.</li>'}</ul>`;
+  },
+  bizStock(b) {
+    const items = Biz.items(b.id).filter((i) => Biz.tracked(i));
+    const total = Biz.inventoryValue(b.id);
+    return `<div class="flex flex-wrap items-center justify-between gap-2 text-sm"><span>Stock value <b class="tabular">${fmt(total)}</b> <span class="text-[11px] text-stone-500">(at average cost, not selling price)</span></span>
+        <button type="button" data-biz="qa-product" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold">+ Product</button></div>
+      <ul class="mt-2 divide-y divide-stone-100 dark:divide-stone-800">${items.map((i) => {
+        const st = Biz.stockOf(i.id), res = Biz.reserved(i.id), inc = Biz.incoming(i.id), avail = round2(st.qty - res), low = i.reorder > 0 && avail <= i.reorder, sug = low ? Biz.suggestReorder(i) : null;
+        return `<li class="py-2.5"><div class="flex flex-wrap justify-between gap-2"><div><b>${escapeHTML(i.name)}</b> ${low ? '<span class="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-2 py-0.5 text-[11px] font-semibold">Low</span>' : ''}${st.qty <= 0 ? ' <span class="rounded-full bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 px-2 py-0.5 text-[11px] font-semibold">Out of stock</span>' : ''}
+          <div class="text-[11px] text-stone-500">On hand ${st.qty} · held for orders ${res} · available ${avail}${inc ? ` · coming ${inc}` : ''} · avg cost ${fmt(st.avg)}${i.reorder ? ` · reorder at ${i.reorder}` : ''}${sug ? ` · suggested order: ${sug} (from the last 60 days of sales)` : ''}</div></div>
+          <div class="tabular text-sm">${fmt(st.value)}</div></div>
+          <div class="mt-1 flex gap-2 text-xs"><button type="button" data-biz="adjust" data-id="${i.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">Adjust stock</button><button type="button" data-biz="moves" data-id="${i.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">History</button></div></li>`;
+      }).join('') || '<li class="py-3 text-sm text-stone-500">No stock items yet. Turn on “Track stock” on a product to count it here.</li>'}</ul>`;
+  },
+  bizAdjustForm(itemId) {
+    const it = Biz.find('bizItems', itemId), st = Biz.stockOf(itemId);
+    this.form({ title: `Adjust stock: ${it.name}`, save: 'Save', sub: `On hand now: ${st.qty}. Every change is kept in the item’s history with its reason.`,
+      fields: [{ id: 'type', label: 'What happened', type: 'select', value: 'adjust', options: [['opening', 'Add starting stock'], ['adjust', 'Count correction (+ or −)'], ['damage', 'Damaged'], ['expired', 'Expired']] },
+        { id: 'qty', label: 'How many (use − to lower a count)', type: 'number', value: '' }, { id: 'cost', label: 'Cost per unit', type: 'number', value: it.cost || '', show: (v) => v.type === 'opening' || (v.type === 'adjust' && v.qty > 0) },
+        { id: 'reason', label: 'Reason', value: '', placeholder: 'e.g. counted on Friday', show: (v) => v.type !== 'opening' }, { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()), advanced: true }],
+      onSave: (v) => { try { Biz.adjustStock(Biz.current().id, itemId, { type: v.type, qty: v.type === 'adjust' ? v.qty : Math.abs(v.qty || 0), unitCost: v.cost, reason: v.reason, date: v.date }); } catch (e) { return e.message; } this.renderBiz(); toast('📦 Stock updated.'); } });
+  },
+  bizMovesView(itemId) {
+    const it = Biz.find('bizItems', itemId);
+    const rows = Biz.moves(itemId).reverse().slice(0, 60).map((m) => `<div class="flex justify-between gap-2 py-0.5"><span>${escapeHTML(m.date)} · ${escapeHTML(BIZ_STOCK_TYPES[m.type] || m.type)}${m.reason ? ' · ' + escapeHTML(m.reason) : ''}</span><span class="tabular ${m.qty < 0 ? 'text-rose-600' : 'text-emerald-600'}">${m.damagedQty ? `${m.damagedQty} damaged` : (m.qty > 0 ? '+' : '') + m.qty}</span></div>`).join('');
+    this.form({ title: `${it.name}: stock history`, save: 'Close', fields: [{ id: 'h', type: 'note', label: '', html: `<div class="text-xs max-h-[50vh] overflow-auto">${rows || 'No changes yet.'}</div>` }], onSave: () => {} });
+  },
+  bizSuppliersView(b) {
+    const sups = Biz.suppliers(b.id), pos = Biz.of('bizPurchases', b.id).sort((a, x) => x.date.localeCompare(a.date)), bills = Biz.of('bizExpenses', b.id).filter((e) => Biz.billDue(e) > 0);
+    const badge = (p) => ({ draft: 'Draft', sent: 'Ordered', confirmed: 'Confirmed', partial: 'Part received', received: 'Received', cancelled: 'Cancelled' })[p.status];
+    return `<div class="flex flex-wrap items-center justify-between gap-2"><span class="text-sm">You owe suppliers <b class="tabular">${fmt(Biz.payables(b.id))}</b></span>
+        <div class="flex gap-2"><button type="button" data-biz="supplier" class="rounded-xl border border-stone-200 dark:border-stone-700 px-3 py-2 text-sm font-semibold">+ Supplier</button><button type="button" data-biz="po" class="rounded-xl bg-teal-600 text-white px-3 py-2 text-sm font-semibold">+ Purchase order</button></div></div>
+      <div class="mt-3 text-xs font-semibold text-stone-500">Purchase orders</div>
+      <ul class="divide-y divide-stone-100 dark:divide-stone-800">${pos.map((p) => { const due = Biz.purchaseDue(p), dd = Biz.purchaseDueDate(p); return `<li class="py-2.5"><div class="flex flex-wrap justify-between gap-2"><div><b>${escapeHTML(p.no)}</b> · ${escapeHTML(Biz.find('bizSuppliers', p.supplierId)?.name || '')} <span class="text-[11px] rounded-full bg-stone-100 dark:bg-stone-800 px-2 py-0.5">${badge(p)}</span>
+          <div class="text-[11px] text-stone-500">${escapeHTML(prettyDate(p.date))}${p.expected ? ` · expected ${escapeHTML(prettyDate(p.expected))}` : ''} · ${p.lines.map((l) => `${l.received}/${l.qty} ${escapeHTML(l.name)}`).join(', ')}${due && dd ? ` · pay by ${escapeHTML(prettyDate(dd))}` : ''}</div></div>
+          <div class="text-right tabular text-sm">${fmt(Biz.purchaseBilled(p))} billed${due ? `<div class="text-[11px] text-rose-600">${fmt(due)} to pay</div>` : ''}</div></div>
+          <div class="mt-1 flex gap-2 text-xs">${['sent', 'confirmed', 'partial', 'draft'].includes(p.status) ? `<button type="button" data-biz="receive" data-id="${p.id}" class="rounded-lg bg-teal-600 text-white px-2.5 py-1 font-semibold">Receive items</button>` : ''}
+          ${due ? `<button type="button" data-biz="paysup" data-id="${p.id}" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 font-semibold">Pay supplier</button>` : ''}
+          ${['draft', 'sent', 'confirmed'].includes(p.status) && !p.lines.some((l) => l.received || l.damaged) ? `<button type="button" data-biz="cancelpo" data-id="${p.id}" class="text-stone-500 hover:underline">Cancel</button>` : ''}</div></li>`; }).join('') || '<li class="py-2 text-sm text-stone-500">No purchase orders.</li>'}</ul>
+      ${bills.length ? `<div class="mt-3 text-xs font-semibold text-stone-500">Unpaid bills</div><ul class="divide-y divide-stone-100 dark:divide-stone-800">${bills.map((e) => `<li class="py-2 flex justify-between gap-2 text-sm"><span>${escapeHTML([e.category, Biz.find('bizSuppliers', e.supplierId)?.name || e.vendor].filter(Boolean).join(' · '))}${e.dueDate ? ` · due ${escapeHTML(prettyDate(e.dueDate))}` : ''}</span><span><span class="tabular">${fmt(Biz.billDue(e))}</span> <button type="button" data-biz="paybill" data-id="${e.id}" class="ml-2 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-0.5 text-xs font-semibold">Pay</button></span></li>`).join('')}</ul>` : ''}
+      <div class="mt-3 text-xs font-semibold text-stone-500">Suppliers</div>
+      <ul class="divide-y divide-stone-100 dark:divide-stone-800">${sups.map((s) => `<li><button type="button" data-biz="supplier" data-id="${s.id}" class="w-full py-2 flex justify-between text-left text-sm"><span><b>${escapeHTML(s.name)}</b>${s.terms ? ` <span class="text-[11px] text-stone-500">pay within ${s.terms} days</span>` : ''}</span><span class="tabular ${Biz.supplierBalance(s) ? 'text-rose-600' : 'text-stone-400'}">${Biz.supplierBalance(s) ? fmt(Biz.supplierBalance(s)) + ' owed' : 'Nothing owed'}</span></button></li>`).join('') || '<li class="py-2 text-sm text-stone-500">No suppliers yet.</li>'}</ul>`;
+  },
+  bizSupplierForm(s = null, after) {
+    const b = Biz.current();
+    this.form({ title: s ? s.name : 'New supplier', save: 'Save', fields: [{ id: 'name', label: 'Name', value: s?.name || '' }, { id: 'contact', label: 'Phone / email', value: s?.contact || '' },
+      { id: 'terms', label: 'Pay within (days)', type: 'number', value: s?.terms ?? '', hint: '0 or empty = pay on delivery.' }, { id: 'address', label: 'Address', value: s?.address || '', advanced: true }, { id: 'notes', label: 'Notes', type: 'textarea', value: s?.notes || '', placeholder: 'e.g. Ask about bulk discounts', advanced: true }],
+      onSave: (v) => { if (!v.name?.trim()) return 'Type the supplier’s name.'; const x = Biz.saveSupplier(b.id, v, s); this.renderBiz(); after?.(x); } });
+  },
+  bizPOForm() {
+    const b = Biz.current(), sups = Biz.suppliers(b.id), items = Biz.items(b.id).filter((i) => Biz.tracked(i));
+    if (!sups.length) return this.bizSupplierForm(null, () => this.bizPOForm());
+    if (!items.length) return toast('Add the products you buy first (Products & services).');
+    const lineFields = [0, 1, 2, 3].flatMap((n) => [
+      { id: `it${n}`, label: n ? `Item ${n + 1} (optional)` : 'Item', type: 'select', value: '', options: [['', '—'], ...items.map((i) => [i.id, i.name])], ...(n ? { advanced: n > 1 } : {}) },
+      { id: `q${n}`, label: 'Quantity', type: 'number', value: '', show: (v) => !!v[`it${n}`] }, { id: `c${n}`, label: 'Cost each', type: 'number', value: '', show: (v) => !!v[`it${n}`], hint: n === 0 ? 'Leave empty to use the product’s cost.' : '' }]);
+    this.form({ title: 'Purchase order', save: 'Create order', sub: 'Nothing changes in your stock or money until the items arrive and you pay.',
+      fields: [{ id: 'sup', label: 'Supplier', type: 'select', value: sups[0].id, options: sups.map((s) => [s.id, s.name]) }, ...lineFields,
+        { id: 'ship', label: 'Shipping cost', type: 'number', value: '', advanced: true }, { id: 'expected', label: 'Expected delivery', type: 'date', value: '', advanced: true }, { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()), advanced: true }],
+      onSave: (v) => {
+        const lines = [0, 1, 2, 3].filter((n) => v[`it${n}`]).map((n) => ({ itemId: v[`it${n}`], qty: v[`q${n}`], unitCost: v[`c${n}`] != null && v[`c${n}`] !== '' ? v[`c${n}`] : Biz.find('bizItems', v[`it${n}`]).cost }));
+        try { const p = Biz.createPurchase(b.id, { supplierId: v.sup, lines, shipping: v.ship, expected: v.expected, date: v.date }); this.renderBiz(); toast(`🧾 ${escapeHTML(p.no)} created.`); } catch (e) { return e.message; }
+      } });
+  },
+  bizReceiveForm(id) {
+    const p = Biz.find('bizPurchases', id);
+    const fields = p.lines.flatMap((l, i) => { const left = round2(l.qty - l.received - l.damaged - l.missing); return left > 0 ? [
+      { id: `g${i}`, label: `${l.name}: arrived in good condition (of ${left})`, type: 'number', value: left }, { id: `d${i}`, label: 'Damaged', type: 'number', value: '', advanced: true }, { id: `m${i}`, label: 'Missing (won’t be billed)', type: 'number', value: '', advanced: true },
+      { id: `c${i}`, label: 'Actual cost each', type: 'number', value: l.unitCost, advanced: true }] : []; });
+    this.form({ title: `Receive ${p.no}`, save: 'Add to stock', sub: 'Good items go into stock at their cost (plus a share of shipping). You then owe the supplier for what arrived. It isn’t an expense.',
+      fields: [...fields, { id: 'date', label: 'Date received', type: 'date', value: toISODate(new Date()) }],
+      onSave: (v) => { try { Biz.receive(id, { date: v.date, lines: p.lines.map((l, i) => ({ good: v[`g${i}`], damaged: v[`d${i}`], missing: v[`m${i}`], unitCost: v[`c${i}`] })) }); } catch (e) { return e.message; } this.renderBiz(); toast('📦 Stock received.'); } });
+  },
+  bizPaySupplierForm(kind, id) {
+    const b = Biz.current(), accs = Biz.accounts(b.id), due = kind === 'po' ? Biz.purchaseDue(Biz.find('bizPurchases', id)) : Biz.billDue(Biz.find('bizExpenses', id));
+    this.form({ title: 'Pay supplier', save: 'Record payment', sub: `${fmt(due)} owed. Paying lowers what you owe; the cost was already counted when the goods arrived (or the bill was recorded).`,
+      fields: [{ id: 'amount', label: 'Amount', type: 'number', value: due }, { id: 'acc', label: 'Paid from', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) }, { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) }],
+      onSave: (v) => { try { Biz.paySupplier(b.id, { amount: v.amount, accountId: v.acc, date: v.date, [kind === 'po' ? 'purchaseId' : 'expenseId']: id }); } catch (e) { return e.message; } this.renderBiz(); toast('✓ Supplier payment recorded.'); } });
+  },
+  bizReturnForm(saleId) {
+    const s = Biz.find('bizSales', saleId), b = Biz.current(), accs = Biz.accounts(b.id), paidNet = round2(Biz.paidOn(s) - Biz.refundedCash(s));
+    const fields = s.lines.flatMap((l, i) => { const left = l.qty - Biz.returnedQty(s, i); return left > 0 ? [{ id: `q${i}`, label: `${l.name}: how many came back (of ${left})`, type: 'number', value: '' }, ...(l.itemId && Biz.tracked(Biz.find('bizItems', l.itemId)) ? [{ id: `r${i}`, type: 'checkbox', label: 'Put back into stock (uncheck if damaged)', value: true, show: (v) => v[`q${i}`] > 0 }] : [])] : []; });
+    if (!fields.length) return toast('Everything on this sale was already returned.');
+    this.form({ title: `Return on ${s.no}`, save: 'Record return', sub: `Returns lower your sales on the return date. Paid so far: ${fmt(paidNet)}; still owed: ${fmt(Biz.dueOn(s))}. What you don’t refund in cash lowers what the customer owes.`,
+      fields: [...fields, { id: 'refund', label: 'Cash refunded now', type: 'number', value: '', hint: 'Leave empty if nothing was handed back.' }, { id: 'acc', label: 'Refunded from', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]), show: (v) => v.refund > 0 },
+        { id: 'reason', label: 'Reason', value: '', placeholder: 'e.g. wrong size' }, { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()), advanced: true }],
+      onSave: (v) => { try { const r = Biz.returnItems(saleId, { lines: s.lines.map((l, i) => ({ i, qty: v[`q${i}`] || 0, restock: v[`r${i}`] !== false })), refund: v.refund, accountId: v.acc, reason: v.reason, date: v.date }); this.renderBiz(); toast(`↩ Return recorded: ${fmt(r.value)}${r.refund ? `, ${fmt(r.refund)} refunded` : ''}.`); } catch (e) { return e.message; } } });
+  },
+  bizOrderForm() {
+    const b = Biz.current(), items = Biz.items(b.id), custs = Biz.customers(b.id);
+    if (!items.length) return toast('Add your products first (Products & services).');
+    const lineFields = [0, 1, 2, 3].flatMap((n) => [{ id: `it${n}`, label: n ? `Item ${n + 1} (optional)` : 'Item', type: 'select', value: '', options: [['', '—'], ...items.map((i) => [i.id, `${i.name} · ${fmt(i.price)}`])], ...(n > 1 ? { advanced: true } : {}) },
+      { id: `q${n}`, label: 'Quantity', type: 'number', value: '', show: (v) => !!v[`it${n}`] }]);
+    this.form({ title: 'New order', save: 'Save order', sub: 'An order holds stock for the customer. It becomes a sale (revenue) when you complete it.',
+      fields: [{ id: 'cust', label: 'Customer', type: 'select', value: custs[0]?.id || '', options: [['', 'Walk-in / no name'], ...custs.map((c) => [c.id, c.name])] }, ...lineFields,
+        { id: 'channel', label: 'Where the order came from', type: 'select', value: '', options: [['', '—'], ['store', 'Store'], ['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['website', 'Website'], ['marketplace', 'Marketplace'], ['messages', 'Messages'], ['other', 'Other']] },
+        { id: 'fee', label: 'Delivery fee charged', type: 'number', value: '', advanced: true }, { id: 'address', label: 'Delivery address', value: '', advanced: true }, { id: 'status', label: 'Status', type: 'select', value: 'confirmed', options: BIZ_ORDER_STATUSES.filter(([k]) => !['completed', 'cancelled'].includes(k)), advanced: true }],
+      onSave: (v) => { const lines = [0, 1, 2, 3].filter((n) => v[`it${n}`]).map((n) => { const it = Biz.find('bizItems', v[`it${n}`]); return { itemId: it.id, qty: v[`q${n}`], price: it.price }; });
+        try { const o = Biz.createOrder(b.id, { customerId: v.cust, lines, channel: v.channel, fee: v.fee, address: v.address, status: v.status }); this.renderBiz(); toast(`📋 ${escapeHTML(o.no)} saved.`); } catch (e) { return e.message; } } });
+  },
+  bizCompleteForm(id, allow = {}) {
+    const o = Biz.find('bizOrders', id), b = Biz.current(), accs = Biz.accounts(b.id);
+    this.form({ title: `Complete ${o.no}`, save: 'Record the sale', sub: `Total ${fmt(o.total)}. This records the sale: stock leaves, and it counts as revenue today.`,
+      fields: [{ id: 'paid', label: 'Paid now', type: 'number', value: o.total }, { id: 'acc', label: 'Money went into', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) },
+        { id: 'due', label: 'If not fully paid, due by', type: 'date', value: toISODate(new Date(Date.now() + 14 * 864e5)), advanced: true }],
+      onSave: async (v) => {
+        try { const s = Biz.completeOrder(id, { paid: v.paid || 0, accountId: v.acc, dueDate: v.due, ...allow }); this.renderBiz(); toast(`✓ ${escapeHTML(o.no)} → ${escapeHTML(s.no)}.`); }
+        catch (e) {
+          if (e.belowCost || e.noStock) { setTimeout(async () => { if (await askConfirm(`${e.message} Complete it anyway?`, 'Yes')) this.bizCompleteForm(id, { ...allow, ...(e.belowCost ? { allowBelowCost: true } : { allowNoStock: true }) }); }, 0); return; }
+          return e.message;
+        }
+      } });
+  },
+  bizLoansBlock(b) {
+    const ls = Biz.of('bizLoans', b.id);
+    return `<div class="rounded-xl border border-stone-200 dark:border-stone-800 p-3 mt-3"><div class="flex justify-between items-center"><div class="font-semibold">Business loans</div><button type="button" data-biz="loan" class="rounded-lg border border-stone-200 dark:border-stone-700 px-2.5 py-1 text-sm font-semibold">+ Loan</button></div>
+      <ul class="mt-1 text-sm">${ls.map((l) => `<li class="py-1.5 flex flex-wrap justify-between gap-2"><span>${escapeHTML(l.lender)} · ${l.rate}%/yr${l.term ? ` · ${l.term} payments` : ''}${Biz.loanPayment(l) ? ` of ~${fmt(Biz.loanPayment(l))}` : ''}</span><span><span class="tabular">${fmt(Biz.loanOwed(l))} left</span>${Biz.loanOwed(l) > 0 ? ` <button type="button" data-biz="payloan" data-id="${l.id}" class="ml-2 rounded-lg border border-stone-200 dark:border-stone-700 px-2 py-0.5 text-xs font-semibold">Pay</button>` : ''}</span></li>`).join('') || '<li class="text-stone-500">None. Borrowed money isn’t revenue; only the interest is an expense.</li>'}</ul></div>`;
+  },
+  bizLoanForm() {
+    const b = Biz.current(), accs = Biz.accounts(b.id);
+    this.form({ title: 'Business loan', save: 'Add loan', sub: 'The money borrowed goes into a business account. It isn’t revenue.',
+      fields: [{ id: 'lender', label: 'Lender', value: '', placeholder: 'e.g. bank, cooperative' }, { id: 'principal', label: 'Amount borrowed', type: 'number', value: '' }, { id: 'rate', label: 'Interest rate per year (%)', type: 'number', value: '' },
+        { id: 'term', label: 'Number of monthly payments', type: 'number', value: '' }, { id: 'acc', label: 'Money went into', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) }, { id: 'date', label: 'Date received', type: 'date', value: toISODate(new Date()) }],
+      onSave: (v) => { try { Biz.addLoan(b.id, { ...v, accountId: v.acc }); } catch (e) { return e.message; } this.renderBiz(); toast('🏦 Loan added.'); } });
+  },
+  bizPayLoanForm(id) {
+    const l = Biz.find('bizLoans', id), b = Biz.current(), accs = Biz.accounts(b.id), pay = Math.min(Biz.loanOwed(l) + round2(Biz.loanOwed(l) * Debts.periodRate(l)), Biz.loanPayment(l) || Biz.loanOwed(l));
+    this.form({ title: `Pay ${l.lender}`, save: 'Record payment', sub: `${fmt(Biz.loanOwed(l))} left. Tiffo splits the payment like your personal loans: interest (an expense) first, the rest pays down the loan (not an expense).`,
+      fields: [{ id: 'amount', label: 'Amount paid', type: 'number', value: round2(pay) }, { id: 'interest', label: 'Interest in this payment (leave empty to let Tiffo work it out)', type: 'number', value: '', advanced: true },
+        { id: 'acc', label: 'Paid from', type: 'select', value: accs[0]?.id, options: accs.map((a) => [a.id, a.name]) }, { id: 'date', label: 'Date', type: 'date', value: toISODate(new Date()) }],
+      onSave: (v) => { try { const p = Biz.payLoan(id, { amount: v.amount, interest: v.interest, accountId: v.acc, date: v.date }); this.renderBiz(); toast(`✓ Paid ${fmt(p.amount)}: ${fmt(p.interest)} interest, ${fmt(p.principal)} off the loan.`); } catch (e) { return e.message; } } });
+  },
+  bizCashBlock(b, r) {
+    const days = this.bizProj || 30, pj = Biz.projection(b.id, days), pos = Biz.position(b.id);
+    const row = (l, v, cls = '') => `<tr class="${cls}"><td class="py-1">${l}</td><td class="py-1 text-right tabular">${v}</td></tr>`;
+    const op = round2(r.cashIn - r.cashOut), fin = round2(r.ownerIn - r.ownerOut + r.loanIn - r.loanOut);
+    return `<h4 class="mt-4 font-semibold">Cash flow <span class="text-xs font-normal text-stone-500">money that actually moved in this period</span></h4>
+      <table class="mt-1 w-full text-sm">${row('Received from customers', fmt(r.cashIn))}${round2(r.cashOut - r.supplierPaid - r.refunds) ? row('Paid for expenses', '−' + fmt(round2(r.cashOut - r.supplierPaid - r.refunds))) : ''}${r.supplierPaid ? row('Paid to suppliers', '−' + fmt(r.supplierPaid)) : ''}${r.refunds ? row('Refunds to customers', '−' + fmt(r.refunds)) : ''}
+        ${row('<b>From running the business</b>', `<b>${fmt(op)}</b>`, 'border-t border-stone-200 dark:border-stone-700')}
+        ${r.ownerIn ? row('You put in', fmt(r.ownerIn)) : ''}${r.ownerOut ? row('You took out', '−' + fmt(r.ownerOut)) : ''}${r.loanIn ? row('Loans received', fmt(r.loanIn)) : ''}${r.loanOut ? row('Loan payments', '−' + fmt(r.loanOut)) : ''}
+        ${row('<b>From owner money and loans</b>', `<b>${fmt(fin)}</b>`, 'border-t border-stone-200 dark:border-stone-700')}${row('<b>Net change in cash</b>', `<b>${fmt(round2(op + fin))}</b>`, 'border-t-2 border-stone-300 dark:border-stone-600')}</table>
+      <h4 class="mt-4 font-semibold">Coming up <select id="bizProj" class="ml-1 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 px-1.5 py-0.5 text-xs">${[30, 60, 90].map((d) => `<option value="${d}" ${days === d ? 'selected' : ''}>next ${d} days</option>`).join('')}</select> <span class="text-xs font-normal text-stone-500">estimate from due dates</span></h4>
+      <table class="mt-1 w-full text-sm">${row('Cash and bank now', fmt(pj.cash))}${row('Customers due to pay', '+' + fmt(pj.expIn))}${row('Due to suppliers, bills and loans', '−' + fmt(pj.expOut))}${row('<b>Expected cash</b>', `<b class="${pj.end < 0 ? 'text-rose-600' : ''}">${fmt(pj.end)}</b>`, 'border-t border-stone-200 dark:border-stone-700')}
+        ${pj.lateIn ? row(`If overdue customers also pay (${fmt(pj.lateIn)})`, fmt(pj.withLate), 'text-stone-500') : ''}</table>
+      ${pj.end < 0 ? '<p class="mt-1 text-xs text-rose-600">⚠️ At this rate the business could run short. Chase payments or move a due date.</p>' : ''}
+      <h4 class="mt-4 font-semibold">Business position <span class="text-xs font-normal text-stone-500">today, at book values</span></h4>
+      <table class="mt-1 w-full text-sm">${row('Cash and bank', fmt(pos.cash))}${row('Customers owe you', fmt(pos.receivables))}${row('Stock (at cost)', fmt(pos.inventory))}${row('You owe suppliers', '−' + fmt(pos.payables))}${row('Loans', '−' + fmt(pos.loans))}${row('<b>Business is worth (book value)</b>', `<b>${fmt(pos.net)}</b>`, 'border-t-2 border-stone-300 dark:border-stone-600')}</table>`;
   },
   bizProfileForm(b = null) {
     const t = b?.tax || { mode: 'none', rate: 0 };
@@ -7523,6 +7976,8 @@ const UI = {
       if (id === 'bizFilter') { this.bizFilter = e.target.value; return this.renderBiz(); }
       if (id === 'bizPeriod') { this.bizPeriod = e.target.value; return this.renderBiz(); }
       if (id === 'bizFrom' || id === 'bizTo') { this[id] = e.target.value; return this.renderBiz(); }
+      if (id === 'bizProj') { this.bizProj = +e.target.value; return this.renderBiz(); }
+      if (e.target.dataset.orderStatus) { try { Biz.setOrderStatus(e.target.dataset.orderStatus, e.target.value); } catch (x) { toast(escapeHTML(x.message)); } return this.renderBiz(); }
       if (id === 'bz_item') { const it = Biz.find('bizItems', e.target.value); $('#bz_name').classList.toggle('hidden', e.target.value !== '__custom'); if (it) $('#bz_price').value = it.price; return; }
       if (id === 'bz_cust' && e.target.value === '__new') { e.target.value = ''; return this.bizCustomerForm(null, (c) => { this.bizDraft.customerId = c.id; this.bizTab = 'sell'; this.renderBiz(); }); }
       if (id?.startsWith('bz_')) this.bizSellUpdate();
@@ -7538,6 +7993,21 @@ const UI = {
       if (act === 'qa-customer') return this.bizCustomerForm();
       if (act === 'qa-product') return this.bizItemForm();
       if (act === 'qa-owner') return this.bizOwnerForm();
+      if (act === 'qa-order') return this.bizOrderForm();
+      if (act === 'complete') return this.bizCompleteForm(id);
+      if (act === 'ship') { const o = Biz.find('bizOrders', id); return this.form({ title: `Delivery for ${o.no}`, save: 'Save', fields: [{ id: 'courier', label: 'Courier', value: o.shipping.courier || '', placeholder: 'e.g. Lalamove, J&T' }, { id: 'tracking', label: 'Tracking no.', value: o.shipping.tracking || '' }, { id: 'address', label: 'Address', value: o.shipping.address || '' }],
+        onSave: (v) => { Object.assign(o.shipping, { courier: v.courier || '', tracking: v.tracking || '', address: v.address || '' }); Store.save(); this.renderBiz(); } }); }
+      if (act === 'adjust') return this.bizAdjustForm(id);
+      if (act === 'moves') return this.bizMovesView(id);
+      if (act === 'supplier') return this.bizSupplierForm(id ? Biz.find('bizSuppliers', id) : null);
+      if (act === 'po') return this.bizPOForm();
+      if (act === 'receive') return this.bizReceiveForm(id);
+      if (act === 'paysup') return this.bizPaySupplierForm('po', id);
+      if (act === 'paybill') return this.bizPaySupplierForm('bill', id);
+      if (act === 'cancelpo') { if (!(await askConfirm('Cancel this purchase order?', 'Cancel order'))) return; const p = Biz.find('bizPurchases', id); p.status = 'cancelled'; Store.save(); return this.renderBiz(); }
+      if (act === 'return') return this.bizReturnForm(id);
+      if (act === 'loan') return this.bizLoanForm();
+      if (act === 'payloan') return this.bizPayLoanForm(id);
       if (act === 'kind-sale' || act === 'kind-invoice') { this.bizReadDraft(); this.bizDraft.kind = act === 'kind-invoice' ? 'invoice' : 'sale'; if (this.bizDraft.kind === 'invoice') this.bizDraft.pay = 'none'; return this.renderBiz(); }
       if (act === 'add-line') {
         this.bizReadDraft();
